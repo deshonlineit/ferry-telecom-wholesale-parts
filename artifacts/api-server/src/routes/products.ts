@@ -14,13 +14,12 @@ import {
   GetProductParams,
   GetProductResponse,
 } from "@workspace/api-zod";
-import {
-  getCurrentCustomerWithTier,
-  getAllTiers,
-  tierPrice,
-} from "../lib/store";
+import { getCustomerWithTier, getAllTiers, tierPrice } from "../lib/store";
+import { requireCustomer } from "../middlewares/requireCustomer";
 
 const router: IRouter = Router();
+
+router.use("/products", requireCustomer);
 
 const productSelect = {
   id: productsTable.id,
@@ -98,7 +97,7 @@ router.get("/products", async (req, res): Promise<void> => {
           ? desc(productsTable.createdAt)
           : asc(productsTable.name);
 
-  const { tier } = await getCurrentCustomerWithTier();
+  const { tier } = await getCustomerWithTier(req.customer!.id);
   const discount = Number(tier.discountPercent);
 
   const countQuery = db
@@ -127,8 +126,8 @@ router.get("/products", async (req, res): Promise<void> => {
   );
 });
 
-router.get("/products/featured", async (_req, res): Promise<void> => {
-  const { tier } = await getCurrentCustomerWithTier();
+router.get("/products/featured", async (req, res): Promise<void> => {
+  const { tier } = await getCustomerWithTier(req.customer!.id);
   const rows = await baseQuery()
     .where(eq(productsTable.featured, true))
     .orderBy(asc(productsTable.name))
@@ -154,7 +153,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   }
 
   const [{ tier }, tiers] = await Promise.all([
-    getCurrentCustomerWithTier(),
+    getCustomerWithTier(req.customer!.id),
     getAllTiers(),
   ]);
   const listPrice = Number(row.listPrice);

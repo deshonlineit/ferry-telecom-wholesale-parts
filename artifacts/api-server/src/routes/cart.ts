@@ -11,17 +11,15 @@ import {
   RemoveCartItemParams,
   RemoveCartItemResponse,
 } from "@workspace/api-zod";
-import {
-  CURRENT_CUSTOMER_ID,
-  getCurrentCustomerWithTier,
-  tierPrice,
-  round2,
-} from "../lib/store";
+import { getCustomerWithTier, tierPrice, round2 } from "../lib/store";
+import { requireCustomer } from "../middlewares/requireCustomer";
 
 const router: IRouter = Router();
 
-export async function buildCart() {
-  const { tier } = await getCurrentCustomerWithTier();
+router.use("/cart", requireCustomer);
+
+export async function buildCart(customerId: number) {
+  const { tier } = await getCustomerWithTier(customerId);
   const discount = Number(tier.discountPercent);
 
   const rows = await db
@@ -38,7 +36,7 @@ export async function buildCart() {
     })
     .from(cartItemsTable)
     .innerJoin(productsTable, eq(cartItemsTable.productId, productsTable.id))
-    .where(eq(cartItemsTable.customerId, CURRENT_CUSTOMER_ID))
+    .where(eq(cartItemsTable.customerId, customerId))
     .orderBy(asc(cartItemsTable.createdAt));
 
   const items = rows.map((r) => {
@@ -72,18 +70,19 @@ export async function buildCart() {
   };
 }
 
-router.get("/cart", async (_req, res): Promise<void> => {
-  res.json(GetCartResponse.parse(await buildCart()));
+router.get("/cart", async (req, res): Promise<void> => {
+  res.json(GetCartResponse.parse(await buildCart(req.customer!.id)));
 });
 
-router.delete("/cart", async (_req, res): Promise<void> => {
+router.delete("/cart", async (req, res): Promise<void> => {
   await db
     .delete(cartItemsTable)
-    .where(eq(cartItemsTable.customerId, CURRENT_CUSTOMER_ID));
+    .where(eq(cartItemsTable.customerId, req.customer!.id));
   res.sendStatus(204);
 });
 
 router.post("/cart/items", async (req, res): Promise<void> => {
+  const customerId = req.customer!.id;
   const parsed = AddCartItemBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -105,7 +104,7 @@ router.post("/cart/items", async (req, res): Promise<void> => {
     .from(cartItemsTable)
     .where(
       and(
-        eq(cartItemsTable.customerId, CURRENT_CUSTOMER_ID),
+        eq(cartItemsTable.customerId, customerId),
         eq(cartItemsTable.productId, productId),
       ),
     );
@@ -125,16 +124,17 @@ router.post("/cart/items", async (req, res): Promise<void> => {
       .where(eq(cartItemsTable.id, existing.id));
   } else {
     await db.insert(cartItemsTable).values({
-      customerId: CURRENT_CUSTOMER_ID,
+      customerId,
       productId,
       quantity,
     });
   }
 
-  res.json(AddCartItemResponse.parse(await buildCart()));
+  res.json(AddCartItemResponse.parse(await buildCart(customerId)));
 });
 
 router.patch("/cart/items/:id", async (req, res): Promise<void> => {
+  const customerId = req.customer!.id;
   const params = UpdateCartItemParams.safeParse(req.params);
   const body = UpdateCartItemBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -148,7 +148,7 @@ router.patch("/cart/items/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(cartItemsTable.id, params.data.id),
-        eq(cartItemsTable.customerId, CURRENT_CUSTOMER_ID),
+        eq(cartItemsTable.customerId, customerId),
       ),
     );
   if (!item) {
@@ -170,10 +170,11 @@ router.patch("/cart/items/:id", async (req, res): Promise<void> => {
     .set({ quantity: body.data.quantity })
     .where(eq(cartItemsTable.id, item.id));
 
-  res.json(UpdateCartItemResponse.parse(await buildCart()));
+  res.json(UpdateCartItemResponse.parse(await buildCart(customerId)));
 });
 
 router.delete("/cart/items/:id", async (req, res): Promise<void> => {
+  const customerId = req.customer!.id;
   const params = RemoveCartItemParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -185,11 +186,11 @@ router.delete("/cart/items/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(cartItemsTable.id, params.data.id),
-        eq(cartItemsTable.customerId, CURRENT_CUSTOMER_ID),
+        eq(cartItemsTable.customerId, customerId),
       ),
     );
 
-  res.json(RemoveCartItemResponse.parse(await buildCart()));
+  res.json(RemoveCartItemResponse.parse(await buildCart(customerId)));
 });
 
 export default router;

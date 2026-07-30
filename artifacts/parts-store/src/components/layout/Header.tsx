@@ -1,13 +1,19 @@
 import { Link, useLocation } from 'wouter';
-import { ShoppingCart, User, Package } from 'lucide-react';
+import { ShoppingCart, User, LogOut, LogIn } from 'lucide-react';
 import { useGetCart } from '@workspace/api-client-react';
+import { useAuth, useClerk, useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ferryLogo from '@/assets/ferry-logo.png';
 
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 export function Header() {
   const [location] = useLocation();
-  const { data: cart } = useGetCart();
+  const { isSignedIn } = useAuth();
+  const { user } = useUser();
+  const { signOut } = useClerk();
+  const { data: cart } = useGetCart({ query: { enabled: !!isSignedIn } as any });
 
   const navItems = [
     { label: 'Home', path: '/' },
@@ -47,29 +53,60 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/cart">
-            <Button
-              variant="outline"
-              size="sm"
-              className="relative gap-2"
-              data-testid="button-cart"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Cart</span>
-              {cart && cart.itemCount > 0 && (
-                <Badge variant="destructive" className="absolute -right-1 -top-1 h-5 min-w-5 px-1 text-xs">
-                  {cart.itemCount}
-                </Badge>
-              )}
-            </Button>
-          </Link>
+          {isSignedIn ? (
+            <>
+              <Link href="/cart">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="relative gap-2"
+                  data-testid="button-cart"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  <span className="hidden sm:inline">Cart</span>
+                  {cart && cart.itemCount > 0 && (
+                    <Badge variant="destructive" className="absolute -right-1 -top-1 h-5 min-w-5 px-1 text-xs">
+                      {cart.itemCount}
+                    </Badge>
+                  )}
+                </Button>
+              </Link>
 
-          <Link href="/account">
-            <Button variant="ghost" size="sm" className="gap-2" data-testid="button-account">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Account</span>
-            </Button>
-          </Link>
+              <Link href="/account">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-account">
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">
+                    {user?.firstName ?? 'Account'}
+                  </span>
+                </Button>
+              </Link>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={() => signOut({ redirectUrl: basePath || '/' })}
+                data-testid="button-sign-out"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Sign out</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/sign-in">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-sign-in">
+                  <LogIn className="h-4 w-4" />
+                  Sign in
+                </Button>
+              </Link>
+              <Link href="/sign-up">
+                <Button size="sm" data-testid="button-sign-up">
+                  Create account
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

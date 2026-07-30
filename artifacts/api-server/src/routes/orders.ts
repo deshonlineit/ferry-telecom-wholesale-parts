@@ -16,13 +16,16 @@ import {
   GetOrderResponse,
 } from "@workspace/api-zod";
 import {
-  CURRENT_CUSTOMER_ID,
-  getCurrentCustomerWithTier,
+  getCustomerWithTier,
+  applyTierUpgrade,
   tierPrice,
   round2,
 } from "../lib/store";
+import { requireCustomer } from "../middlewares/requireCustomer";
 
 const router: IRouter = Router();
+
+router.use("/orders", requireCustomer);
 
 function orderToApi(
   order: typeof ordersTable.$inferSelect,
@@ -49,7 +52,8 @@ function orderToApi(
   };
 }
 
-router.get("/orders", async (_req, res): Promise<void> => {
+router.get("/orders", async (req, res): Promise<void> => {
+  const customerId = req.customer!.id;
   const rows = await db
     .select({
       id: ordersTable.id,
@@ -60,7 +64,7 @@ router.get("/orders", async (_req, res): Promise<void> => {
       itemCount: sql<number>`(select coalesce(sum(${orderLinesTable.quantity}), 0) from ${orderLinesTable} where ${orderLinesTable.orderId} = ${ordersTable.id})::int`,
     })
     .from(ordersTable)
-    .where(eq(ordersTable.customerId, CURRENT_CUSTOMER_ID))
+    .where(eq(ordersTable.customerId, customerId))
     .orderBy(desc(ordersTable.createdAt));
 
   res.json(
@@ -84,7 +88,8 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
-  const { tier } = await getCurrentCustomerWithTier();
+  const customerId = req.customer!.id;
+  const { tier } = await getCustomerWithTier(customerId);
   const discount = Number(tier.discountPercent);
 
   const cartRows = await db
@@ -99,7 +104,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     })
     .from(cartItemsTable)
     .innerJoin(productsTable, eq(cartItemsTable.productId, productsTable.id))
-    .where(eq(cartItemsTable.customerId, CURRENT_CUSTOMER_ID));
+    .where(eq(cartItemsTable.customerId, customerId));
 
   if (cartRows.length === 0) {
     res.status(400).json({ error: "Cart is empty" });
@@ -139,7 +144,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       .insert(ordersTable)
       .values({
         orderNumber,
-        customerId: CURRENT_CUSTOMER_ID,
+        customerId: customerId,
         status: "processing",
         total: total.toFixed(2),
         savings: savings.toFixed(2),
@@ -172,14 +177,16 @@ router.post("/orders", async (req, res): Promise<void> => {
       .set({
         annualSpend: sql`${customersTable.annualSpend} + ${total.toFixed(2)}`,
       })
-      .where(eq(customersTable.id, CURRENT_CUSTOMER_ID));
+      .where(eq(customersTable.id, customerId));
 
     await tx
       .delete(cartItemsTable)
-      .where(eq(cartItemsTable.customerId, CURRENT_CUSTOMER_ID));
+      .where(eq(cartItemsTable.customerId, customerId));
 
     return created;
   });
+
+  await applyTierUpgrade(customerId);
 
   const orderLines = await db
     .select()
@@ -190,6 +197,7 @@ router.post("/orders", async (req, res): Promise<void> => {
 });
 
 router.get("/orders/:id", async (req, res): Promise<void> => {
+  const customerId = req.customer!.id;
   const params = GetOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -200,7 +208,7 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
     .select()
     .from(ordersTable)
     .where(eq(ordersTable.id, params.data.id));
-  if (!order || order.customerId !== CURRENT_CUSTOMER_ID) {
+  if (!order || order.customerId !== customerId) {
     res.status(404).json({ error: "Order not found" });
     return;
   }

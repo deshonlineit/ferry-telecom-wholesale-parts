@@ -1,4 +1,4 @@
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, lte, desc, and } from "drizzle-orm";
 import {
   db,
   customersTable,
@@ -6,9 +6,6 @@ import {
   type Customer,
   type PriceTier,
 } from "@workspace/db";
-
-// Demo storefront operates as the first (and only) seeded customer account.
-export const CURRENT_CUSTOMER_ID = 1;
 
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -18,7 +15,7 @@ export function tierPrice(listPrice: number, discountPercent: number): number {
   return round2(listPrice * (1 - discountPercent / 100));
 }
 
-export async function getCurrentCustomerWithTier(): Promise<{
+export async function getCustomerWithTier(customerId: number): Promise<{
   customer: Customer;
   tier: PriceTier;
 }> {
@@ -26,13 +23,41 @@ export async function getCurrentCustomerWithTier(): Promise<{
     .select()
     .from(customersTable)
     .innerJoin(priceTiersTable, eq(customersTable.tierId, priceTiersTable.id))
-    .where(eq(customersTable.id, CURRENT_CUSTOMER_ID));
+    .where(eq(customersTable.id, customerId));
 
   if (!row) {
-    throw new Error("Demo customer is not seeded");
+    throw new Error(`Customer ${customerId} not found`);
   }
 
   return { customer: row.customers, tier: row.price_tiers };
+}
+
+/**
+ * Upgrade the customer's tier to the highest tier whose minimum annual
+ * spend they now qualify for (never downgrades).
+ */
+export async function applyTierUpgrade(customerId: number): Promise<void> {
+  const { customer, tier } = await getCustomerWithTier(customerId);
+  const spend = Number(customer.annualSpend);
+
+  const [best] = await db
+    .select()
+    .from(priceTiersTable)
+    .where(lte(priceTiersTable.minAnnualSpend, spend.toFixed(2)))
+    .orderBy(desc(priceTiersTable.rank))
+    .limit(1);
+
+  if (best && best.rank > tier.rank) {
+    await db
+      .update(customersTable)
+      .set({ tierId: best.id })
+      .where(
+        and(
+          eq(customersTable.id, customerId),
+          eq(customersTable.tierId, tier.id),
+        ),
+      );
+  }
 }
 
 export function tierToApi(tier: PriceTier) {

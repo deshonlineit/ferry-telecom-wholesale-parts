@@ -1,1 +1,2 @@
 - [Orval zod codegen import fix](orval-zod-v4.md) — after every codegen run, sed the generated api-zod import from 'zod' to 'zod/v4' or typecheck fails on zod.int().
+- [Rebuild db types after schema changes](db-types-rebuild.md) — run `tsc -b lib/db` or new columns look missing; drizzle-kit push needs TTY, apply additive SQL via executeSql.

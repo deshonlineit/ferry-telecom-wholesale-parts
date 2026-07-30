@@ -23,6 +23,7 @@ export const priceTiersTable = pgTable("price_tiers", {
 
 export const customersTable = pgTable("customers", {
   id: serial("id").primaryKey(),
+  clerkUserId: text("clerk_user_id").unique(),
   companyName: text("company_name").notNull(),
   contactName: text("contact_name").notNull(),
   email: text("email").notNull().unique(),
