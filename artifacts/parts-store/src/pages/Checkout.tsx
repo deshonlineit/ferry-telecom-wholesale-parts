@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useGetCart, useCreateOrder, getGetCartQueryKey, getListOrdersQueryKey, getGetDashboardSummaryQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/components/ui/textarea';
 import { ShoppingCart, CheckCircle, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
+import { useGetCart, useGetCurrentCustomer, useCreateOrder, getGetCartQueryKey, getListOrdersQueryKey, getGetDashboardSummaryQueryKey } from '@workspace/api-client-react';
 
 const checkoutSchema = z.object({
   shippingAddress: z.string().min(1, 'Shipping address is required'),
@@ -25,6 +25,7 @@ export default function Checkout() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: cart, isLoading: cartLoading } = useGetCart();
+  const { data: customer } = useGetCurrentCustomer();
   const createOrder = useCreateOrder();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState('');
@@ -36,6 +37,15 @@ export default function Checkout() {
       notes: '',
     },
   });
+
+  // Pre-fill the saved default shipping address once it loads,
+  // without clobbering anything the user has already typed.
+  useEffect(() => {
+    if (customer?.defaultShippingAddress && !form.getValues('shippingAddress')) {
+      form.setValue('shippingAddress', customer.defaultShippingAddress);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer?.defaultShippingAddress]);
 
   const onSubmit = (data: CheckoutForm) => {
     createOrder.mutate(

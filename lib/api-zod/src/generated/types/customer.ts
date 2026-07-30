@@ -13,6 +13,8 @@ export interface Customer {
   companyName: string;
   contactName: string;
   email: string;
+  /** @nullable */
+  defaultShippingAddress: string | null;
   tier: PriceTier;
   annualSpend: number;
   nextTier: NextTierProgress | null;

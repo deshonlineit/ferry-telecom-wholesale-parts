@@ -1,5 +1,4 @@
 import { Link } from 'wouter';
-import { useGetCurrentCustomer, useGetDashboardSummary, useListPriceTiers } from '@workspace/api-client-react';
 import { Header } from '@/components/layout/Header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Award, Package, DollarSign, ShoppingBag, ChevronRight, Mail } from 'lucide-react';
 import { format } from 'date-fns';
+import { useEffect } from 'react';
+import {
+import { useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Award, TrendingUp, Package, DollarSign, ShoppingBag, ChevronRight, Building2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Account() {
   const { data: customer, isLoading: customerLoading } = useGetCurrentCustomer();
@@ -75,6 +85,9 @@ export default function Account() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Editable Profile */}
+            {customer && <ProfileCard customer={customer} />}
 
             {/* Stats */}
             {dashboard && (
@@ -267,5 +280,139 @@ export default function Account() {
         )}
       </main>
     </div>
+  );
+}
+
+const profileSchema = z.object({
+  companyName: z.string().min(1, 'Company name is required'),
+  contactName: z.string().min(1, 'Contact name is required'),
+  defaultShippingAddress: z.string().optional(),
+});
+
+type ProfileForm = z.infer<typeof profileSchema>;
+
+function ProfileCard({
+  customer,
+}: {
+  customer: { companyName: string; contactName: string; email: string; defaultShippingAddress: string | null };
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const updateProfile = useUpdateCustomerProfile();
+
+  const form = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      companyName: customer.companyName,
+      contactName: customer.contactName,
+      defaultShippingAddress: customer.defaultShippingAddress ?? '',
+    },
+  });
+
+  useEffect(() => {
+    form.reset({
+      companyName: customer.companyName,
+      contactName: customer.contactName,
+      defaultShippingAddress: customer.defaultShippingAddress ?? '',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer.companyName, customer.contactName, customer.defaultShippingAddress]);
+
+  const onSubmit = (data: ProfileForm) => {
+    updateProfile.mutate(
+      {
+        data: {
+          companyName: data.companyName,
+          contactName: data.contactName,
+          defaultShippingAddress: data.defaultShippingAddress?.trim() ? data.defaultShippingAddress : null,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCurrentCustomerQueryKey() });
+          toast({ title: 'Profile updated', description: 'Your company details have been saved.' });
+        },
+        onError: () => {
+          toast({
+            title: 'Update failed',
+            description: 'Could not save your profile. Please try again.',
+            variant: 'destructive',
+          });
+        },
+      }
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-primary" />
+          <div>
+            <CardTitle>Company Profile</CardTitle>
+            <CardDescription>
+              Your company details and default shipping address for faster checkout
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="companyName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your shop or company name" data-testid="input-company-name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contactName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Primary contact person" data-testid="input-contact-name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="defaultShippingAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Shipping Address</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Street, city, postal code, country — pre-filled at checkout"
+                      className="min-h-24"
+                      data-testid="input-default-shipping-address"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end">
+              <Button type="submit" disabled={updateProfile.isPending} data-testid="button-save-profile">
+                {updateProfile.isPending ? 'Saving...' : 'Save Profile'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }

@@ -103,11 +103,21 @@ export interface Customer {
   companyName: string;
   contactName: string;
   email: string;
+  /** @nullable */
+  defaultShippingAddress: string | null;
   tier: PriceTier;
   annualSpend: number;
   nextTier: NextTierProgress | null;
 }
 
+export interface CustomerProfileUpdate {
+  /** @minLength 1 */
+  companyName: string;
+  /** @minLength 1 */
+  contactName: string;
+  /** @nullable */
+  defaultShippingAddress?: string | null;
+}
 export interface CartItem {
   id: number;
   productId: number;
@@ -288,4 +298,3 @@ export const ListProductsSort = {
 export type SmartSearchParams = {
 q: string;
 };
-

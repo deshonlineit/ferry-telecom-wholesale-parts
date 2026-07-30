@@ -62,7 +62,6 @@ export const GetCatalogSummaryResponse = zod.object({
 export const listProductsQueryPageSizeMax = 100;
 
 
-
 export const ListProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
@@ -168,8 +167,6 @@ export const SetProductImageParams = zod.object({
 })
 
 
-
-
 export const SetProductImageBody = zod.object({
   "imageUrl": zod.string().min(1).describe('Uploaded objectPath (`\/objects\/...`), a storage URL, or any absolute image URL.')
 })
@@ -187,18 +184,11 @@ export const SetProductImageResponse = zod.object({
  */
 
 
-
-
-
 export const RequestUploadUrlBody = zod.object({
   "name": zod.string().min(1).describe('Original file name.'),
   "size": zod.int().min(1).describe('File size in bytes.'),
   "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
 })
-
-
-
-
 
 
 export const RequestUploadUrlResponse = zod.object({
@@ -244,6 +234,7 @@ export const GetCurrentCustomerResponse = zod.object({
   "companyName": zod.string(),
   "contactName": zod.string(),
   "email": zod.string(),
+  "defaultShippingAddress": zod.string().nullable(),
   "tier": zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -265,7 +256,11 @@ export const GetCurrentCustomerResponse = zod.object({
 }),zod.null()])
 })
 
-
+export const UpdateCustomerProfileBody = zod.object({
+  "companyName": zod.string().min(1),
+  "contactName": zod.string().min(1),
+  "defaultShippingAddress": zod.string().nullish()
+})
 /**
  * @summary All price tiers and their discount rules
  */
@@ -314,7 +309,6 @@ export const ClearCartResponse = zod.void()
  */
 
 
-
 export const AddCartItemBody = zod.object({
   "productId": zod.int(),
   "quantity": zod.int().min(1)
@@ -347,8 +341,6 @@ export const AddCartItemResponse = zod.object({
 export const UpdateCartItemParams = zod.object({
   "id": zod.coerce.number().int()
 })
-
-
 
 
 export const UpdateCartItemBody = zod.object({
@@ -421,7 +413,6 @@ export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
 /**
  * @summary One-step checkout from current cart
  */
-
 
 
 export const CreateOrderBody = zod.object({
@@ -554,3 +545,29 @@ export const GetDashboardSummaryResponse = zod.object({
 })
 
 
+export const UpdateCustomerProfileResponse = zod.object({
+  "id": zod.int(),
+  "companyName": zod.string(),
+  "contactName": zod.string(),
+  "email": zod.string(),
+  "defaultShippingAddress": zod.string().nullable(),
+  "tier": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "discountPercent": zod.number(),
+  "minAnnualSpend": zod.number(),
+  "description": zod.string()
+}),
+  "annualSpend": zod.number(),
+  "nextTier": zod.union([zod.object({
+  "tier": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "discountPercent": zod.number(),
+  "minAnnualSpend": zod.number(),
+  "description": zod.string()
+}),
+  "remainingSpend": zod.number(),
+  "progressPercent": zod.number()
+}),zod.null()])
+})

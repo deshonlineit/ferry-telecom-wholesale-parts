@@ -14,6 +14,7 @@ export * from './cartItemUpdate';
 export * from './catalogSummary';
 export * from './category';
 export * from './customer';
+export * from './customerProfileUpdate';
 export * from './dashboardSummary';
 export * from './deviceModel';
 export * from './errorEnvelope';

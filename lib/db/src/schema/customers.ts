@@ -27,6 +27,7 @@ export const customersTable = pgTable("customers", {
   companyName: text("company_name").notNull(),
   contactName: text("contact_name").notNull(),
   email: text("email").notNull().unique(),
+  defaultShippingAddress: text("default_shipping_address"),
   tierId: integer("tier_id")
     .notNull()
     .references(() => priceTiersTable.id),

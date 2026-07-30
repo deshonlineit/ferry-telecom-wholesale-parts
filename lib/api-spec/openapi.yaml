@@ -293,6 +293,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Customer"
+    patch:
+      operationId: updateCustomerProfile
+      tags: [account]
+      summary: Update the current customer's profile (company, contact, default shipping address)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerProfileUpdate"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Invalid input
   /price-tiers:
     get:
       operationId: listPriceTiers
@@ -579,12 +598,13 @@ components:
         description: { type: string }
     Customer:
       type: object
-      required: [id, companyName, contactName, email, tier, annualSpend, nextTier]
+      required: [id, companyName, contactName, email, defaultShippingAddress, tier, annualSpend, nextTier]
       properties:
         id: { type: integer }
         companyName: { type: string }
         contactName: { type: string }
         email: { type: string }
+        defaultShippingAddress: { type: ["string", "null"] }
         tier:
           $ref: "#/components/schemas/PriceTier"
         annualSpend: { type: number }
@@ -592,6 +612,13 @@ components:
           oneOf:
             - $ref: "#/components/schemas/NextTierProgress"
             - type: "null"
+    CustomerProfileUpdate:
+      type: object
+      required: [companyName, contactName]
+      properties:
+        companyName: { type: string, minLength: 1 }
+        contactName: { type: string, minLength: 1 }
+        defaultShippingAddress: { type: ["string", "null"] }
     NextTierProgress:
       type: object
       required: [tier, remainingSpend, progressPercent]

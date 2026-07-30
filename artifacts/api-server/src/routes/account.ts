@@ -1,8 +1,15 @@
 import { Router, type IRouter } from "express";
 import { desc, eq, sql } from "drizzle-orm";
-import { db, ordersTable, orderLinesTable } from "@workspace/db";
+import {
+  db,
+  customersTable,
+  ordersTable,
+  orderLinesTable,
+} from "@workspace/db";
 import {
   GetCurrentCustomerResponse,
+  UpdateCustomerProfileBody,
+  UpdateCustomerProfileResponse,
   ListPriceTiersResponse,
   GetDashboardSummaryResponse,
 } from "@workspace/api-zod";
@@ -28,6 +35,45 @@ router.get("/me", requireCustomer, async (req, res): Promise<void> => {
       companyName: customer.companyName,
       contactName: customer.contactName,
       email: customer.email,
+      defaultShippingAddress: customer.defaultShippingAddress,
+      tier: tierToApi(tier),
+      annualSpend,
+      nextTier: nextTierProgress(tiers, tier, annualSpend),
+    }),
+  );
+});
+
+router.patch("/me", requireCustomer, async (req, res): Promise<void> => {
+  const parsed = UpdateCustomerProfileBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
+  const { companyName, contactName, defaultShippingAddress } = parsed.data;
+
+  await db
+    .update(customersTable)
+    .set({
+      companyName: companyName.trim(),
+      contactName: contactName.trim(),
+      defaultShippingAddress:
+        defaultShippingAddress && defaultShippingAddress.trim()
+          ? defaultShippingAddress.trim()
+          : null,
+    })
+    .where(eq(customersTable.id, req.customer!.id));
+
+  const { customer, tier } = await getCustomerWithTier(req.customer!.id);
+  const tiers = await getAllTiers();
+  const annualSpend = Number(customer.annualSpend);
+
+  res.json(
+    UpdateCustomerProfileResponse.parse({
+      id: customer.id,
+      companyName: customer.companyName,
+      contactName: customer.contactName,
+      email: customer.email,
+      defaultShippingAddress: customer.defaultShippingAddress,
       tier: tierToApi(tier),
       annualSpend,
       nextTier: nextTierProgress(tiers, tier, annualSpend),
