@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Ferry Telecom Wholesale Parts"
+version = "1.0.0"
+id = "artifacts/parts-store"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18409
+
+[services.development]
+run = "pnpm --filter @workspace/parts-store run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/parts-store", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/parts-store/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18409"
+BASE_PATH = "/"

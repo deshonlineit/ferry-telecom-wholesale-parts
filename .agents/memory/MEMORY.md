@@ -1,0 +1,1 @@
+- [Orval zod codegen import fix](orval-zod-v4.md) — after every codegen run, sed the generated api-zod import from 'zod' to 'zod/v4' or typecheck fails on zod.int().

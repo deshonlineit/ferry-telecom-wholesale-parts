@@ -1,6 +1,6 @@
-# [Project name]
+# Ferry Telecom Wholesale Parts
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+B2B wholesale parts store for mobile repair shops: structured product catalog (brand/model/category/quality/stock), customer price tiers with volume-based discounts, cart, and one-step checkout.
 
 ## Run & Operate
 

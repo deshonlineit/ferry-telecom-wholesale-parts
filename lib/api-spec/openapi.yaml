@@ -3,20 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Wholesale mobile parts store API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: catalog
+  - name: products
+  - name: account
+  - name: cart
+  - name: orders
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +27,518 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /catalog/categories:
+    get:
+      operationId: listCategories
+      tags: [catalog]
+      summary: List product categories with product counts
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+  /catalog/brands:
+    get:
+      operationId: listBrands
+      tags: [catalog]
+      summary: List device brands with their models
+      responses:
+        "200":
+          description: Brands
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Brand"
+  /catalog/summary:
+    get:
+      operationId: getCatalogSummary
+      tags: [catalog]
+      summary: Storefront summary stats (product count, brands, in-stock, categories)
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogSummary"
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: Search and filter products (prices are tier-adjusted for current customer)
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: categoryId
+          in: query
+          schema: { type: integer }
+        - name: brandId
+          in: query
+          schema: { type: integer }
+        - name: modelId
+          in: query
+          schema: { type: integer }
+        - name: quality
+          in: query
+          schema: { type: string }
+        - name: inStockOnly
+          in: query
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name, priceAsc, priceDesc, newest]
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Paged products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+  /products/featured:
+    get:
+      operationId: listFeaturedProducts
+      tags: [products]
+      summary: Featured / best-selling products
+      responses:
+        "200":
+          description: Featured products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Product detail with tier price breakdown
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDetail"
+        "404":
+          description: Not found
+  /me:
+    get:
+      operationId: getCurrentCustomer
+      tags: [account]
+      summary: Current customer profile with price tier and progress to next tier
+      responses:
+        "200":
+          description: Customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+  /price-tiers:
+    get:
+      operationId: listPriceTiers
+      tags: [account]
+      summary: All price tiers and their discount rules
+      responses:
+        "200":
+          description: Tiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceTier"
+  /cart:
+    get:
+      operationId: getCart
+      tags: [cart]
+      summary: Current cart with tier-adjusted line totals
+      responses:
+        "200":
+          description: Cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+    delete:
+      operationId: clearCart
+      tags: [cart]
+      summary: Empty the cart
+      responses:
+        "204":
+          description: Cleared
+  /cart/items:
+    post:
+      operationId: addCartItem
+      tags: [cart]
+      summary: Add a product to the cart (or increase quantity)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartItemInput"
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "400":
+          description: Invalid input or insufficient stock
+  /cart/items/{id}:
+    patch:
+      operationId: updateCartItem
+      tags: [cart]
+      summary: Change quantity of a cart line
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartItemUpdate"
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "404":
+          description: Not found
+    delete:
+      operationId: removeCartItem
+      tags: [cart]
+      summary: Remove a cart line
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: Order history for current customer
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrderSummary"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: One-step checkout from current cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Cart empty or stock problem
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Order detail with lines
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [account]
+      summary: Account dashboard (spend, orders, tier progress, recent orders)
+      responses:
+        "200":
+          description: Dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
 components:
   schemas:
     HealthStatus:
       type: object
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        status: { type: string }
+      required: [status]
+    Category:
+      type: object
+      required: [id, name, slug, productCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: ["string", "null"] }
+        productCount: { type: integer }
+    DeviceModel:
+      type: object
+      required: [id, brandId, name]
+      properties:
+        id: { type: integer }
+        brandId: { type: integer }
+        name: { type: string }
+    Brand:
+      type: object
+      required: [id, name, models]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        models:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceModel"
+    CatalogSummary:
+      type: object
+      required: [productCount, brandCount, categoryCount, inStockCount]
+      properties:
+        productCount: { type: integer }
+        brandCount: { type: integer }
+        categoryCount: { type: integer }
+        inStockCount: { type: integer }
+    Product:
+      type: object
+      required: [id, sku, name, categoryId, categoryName, brandId, brandName, quality, listPrice, yourPrice, stock, imageUrl]
+      properties:
+        id: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        categoryId: { type: integer }
+        categoryName: { type: string }
+        brandId: { type: integer }
+        brandName: { type: string }
+        modelId: { type: ["integer", "null"] }
+        modelName: { type: ["string", "null"] }
+        quality: { type: string }
+        listPrice: { type: number }
+        yourPrice: { type: number }
+        stock: { type: integer }
+        imageUrl: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+    ProductPage:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalPages: { type: integer }
+    TierPrice:
+      type: object
+      required: [tierId, tierName, price, isCurrent]
+      properties:
+        tierId: { type: integer }
+        tierName: { type: string }
+        price: { type: number }
+        isCurrent: { type: boolean }
+    ProductDetail:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+        - type: object
+          required: [tierPrices, specs]
+          properties:
+            tierPrices:
+              type: array
+              items:
+                $ref: "#/components/schemas/TierPrice"
+            specs:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProductSpec"
+    ProductSpec:
+      type: object
+      required: [label, value]
+      properties:
+        label: { type: string }
+        value: { type: string }
+    PriceTier:
+      type: object
+      required: [id, name, discountPercent, minAnnualSpend, description]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        discountPercent: { type: number }
+        minAnnualSpend: { type: number }
+        description: { type: string }
+    Customer:
+      type: object
+      required: [id, companyName, contactName, email, tier, annualSpend, nextTier]
+      properties:
+        id: { type: integer }
+        companyName: { type: string }
+        contactName: { type: string }
+        email: { type: string }
+        tier:
+          $ref: "#/components/schemas/PriceTier"
+        annualSpend: { type: number }
+        nextTier:
+          oneOf:
+            - $ref: "#/components/schemas/NextTierProgress"
+            - type: "null"
+    NextTierProgress:
+      type: object
+      required: [tier, remainingSpend, progressPercent]
+      properties:
+        tier:
+          $ref: "#/components/schemas/PriceTier"
+        remainingSpend: { type: number }
+        progressPercent: { type: number }
+    CartItem:
+      type: object
+      required: [id, productId, sku, name, quality, imageUrl, quantity, unitPrice, lineTotal, stock]
+      properties:
+        id: { type: integer }
+        productId: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        quality: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        quantity: { type: integer }
+        unitPrice: { type: number }
+        lineTotal: { type: number }
+        stock: { type: integer }
+    Cart:
+      type: object
+      required: [items, itemCount, subtotal, discountPercent, listSubtotal, savings]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        itemCount: { type: integer }
+        subtotal: { type: number }
+        listSubtotal: { type: number }
+        savings: { type: number }
+        discountPercent: { type: number }
+    CartItemInput:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId: { type: integer }
+        quantity: { type: integer, minimum: 1 }
+    CartItemUpdate:
+      type: object
+      required: [quantity]
+      properties:
+        quantity: { type: integer, minimum: 1 }
+    OrderInput:
+      type: object
+      required: [shippingAddress]
+      properties:
+        shippingAddress: { type: string, minLength: 1 }
+        notes: { type: string }
+    OrderLine:
+      type: object
+      required: [id, productId, sku, name, quantity, unitPrice, lineTotal]
+      properties:
+        id: { type: integer }
+        productId: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        quantity: { type: integer }
+        unitPrice: { type: number }
+        lineTotal: { type: number }
+    OrderSummary:
+      type: object
+      required: [id, orderNumber, status, itemCount, total, createdAt]
+      properties:
+        id: { type: integer }
+        orderNumber: { type: string }
+        status: { type: string }
+        itemCount: { type: integer }
+        total: { type: number }
+        createdAt: { type: string }
+    Order:
+      type: object
+      required: [id, orderNumber, status, total, savings, shippingAddress, createdAt, lines]
+      properties:
+        id: { type: integer }
+        orderNumber: { type: string }
+        status: { type: string }
+        total: { type: number }
+        savings: { type: number }
+        shippingAddress: { type: string }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string }
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderLine"
+    DashboardSummary:
+      type: object
+      required: [totalOrders, annualSpend, totalSavings, tier, nextTier, recentOrders]
+      properties:
+        totalOrders: { type: integer }
+        annualSpend: { type: number }
+        totalSavings: { type: number }
+        tier:
+          $ref: "#/components/schemas/PriceTier"
+        nextTier:
+          oneOf:
+            - $ref: "#/components/schemas/NextTierProgress"
+            - type: "null"
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderSummary"
