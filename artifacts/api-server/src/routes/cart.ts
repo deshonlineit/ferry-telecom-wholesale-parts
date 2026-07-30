@@ -103,7 +103,7 @@ router.post("/cart/items", async (req, res): Promise<void> => {
   const [product] = await db
     .select()
     .from(productsTable)
-    .where(eq(productsTable.id, productId));
+    .where(eq(productsTable.id, item.productId));
   if (!product) {
     res.status(400).json({ error: "Product not found" });
     return;
@@ -145,7 +145,17 @@ router.post("/cart/items", async (req, res): Promise<void> => {
 
 router.patch("/cart/items/:id", async (req, res): Promise<void> => {
   const customerId = req.customer!.id;
-  const params = UpdateCartItemParams.safeParse(req.params);
+  const params = RemoveCartItemParams.safeParse(req.params);
+
+  const deleted = await db
+    .delete(cartItemsTable)
+    .where(
+      and(
+        eq(cartItemsTable.id, params.data.id),
+        eq(cartItemsTable.customerId, customerId),
+      ),
+    )
+    .returning();
   const body = UpdateCartItemBody.safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: "Invalid input" });
@@ -186,21 +196,14 @@ router.patch("/cart/items/:id", async (req, res): Promise<void> => {
 router.delete("/cart/items/:id", async (req, res): Promise<void> => {
   const customerId = req.customer!.id;
   const params = RemoveCartItemParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
 
-  await db
+  const deleted = await db
     .delete(cartItemsTable)
     .where(
       and(
         eq(cartItemsTable.id, params.data.id),
         eq(cartItemsTable.customerId, customerId),
       ),
-    );
-
-  res.json(RemoveCartItemResponse.parse(await buildCart(customerId)));
-});
-
+    )
+    .returning();
 export default router;
