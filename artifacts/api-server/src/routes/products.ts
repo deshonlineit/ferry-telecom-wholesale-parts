@@ -210,17 +210,3 @@ router.get("/products/:id", async (req, res): Promise<void> => {
 });
 
 export default router;
-
-  let imageUrl = body.data.imageUrl;
-
-    const storage = new ObjectStorageService();
-
-    const objectPath = await storage.trySetObjectEntityAclPolicy(imageUrl, {
-      owner: "admin",
-      visibility: "public",
-    });
-
-  const [product] = await db
-    .select({ id: productsTable.id })
-    .from(productsTable)
-    .where(eq(productsTable.id, params.data.id));

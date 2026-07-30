@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { ShoppingCart, User, LogOut, LogIn } from 'lucide-react';
+import { ShoppingCart, User, LogOut, LogIn, Settings } from 'lucide-react';
 import { useGetCart } from '@workspace/api-client-react';
 import { useAuth, useClerk, useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,13 @@ export function Header() {
         <div className="flex items-center gap-2">
           {isSignedIn ? (
             <>
+              <Link href="/admin/products">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-admin">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Button>
+              </Link>
+
               <Link href="/cart">
                 <Button
                   variant="outline"

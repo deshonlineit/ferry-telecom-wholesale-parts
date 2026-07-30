@@ -62,6 +62,7 @@ export const GetCatalogSummaryResponse = zod.object({
 export const listProductsQueryPageSizeMax = 100;
 
 
+
 export const ListProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
@@ -167,6 +168,8 @@ export const SetProductImageParams = zod.object({
 })
 
 
+
+
 export const SetProductImageBody = zod.object({
   "imageUrl": zod.string().min(1).describe('Uploaded objectPath (`\/objects\/...`), a storage URL, or any absolute image URL.')
 })
@@ -184,11 +187,18 @@ export const SetProductImageResponse = zod.object({
  */
 
 
+
+
+
 export const RequestUploadUrlBody = zod.object({
   "name": zod.string().min(1).describe('Original file name.'),
   "size": zod.int().min(1).describe('File size in bytes.'),
   "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
 })
+
+
+
+
 
 
 export const RequestUploadUrlResponse = zod.object({
@@ -256,11 +266,48 @@ export const GetCurrentCustomerResponse = zod.object({
 }),zod.null()])
 })
 
+
+/**
+ * @summary Update the current customer's profile (company, contact, default shipping address)
+ */
+
+
+
+
 export const UpdateCustomerProfileBody = zod.object({
   "companyName": zod.string().min(1),
   "contactName": zod.string().min(1),
   "defaultShippingAddress": zod.string().nullish()
 })
+
+export const UpdateCustomerProfileResponse = zod.object({
+  "id": zod.int(),
+  "companyName": zod.string(),
+  "contactName": zod.string(),
+  "email": zod.string(),
+  "defaultShippingAddress": zod.string().nullable(),
+  "tier": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "discountPercent": zod.number(),
+  "minAnnualSpend": zod.number(),
+  "description": zod.string()
+}),
+  "annualSpend": zod.number(),
+  "nextTier": zod.union([zod.object({
+  "tier": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "discountPercent": zod.number(),
+  "minAnnualSpend": zod.number(),
+  "description": zod.string()
+}),
+  "remainingSpend": zod.number(),
+  "progressPercent": zod.number()
+}),zod.null()])
+})
+
+
 /**
  * @summary All price tiers and their discount rules
  */
@@ -309,6 +356,7 @@ export const ClearCartResponse = zod.void()
  */
 
 
+
 export const AddCartItemBody = zod.object({
   "productId": zod.int(),
   "quantity": zod.int().min(1)
@@ -341,6 +389,8 @@ export const AddCartItemResponse = zod.object({
 export const UpdateCartItemParams = zod.object({
   "id": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateCartItemBody = zod.object({
@@ -413,6 +463,7 @@ export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
 /**
  * @summary One-step checkout from current cart
  */
+
 
 
 export const CreateOrderBody = zod.object({
@@ -545,29 +596,300 @@ export const GetDashboardSummaryResponse = zod.object({
 })
 
 
-export const UpdateCustomerProfileResponse = zod.object({
+/**
+ * @summary Admin product list with raw list prices and stock
+ */
+
+export const adminListProductsQueryPageSizeMax = 100;
+
+
+
+export const AdminListProductsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "categoryId": zod.coerce.number().int().optional(),
+  "page": zod.coerce.number().int().min(1).optional(),
+  "pageSize": zod.coerce.number().int().min(1).max(adminListProductsQueryPageSizeMax).optional()
+})
+
+export const AdminListProductsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.int(),
+  "categoryName": zod.string(),
+  "brandId": zod.int(),
+  "brandName": zod.string(),
+  "modelId": zod.int().nullish(),
+  "modelName": zod.string().nullish(),
+  "quality": zod.string(),
+  "listPrice": zod.number(),
+  "stock": zod.int(),
+  "featured": zod.boolean(),
+  "imageUrl": zod.string().nullable(),
+  "description": zod.string().nullable()
+})),
+  "total": zod.int(),
+  "page": zod.int(),
+  "pageSize": zod.int(),
+  "totalPages": zod.int()
+})
+
+
+/**
+ * @summary Create a product
+ */
+
+
+
+export const adminCreateProductBodyListPriceMin = 0;
+
+export const adminCreateProductBodyStockMin = 0;
+
+
+
+export const AdminCreateProductBody = zod.object({
+  "sku": zod.string().min(1),
+  "name": zod.string().min(1),
+  "categoryId": zod.int(),
+  "brandId": zod.int(),
+  "modelId": zod.int().nullish(),
+  "quality": zod.string().min(1),
+  "listPrice": zod.number().min(adminCreateProductBodyListPriceMin),
+  "stock": zod.int().min(adminCreateProductBodyStockMin),
+  "featured": zod.boolean().optional(),
+  "imageUrl": zod.string().nullish(),
+  "description": zod.string().nullish()
+})
+
+export const AdminCreateProductResponse = zod.object({
+  "id": zod.int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.int(),
+  "categoryName": zod.string(),
+  "brandId": zod.int(),
+  "brandName": zod.string(),
+  "modelId": zod.int().nullish(),
+  "modelName": zod.string().nullish(),
+  "quality": zod.string(),
+  "listPrice": zod.number(),
+  "stock": zod.int(),
+  "featured": zod.boolean(),
+  "imageUrl": zod.string().nullable(),
+  "description": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update a product (partial)
+ */
+export const AdminUpdateProductParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+
+
+export const adminUpdateProductBodyListPriceMin = 0;
+
+export const adminUpdateProductBodyStockMin = 0;
+
+
+
+export const AdminUpdateProductBody = zod.object({
+  "sku": zod.string().min(1).optional(),
+  "name": zod.string().min(1).optional(),
+  "categoryId": zod.int().optional(),
+  "brandId": zod.int().optional(),
+  "modelId": zod.int().nullish(),
+  "quality": zod.string().min(1).optional(),
+  "listPrice": zod.number().min(adminUpdateProductBodyListPriceMin).optional(),
+  "stock": zod.int().min(adminUpdateProductBodyStockMin).optional(),
+  "featured": zod.boolean().optional(),
+  "imageUrl": zod.string().nullish(),
+  "description": zod.string().nullish()
+})
+
+export const AdminUpdateProductResponse = zod.object({
+  "id": zod.int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.int(),
+  "categoryName": zod.string(),
+  "brandId": zod.int(),
+  "brandName": zod.string(),
+  "modelId": zod.int().nullish(),
+  "modelName": zod.string().nullish(),
+  "quality": zod.string(),
+  "listPrice": zod.number(),
+  "stock": zod.int(),
+  "featured": zod.boolean(),
+  "imageUrl": zod.string().nullable(),
+  "description": zod.string().nullable()
+})
+
+
+/**
+ * @summary Create a category
+ */
+
+
+
+
+export const AdminCreateCategoryBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().min(1),
+  "description": zod.string().nullish()
+})
+
+export const AdminCreateCategoryResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullish(),
+  "productCount": zod.int()
+})
+
+
+/**
+ * @summary Update a category
+ */
+export const AdminUpdateCategoryParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+
+
+
+export const AdminUpdateCategoryBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "slug": zod.string().min(1).optional(),
+  "description": zod.string().nullish()
+})
+
+export const AdminUpdateCategoryResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullish(),
+  "productCount": zod.int()
+})
+
+
+/**
+ * @summary Create a brand
+ */
+
+
+
+export const AdminCreateBrandBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+export const AdminCreateBrandResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "models": zod.array(zod.object({
+  "id": zod.int(),
+  "brandId": zod.int(),
+  "name": zod.string()
+}))
+})
+
+
+/**
+ * @summary Create a device model under a brand
+ */
+
+
+
+export const AdminCreateModelBody = zod.object({
+  "brandId": zod.int(),
+  "name": zod.string().min(1)
+})
+
+export const AdminCreateModelResponse = zod.object({
+  "id": zod.int(),
+  "brandId": zod.int(),
+  "name": zod.string()
+})
+
+
+/**
+ * @summary All customers with their price tier
+ */
+export const AdminListCustomersResponseItem = zod.object({
   "id": zod.int(),
   "companyName": zod.string(),
   "contactName": zod.string(),
   "email": zod.string(),
-  "defaultShippingAddress": zod.string().nullable(),
-  "tier": zod.object({
-  "id": zod.int(),
-  "name": zod.string(),
-  "discountPercent": zod.number(),
-  "minAnnualSpend": zod.number(),
-  "description": zod.string()
-}),
-  "annualSpend": zod.number(),
-  "nextTier": zod.union([zod.object({
-  "tier": zod.object({
-  "id": zod.int(),
-  "name": zod.string(),
-  "discountPercent": zod.number(),
-  "minAnnualSpend": zod.number(),
-  "description": zod.string()
-}),
-  "remainingSpend": zod.number(),
-  "progressPercent": zod.number()
-}),zod.null()])
+  "tierId": zod.int(),
+  "tierName": zod.string(),
+  "annualSpend": zod.number()
 })
+export const AdminListCustomersResponse = zod.array(AdminListCustomersResponseItem)
+
+
+/**
+ * @summary Assign a customer to a price tier
+ */
+export const AdminUpdateCustomerTierParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const AdminUpdateCustomerTierBody = zod.object({
+  "tierId": zod.int()
+})
+
+export const AdminUpdateCustomerTierResponse = zod.object({
+  "id": zod.int(),
+  "companyName": zod.string(),
+  "contactName": zod.string(),
+  "email": zod.string(),
+  "tierId": zod.int(),
+  "tierName": zod.string(),
+  "annualSpend": zod.number()
+})
+
+
+/**
+ * @summary All orders across customers
+ */
+export const AdminListOrdersResponseItem = zod.object({
+  "id": zod.int(),
+  "orderNumber": zod.string(),
+  "customerId": zod.int(),
+  "companyName": zod.string(),
+  "status": zod.string(),
+  "itemCount": zod.int(),
+  "total": zod.number(),
+  "createdAt": zod.string()
+})
+export const AdminListOrdersResponse = zod.array(AdminListOrdersResponseItem)
+
+
+/**
+ * @summary Update order status (processing → shipped → delivered)
+ */
+export const AdminUpdateOrderStatusParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const AdminUpdateOrderStatusBody = zod.object({
+  "status": zod.enum(['processing', 'shipped', 'delivered'])
+})
+
+export const AdminUpdateOrderStatusResponse = zod.object({
+  "id": zod.int(),
+  "orderNumber": zod.string(),
+  "customerId": zod.int(),
+  "companyName": zod.string(),
+  "status": zod.string(),
+  "itemCount": zod.int(),
+  "total": zod.number(),
+  "createdAt": zod.string()
+})
+
+

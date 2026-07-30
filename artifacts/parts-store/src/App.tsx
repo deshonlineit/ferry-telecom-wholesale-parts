@@ -16,6 +16,10 @@ import Orders from '@/pages/Orders';
 import OrderDetail from '@/pages/OrderDetail';
 import Account from '@/pages/Account';
 import NotFound from '@/pages/NotFound';
+import AdminProducts from '@/pages/admin/AdminProducts';
+import AdminCatalog from '@/pages/admin/AdminCatalog';
+import AdminCustomers from '@/pages/admin/AdminCustomers';
+import AdminOrders from '@/pages/admin/AdminOrders';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -200,6 +204,21 @@ function ClerkProviderWithRoutes() {
             </Route>
             <Route path="/account">
               <Protected component={Account} />
+            </Route>
+            <Route path="/admin">
+              <Protected component={() => <Redirect to="/admin/products" />} />
+            </Route>
+            <Route path="/admin/products">
+              <Protected component={AdminProducts} />
+            </Route>
+            <Route path="/admin/catalog">
+              <Protected component={AdminCatalog} />
+            </Route>
+            <Route path="/admin/customers">
+              <Protected component={AdminCustomers} />
+            </Route>
+            <Route path="/admin/orders">
+              <Protected component={AdminOrders} />
             </Route>
             <Route component={NotFound} />
           </Switch>

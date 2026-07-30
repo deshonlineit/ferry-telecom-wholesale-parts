@@ -139,7 +139,19 @@ router.post("/orders", async (req, res): Promise<void> => {
     cartRows.map((r) => r.productId),
   );
 
-  const lines = await fetchOrderLines(order.id);
+  const lines = cartRows.map((r) => {
+    const listPrice = Number(r.listPrice);
+    const unitPrice = resolvePrice(explicitOrder, r.productId, listPrice, discount);
+    return {
+      productId: r.productId,
+      sku: r.sku,
+      name: r.name,
+      quantity: r.quantity,
+      unitPrice,
+      lineTotal: round2(unitPrice * r.quantity),
+      listLineTotal: round2(listPrice * r.quantity),
+    };
+  });
 
   const total = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
   const savings = round2(

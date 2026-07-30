@@ -22,7 +22,10 @@ B2B wholesale parts store for mobile repair shops: real catalog imported from th
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- DB schema: `lib/db/src/schema/` (catalog, customers, orders)
+- API contract: `lib/api-spec/openapi.yaml` (source of truth; run codegen after edits)
+- API routes: `artifacts/api-server/src/routes/` — `admin.ts` holds all `/admin/*` back-office endpoints
+- Storefront + admin UI: `artifacts/parts-store/src/pages/` (admin pages under `pages/admin/`, shell in `components/admin/AdminLayout.tsx`)
 
 ## Architecture decisions
 

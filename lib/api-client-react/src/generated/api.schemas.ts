@@ -5,6 +5,147 @@
  * Wholesale mobile parts store API
  * OpenAPI spec version: 0.1.0
  */
+export interface AdminProduct {
+  id: number;
+  sku: string;
+  name: string;
+  categoryId: number;
+  categoryName: string;
+  brandId: number;
+  brandName: string;
+  /** @nullable */
+  modelId?: number | null;
+  /** @nullable */
+  modelName?: string | null;
+  quality: string;
+  listPrice: number;
+  stock: number;
+  featured: boolean;
+  /** @nullable */
+  imageUrl: string | null;
+  /** @nullable */
+  description: string | null;
+}
+
+export interface AdminProductPage {
+  items: AdminProduct[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ProductInput {
+  /** @minLength 1 */
+  sku: string;
+  /** @minLength 1 */
+  name: string;
+  categoryId: number;
+  brandId: number;
+  /** @nullable */
+  modelId?: number | null;
+  /** @minLength 1 */
+  quality: string;
+  /** @minimum 0 */
+  listPrice: number;
+  /** @minimum 0 */
+  stock: number;
+  featured?: boolean;
+  /** @nullable */
+  imageUrl?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface ProductPatch {
+  /** @minLength 1 */
+  sku?: string;
+  /** @minLength 1 */
+  name?: string;
+  categoryId?: number;
+  brandId?: number;
+  /** @nullable */
+  modelId?: number | null;
+  /** @minLength 1 */
+  quality?: string;
+  /** @minimum 0 */
+  listPrice?: number;
+  /** @minimum 0 */
+  stock?: number;
+  featured?: boolean;
+  /** @nullable */
+  imageUrl?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface CategoryInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  slug: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface CategoryPatch {
+  /** @minLength 1 */
+  name?: string;
+  /** @minLength 1 */
+  slug?: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface BrandInput {
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface DeviceModelInput {
+  brandId: number;
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface AdminCustomer {
+  id: number;
+  companyName: string;
+  contactName: string;
+  email: string;
+  tierId: number;
+  tierName: string;
+  annualSpend: number;
+}
+
+export interface CustomerTierAssignment {
+  tierId: number;
+}
+
+export interface AdminOrder {
+  id: number;
+  orderNumber: string;
+  customerId: number;
+  companyName: string;
+  status: string;
+  itemCount: number;
+  total: number;
+  createdAt: string;
+}
+
+export type OrderStatusUpdateStatus = typeof OrderStatusUpdateStatus[keyof typeof OrderStatusUpdateStatus];
+
+
+export const OrderStatusUpdateStatus = {
+  processing: 'processing',
+  shipped: 'shipped',
+  delivered: 'delivered',
+} as const;
+
+export interface OrderStatusUpdate {
+  status: OrderStatusUpdateStatus;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -118,6 +259,7 @@ export interface CustomerProfileUpdate {
   /** @nullable */
   defaultShippingAddress?: string | null;
 }
+
 export interface CartItem {
   id: number;
   productId: number;
@@ -298,3 +440,18 @@ export const ListProductsSort = {
 export type SmartSearchParams = {
 q: string;
 };
+
+export type AdminListProductsParams = {
+search?: string;
+categoryId?: number;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+

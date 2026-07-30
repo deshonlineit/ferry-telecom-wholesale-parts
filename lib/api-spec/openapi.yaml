@@ -15,6 +15,7 @@ tags:
   - name: cart
   - name: orders
   - name: storage
+  - name: admin
 paths:
   /healthz:
     get:
@@ -487,8 +488,365 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
+  /admin/products:
+    get:
+      operationId: adminListProducts
+      tags: [admin]
+      summary: Admin product list with raw list prices and stock
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: categoryId
+          in: query
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Paged admin products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductPage"
+    post:
+      operationId: adminCreateProduct
+      tags: [admin]
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+        "400":
+          description: Invalid input or duplicate SKU
+  /admin/products/{id}:
+    patch:
+      operationId: adminUpdateProduct
+      tags: [admin]
+      summary: Update a product (partial)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductPatch"
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+        "404":
+          description: Not found
+        "400":
+          description: Invalid input
+  /admin/categories:
+    post:
+      operationId: adminCreateCategory
+      tags: [admin]
+      summary: Create a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "400":
+          description: Invalid input or duplicate slug
+  /admin/categories/{id}:
+    patch:
+      operationId: adminUpdateCategory
+      tags: [admin]
+      summary: Update a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryPatch"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          description: Not found
+  /admin/brands:
+    post:
+      operationId: adminCreateBrand
+      tags: [admin]
+      summary: Create a brand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandInput"
+      responses:
+        "201":
+          description: Created brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+        "400":
+          description: Invalid input or duplicate name
+  /admin/models:
+    post:
+      operationId: adminCreateModel
+      tags: [admin]
+      summary: Create a device model under a brand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceModelInput"
+      responses:
+        "201":
+          description: Created model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceModel"
+        "400":
+          description: Invalid input
+  /admin/customers:
+    get:
+      operationId: adminListCustomers
+      tags: [admin]
+      summary: All customers with their price tier
+      responses:
+        "200":
+          description: Customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminCustomer"
+  /admin/customers/{id}:
+    patch:
+      operationId: adminUpdateCustomerTier
+      tags: [admin]
+      summary: Assign a customer to a price tier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerTierAssignment"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCustomer"
+        "404":
+          description: Not found
+        "400":
+          description: Invalid tier
+  /admin/orders:
+    get:
+      operationId: adminListOrders
+      tags: [admin]
+      summary: All orders across customers
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminOrder"
+  /admin/orders/{id}:
+    patch:
+      operationId: adminUpdateOrderStatus
+      tags: [admin]
+      summary: Update order status (processing → shipped → delivered)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderStatusUpdate"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrder"
+        "404":
+          description: Not found
+        "400":
+          description: Invalid status
 components:
   schemas:
+    AdminProduct:
+      type: object
+      required: [id, sku, name, categoryId, categoryName, brandId, brandName, quality, listPrice, stock, featured, imageUrl, description]
+      properties:
+        id: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        categoryId: { type: integer }
+        categoryName: { type: string }
+        brandId: { type: integer }
+        brandName: { type: string }
+        modelId: { type: ["integer", "null"] }
+        modelName: { type: ["string", "null"] }
+        quality: { type: string }
+        listPrice: { type: number }
+        stock: { type: integer }
+        featured: { type: boolean }
+        imageUrl: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+    AdminProductPage:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminProduct"
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalPages: { type: integer }
+    ProductInput:
+      type: object
+      required: [sku, name, categoryId, brandId, quality, listPrice, stock]
+      properties:
+        sku: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1 }
+        categoryId: { type: integer }
+        brandId: { type: integer }
+        modelId: { type: ["integer", "null"] }
+        quality: { type: string, minLength: 1 }
+        listPrice: { type: number, minimum: 0 }
+        stock: { type: integer, minimum: 0 }
+        featured: { type: boolean }
+        imageUrl: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+    ProductPatch:
+      type: object
+      properties:
+        sku: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1 }
+        categoryId: { type: integer }
+        brandId: { type: integer }
+        modelId: { type: ["integer", "null"] }
+        quality: { type: string, minLength: 1 }
+        listPrice: { type: number, minimum: 0 }
+        stock: { type: integer, minimum: 0 }
+        featured: { type: boolean }
+        imageUrl: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+    CategoryInput:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1 }
+        slug: { type: string, minLength: 1 }
+        description: { type: ["string", "null"] }
+    CategoryPatch:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        slug: { type: string, minLength: 1 }
+        description: { type: ["string", "null"] }
+    BrandInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+    DeviceModelInput:
+      type: object
+      required: [brandId, name]
+      properties:
+        brandId: { type: integer }
+        name: { type: string, minLength: 1 }
+    AdminCustomer:
+      type: object
+      required: [id, companyName, contactName, email, tierId, tierName, annualSpend]
+      properties:
+        id: { type: integer }
+        companyName: { type: string }
+        contactName: { type: string }
+        email: { type: string }
+        tierId: { type: integer }
+        tierName: { type: string }
+        annualSpend: { type: number }
+    CustomerTierAssignment:
+      type: object
+      required: [tierId]
+      properties:
+        tierId: { type: integer }
+    AdminOrder:
+      type: object
+      required: [id, orderNumber, customerId, companyName, status, itemCount, total, createdAt]
+      properties:
+        id: { type: integer }
+        orderNumber: { type: string }
+        customerId: { type: integer }
+        companyName: { type: string }
+        status: { type: string }
+        itemCount: { type: integer }
+        total: { type: number }
+        createdAt: { type: string }
+    OrderStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [processing, shipped, delivered]
     HealthStatus:
       type: object
       properties:

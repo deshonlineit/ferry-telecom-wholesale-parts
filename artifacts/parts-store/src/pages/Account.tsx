@@ -5,10 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Award, Package, DollarSign, ShoppingBag, ChevronRight, Mail } from 'lucide-react';
+import { Award, TrendingUp, Package, DollarSign, ShoppingBag, ChevronRight, Mail, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useEffect } from 'react';
 import {
+  useGetCurrentCustomer,
+  useGetDashboardSummary,
+  useListPriceTiers,
+  useUpdateCustomerProfile,
+  getGetCurrentCustomerQueryKey,
+} from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,7 +22,6 @@ import * as z from 'zod';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Award, TrendingUp, Package, DollarSign, ShoppingBag, ChevronRight, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Account() {

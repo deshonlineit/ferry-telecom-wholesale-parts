@@ -7,6 +7,7 @@ import cartRouter from "./cart";
 import ordersRouter from "./orders";
 import smartSearchRouter from "./smart-search";
 import storageRouter from "./storage";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(cartRouter);
 router.use(ordersRouter);
 router.use(smartSearchRouter);
 router.use(storageRouter);
+router.use(adminRouter);
 
 export default router;
