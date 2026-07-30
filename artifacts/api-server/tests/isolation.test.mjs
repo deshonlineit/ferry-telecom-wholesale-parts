@@ -4,7 +4,7 @@
  * Creates two real Clerk users via the Clerk Backend API, mints session
  * tokens for each, and exercises /api/me, /api/cart and /api/orders to
  * verify that:
- *   - each new customer is JIT-provisioned on the Bronze (lowest) tier
+ *   - each new customer is JIT-provisioned on the lowest-rank group (Big Repairshop)
  *   - carts are fully isolated between customers
  *   - orders are fully isolated (list + direct id access)
  * Cleans up Clerk users and all DB rows afterward.
@@ -89,7 +89,7 @@ try {
   const b = await createTestUser("b");
   users.push(a, b);
 
-  // --- /api/me: own identity + Bronze tier for new accounts ---
+  // --- /api/me: own identity + default group for new accounts ---
   const meA = await api(a, "GET", "/me");
   const meB = await api(b, "GET", "/me");
   assert.equal(meA.status, 200);
@@ -97,9 +97,9 @@ try {
   assert.equal(meA.json.email, a.email, "A sees own email");
   assert.equal(meB.json.email, b.email, "B sees own email");
   assert.notEqual(meA.json.id, meB.json.id, "distinct customer records");
-  assert.equal(meA.json.tier.name, "Bronze", "A starts on Bronze");
-  assert.equal(meB.json.tier.name, "Bronze", "B starts on Bronze");
-  console.log("PASS /me: distinct customers, own emails, Bronze tier");
+  assert.equal(meA.json.tier.name, "Big Repairshop", "A starts on Big Repairshop");
+  assert.equal(meB.json.tier.name, "Big Repairshop", "B starts on Big Repairshop");
+  console.log("PASS /me: distinct customers, own emails, default group");
 
   // --- carts start empty ---
   const cartA0 = await api(a, "GET", "/cart");

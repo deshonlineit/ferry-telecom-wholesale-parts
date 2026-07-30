@@ -28,6 +28,8 @@ class OutOfStockError extends Error {}
 
 const router: IRouter = Router();
 
+router.use("/orders", requireCustomer);
+
 async function fetchOrderLines(orderId: number) {
   const rows = await db
     .select({

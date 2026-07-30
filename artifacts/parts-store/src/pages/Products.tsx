@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useListProducts, useListCategories, useListBrands, useAddCartItem, getGetCartQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
-import { ProductCard } from '@/components/products/ProductCard';
+import { ProductListRow } from '@/components/products/ProductListRow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,7 @@ export default function Products() {
     inStockOnly: inStockOnly || undefined,
     sort: sort as any,
     page,
-    pageSize: 24,
+    pageSize: 50,
   });
   const addToCart = useAddCartItem();
 
@@ -221,6 +221,7 @@ export default function Products() {
                 <SelectItem value="Aftermarket Standard">Aftermarket Standard</SelectItem>
                 <SelectItem value="Refurbished A">Refurbished A</SelectItem>
                 <SelectItem value="Refurbished B">Refurbished B</SelectItem>
+                <SelectItem value="Standard">Standard</SelectItem>
               </SelectContent>
             </Select>
 
@@ -256,36 +257,42 @@ export default function Products() {
 
         {/* Results */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[...Array(24)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <Skeleton className="aspect-square w-full" />
-                <div className="p-3 space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="h-6 w-1/3" />
+          <Card>
+            <CardContent className="p-0">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 border-b border-border last:border-0">
+                  <Skeleton className="h-14 w-14 rounded" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-9 w-24" />
+                  <Skeleton className="h-9 w-28" />
+                  <Skeleton className="h-9 w-44" />
                 </div>
-              </Card>
-            ))}
-          </div>
+              ))}
+            </CardContent>
+          </Card>
         ) : productsPage && productsPage.items.length > 0 ? (
           <>
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {((page - 1) * 24) + 1}–{Math.min(page * 24, productsPage.total)} of {productsPage.total.toLocaleString()} products
+                Showing {((page - 1) * 50) + 1}–{Math.min(page * 50, productsPage.total)} of {productsPage.total.toLocaleString()} products
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
-              {productsPage.items.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={handleAddToCart}
-                  isAdding={addToCart.isPending}
-                />
-              ))}
-            </div>
+            <Card className="mb-8">
+              <CardContent className="p-0">
+                {productsPage.items.map((product) => (
+                  <ProductListRow
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    isAdding={addToCart.isPending}
+                  />
+                ))}
+              </CardContent>
+            </Card>
 
             {/* Pagination */}
             {productsPage.totalPages > 1 && (
