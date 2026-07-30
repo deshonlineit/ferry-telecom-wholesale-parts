@@ -15,6 +15,7 @@ import {
 } from "../lib/store";
 import { normalize, matchModel, matchCategory } from "../lib/smart-search";
 import { requireCustomer } from "../middlewares/requireCustomer";
+import { getCustomerWithTier, tierPrice } from "../lib/store";
 
 const router: IRouter = Router();
 

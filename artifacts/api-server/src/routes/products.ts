@@ -13,6 +13,8 @@ import {
   ListFeaturedProductsResponse,
   GetProductParams,
   GetProductResponse,
+  SetProductImageBody,
+  SetProductImageResponse,
 } from "@workspace/api-zod";
 import {
   getCustomerWithTier,
@@ -22,6 +24,8 @@ import {
   resolvePrice,
 } from "../lib/store";
 import { requireCustomer } from "../middlewares/requireCustomer";
+import { requireStaff } from "../middlewares/requireStaff";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
 
@@ -151,6 +155,8 @@ router.get("/products/featured", async (req, res): Promise<void> => {
 
 router.get("/products/:id", async (req, res): Promise<void> => {
   const params = GetProductParams.safeParse(req.params);
+
+  const body = SetProductImageBody.safeParse(req.body);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
@@ -204,3 +210,17 @@ router.get("/products/:id", async (req, res): Promise<void> => {
 });
 
 export default router;
+
+  let imageUrl = body.data.imageUrl;
+
+    const storage = new ObjectStorageService();
+
+    const objectPath = await storage.trySetObjectEntityAclPolicy(imageUrl, {
+      owner: "admin",
+      visibility: "public",
+    });
+
+  const [product] = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(eq(productsTable.id, params.data.id));

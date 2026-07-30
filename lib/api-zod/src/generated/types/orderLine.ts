@@ -11,6 +11,8 @@ export interface OrderLine {
   productId: number;
   sku: string;
   name: string;
+  /** @nullable */
+  imageUrl: string | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;

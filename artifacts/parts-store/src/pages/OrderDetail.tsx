@@ -129,9 +129,22 @@ export default function OrderDetail() {
                       <TableRow key={line.id}>
                         <TableCell>
                           <Link href={`/products/${line.productId}`}>
-                            <div className="hover:text-primary transition-colors">
-                              <p className="font-medium text-foreground">{line.name}</p>
-                              <p className="text-xs font-mono text-muted-foreground">{line.sku}</p>
+                            <div className="flex items-center gap-3 hover:text-primary transition-colors">
+                              <div className="h-12 w-12 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
+                                {line.imageUrl ? (
+                                  <img
+                                    src={line.imageUrl}
+                                    alt={line.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="h-5 w-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">{line.name}</p>
+                                <p className="text-xs font-mono text-muted-foreground">{line.sku}</p>
+                              </div>
                             </div>
                           </Link>
                         </TableCell>

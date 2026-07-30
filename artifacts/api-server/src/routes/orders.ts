@@ -28,11 +28,20 @@ class OutOfStockError extends Error {}
 
 const router: IRouter = Router();
 
-router.use("/orders", requireCustomer);
-
+async function fetchOrderLines(orderId: number) {
+  const rows = await db
+    .select({
+      line: orderLinesTable,
+      imageUrl: productsTable.imageUrl,
+    })
+    .from(orderLinesTable)
+    .leftJoin(productsTable, eq(orderLinesTable.productId, productsTable.id))
+    .where(eq(orderLinesTable.orderId, orderId));
+  return rows.map((r) => ({ ...r.line, imageUrl: r.imageUrl ?? null }));
+}
 function orderToApi(
   order: typeof ordersTable.$inferSelect,
-  lines: (typeof orderLinesTable.$inferSelect)[],
+  lines: (typeof orderLinesTable.$inferSelect & { imageUrl: string | null })[],
 ) {
   return {
     id: order.id,
@@ -48,6 +57,7 @@ function orderToApi(
       productId: l.productId,
       sku: l.sku,
       name: l.name,
+      imageUrl: l.imageUrl,
       quantity: l.quantity,
       unitPrice: Number(l.unitPrice),
       lineTotal: Number(l.lineTotal),
@@ -129,18 +139,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     cartRows.map((r) => r.productId),
   );
 
-  const lines = cartRows.map((r) => {
-    const unitPrice = resolvePrice(explicitOrder, r.productId, Number(r.listPrice), discount);
-    return {
-      productId: r.productId,
-      sku: r.sku,
-      name: r.name,
-      quantity: r.quantity,
-      unitPrice,
-      lineTotal: round2(unitPrice * r.quantity),
-      listLineTotal: round2(Number(r.listPrice) * r.quantity),
-    };
-  });
+  const lines = await fetchOrderLines(order.id);
 
   const total = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
   const savings = round2(
@@ -221,10 +220,7 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   await applyTierUpgrade(customerId);
 
-  const orderLines = await db
-    .select()
-    .from(orderLinesTable)
-    .where(eq(orderLinesTable.orderId, order.id));
+  const orderLines = await fetchOrderLines(order.id);
 
   res.status(201).json(CreateOrderResponse.parse(orderToApi(order, orderLines)));
 });
@@ -246,10 +242,7 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const lines = await db
-    .select()
-    .from(orderLinesTable)
-    .where(eq(orderLinesTable.orderId, order.id));
+  const lines = await fetchOrderLines(order.id);
 
   res.json(GetOrderResponse.parse(orderToApi(order, lines)));
 });
