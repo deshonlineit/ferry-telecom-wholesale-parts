@@ -29,4 +29,7 @@ export * from './product';
 export * from './productDetail';
 export * from './productPage';
 export * from './productSpec';
+export * from './smartSearchInterpretation';
+export * from './smartSearchParams';
+export * from './smartSearchResult';
 export * from './tierPrice';

@@ -180,6 +180,28 @@ export interface Order {
   lines: OrderLine[];
 }
 
+export interface SmartSearchInterpretation {
+  /** @nullable */
+  brandId?: number | null;
+  /** @nullable */
+  brandName?: string | null;
+  /** @nullable */
+  modelId?: number | null;
+  /** @nullable */
+  modelName?: string | null;
+  /** @nullable */
+  categoryId?: number | null;
+  /** @nullable */
+  categoryName?: string | null;
+  matchedTerms: string[];
+}
+
+export interface SmartSearchResult {
+  interpretation: SmartSearchInterpretation;
+  products: Product[];
+  total: number;
+}
+
 export interface DashboardSummary {
   totalOrders: number;
   annualSpend: number;
@@ -217,4 +239,8 @@ export const ListProductsSort = {
   priceDesc: 'priceDesc',
   newest: 'newest',
 } as const;
+
+export type SmartSearchParams = {
+q: string;
+};
 

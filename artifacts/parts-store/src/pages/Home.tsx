@@ -2,12 +2,13 @@ import { Link } from 'wouter';
 import { useGetCatalogSummary, useListFeaturedProducts, useGetCurrentCustomer, useAddCartItem, getGetCartQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
+import { SmartSearch } from '@/components/home/SmartSearch';
+import { BrowseByCategory } from '@/components/home/BrowseByCategory';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Package, TrendingUp, Award, Search } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowRight, Package, TrendingUp, Award, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -40,25 +41,31 @@ export default function Home() {
     );
   };
 
+  const scrollToBrowse = () => {
+    document.getElementById('browse-by-category')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="container mx-auto px-4 py-8 space-y-12">
-        {/* Hero Section */}
+        {/* Hero with Smart Search */}
         <section className="relative overflow-hidden rounded-lg bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 p-8 md:p-12">
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="space-y-2">
+          <div className="relative z-10 max-w-4xl mx-auto space-y-6">
+            <div className="text-center space-y-3">
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
-                Professional Parts. Trade Pricing.
+                Find Your Part in Seconds
               </h1>
-              <p className="text-lg text-muted-foreground">
-                The wholesale parts counter built for repair shops. Find the exact part in seconds, check out in two clicks.
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Type what you need — our smart search understands device models and part names
               </p>
             </div>
 
+            <SmartSearch />
+
             {customer && (
-              <Card className="inline-block border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20">
+              <Card className="inline-block border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 mx-auto">
                 <CardContent className="p-4 flex items-center gap-3">
                   <Award className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0" />
                   <div>
@@ -73,23 +80,20 @@ export default function Home() {
               </Card>
             )}
 
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Link href="/products">
-                <Button size="lg" className="gap-2" data-testid="button-browse-catalog">
-                  <Search className="h-4 w-4" />
-                  Browse Catalog
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/account">
-                <Button size="lg" variant="outline" data-testid="button-view-account">
-                  View Your Pricing
-                </Button>
-              </Link>
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                onClick={scrollToBrowse}
+                className="gap-2 text-muted-foreground hover:text-foreground"
+                data-testid="button-scroll-browse"
+              >
+                Or browse by category
+                <ChevronDown className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
-          <div className="absolute right-0 top-0 h-full w-1/3 opacity-5">
+          <div className="absolute right-0 top-0 h-full w-1/3 opacity-5 pointer-events-none">
             <Package className="absolute right-8 top-8 h-32 w-32 text-primary" />
             <Package className="absolute right-24 bottom-12 h-24 w-24 text-primary" />
           </div>
@@ -124,6 +128,9 @@ export default function Home() {
             </Card>
           </section>
         )}
+
+        {/* Browse by Category */}
+        <BrowseByCategory />
 
         {/* Featured Products */}
         <section className="space-y-6">

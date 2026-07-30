@@ -36,7 +36,9 @@ import type {
   PriceTier,
   Product,
   ProductDetail,
-  ProductPage
+  ProductPage,
+  SmartSearchParams,
+  SmartSearchResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1341,6 +1343,90 @@ export function useGetOrder<TData = Awaited<ReturnType<typeof getOrder>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetOrderQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSmartSearchUrl = (params: SmartSearchParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/search/smart?${stringifiedParams}` : `/api/search/smart`
+}
+
+/**
+ * @summary Natural-language part search ("a52 display" -> model + category matched products)
+ */
+export const smartSearch = async (params: SmartSearchParams, options?: Parameters<typeof customFetch>[1]): Promise<SmartSearchResult> => {
+
+  return customFetch<SmartSearchResult>(getSmartSearchUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSmartSearchQueryKey = (params?: SmartSearchParams,) => {
+    return [
+    `/api/search/smart`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSmartSearchQueryOptions = <TData = Awaited<ReturnType<typeof smartSearch>>, TError = ErrorType<unknown>>(params: SmartSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof smartSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSmartSearchQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof smartSearch>>> = ({ signal }) => smartSearch(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof smartSearch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SmartSearchQueryResult = NonNullable<Awaited<ReturnType<typeof smartSearch>>>
+export type SmartSearchQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Natural-language part search ("a52 display" -> model + category matched products)
+ */
+
+export function useSmartSearch<TData = Awaited<ReturnType<typeof smartSearch>>, TError = ErrorType<unknown>>(
+ params: SmartSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof smartSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSmartSearchQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -300,6 +300,23 @@ paths:
                 $ref: "#/components/schemas/Order"
         "404":
           description: Not found
+  /search/smart:
+    get:
+      operationId: smartSearch
+      tags: [products]
+      summary: Natural-language part search ("a52 display" -> model + category matched products)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Search result with interpretation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartSearchResult"
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -525,6 +542,30 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrderLine"
+    SmartSearchInterpretation:
+      type: object
+      required: [matchedTerms]
+      properties:
+        brandId: { type: ["integer", "null"] }
+        brandName: { type: ["string", "null"] }
+        modelId: { type: ["integer", "null"] }
+        modelName: { type: ["string", "null"] }
+        categoryId: { type: ["integer", "null"] }
+        categoryName: { type: ["string", "null"] }
+        matchedTerms:
+          type: array
+          items: { type: string }
+    SmartSearchResult:
+      type: object
+      required: [interpretation, products, total]
+      properties:
+        interpretation:
+          $ref: "#/components/schemas/SmartSearchInterpretation"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total: { type: integer }
     DashboardSummary:
       type: object
       required: [totalOrders, annualSpend, totalSavings, tier, nextTier, recentOrders]

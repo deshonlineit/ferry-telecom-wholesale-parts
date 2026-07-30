@@ -403,6 +403,44 @@ export const GetOrderResponse = zod.object({
 
 
 /**
+ * @summary Natural-language part search ("a52 display" -> model + category matched products)
+ */
+export const SmartSearchQueryParams = zod.object({
+  "q": zod.coerce.string()
+})
+
+export const SmartSearchResponse = zod.object({
+  "interpretation": zod.object({
+  "brandId": zod.int().nullish(),
+  "brandName": zod.string().nullish(),
+  "modelId": zod.int().nullish(),
+  "modelName": zod.string().nullish(),
+  "categoryId": zod.int().nullish(),
+  "categoryName": zod.string().nullish(),
+  "matchedTerms": zod.array(zod.string())
+}),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.int(),
+  "categoryName": zod.string(),
+  "brandId": zod.int(),
+  "brandName": zod.string(),
+  "modelId": zod.int().nullish(),
+  "modelName": zod.string().nullish(),
+  "quality": zod.string(),
+  "listPrice": zod.number(),
+  "yourPrice": zod.number(),
+  "stock": zod.int(),
+  "imageUrl": zod.string().nullable(),
+  "description": zod.string().nullish()
+})),
+  "total": zod.int()
+})
+
+
+/**
  * @summary Account dashboard (spend, orders, tier progress, recent orders)
  */
 export const GetDashboardSummaryResponse = zod.object({
