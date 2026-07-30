@@ -5,9 +5,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Award, TrendingUp, Package, DollarSign, ShoppingBag, ChevronRight } from 'lucide-react';
+import { Award, Package, DollarSign, ShoppingBag, ChevronRight, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function Account() {
@@ -25,7 +24,7 @@ export default function Account() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Account Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage your account and track your savings
+            Manage your account and view your order history
           </p>
         </div>
 
@@ -48,12 +47,12 @@ export default function Account() {
           </div>
         ) : (
           <>
-            {/* Customer Info & Tier Progress */}
+            {/* Customer Info & Group */}
             {customer && (
               <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <Award className="h-8 w-8 text-primary" />
                         <div>
@@ -61,34 +60,17 @@ export default function Account() {
                           <p className="text-sm text-muted-foreground">{customer.contactName} • {customer.email}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-4">
-                        <Badge variant="default" className="text-base px-3 py-1">
-                          {customer.tier.name}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {customer.tier.discountPercent}% discount on all orders
-                        </span>
+                      <div className="space-y-2 pt-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default" className="text-base px-3 py-1">
+                            {customer.tier.name}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                          {customer.tier.description}
+                        </p>
                       </div>
                     </div>
-
-                    {customer.nextTier && (
-                      <Card className="min-w-80">
-                        <CardContent className="p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-foreground">
-                              Progress to {customer.nextTier.tier.name}
-                            </span>
-                            <span className="text-sm font-bold text-primary">
-                              {customer.nextTier.progressPercent.toFixed(0)}%
-                            </span>
-                          </div>
-                          <Progress value={customer.nextTier.progressPercent} className="h-2" />
-                          <p className="text-xs text-muted-foreground">
-                            ${customer.nextTier.remainingSpend.toFixed(2)} more to unlock {customer.nextTier.tier.discountPercent}% savings
-                          </p>
-                        </CardContent>
-                      </Card>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -96,7 +78,7 @@ export default function Account() {
 
             {/* Stats */}
             {dashboard && (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-3">
@@ -130,28 +112,12 @@ export default function Account() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-amber-500/10 rounded">
-                        <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-500" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-foreground">
-                          ${dashboard.totalSavings.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Total Savings</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3">
                       <div className="p-2 bg-primary/10 rounded">
                         <Award className="h-5 w-5 text-primary" />
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-foreground">{dashboard.tier.name}</p>
-                        <p className="text-xs text-muted-foreground">Current Tier</p>
+                        <p className="text-xs text-muted-foreground">Customer Group</p>
                       </div>
                     </div>
                   </CardContent>
@@ -215,23 +181,21 @@ export default function Account() {
               </Card>
             )}
 
-            {/* Price Tiers Ladder */}
+            {/* Customer Groups */}
             {tiers && tiers.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Membership Tiers</CardTitle>
+                  <CardTitle>Customer Groups</CardTitle>
                   <CardDescription>
-                    The more you order over the year, the better your pricing gets
+                    Ferry Telecom assigns customer groups based on partnership terms
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tier</TableHead>
-                        <TableHead>Discount</TableHead>
-                        <TableHead>Annual Spend Required</TableHead>
-                        <TableHead>Benefits</TableHead>
+                        <TableHead>Group</TableHead>
+                        <TableHead>Description</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -244,26 +208,16 @@ export default function Account() {
                               {tier.name}
                               {isCurrent && (
                                 <Badge variant="default" className="ml-2">
-                                  Current
+                                  Your Group
                                 </Badge>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-lg font-bold text-primary">
-                                {tier.discountPercent}%
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {tier.minAnnualSpend > 0
-                                ? `$${tier.minAnnualSpend.toLocaleString()}`
-                                : 'No minimum'}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {tier.description}
                             </TableCell>
                             <TableCell>
                               {isCurrent && (
-                                <Award className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                                <Award className="h-5 w-5 text-primary" />
                               )}
                             </TableCell>
                           </TableRow>
@@ -271,6 +225,24 @@ export default function Account() {
                       })}
                     </TableBody>
                   </Table>
+                  <div className="mt-6 p-4 border border-border rounded-lg bg-muted/30">
+                    <div className="flex items-start gap-3">
+                      <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-foreground mb-1">
+                          Want better pricing terms?
+                        </p>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          High-volume partners may qualify for Wholesale or Partner group pricing. Contact Ferry Telecom to discuss your options.
+                        </p>
+                        <Button size="sm" asChild data-testid="button-contact-pricing">
+                          <a href="https://ferrytelecom.com" target="_blank" rel="noopener noreferrer">
+                            Contact Us
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -281,7 +253,7 @@ export default function Account() {
                 <ShoppingBag className="h-12 w-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-foreground mb-2">Ready to order?</h3>
                 <p className="text-muted-foreground mb-6">
-                  Browse our catalog and enjoy your tier pricing on every item
+                  Browse our catalog and enjoy your group pricing on every item
                 </p>
                 <Link href="/products">
                   <Button size="lg" className="gap-2" data-testid="button-browse-catalog">

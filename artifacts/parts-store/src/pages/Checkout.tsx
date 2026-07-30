@@ -9,7 +9,6 @@ import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ShoppingCart, CheckCircle, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -226,22 +225,6 @@ export default function Checkout() {
                     <span className="text-muted-foreground">Items ({cart?.itemCount || 0})</span>
                     <span className="font-medium">${cart?.subtotal.toFixed(2) || '0.00'}</span>
                   </div>
-                  {cart && cart.savings > 0 && (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">List subtotal</span>
-                        <span className="line-through text-muted-foreground">
-                          ${cart.listSubtotal.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-amber-600 dark:text-amber-500">
-                        <span className="font-semibold">
-                          Your tier savings ({cart.discountPercent}%)
-                        </span>
-                        <span className="font-semibold">-${cart.savings.toFixed(2)}</span>
-                      </div>
-                    </>
-                  )}
                 </div>
 
                 <div className="border-t border-border pt-4">
@@ -249,11 +232,6 @@ export default function Checkout() {
                     <span>Total</span>
                     <span>${cart?.subtotal.toFixed(2) || '0.00'}</span>
                   </div>
-                  {cart && cart.savings > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Includes ${cart.savings.toFixed(2)} in tier discounts
-                    </p>
-                  )}
                 </div>
 
                 <div className="border-t border-border pt-4 space-y-2">

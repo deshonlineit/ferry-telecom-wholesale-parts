@@ -241,22 +241,6 @@ export default function Cart() {
                       <span className="text-muted-foreground">Items ({cart.itemCount})</span>
                       <span className="font-medium">${cart.subtotal.toFixed(2)}</span>
                     </div>
-                    {cart.savings > 0 && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">List subtotal</span>
-                          <span className="line-through text-muted-foreground">
-                            ${cart.listSubtotal.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-amber-600 dark:text-amber-500">
-                          <span className="font-semibold">Your tier savings ({cart.discountPercent}%)</span>
-                          <span className="font-semibold">
-                            -${cart.savings.toFixed(2)}
-                          </span>
-                        </div>
-                      </>
-                    )}
                   </div>
 
                   <div className="border-t border-border pt-4">
@@ -264,11 +248,6 @@ export default function Cart() {
                       <span>Total</span>
                       <span>${cart.subtotal.toFixed(2)}</span>
                     </div>
-                    {cart.savings > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Includes ${cart.savings.toFixed(2)} in tier discounts
-                      </p>
-                    )}
                   </div>
 
                   <Link href="/checkout">

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import {
   db,
   cartItemsTable,
@@ -18,10 +18,13 @@ import {
 import {
   getCustomerWithTier,
   applyTierUpgrade,
-  tierPrice,
+  getExplicitTierPrices,
+  resolvePrice,
   round2,
 } from "../lib/store";
 import { requireCustomer } from "../middlewares/requireCustomer";
+
+class OutOfStockError extends Error {}
 
 const router: IRouter = Router();
 
@@ -88,6 +91,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
+  const body = parsed.data;
   const customerId = req.customer!.id;
   const { tier } = await getCustomerWithTier(customerId);
   const discount = Number(tier.discountPercent);
@@ -120,8 +124,13 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
   }
 
+  const explicitOrder = await getExplicitTierPrices(
+    tier.id,
+    cartRows.map((r) => r.productId),
+  );
+
   const lines = cartRows.map((r) => {
-    const unitPrice = tierPrice(Number(r.listPrice), discount);
+    const unitPrice = resolvePrice(explicitOrder, r.productId, Number(r.listPrice), discount);
     return {
       productId: r.productId,
       sku: r.sku,
@@ -139,7 +148,19 @@ router.post("/orders", async (req, res): Promise<void> => {
   );
   const orderNumber = `FT-${Date.now().toString(36).toUpperCase()}`;
 
-  const order = await db.transaction(async (tx) => {
+  let order;
+  try {
+    order = await runCheckoutTransaction();
+  } catch (e) {
+    if (e instanceof OutOfStockError) {
+      res.status(400).json({ error: `Only limited stock left for ${e.message}` });
+      return;
+    }
+    throw e;
+  }
+
+  async function runCheckoutTransaction() {
+    return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(ordersTable)
       .values({
@@ -148,8 +169,8 @@ router.post("/orders", async (req, res): Promise<void> => {
         status: "processing",
         total: total.toFixed(2),
         savings: savings.toFixed(2),
-        shippingAddress: parsed.data.shippingAddress,
-        notes: parsed.data.notes ?? null,
+        shippingAddress: body.shippingAddress,
+        notes: body.notes ?? null,
       })
       .returning();
 
@@ -166,10 +187,21 @@ router.post("/orders", async (req, res): Promise<void> => {
     );
 
     for (const l of lines) {
-      await tx
+      // Conditional decrement: fails the transaction if stock ran out
+      // between validation and commit (concurrent checkout).
+      const updated = await tx
         .update(productsTable)
         .set({ stock: sql`${productsTable.stock} - ${l.quantity}` })
-        .where(eq(productsTable.id, l.productId));
+        .where(
+          and(
+            eq(productsTable.id, l.productId),
+            gte(productsTable.stock, l.quantity),
+          ),
+        )
+        .returning({ id: productsTable.id });
+      if (updated.length === 0) {
+        throw new OutOfStockError(l.name);
+      }
     }
 
     await tx
@@ -184,7 +216,8 @@ router.post("/orders", async (req, res): Promise<void> => {
       .where(eq(cartItemsTable.customerId, customerId));
 
     return created;
-  });
+    });
+  }
 
   await applyTierUpgrade(customerId);
 

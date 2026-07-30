@@ -11,7 +11,12 @@ import {
   RemoveCartItemParams,
   RemoveCartItemResponse,
 } from "@workspace/api-zod";
-import { getCustomerWithTier, tierPrice, round2 } from "../lib/store";
+import {
+  getCustomerWithTier,
+  round2,
+  getExplicitTierPrices,
+  resolvePrice,
+} from "../lib/store";
 import { requireCustomer } from "../middlewares/requireCustomer";
 
 const router: IRouter = Router();
@@ -39,8 +44,13 @@ export async function buildCart(customerId: number) {
     .where(eq(cartItemsTable.customerId, customerId))
     .orderBy(asc(cartItemsTable.createdAt));
 
+  const explicit = await getExplicitTierPrices(
+    tier.id,
+    rows.map((r) => r.productId),
+  );
+
   const items = rows.map((r) => {
-    const unitPrice = tierPrice(Number(r.listPrice), discount);
+    const unitPrice = resolvePrice(explicit, r.productId, Number(r.listPrice), discount);
     return {
       id: r.id,
       productId: r.productId,

@@ -8,12 +8,17 @@ import {
   deviceModelsTable,
 } from "@workspace/db";
 import { SmartSearchQueryParams, SmartSearchResponse } from "@workspace/api-zod";
-import { getCurrentCustomerWithTier, tierPrice } from "../lib/store";
+import {
+  getCustomerWithTier,
+  getExplicitTierPrices,
+  resolvePrice,
+} from "../lib/store";
 import { normalize, matchModel, matchCategory } from "../lib/smart-search";
+import { requireCustomer } from "../middlewares/requireCustomer";
 
 const router: IRouter = Router();
 
-router.get("/search/smart", async (req, res): Promise<void> => {
+router.get("/search/smart", requireCustomer, async (req, res): Promise<void> => {
   const parsed = SmartSearchQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -27,7 +32,7 @@ router.get("/search/smart", async (req, res): Promise<void> => {
     db.select().from(deviceModelsTable),
     db.select().from(categoriesTable),
     db.select().from(brandsTable),
-    getCurrentCustomerWithTier(),
+    getCustomerWithTier(req.customer!.id),
   ]);
 
   const modelMatch = matchModel(tokens, models);
@@ -98,6 +103,7 @@ router.get("/search/smart", async (req, res): Promise<void> => {
     .limit(24);
 
   const discount = Number(tier.discountPercent);
+  const explicit = await getExplicitTierPrices(tier.id, rows.map((r) => r.id));
   const modelBrand = modelMatch
     ? brands.find((b) => b.id === modelMatch.model.brandId)
     : null;
@@ -116,7 +122,7 @@ router.get("/search/smart", async (req, res): Promise<void> => {
       products: rows.map((r) => ({
         ...r,
         listPrice: Number(r.listPrice),
-        yourPrice: tierPrice(Number(r.listPrice), discount),
+        yourPrice: resolvePrice(explicit, r.id, Number(r.listPrice), discount),
       })),
       total: rows.length,
     }),

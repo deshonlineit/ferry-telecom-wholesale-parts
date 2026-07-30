@@ -4,7 +4,7 @@
 
 export const CATEGORY_SYNONYMS: Record<string, string[]> = {
   // slug -> synonyms
-  screens: [
+  "screens-lcds": [
     "screen",
     "screens",
     "display",
@@ -19,8 +19,7 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
   batteries: ["battery", "batteries", "accu", "akku", "cell"],
   "charging-ports": [
     "charging",
-    "charger",
-    "charge",
+    "charging port",
     "port",
     "ports",
     "dock",
@@ -30,7 +29,7 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
     "connector",
   ],
   cameras: ["camera", "cameras", "lens", "cam"],
-  "back-glass": [
+  "back-glass-housings": [
     "back",
     "backglass",
     "housing",
@@ -39,7 +38,7 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
     "frame",
     "chassis",
   ],
-  "small-parts": [
+  "small-parts-flex": [
     "speaker",
     "speakers",
     "earpiece",
@@ -51,7 +50,7 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
     "sensor",
     "microphone",
   ],
-  tools: [
+  "tools-adhesives": [
     "tool",
     "tools",
     "adhesive",
@@ -62,6 +61,34 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
     "mat",
     "separator",
   ],
+  "tempered-glass-protection": [
+    "tempered",
+    "tempered glass",
+    "protector",
+    "protectors",
+    "screen protector",
+    "privacy filter",
+    "protection",
+  ],
+  "cases-covers": [
+    "case",
+    "cases",
+    "cover",
+    "covers",
+    "silicone",
+    "leather case",
+    "book case",
+  ],
+  "cables-chargers": [
+    "cable",
+    "cables",
+    "charger",
+    "chargers",
+    "adapter",
+    "power adapter",
+    "car charger",
+  ],
+  "apple-watch": ["watch band", "band", "iwatch", "apple watch"],
 };
 
 export function normalize(s: string): string {

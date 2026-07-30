@@ -17,8 +17,6 @@ export function ProductCard({ product, onAddToCart, isAdding }: ProductCardProps
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
 
-  const savings = product.listPrice - product.yourPrice;
-  const savingsPercent = ((savings / product.listPrice) * 100).toFixed(0);
   const inStock = product.stock > 0;
 
   const handleAdd = () => {
@@ -74,22 +72,10 @@ export function ProductCard({ product, onAddToCart, isAdding }: ProductCardProps
           </Badge>
         </div>
 
-        <div className="pt-2 space-y-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold text-foreground">
-              ${product.yourPrice.toFixed(2)}
-            </span>
-            {savings > 0 && (
-              <span className="text-xs text-muted-foreground line-through">
-                ${product.listPrice.toFixed(2)}
-              </span>
-            )}
-          </div>
-          {savings > 0 && (
-            <p className="text-xs font-medium text-amber-600 dark:text-amber-500">
-              You save ${savings.toFixed(2)} ({savingsPercent}%)
-            </p>
-          )}
+        <div className="pt-2">
+          <span className="text-lg font-bold text-foreground">
+            ${product.yourPrice.toFixed(2)}
+          </span>
         </div>
 
         <div className="flex items-center gap-2 pt-2">

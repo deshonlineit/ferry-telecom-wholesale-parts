@@ -167,29 +167,11 @@ export default function OrderDetail() {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">${order.total.toFixed(2)}</span>
-                  </div>
-                  {order.savings > 0 && (
-                    <div className="flex justify-between text-amber-600 dark:text-amber-500">
-                      <span className="font-semibold">Tier savings</span>
-                      <span className="font-semibold">-${order.savings.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-
                 <div className="border-t border-border pt-4">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
                     <span>${order.total.toFixed(2)}</span>
                   </div>
-                  {order.savings > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Saved ${order.savings.toFixed(2)} with tier pricing
-                    </p>
-                  )}
                 </div>
               </CardContent>
             </Card>

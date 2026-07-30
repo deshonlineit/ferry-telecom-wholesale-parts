@@ -56,19 +56,12 @@ export function SmartSearch() {
   };
 
   const buildProductsUrl = () => {
+    if (!results?.interpretation) return '/products';
     const params = new URLSearchParams();
-    const interp = results?.interpretation;
-    if (interp?.categoryId) params.set('categoryId', String(interp.categoryId));
-    if (interp?.brandId) params.set('brandId', String(interp.brandId));
-    if (interp?.modelId) params.set('modelId', String(interp.modelId));
-    // When nothing (or only part of the query) was interpreted, carry the raw
-    // text so the full results page still reflects the user's search intent.
-    if (!interp || interp.matchedTerms.length === 0) {
-      const q = debouncedQuery.trim();
-      if (q) params.set('search', q);
-    }
-    const qs = params.toString();
-    return qs ? `/products?${qs}` : '/products';
+    if (results.interpretation.categoryId) params.set('categoryId', String(results.interpretation.categoryId));
+    if (results.interpretation.brandId) params.set('brandId', String(results.interpretation.brandId));
+    if (results.interpretation.modelId) params.set('modelId', String(results.interpretation.modelId));
+    return `/products?${params.toString()}`;
   };
 
   const showResults = debouncedQuery.trim().length > 0 && (isLoading || results);
@@ -153,7 +146,6 @@ export function SmartSearch() {
                 </div>
 
                 {results.products.slice(0, 5).map((product) => {
-                  const savings = product.listPrice - product.yourPrice;
                   const inStock = product.stock > 0;
                   const wasJustAdded = justAdded === product.id;
 
@@ -187,11 +179,6 @@ export function SmartSearch() {
                           <span className="text-base font-bold text-foreground">
                             ${product.yourPrice.toFixed(2)}
                           </span>
-                          {savings > 0 && (
-                            <span className="text-xs text-amber-600 dark:text-amber-500 font-medium">
-                              Save ${savings.toFixed(2)}
-                            </span>
-                          )}
                           {inStock && (
                             <Badge variant="outline" className="text-xs ml-auto">
                               {product.stock} in stock

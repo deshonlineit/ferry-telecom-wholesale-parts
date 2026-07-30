@@ -1,8 +1,9 @@
-import { eq, asc, lte, desc, and } from "drizzle-orm";
+import { eq, asc, lte, desc, and, inArray } from "drizzle-orm";
 import {
   db,
   customersTable,
   priceTiersTable,
+  productTierPricesTable,
   type Customer,
   type PriceTier,
 } from "@workspace/db";
@@ -13,6 +14,37 @@ export function round2(n: number): number {
 
 export function tierPrice(listPrice: number, discountPercent: number): number {
   return round2(listPrice * (1 - discountPercent / 100));
+}
+
+/**
+ * Explicit per-product prices for a tier (from the imported price list).
+ * Returns a map productId -> price. Products without a row fall back to
+ * listPrice * (1 - discount%).
+ */
+export async function getExplicitTierPrices(
+  tierId: number,
+  productIds: number[],
+): Promise<Map<number, number>> {
+  if (productIds.length === 0) return new Map();
+  const rows = await db
+    .select()
+    .from(productTierPricesTable)
+    .where(
+      and(
+        eq(productTierPricesTable.tierId, tierId),
+        inArray(productTierPricesTable.productId, productIds),
+      ),
+    );
+  return new Map(rows.map((r) => [r.productId, Number(r.price)]));
+}
+
+export function resolvePrice(
+  explicit: Map<number, number>,
+  productId: number,
+  listPrice: number,
+  discountPercent: number,
+): number {
+  return explicit.get(productId) ?? tierPrice(listPrice, discountPercent);
 }
 
 export async function getCustomerWithTier(customerId: number): Promise<{
@@ -82,6 +114,9 @@ export function nextTierProgress(
   const next = tiers.find((t) => t.rank === currentTier.rank + 1);
   if (!next) return null;
   const min = Number(next.minAnnualSpend);
+  // Groups that are assigned manually by Ferry Telecom (sentinel threshold)
+  // are never presented as an automatic upgrade path.
+  if (min >= 100_000_000) return null;
   const remaining = Math.max(0, round2(min - annualSpend));
   const progress = min > 0 ? Math.min(100, round2((annualSpend / min) * 100)) : 100;
   return {

@@ -35,5 +35,17 @@ export const customersTable = pgTable("customers", {
     .default("0"),
 });
 
+// Explicit per-product price for a tier (imported from the real price list).
+// When a row exists it takes precedence over listPrice * (1 - discount%).
+export const productTierPricesTable = pgTable("product_tier_prices", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  tierId: integer("tier_id")
+    .notNull()
+    .references(() => priceTiersTable.id),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+});
+
+export type ProductTierPrice = typeof productTierPricesTable.$inferSelect;
 export type PriceTier = typeof priceTiersTable.$inferSelect;
 export type Customer = typeof customersTable.$inferSelect;

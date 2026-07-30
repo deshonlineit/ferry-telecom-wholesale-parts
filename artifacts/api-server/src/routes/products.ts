@@ -14,7 +14,13 @@ import {
   GetProductParams,
   GetProductResponse,
 } from "@workspace/api-zod";
-import { getCustomerWithTier, getAllTiers, tierPrice } from "../lib/store";
+import {
+  getCustomerWithTier,
+  getAllTiers,
+  tierPrice,
+  getExplicitTierPrices,
+  resolvePrice,
+} from "../lib/store";
 import { requireCustomer } from "../middlewares/requireCustomer";
 
 const router: IRouter = Router();
@@ -50,12 +56,13 @@ function baseQuery() {
 function toApiProduct(
   row: Awaited<ReturnType<ReturnType<typeof baseQuery>["execute"]>>[number],
   discountPercent: number,
+  explicit: Map<number, number> = new Map(),
 ) {
   const listPrice = Number(row.listPrice);
   return {
     ...row,
     listPrice,
-    yourPrice: tierPrice(listPrice, discountPercent),
+    yourPrice: resolvePrice(explicit, row.id, listPrice, discountPercent),
   };
 }
 
@@ -115,9 +122,11 @@ router.get("/products", async (req, res): Promise<void> => {
     where ? countQuery.where(where) : countQuery,
   ]);
 
+  const explicit = await getExplicitTierPrices(tier.id, rows.map((r) => r.id));
+
   res.json(
     ListProductsResponse.parse({
-      items: rows.map((r) => toApiProduct(r, discount)),
+      items: rows.map((r) => toApiProduct(r, discount, explicit)),
       total,
       page,
       pageSize,
@@ -132,9 +141,10 @@ router.get("/products/featured", async (req, res): Promise<void> => {
     .where(eq(productsTable.featured, true))
     .orderBy(asc(productsTable.name))
     .limit(8);
+  const explicit = await getExplicitTierPrices(tier.id, rows.map((r) => r.id));
   res.json(
     ListFeaturedProductsResponse.parse(
-      rows.map((r) => toApiProduct(r, Number(tier.discountPercent))),
+      rows.map((r) => toApiProduct(r, Number(tier.discountPercent), explicit)),
     ),
   );
 });
@@ -167,13 +177,25 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     { label: "Availability", value: row.stock > 0 ? `${row.stock} in stock` : "Out of stock" },
   ];
 
+  const perTierExplicit = new Map<number, Map<number, number>>();
+  await Promise.all(
+    tiers.map(async (t) => {
+      perTierExplicit.set(t.id, await getExplicitTierPrices(t.id, [row.id]));
+    }),
+  );
+
   res.json(
     GetProductResponse.parse({
-      ...toApiProduct(row, Number(tier.discountPercent)),
+      ...toApiProduct(row, Number(tier.discountPercent), perTierExplicit.get(tier.id)),
       tierPrices: tiers.map((t) => ({
         tierId: t.id,
         tierName: t.name,
-        price: tierPrice(listPrice, Number(t.discountPercent)),
+        price: resolvePrice(
+          perTierExplicit.get(t.id) ?? new Map(),
+          row.id,
+          listPrice,
+          Number(t.discountPercent),
+        ),
         isCurrent: t.id === tier.id,
       })),
       specs,

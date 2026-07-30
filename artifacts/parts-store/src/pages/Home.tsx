@@ -8,19 +8,15 @@ import { ProductCard } from '@/components/products/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, Package, TrendingUp, Award, ChevronDown } from 'lucide-react';
+import { ArrowRight, Package, Award, ChevronDown, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@clerk/react';
 
 export default function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { isSignedIn } = useAuth();
   const { data: summary } = useGetCatalogSummary();
-  const { data: featured, isLoading: featuredLoading } = useListFeaturedProducts({
-    query: { enabled: !!isSignedIn } as any,
-  });
-  const { data: customer } = useGetCurrentCustomer({ query: { enabled: !!isSignedIn } as any });
+  const { data: featured, isLoading: featuredLoading } = useListFeaturedProducts();
+  const { data: customer } = useGetCurrentCustomer();
   const addToCart = useAddCartItem();
 
   const handleAddToCart = (productId: number, quantity: number) => {
@@ -66,53 +62,35 @@ export default function Home() {
               </p>
             </div>
 
-            {isSignedIn ? (
-              <>
-                <SmartSearch />
+            <SmartSearch />
 
-                {customer && (
-                  <Card className="inline-block border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 mx-auto">
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <Award className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {customer.tier.name} Member
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Saving {customer.tier.discountPercent}% on every order
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <div className="flex justify-center">
-                  <Button
-                    variant="ghost"
-                    onClick={scrollToBrowse}
-                    className="gap-2 text-muted-foreground hover:text-foreground"
-                    data-testid="button-scroll-browse"
-                  >
-                    Or browse by category
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-wrap justify-center gap-3 pt-2">
-                <Link href="/sign-up">
-                  <Button size="lg" className="gap-2" data-testid="button-hero-sign-up">
-                    Create Your Shop Account
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/sign-in">
-                  <Button size="lg" variant="outline" data-testid="button-hero-sign-in">
-                    Sign In
-                  </Button>
-                </Link>
-              </div>
+            {customer && (
+              <Card className="inline-block border-primary/20 bg-primary/5 mx-auto">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <Award className="h-5 w-5 text-primary shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {customer.tier.name} Pricing
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {customer.tier.description}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
+
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                onClick={scrollToBrowse}
+                className="gap-2 text-muted-foreground hover:text-foreground"
+                data-testid="button-scroll-browse"
+              >
+                Or browse by category
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="absolute right-0 top-0 h-full w-1/3 opacity-5 pointer-events-none">
@@ -152,15 +130,14 @@ export default function Home() {
         )}
 
         {/* Browse by Category */}
-        {isSignedIn && <BrowseByCategory />}
+        <BrowseByCategory />
 
         {/* Featured Products */}
-        {isSignedIn && (
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-foreground">Popular This Week</h2>
-              <p className="text-sm text-muted-foreground mt-1">Best-selling parts at your tier pricing</p>
+              <p className="text-sm text-muted-foreground mt-1">Best-selling parts at your group pricing</p>
             </div>
             <Link href="/products">
               <Button variant="outline" className="gap-2" data-testid="button-view-all">
@@ -203,22 +180,19 @@ export default function Home() {
             </Card>
           )}
         </section>
-        )}
 
         {/* CTA */}
         <section className="rounded-lg border border-border bg-muted/30 p-8 md:p-12 text-center">
-          <TrendingUp className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            {isSignedIn ? 'Ready to upgrade your pricing tier?' : 'Volume pricing that grows with you'}
-          </h2>
+          <Mail className="h-12 w-12 text-primary mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-foreground mb-2">Need better pricing terms?</h2>
           <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            The more you order, the better your prices get. {isSignedIn ? 'Check your progress and see how much you could save.' : 'New accounts start on the Bronze tier and upgrade automatically with annual spend.'}
+            High-volume partners can access Wholesale and Partner group pricing. Contact Ferry Telecom to discuss your options.
           </p>
-          <Link href={isSignedIn ? '/account' : '/sign-up'}>
-            <Button size="lg" data-testid="button-check-tier">
-              {isSignedIn ? 'Check Your Tier Progress' : 'Get Started'}
-            </Button>
-          </Link>
+          <Button size="lg" asChild data-testid="button-contact-us">
+            <a href="https://ferrytelecom.com" target="_blank" rel="noopener noreferrer">
+              Contact Us
+            </a>
+          </Button>
         </section>
       </main>
     </div>

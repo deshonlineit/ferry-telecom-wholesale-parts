@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronLeft, Package, Plus, Check, Award } from 'lucide-react';
+import { ChevronLeft, Package, Plus, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProductDetail() {
@@ -92,8 +92,6 @@ export default function ProductDetail() {
     );
   }
 
-  const savings = product.listPrice - product.yourPrice;
-  const savingsPercent = ((savings / product.listPrice) * 100).toFixed(0);
   const inStock = product.stock > 0;
   const currentTier = product.tierPrices.find((t) => t.isCurrent);
 
@@ -153,21 +151,12 @@ export default function ProductDetail() {
                   <span className="text-4xl font-bold text-foreground">
                     ${product.yourPrice.toFixed(2)}
                   </span>
-                  {savings > 0 && (
-                    <span className="text-lg text-muted-foreground line-through">
-                      ${product.listPrice.toFixed(2)}
-                    </span>
-                  )}
                 </div>
-                {savings > 0 && currentTier && (
-                  <div className="flex items-center gap-2">
-                    <Award className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                    <p className="text-sm font-semibold text-foreground">
-                      {currentTier.tierName} pricing saves you ${savings.toFixed(2)} ({savingsPercent}%)
-                    </p>
-                  </div>
+                {currentTier && (
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {currentTier.tierName} pricing
+                  </p>
                 )}
-                <p className="text-xs text-muted-foreground">Your tier-discounted price</p>
               </CardContent>
             </Card>
 
@@ -212,36 +201,33 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Tier Pricing Table */}
+        {/* Group Pricing Table */}
         {product.tierPrices.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Pricing by Tier</CardTitle>
+              <CardTitle>Pricing by Customer Group</CardTitle>
               <p className="text-sm text-muted-foreground">
-                See what you could save at different membership tiers
+                Prices vary by customer group assignment
               </p>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tier</TableHead>
+                    <TableHead>Customer Group</TableHead>
                     <TableHead>Price</TableHead>
-                    <TableHead>Savings vs. List</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {product.tierPrices.map((tier) => {
-                    const tierSavings = product.listPrice - tier.price;
-                    const tierSavingsPercent = ((tierSavings / product.listPrice) * 100).toFixed(0);
                     return (
                       <TableRow key={tier.tierId} className={tier.isCurrent ? 'bg-primary/5' : ''}>
                         <TableCell className="font-medium">
                           {tier.tierName}
                           {tier.isCurrent && (
                             <Badge variant="outline" className="ml-2">
-                              Your Tier
+                              Your Group
                             </Badge>
                           )}
                         </TableCell>
@@ -249,17 +235,10 @@ export default function ProductDetail() {
                           ${tier.price.toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          {tierSavings > 0 ? (
-                            <span className="text-amber-600 dark:text-amber-500 font-medium">
-                              ${tierSavings.toFixed(2)} ({tierSavingsPercent}%)
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">List price</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
                           {tier.isCurrent && (
-                            <Award className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                            <Badge variant="default" className="text-xs">
+                              Your Price
+                            </Badge>
                           )}
                         </TableCell>
                       </TableRow>

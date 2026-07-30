@@ -1,6 +1,6 @@
 # Ferry Telecom Wholesale Parts
 
-B2B wholesale parts store for mobile repair shops: structured product catalog (brand/model/category/quality/stock), customer price tiers with volume-based discounts, cart, and one-step checkout.
+B2B wholesale parts store for mobile repair shops: real catalog imported from the ferrytelecom.com WooCommerce export (~7,850 products with brand/model/category/quality/stock/images), assigned customer groups (Big Repairshop = default, Wholesale, Partner) with explicit per-product prices in `product_tier_prices` (fallback: listPrice minus group discount %), smart natural-language part search, cart, and one-step checkout. Customers do NOT auto-upgrade groups by spend — Ferry Telecom assigns them (sentinel `min_annual_spend = 999999999` marks manually assigned groups). Small Repairshop customers are intentionally excluded (they buy on ferryxpress/Shopify). Re-import script: `scripts/import-products.mjs <csv>`.
 
 ## Run & Operate
 
