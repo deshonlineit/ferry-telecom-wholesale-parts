@@ -201,55 +201,6 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Group Pricing Table */}
-        {product.tierPrices.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Pricing by Customer Group</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Prices vary by customer group assignment
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer Group</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {product.tierPrices.map((tier) => {
-                    return (
-                      <TableRow key={tier.tierId} className={tier.isCurrent ? 'bg-primary/5' : ''}>
-                        <TableCell className="font-medium">
-                          {tier.tierName}
-                          {tier.isCurrent && (
-                            <Badge variant="outline" className="ml-2">
-                              Your Group
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-semibold text-lg">
-                          ${tier.price.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          {tier.isCurrent && (
-                            <Badge variant="default" className="text-xs">
-                              Your Price
-                            </Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Specifications */}
         {product.specs.length > 0 && (
           <Card>

@@ -18,7 +18,6 @@ import {
 } from "@workspace/api-zod";
 import {
   getCustomerWithTier,
-  getAllTiers,
   tierPrice,
   getExplicitTierPrices,
   resolvePrice,
@@ -168,10 +167,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [{ tier }, tiers] = await Promise.all([
-    getCustomerWithTier(req.customer!.id),
-    getAllTiers(),
-  ]);
+  const { tier } = await getCustomerWithTier(req.customer!.id);
   const listPrice = Number(row.listPrice);
 
   const specs: { label: string; value: string }[] = [
@@ -183,27 +179,20 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     { label: "Availability", value: row.stock > 0 ? `${row.stock} in stock` : "Out of stock" },
   ];
 
-  const perTierExplicit = new Map<number, Map<number, number>>();
-  await Promise.all(
-    tiers.map(async (t) => {
-      perTierExplicit.set(t.id, await getExplicitTierPrices(t.id, [row.id]));
-    }),
-  );
+  const explicitPrices = await getExplicitTierPrices(tier.id, [row.id]);
 
+  // Only expose the logged-in customer's own price — never other groups' pricing.
   res.json(
     GetProductResponse.parse({
-      ...toApiProduct(row, Number(tier.discountPercent), perTierExplicit.get(tier.id)),
-      tierPrices: tiers.map((t) => ({
-        tierId: t.id,
-        tierName: t.name,
-        price: resolvePrice(
-          perTierExplicit.get(t.id) ?? new Map(),
-          row.id,
-          listPrice,
-          Number(t.discountPercent),
-        ),
-        isCurrent: t.id === tier.id,
-      })),
+      ...toApiProduct(row, Number(tier.discountPercent), explicitPrices),
+      tierPrices: [
+        {
+          tierId: tier.id,
+          tierName: tier.name,
+          price: resolvePrice(explicitPrices, row.id, listPrice, Number(tier.discountPercent)),
+          isCurrent: true,
+        },
+      ],
       specs,
     }),
   );
