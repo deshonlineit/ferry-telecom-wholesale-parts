@@ -11,7 +11,6 @@ import { useEffect } from 'react';
 import {
   useGetCurrentCustomer,
   useGetDashboardSummary,
-  useListPriceTiers,
   useUpdateCustomerProfile,
   getGetCurrentCustomerQueryKey,
 } from '@workspace/api-client-react';
@@ -27,9 +26,8 @@ import { useToast } from '@/hooks/use-toast';
 export default function Account() {
   const { data: customer, isLoading: customerLoading } = useGetCurrentCustomer();
   const { data: dashboard, isLoading: dashboardLoading } = useGetDashboardSummary();
-  const { data: tiers, isLoading: tiersLoading } = useListPriceTiers();
 
-  const isLoading = customerLoading || dashboardLoading || tiersLoading;
+  const isLoading = customerLoading || dashboardLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,71 +197,27 @@ export default function Account() {
               </Card>
             )}
 
-            {/* Customer Groups */}
-            {tiers && tiers.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Customer Groups</CardTitle>
-                  <CardDescription>
-                    Ferry Telecom assigns customer groups based on partnership terms
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Group</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tiers.map((tier) => {
-                        const isCurrent = customer?.tier.id === tier.id;
-                        return (
-                          <TableRow key={tier.id} className={isCurrent ? 'bg-primary/5' : ''}>
-                            <TableCell className="font-semibold">
-                              {tier.name}
-                              {isCurrent && (
-                                <Badge variant="default" className="ml-2">
-                                  Your Group
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {tier.description}
-                            </TableCell>
-                            <TableCell>
-                              {isCurrent && (
-                                <Award className="h-5 w-5 text-primary" />
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                  <div className="mt-6 p-4 border border-border rounded-lg bg-muted/30">
-                    <div className="flex items-start gap-3">
-                      <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-foreground mb-1">
-                          Want better pricing terms?
-                        </p>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          High-volume partners may qualify for Wholesale or Partner group pricing. Contact Ferry Telecom to discuss your options.
-                        </p>
-                        <Button size="sm" asChild data-testid="button-contact-pricing">
-                          <a href="https://ferrytelecom.com" target="_blank" rel="noopener noreferrer">
-                            Contact Us
-                          </a>
-                        </Button>
-                      </div>
-                    </div>
+            {/* Pricing contact */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-foreground mb-1">
+                      Questions about your pricing terms?
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Contact Ferry Telecom to discuss your partnership options.
+                    </p>
+                    <Button size="sm" asChild data-testid="button-contact-pricing">
+                      <a href="https://ferrytelecom.com" target="_blank" rel="noopener noreferrer">
+                        Contact Us
+                      </a>
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* CTA */}
             <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">

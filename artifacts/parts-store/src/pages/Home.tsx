@@ -1,14 +1,13 @@
 import { Link } from 'wouter';
-import { useGetCatalogSummary, useListFeaturedProducts, useGetCurrentCustomer, useAddCartItem, getGetCartQueryKey } from '@workspace/api-client-react';
+import { useGetCatalogSummary, useListFeaturedProducts, useGetCurrentCustomer, useListCategories, useListBrands, useAddCartItem, getGetCartQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { SmartSearch } from '@/components/home/SmartSearch';
-import { BrowseByCategory } from '@/components/home/BrowseByCategory';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, Package, Award, ChevronDown, Mail } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowRight, Package, Award, Grid3x3, Smartphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -17,6 +16,8 @@ export default function Home() {
   const { data: summary } = useGetCatalogSummary();
   const { data: featured, isLoading: featuredLoading } = useListFeaturedProducts();
   const { data: customer } = useGetCurrentCustomer();
+  const { data: categories } = useListCategories();
+  const { data: brands } = useListBrands();
   const addToCart = useAddCartItem();
 
   const handleAddToCart = (productId: number, quantity: number) => {
@@ -41,9 +42,8 @@ export default function Home() {
     );
   };
 
-  const scrollToBrowse = () => {
-    document.getElementById('browse-by-category')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Top brands by model count
+  const topBrands = brands?.slice().sort((a, b) => b.models.length - a.models.length).slice(0, 8) || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,18 +79,6 @@ export default function Home() {
                 </CardContent>
               </Card>
             )}
-
-            <div className="flex justify-center">
-              <Button
-                variant="ghost"
-                onClick={scrollToBrowse}
-                className="gap-2 text-muted-foreground hover:text-foreground"
-                data-testid="button-scroll-browse"
-              >
-                Or browse by category
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
 
           <div className="absolute right-0 top-0 h-full w-1/3 opacity-5 pointer-events-none">
@@ -130,7 +118,77 @@ export default function Home() {
         )}
 
         {/* Browse by Category */}
-        <BrowseByCategory />
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Grid3x3 className="h-5 w-5 text-primary" />
+                <h2 className="text-2xl font-bold text-foreground">Browse by Category</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">Jump straight to what you need</p>
+            </div>
+          </div>
+
+          {categories && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {categories.map((category) => (
+                <Link key={category.id} href={`/products?categoryId=${category.id}`}>
+                  <Card className="hover:border-primary/50 hover:shadow-md transition-all cursor-pointer h-full">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h3 className="font-semibold text-sm text-foreground leading-tight">
+                          {category.name}
+                        </h3>
+                        <Package className="h-4 w-4 text-primary shrink-0" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {category.productCount.toLocaleString()} products
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Shop by Brand */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Smartphone className="h-5 w-5 text-primary" />
+                <h2 className="text-2xl font-bold text-foreground">Shop by Brand</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">Popular device manufacturers</p>
+            </div>
+            <Link href="/products">
+              <Button variant="outline" className="gap-2" data-testid="button-view-all-brands">
+                All Brands
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+
+          {topBrands.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+              {topBrands.map((brand) => (
+                <Link key={brand.id} href={`/products?brandId=${brand.id}`}>
+                  <Card className="hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
+                    <CardContent className="p-4 text-center">
+                      <p className="font-semibold text-sm text-foreground mb-1">
+                        {brand.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {brand.models.length} {brand.models.length === 1 ? 'model' : 'models'}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* Featured Products */}
         <section className="space-y-6">
@@ -179,20 +237,6 @@ export default function Home() {
               </CardContent>
             </Card>
           )}
-        </section>
-
-        {/* CTA */}
-        <section className="rounded-lg border border-border bg-muted/30 p-8 md:p-12 text-center">
-          <Mail className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">Need better pricing terms?</h2>
-          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            High-volume partners can access Wholesale and Partner group pricing. Contact Ferry Telecom to discuss your options.
-          </p>
-          <Button size="lg" asChild data-testid="button-contact-us">
-            <a href="https://ferrytelecom.com" target="_blank" rel="noopener noreferrer">
-              Contact Us
-            </a>
-          </Button>
         </section>
       </main>
     </div>
