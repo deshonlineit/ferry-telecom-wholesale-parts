@@ -130,7 +130,11 @@ router.post("/orders", async (req, res): Promise<void> => {
   for (const row of cartRows) {
     if (row.quantity > row.stock) {
       res.status(400).json({
-        error: `Only ${row.stock} in stock for ${row.name}`,
+        error:
+          row.stock === 0
+            ? `"${row.name}" just sold out while you were checking out. Please review your cart.`
+            : `Only ${row.stock} in stock for ${row.name}. Please review your cart.`,
+        code: "OUT_OF_STOCK",
       });
       return;
     }
@@ -166,7 +170,10 @@ router.post("/orders", async (req, res): Promise<void> => {
     order = await runCheckoutTransaction();
   } catch (e) {
     if (e instanceof OutOfStockError) {
-      res.status(400).json({ error: `Only limited stock left for ${e.message}` });
+      res.status(400).json({
+        error: `"${e.message}" just sold out while you were checking out. Please review your cart.`,
+        code: "OUT_OF_STOCK",
+      });
       return;
     }
     throw e;

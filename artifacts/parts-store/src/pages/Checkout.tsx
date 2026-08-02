@@ -63,10 +63,27 @@ export default function Checkout() {
           setPlacedOrderNumber(order.orderNumber);
           setOrderPlaced(true);
         },
-        onError: () => {
+        onError: (error: unknown) => {
+          const data = (error as { data?: { code?: string; error?: string } } | null)?.data;
+          if (data?.code === 'OUT_OF_STOCK') {
+            // Stock ran out between adding to cart and paying: refresh the
+            // cart and send the buyer back to review it.
+            queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+            toast({
+              title: 'Item just sold out / Artikel net uitverkocht',
+              description:
+                data.error ??
+                'An item in your cart sold out while you were checking out. Please review your cart. / Een artikel in uw winkelwagen is zojuist uitverkocht. Controleer uw winkelwagen.',
+              variant: 'destructive',
+            });
+            setLocation('/cart');
+            return;
+          }
           toast({
             title: 'Order failed',
-            description: 'There was an error placing your order. Please try again.',
+            description:
+              (data?.error) ||
+              'There was an error placing your order. Please try again.',
             variant: 'destructive',
           });
         },
