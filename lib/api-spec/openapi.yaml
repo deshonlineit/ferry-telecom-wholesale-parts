@@ -97,7 +97,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [name, priceAsc, priceDesc, newest]
+            enum: [name, priceAsc, priceDesc, stockAsc, stockDesc, newest]
         - name: page
           in: query
           schema: { type: integer, minimum: 1 }

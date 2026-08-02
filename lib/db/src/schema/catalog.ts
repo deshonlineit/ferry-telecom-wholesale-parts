@@ -6,6 +6,7 @@ import {
   numeric,
   boolean,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const categoriesTable = pgTable("categories", {
@@ -48,7 +49,16 @@ export const productsTable = pgTable("products", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  index("products_category_id_idx").on(t.categoryId),
+  index("products_brand_id_idx").on(t.brandId),
+  index("products_model_id_idx").on(t.modelId),
+  index("products_quality_idx").on(t.quality),
+  index("products_stock_idx").on(t.stock),
+  index("products_list_price_idx").on(t.listPrice),
+  index("products_name_idx").on(t.name),
+  index("products_created_at_idx").on(t.createdAt),
+]);
 
 export type Category = typeof categoriesTable.$inferSelect;
 export type Brand = typeof brandsTable.$inferSelect;

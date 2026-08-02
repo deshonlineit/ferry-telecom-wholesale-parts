@@ -70,7 +70,7 @@ export const ListProductsQueryParams = zod.object({
   "modelId": zod.coerce.number().int().optional(),
   "quality": zod.coerce.string().optional(),
   "inStockOnly": zod.coerce.boolean().optional(),
-  "sort": zod.enum(['name', 'priceAsc', 'priceDesc', 'newest']).optional(),
+  "sort": zod.enum(['name', 'priceAsc', 'priceDesc', 'stockAsc', 'stockDesc', 'newest']).optional(),
   "page": zod.coerce.number().int().min(1).optional(),
   "pageSize": zod.coerce.number().int().min(1).max(listProductsQueryPageSizeMax).optional()
 })

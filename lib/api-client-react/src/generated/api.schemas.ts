@@ -434,6 +434,8 @@ export const ListProductsSort = {
   name: 'name',
   priceAsc: 'priceAsc',
   priceDesc: 'priceDesc',
+  stockAsc: 'stockAsc',
+  stockDesc: 'stockDesc',
   newest: 'newest',
 } as const;
 

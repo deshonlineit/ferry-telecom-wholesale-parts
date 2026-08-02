@@ -99,14 +99,20 @@ router.get("/products", async (req, res): Promise<void> => {
 
   const where = conditions.length ? and(...conditions) : undefined;
 
-  const orderBy =
+  const primaryOrder =
     q.sort === "priceAsc"
       ? asc(productsTable.listPrice)
       : q.sort === "priceDesc"
         ? desc(productsTable.listPrice)
-        : q.sort === "newest"
-          ? desc(productsTable.createdAt)
-          : asc(productsTable.name);
+        : q.sort === "stockAsc"
+          ? asc(productsTable.stock)
+          : q.sort === "stockDesc"
+            ? desc(productsTable.stock)
+            : q.sort === "newest"
+              ? desc(productsTable.createdAt)
+              : asc(productsTable.name);
+  // Stable tiebreaker so pagination never repeats/skips rows on equal values.
+  const orderBy = [primaryOrder, asc(productsTable.id)];
 
   const { tier } = await getCustomerWithTier(req.customer!.id);
   const discount = Number(tier.discountPercent);
@@ -120,7 +126,7 @@ router.get("/products", async (req, res): Promise<void> => {
 
   const [rows, [{ total }]] = await Promise.all([
     (where ? baseQuery().where(where) : baseQuery())
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     where ? countQuery.where(where) : countQuery,

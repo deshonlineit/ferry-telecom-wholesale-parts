@@ -211,6 +211,8 @@ export default function Products() {
                 <SelectItem value="name">Name A-Z</SelectItem>
                 <SelectItem value="priceAsc">Price: Low to High</SelectItem>
                 <SelectItem value="priceDesc">Price: High to Low</SelectItem>
+                <SelectItem value="stockDesc">Stock: High to Low</SelectItem>
+                <SelectItem value="stockAsc">Stock: Low to High</SelectItem>
                 <SelectItem value="newest">Newest First</SelectItem>
               </SelectContent>
             </Select>
