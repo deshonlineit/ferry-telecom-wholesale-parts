@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, gt, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
 import {
   db,
   productsTable,
   categoriesTable,
   brandsTable,
   deviceModelsTable,
+  orderLinesTable,
 } from "@workspace/db";
 import {
   ListProductsQueryParams,
@@ -138,12 +139,71 @@ router.get("/products", async (req, res): Promise<void> => {
   );
 });
 
+const FEATURED_LIMIT = 8;
+
 router.get("/products/featured", async (req, res): Promise<void> => {
   const { tier } = await getCustomerWithTier(req.customer!.id);
+
+  // 1. Curated: products explicitly flagged as featured by staff
   const rows = await baseQuery()
     .where(eq(productsTable.featured, true))
     .orderBy(asc(productsTable.name))
-    .limit(8);
+    .limit(FEATURED_LIMIT);
+
+  // 2. Auto-fill with best sellers (by units sold) if there aren't enough curated picks
+  if (rows.length < FEATURED_LIMIT) {
+    const excluded = new Set(rows.map((r) => r.id));
+    const bestSellerConditions: SQL[] = [gt(productsTable.stock, 0)];
+    if (excluded.size > 0) {
+      bestSellerConditions.push(
+        notInArray(orderLinesTable.productId, Array.from(excluded)),
+      );
+    }
+    const bestSellers = await db
+      .select({
+        productId: orderLinesTable.productId,
+        unitsSold: sql<number>`sum(${orderLinesTable.quantity})::int`,
+      })
+      .from(orderLinesTable)
+      .innerJoin(productsTable, eq(orderLinesTable.productId, productsTable.id))
+      .where(and(...bestSellerConditions))
+      .groupBy(orderLinesTable.productId)
+      .orderBy(desc(sql`sum(${orderLinesTable.quantity})`))
+      .limit(FEATURED_LIMIT - rows.length);
+
+    const fillIds = bestSellers.map((b) => b.productId);
+
+    if (fillIds.length > 0) {
+      const fillRows = await baseQuery().where(inArray(productsTable.id, fillIds));
+      // keep best-seller order
+      const byId = new Map(fillRows.map((r) => [r.id, r]));
+      for (const id of fillIds) {
+        const r = byId.get(id);
+        if (r) {
+          rows.push(r);
+          excluded.add(id);
+        }
+      }
+    }
+
+    // 3. Still short? Fill with in-stock highlights (newest products with images first)
+    if (rows.length < FEATURED_LIMIT) {
+      const highlightConditions: SQL[] = [gt(productsTable.stock, 0)];
+      if (excluded.size > 0) {
+        highlightConditions.push(notInArray(productsTable.id, Array.from(excluded)));
+      }
+      const highlights = await baseQuery()
+        .where(and(...highlightConditions))
+        .orderBy(
+          sql`(${productsTable.imageUrl} is not null) desc`,
+          desc(productsTable.createdAt),
+          asc(productsTable.name),
+        )
+        .limit(FEATURED_LIMIT - rows.length);
+      rows.push(...highlights);
+    }
+  }
+
   const explicit = await getExplicitTierPrices(tier.id, rows.map((r) => r.id));
   res.json(
     ListFeaturedProductsResponse.parse(

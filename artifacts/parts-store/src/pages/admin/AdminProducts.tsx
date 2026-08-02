@@ -42,6 +42,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, Edit, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -140,6 +141,28 @@ export default function AdminProducts() {
           setIsEditOpen(false);
           setEditingProduct(null);
           toast({ title: 'Product updated', description: `${data.name} saved.` });
+        },
+        onError: (error: any) => {
+          toast({
+            title: 'Failed to update product',
+            description: error?.error || 'An error occurred',
+            variant: 'destructive',
+          });
+        },
+      }
+    );
+  };
+
+  const toggleFeatured = (product: AdminProduct) => {
+    updateProduct.mutate(
+      { id: product.id, data: { featured: !product.featured } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getAdminListProductsQueryKey() });
+          toast({
+            title: !product.featured ? 'Marked as featured' : 'Removed from featured',
+            description: `${product.name} ${!product.featured ? 'will show in "Popular This Week" on the homepage.' : 'no longer curated for the homepage.'}`,
+          });
         },
         onError: (error: any) => {
           toast({
@@ -291,11 +314,12 @@ export default function AdminProducts() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {product.featured && (
-                        <Badge variant="default" className="text-xs">
-                          Featured
-                        </Badge>
-                      )}
+                      <Switch
+                        checked={product.featured}
+                        onCheckedChange={() => toggleFeatured(product)}
+                        aria-label={`Toggle featured for ${product.name}`}
+                        data-testid={`switch-featured-${product.id}`}
+                      />
                     </TableCell>
                     <TableCell>
                       <Button
