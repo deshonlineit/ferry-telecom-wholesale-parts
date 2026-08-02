@@ -3,3 +3,4 @@
 - [Rebuild db types after schema changes](db-types-rebuild.md) — run `tsc -b lib/db` or new columns look missing; drizzle-kit push needs TTY, apply additive SQL via executeSql.
 - [Orval schema naming collisions](orval-schema-naming.md) — never name an OpenAPI component schema `<OperationId>{Body,Response}`; orval already generates those names and the api-zod exports clash.
 - [Radix Select empty values](radix-select-empty-value.md) — never use SelectItem value=""; use "all"/"none" sentinels or the page crashes at render.
+- [Post-merge reconciliation](post-merge-reconciliation.md) — after task merges: rerun codegen + zod/v4 sed, apply new DB columns, pnpm install, restart workflows; check for dropped auth middleware.

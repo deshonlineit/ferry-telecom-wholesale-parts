@@ -10,6 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Package, Award, Grid3x3, Smartphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+/** Round down to a friendly "7,500+" style figure instead of an exact count. */
+function roundedCount(count: number): string {
+  if (count < 100) return String(count);
+  const step = count < 1000 ? 100 : 500;
+  return `${(Math.floor(count / step) * step).toLocaleString()}+`;
+}
+
 export default function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -92,7 +99,7 @@ export default function Home() {
           <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-3xl font-bold text-primary">{summary.productCount.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-primary">{roundedCount(summary.productCount)}</p>
                 <p className="text-sm text-muted-foreground mt-1">Products</p>
               </CardContent>
             </Card>
@@ -110,7 +117,7 @@ export default function Home() {
             </Card>
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-3xl font-bold text-green-600 dark:text-green-500">{summary.inStockCount.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-green-600 dark:text-green-500">{roundedCount(summary.inStockCount)}</p>
                 <p className="text-sm text-muted-foreground mt-1">In Stock</p>
               </CardContent>
             </Card>
