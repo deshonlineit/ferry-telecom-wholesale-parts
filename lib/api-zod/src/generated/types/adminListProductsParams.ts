@@ -9,6 +9,7 @@
 export type AdminListProductsParams = {
 search?: string;
 categoryId?: number;
+featured?: boolean;
 /**
  * @minimum 1
  */

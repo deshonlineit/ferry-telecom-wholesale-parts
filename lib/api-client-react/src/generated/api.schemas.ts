@@ -446,6 +446,7 @@ q: string;
 export type AdminListProductsParams = {
 search?: string;
 categoryId?: number;
+featured?: boolean;
 /**
  * @minimum 1
  */
@@ -456,4 +457,3 @@ page?: number;
  */
 pageSize?: number;
 };
-

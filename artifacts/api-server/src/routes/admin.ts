@@ -100,6 +100,11 @@ router.get("/admin/products", async (req, res): Promise<void> => {
     if (cond) conditions.push(cond);
   }
   if (q.categoryId != null) conditions.push(eq(productsTable.categoryId, q.categoryId));
+  // Note: read the raw query string because zod.coerce.boolean() turns "false" into true.
+  const rawFeatured = req.query.featured;
+  if (typeof rawFeatured === "string" && rawFeatured.length > 0) {
+    conditions.push(eq(productsTable.featured, rawFeatured === "true"));
+  }
   const where = conditions.length ? and(...conditions) : undefined;
 
   const countQuery = db

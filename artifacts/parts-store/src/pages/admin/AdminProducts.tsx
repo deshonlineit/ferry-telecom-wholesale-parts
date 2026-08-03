@@ -51,6 +51,7 @@ const QUALITY_OPTIONS = ['New', 'OEM Pulled', 'Aftermarket Premium', 'Refurbishe
 export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [featuredOnly, setFeaturedOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -62,6 +63,7 @@ export default function AdminProducts() {
   const params = {
     search: search || undefined,
     categoryId: categoryFilter !== 'all' ? Number(categoryFilter) : undefined,
+    featured: featuredOnly ? true : undefined,
     page,
     pageSize: 20,
   };
@@ -252,6 +254,21 @@ export default function AdminProducts() {
               ))}
             </SelectContent>
           </Select>
+
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <Switch
+              id="featured-only"
+              checked={featuredOnly}
+              onCheckedChange={(checked) => {
+                setFeaturedOnly(checked);
+                setPage(1);
+              }}
+              data-testid="switch-featured-filter"
+            />
+            <Label htmlFor="featured-only" className="text-sm cursor-pointer">
+              Featured only
+            </Label>
+          </div>
         </div>
 
         {/* Table */}
