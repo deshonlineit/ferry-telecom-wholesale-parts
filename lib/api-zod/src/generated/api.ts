@@ -45,6 +45,13 @@ export const ListBrandsResponse = zod.array(ListBrandsResponseItem)
 
 
 /**
+ * @summary Distinct product quality grades present in the catalog
+ */
+export const ListQualitiesResponseItem = zod.string()
+export const ListQualitiesResponse = zod.array(ListQualitiesResponseItem)
+
+
+/**
  * @summary Storefront summary stats (product count, brands, in-stock, categories)
  */
 export const GetCatalogSummaryResponse = zod.object({

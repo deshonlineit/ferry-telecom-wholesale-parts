@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useListCategories, useListBrands } from '@workspace/api-client-react';
+import { useListCategories, useListBrands, useListQualities } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,17 +33,8 @@ export function ProductsSidebar({
 }: ProductsSidebarProps) {
   const { data: categories } = useListCategories();
   const { data: brands } = useListBrands();
+  const { data: qualityOptions } = useListQualities();
   const [expandedBrandId, setExpandedBrandId] = useState<number | null>(brandId || null);
-
-  const qualityOptions = [
-    'OEM Original',
-    'OEM Pulled',
-    'Aftermarket Premium',
-    'Aftermarket Standard',
-    'Refurbished A',
-    'Refurbished B',
-    'Standard',
-  ];
 
   const handleBrandClick = (clickedBrandId: number) => {
     if (expandedBrandId === clickedBrandId) {
@@ -191,7 +182,7 @@ export function ProductsSidebar({
               >
                 All Quality Grades
               </button>
-              {qualityOptions.map((q) => (
+              {qualityOptions?.map((q) => (
                 <button
                   key={q}
                   onClick={() => onQualityChange(q)}

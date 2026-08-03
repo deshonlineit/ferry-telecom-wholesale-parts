@@ -319,6 +319,83 @@ export function useListBrands<TData = Awaited<ReturnType<typeof listBrands>>, TE
 
 
 
+export const getListQualitiesUrl = () => {
+
+
+
+
+  return `/api/catalog/qualities`
+}
+
+/**
+ * @summary Distinct product quality grades present in the catalog
+ */
+export const listQualities = async ( options?: Parameters<typeof customFetch>[1]): Promise<string[]> => {
+
+  return customFetch<string[]>(getListQualitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQualitiesQueryKey = () => {
+    return [
+    `/api/catalog/qualities`
+    ] as const;
+    }
+
+
+export const getListQualitiesQueryOptions = <TData = Awaited<ReturnType<typeof listQualities>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQualities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQualitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQualities>>> = ({ signal }) => listQualities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQualities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQualitiesQueryResult = NonNullable<Awaited<ReturnType<typeof listQualities>>>
+export type ListQualitiesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Distinct product quality grades present in the catalog
+ */
+
+export function useListQualities<TData = Awaited<ReturnType<typeof listQualities>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQualities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQualitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetCatalogSummaryUrl = () => {
 
 

@@ -57,6 +57,19 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Brand"
+  /catalog/qualities:
+    get:
+      operationId: listQualities
+      tags: [catalog]
+      summary: Distinct product quality grades present in the catalog
+      responses:
+        "200":
+          description: Quality grades
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
   /catalog/summary:
     get:
       operationId: getCatalogSummary

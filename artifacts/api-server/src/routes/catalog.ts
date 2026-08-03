@@ -11,6 +11,7 @@ import {
   ListCategoriesResponse,
   ListBrandsResponse,
   GetCatalogSummaryResponse,
+  ListQualitiesResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -49,6 +50,15 @@ router.get("/catalog/brands", async (_req, res): Promise<void> => {
   }));
 
   res.json(ListBrandsResponse.parse(result));
+});
+
+router.get("/catalog/qualities", async (_req, res): Promise<void> => {
+  const rows = await db
+    .selectDistinct({ quality: productsTable.quality })
+    .from(productsTable)
+    .orderBy(asc(productsTable.quality));
+
+  res.json(ListQualitiesResponse.parse(rows.map((r) => r.quality)));
 });
 
 router.get("/catalog/summary", async (_req, res): Promise<void> => {
