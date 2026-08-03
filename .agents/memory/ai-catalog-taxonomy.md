@@ -13,6 +13,7 @@ Brand/model links are also AI-extracted: `scripts/extract-models.mjs` (cache `sc
 **How to apply:**
 - Uses Replit OpenAI integration env vars (`AI_INTEGRATIONS_OPENAI_*`), model gpt-5.6-luna, batches of 40, low concurrency — the proxy rate-limits hard; honor retry-after.
 - Category *slugs* are referenced in `artifacts/api-server/src/lib/smart-search.ts` CATEGORY_SYNONYMS — keep in sync when adding/renaming categories. Slug `apple-watch` is displayed as "Smartwatch Parts"; `tempered-glass-protection` as "Screen Protectors".
+- New products created via the admin API without a categoryId are auto-classified server-side (`artifacts/api-server/src/lib/classifyProduct.ts`); its taxonomy + prompt duplicate the script's — keep both in sync when changing categories.
 - Background `nohup` node jobs die when a ShellExec session ends — run long jobs in foreground chunks with a resumable cache instead.
 
 ## One-off category splits

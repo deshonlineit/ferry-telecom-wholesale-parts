@@ -777,11 +777,13 @@ components:
         totalPages: { type: integer }
     ProductInput:
       type: object
-      required: [sku, name, categoryId, brandId, quality, listPrice, stock]
+      required: [sku, name, brandId, quality, listPrice, stock]
       properties:
         sku: { type: string, minLength: 1 }
         name: { type: string, minLength: 1 }
-        categoryId: { type: integer }
+        categoryId:
+          type: integer
+          description: Optional; when omitted, the category is assigned automatically by AI classification of the product name.
         brandId: { type: integer }
         modelId: { type: ["integer", "null"] }
         quality: { type: string, minLength: 1 }

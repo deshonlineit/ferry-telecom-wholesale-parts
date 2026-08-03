@@ -93,10 +93,12 @@ export default function AdminProducts() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    const rawCategory = formData.get('categoryId');
     const data: ProductInput = {
       sku: formData.get('sku') as string,
       name: formData.get('name') as string,
-      categoryId: Number(formData.get('categoryId')),
+      // 'auto' => omit categoryId so the server classifies with AI
+      ...(rawCategory && rawCategory !== 'auto' ? { categoryId: Number(rawCategory) } : {}),
       brandId: Number(formData.get('brandId')),
       modelId: formData.get('modelId') && formData.get('modelId') !== 'none' ? Number(formData.get('modelId')) : null,
       quality: formData.get('quality') as string,
@@ -459,11 +461,16 @@ function ProductForm({ categories, brands, product }: ProductFormProps) {
 
       <div>
         <Label htmlFor="categoryId">Category *</Label>
-        <Select name="categoryId" defaultValue={product?.categoryId?.toString()} required>
+        <Select
+          name="categoryId"
+          defaultValue={product ? product.categoryId?.toString() : 'auto'}
+          required
+        >
           <SelectTrigger id="categoryId" data-testid="select-category">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
+            {!product && <SelectItem value="auto">Automatic (AI)</SelectItem>}
             {categories?.map((cat) => (
               <SelectItem key={cat.id} value={String(cat.id)}>
                 {cat.name}

@@ -659,7 +659,7 @@ export const adminCreateProductBodyStockMin = 0;
 export const AdminCreateProductBody = zod.object({
   "sku": zod.string().min(1),
   "name": zod.string().min(1),
-  "categoryId": zod.int(),
+  "categoryId": zod.int().optional().describe('Optional; when omitted, the category is assigned automatically by AI classification of the product name.'),
   "brandId": zod.int(),
   "modelId": zod.int().nullish(),
   "quality": zod.string().min(1),

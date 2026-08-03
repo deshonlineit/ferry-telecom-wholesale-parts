@@ -38,6 +38,7 @@ import {
   AdminUpdateOrderStatusResponse,
 } from "@workspace/api-zod";
 import { requireCustomer } from "../middlewares/requireCustomer";
+import { classifyToCategoryId } from "../lib/classifyProduct";
 
 const router: IRouter = Router();
 
@@ -151,12 +152,26 @@ router.post("/admin/products", async (req, res): Promise<void> => {
     return;
   }
 
+  // Category omitted => classify automatically with AI (same taxonomy as
+  // scripts/reclassify-products.mjs). Admin can still override via edit.
+  let categoryId = b.categoryId;
+  if (categoryId == null) {
+    try {
+      categoryId = await classifyToCategoryId(b.name);
+    } catch (err) {
+      res.status(502).json({
+        error: `Automatic category classification failed: ${err instanceof Error ? err.message : String(err)}. Pick a category manually.`,
+      });
+      return;
+    }
+  }
+
   const [created] = await db
     .insert(productsTable)
     .values({
       sku: b.sku,
       name: b.name,
-      categoryId: b.categoryId,
+      categoryId,
       brandId: b.brandId,
       modelId: b.modelId ?? null,
       quality: b.quality,

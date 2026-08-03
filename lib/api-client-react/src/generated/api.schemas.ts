@@ -40,7 +40,8 @@ export interface ProductInput {
   sku: string;
   /** @minLength 1 */
   name: string;
-  categoryId: number;
+  /** Optional; when omitted, the category is assigned automatically by AI classification of the product name. */
+  categoryId?: number;
   brandId: number;
   /** @nullable */
   modelId?: number | null;
