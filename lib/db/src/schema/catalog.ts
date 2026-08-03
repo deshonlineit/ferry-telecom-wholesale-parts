@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const categoriesTable = pgTable("categories", {
@@ -21,13 +22,17 @@ export const brandsTable = pgTable("brands", {
   name: text("name").notNull().unique(),
 });
 
-export const deviceModelsTable = pgTable("device_models", {
-  id: serial("id").primaryKey(),
-  brandId: integer("brand_id")
-    .notNull()
-    .references(() => brandsTable.id),
-  name: text("name").notNull(),
-});
+export const deviceModelsTable = pgTable(
+  "device_models",
+  {
+    id: serial("id").primaryKey(),
+    brandId: integer("brand_id")
+      .notNull()
+      .references(() => brandsTable.id),
+    name: text("name").notNull(),
+  },
+  (t) => [uniqueIndex("device_models_brand_name_unique").on(t.brandId, t.name)],
+);
 
 export const productsTable = pgTable("products", {
   id: serial("id").primaryKey(),

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { ProductsSidebar } from '@/components/products/ProductsSidebar';
 import { ProductListRow } from '@/components/products/ProductListRow';
+import { ModelQuickPicker } from '@/components/products/ModelQuickPicker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -264,6 +265,14 @@ export default function Products() {
               </div>
             </div>
           )}
+
+          <ModelQuickPicker
+            categoryId={categoryId}
+            brandId={brandId}
+            modelId={modelId}
+            onModelChange={setModel}
+            onBrandChange={setBrandId}
+          />
 
           {/* Results */}
           {isLoading ? (
