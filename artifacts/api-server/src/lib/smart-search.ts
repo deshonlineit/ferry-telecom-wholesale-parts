@@ -79,16 +79,26 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
     "leather case",
     "book case",
   ],
-  "cables-chargers": [
+  "cables-adapters": [
     "cable",
     "cables",
+    "adapter",
+    "adapters",
+    "hub",
+    "aux",
+    "otg",
+  ],
+  "chargers-power": [
     "charger",
     "chargers",
-    "adapter",
     "power adapter",
     "car charger",
+    "power bank",
+    "powerbank",
+    "wireless charger",
   ],
-  "apple-watch": ["watch band", "band", "iwatch", "apple watch"],
+  audio: ["headphones", "earbuds", "headset", "earphones"],
+  "apple-watch": ["watch band", "band", "iwatch", "apple watch", "smartwatch"],
 };
 
 export function normalize(s: string): string {
