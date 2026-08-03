@@ -1,5 +1,6 @@
 import { Link } from 'wouter';
 import { useGetCart, useUpdateCartItem, useRemoveCartItem, useClearCart, getGetCartQueryKey } from '@workspace/api-client-react';
+
 import { useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,13 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShoppingCart, Trash2, Package, ArrowRight } from 'lucide-react';
+import { ShoppingCart, Trash2, Package, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Cart() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: cart, isLoading } = useGetCart();
+  const { data: cart, isLoading } = useGetCart({
+    query: {
+      queryKey: getGetCartQueryKey(),
+      refetchOnWindowFocus: true,
+      refetchInterval: 30000,
+    },
+  });
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
   const clearCart = useClearCart();
@@ -108,6 +115,8 @@ export default function Cart() {
   }
 
   const isEmpty = !cart || cart.items.length === 0;
+  const stockIssues = cart?.items.filter((item) => item.quantity > item.stock) ?? [];
+  const hasStockIssues = stockIssues.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -147,6 +156,21 @@ export default function Cart() {
         ) : (
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
+              {hasStockIssues && (
+                <Card className="border-destructive/50 bg-destructive/5" data-testid="banner-stock-warning">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-foreground">
+                        Some items exceed available stock
+                      </p>
+                      <p className="text-muted-foreground">
+                        Adjust quantities or remove the items below before checking out.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <Table>
                   <TableHeader>
@@ -160,8 +184,11 @@ export default function Cart() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cart.items.map((item) => (
-                      <TableRow key={item.id}>
+                    {cart.items.map((item) => {
+                      const outOfStock = item.stock <= 0;
+                      const exceedsStock = item.quantity > item.stock;
+                      return (
+                      <TableRow key={item.id} className={exceedsStock ? 'bg-destructive/5' : undefined}>
                         <TableCell>
                           <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden">
                             {item.imageUrl ? (
@@ -206,6 +233,37 @@ export default function Cart() {
                           <p className="text-xs text-muted-foreground mt-1">
                             {item.stock} available
                           </p>
+                          {exceedsStock && (
+                            <div className="mt-2 space-y-1" data-testid={`warning-stock-${item.id}`}>
+                              <p className="text-xs font-medium text-destructive flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3 shrink-0" />
+                                {outOfStock ? 'Sold out' : `Only ${item.stock} left`}
+                              </p>
+                              {outOfStock ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => handleRemove(item.id)}
+                                  disabled={removeItem.isPending}
+                                  data-testid={`button-remove-soldout-${item.id}`}
+                                >
+                                  Remove item
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => handleUpdateQuantity(item.id, item.stock, item.stock)}
+                                  disabled={updateItem.isPending}
+                                  data-testid={`button-adjust-stock-${item.id}`}
+                                >
+                                  Adjust to {item.stock}
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="font-bold text-lg">
@@ -224,7 +282,8 @@ export default function Cart() {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </Card>
@@ -250,12 +309,30 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  <Link href="/checkout">
-                    <Button className="w-full gap-2" size="lg" data-testid="button-checkout">
+                  {hasStockIssues && (
+                    <p className="text-xs text-destructive flex items-center gap-1" data-testid="text-checkout-stock-warning">
+                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                      Resolve stock issues above before checking out.
+                    </p>
+                  )}
+                  {hasStockIssues ? (
+                    <Button
+                      className="w-full gap-2"
+                      size="lg"
+                      disabled
+                      data-testid="button-checkout"
+                    >
                       Proceed to Checkout
                       <ArrowRight className="h-4 w-4" />
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link href="/checkout">
+                      <Button className="w-full gap-2" size="lg" data-testid="button-checkout">
+                        Proceed to Checkout
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
 
                   <Link href="/products">
                     <Button variant="outline" className="w-full" data-testid="button-continue-shopping">

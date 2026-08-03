@@ -1,7 +1,7 @@
 - [Orval zod codegen import fix](orval-zod-v4.md) — after every codegen run, sed the generated api-zod import from 'zod' to 'zod/v4' or typecheck fails on zod.int().
 - [Pricing model — assigned customer groups](pricing-model.md) — explicit per-product group prices via resolvePrice(); never price from discountPercent alone or show spend-based upgrades.
 - [Rebuild db types after schema changes](db-types-rebuild.md) — run `tsc -b lib/db` or new columns look missing; drizzle-kit push needs TTY, apply additive SQL via executeSql.
-- [Rebuild api-zod dist after codegen/merges](db-types-rebuild.md) — stale lib/api-zod dist .d.ts makes new spec fields invisible to consumers; run `tsc -b lib/api-zod --force` and re-typecheck.
+- [Rebuild api-zod dist after codegen/merges](db-types-rebuild.md) — stale lib/api-zod dist .d.ts makes new spec fields invisible to consumers; run `tsc -b lib/api-zod lib/api-client-react --force` and re-typecheck.
 - [Orval schema naming collisions](orval-schema-naming.md) — never name an OpenAPI component schema `<OperationId>{Body,Response}`; orval already generates those names and the api-zod exports clash.
 - [Radix Select empty values](radix-select-empty-value.md) — never use SelectItem value=""; use "all"/"none" sentinels or the page crashes at render.
 - [Post-merge reconciliation](post-merge-reconciliation.md) — after task merges: rerun codegen + zod/v4 sed, apply new DB columns, pnpm install, restart workflows; check for dropped auth middleware.
