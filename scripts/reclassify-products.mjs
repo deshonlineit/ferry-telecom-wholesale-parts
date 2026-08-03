@@ -31,6 +31,7 @@ const TAXONOMY = [
   ["apple-watch", "Smartwatch Parts", "Repair parts specifically for smartwatches (Apple Watch, Galaxy Watch)"],
   ["photo-video", "Photo & Video Gear", "Photo/video studio gear: camera rigs, cages, mounts, tripods, flashes, softboxes, studio lighting (SmallRig, Godox, Ulanzi, Puluz)"],
   ["it-multimedia", "IT & Multimedia", "Computer gear: card readers, network, storage, keyboards, peripherals, smart home"],
+  ["devices", "Phones & Tablets", "Complete devices: whole smartphones and tablets (e.g. Galaxy Tab S9 256GB, Galaxy Z Fold5, Galaxy A54) — not parts or accessories"],
   ["accessories", "Accessories", "Everything else: styluses, markers, mounts, misc accessories"],
 ];
 const VALID = new Set(TAXONOMY.map((t) => t[0]));
@@ -61,6 +62,7 @@ Rules:
 - Repair flex cables, buttons, internal speakers/earpieces => small-parts-flex (NOT cables-adapters).
 - Consumer cables/adapters/hubs => cables-adapters; chargers & power banks => chargers-power.
 - Smartwatch REPAIR parts => apple-watch; smartwatch screen protectors => tempered-glass-protection; smartwatch straps/cases => cases-covers.
+- Complete phones/tablets (a whole device, e.g. "Galaxy Tab S9 256GB", "Galaxy Z Fold5") => devices (NOT accessories).
 Answer with JSON only: {"items":[{"id":<product id>,"cat":"<slug>"}]} — one entry per product, same ids.`;
 
 async function classifyBatch(items, attempt = 0) {

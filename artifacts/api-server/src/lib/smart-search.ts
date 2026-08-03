@@ -99,6 +99,17 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
   ],
   audio: ["headphones", "earbuds", "headset", "earphones"],
   "apple-watch": ["watch band", "band", "iwatch", "apple watch", "smartwatch"],
+  devices: [
+    "phone",
+    "phones",
+    "smartphone",
+    "smartphones",
+    "tablet",
+    "tablets",
+    "device",
+    "devices",
+    "complete device",
+  ],
   "photo-video": [
     "tripod",
     "softbox",
