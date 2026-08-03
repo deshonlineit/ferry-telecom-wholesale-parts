@@ -29,7 +29,8 @@ const TAXONOMY = [
   ["audio", "Headphones & Audio", "Headphones, earbuds, external speakers"],
   ["tools-adhesives", "Tools & Adhesives", "Repair tools, machines, glue, general adhesives, cleaning supplies"],
   ["apple-watch", "Smartwatch Parts", "Repair parts specifically for smartwatches (Apple Watch, Galaxy Watch)"],
-  ["it-multimedia", "IT & Multimedia", "Computer/photo/video gear: card readers, mounts, network, storage, peripherals"],
+  ["photo-video", "Photo & Video Gear", "Photo/video studio gear: camera rigs, cages, mounts, tripods, flashes, softboxes, studio lighting (SmallRig, Godox, Ulanzi, Puluz)"],
+  ["it-multimedia", "IT & Multimedia", "Computer gear: card readers, network, storage, keyboards, peripherals, smart home"],
   ["accessories", "Accessories", "Everything else: styluses, markers, mounts, misc accessories"],
 ];
 const VALID = new Set(TAXONOMY.map((t) => t[0]));

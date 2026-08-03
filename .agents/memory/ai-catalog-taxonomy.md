@@ -14,3 +14,6 @@ Brand/model links are also AI-extracted: `scripts/extract-models.mjs` (cache `sc
 - Uses Replit OpenAI integration env vars (`AI_INTEGRATIONS_OPENAI_*`), model gpt-5.6-luna, batches of 40, low concurrency — the proxy rate-limits hard; honor retry-after.
 - Category *slugs* are referenced in `artifacts/api-server/src/lib/smart-search.ts` CATEGORY_SYNONYMS — keep in sync when adding/renaming categories. Slug `apple-watch` is displayed as "Smartwatch Parts"; `tempered-glass-protection` as "Screen Protectors".
 - Background `nohup` node jobs die when a ShellExec session ends — run long jobs in foreground chunks with a resumable cache instead.
+
+## One-off category splits
+Manual category moves must be shipped as an idempotent script wired into `scripts/post-merge.sh` (ad-hoc SQL alone is rejected — other environments never see it), and the `scripts/reclassify-cache.tsv` entries for moved products must be rewritten to the new slug or a reclassify rerun reverts them. Pattern: `scripts/split-photo-video.mjs`.

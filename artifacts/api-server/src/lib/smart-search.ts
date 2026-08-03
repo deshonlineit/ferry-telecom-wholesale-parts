@@ -99,6 +99,17 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
   ],
   audio: ["headphones", "earbuds", "headset", "earphones"],
   "apple-watch": ["watch band", "band", "iwatch", "apple watch", "smartwatch"],
+  "photo-video": [
+    "tripod",
+    "softbox",
+    "flash",
+    "studio light",
+    "camera rig",
+    "camera cage",
+    "gimbal",
+    "smallrig",
+    "godox",
+  ],
 };
 
 export function normalize(s: string): string {
