@@ -46,7 +46,18 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, Edit, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const QUALITY_OPTIONS = ['New', 'OEM Pulled', 'Aftermarket Premium', 'Refurbished'];
+const QUALITY_OPTIONS = [
+  'Original',
+  'Original New',
+  'Servicepack',
+  'Standard',
+  'Best Possible',
+  'Pulled',
+  'Refurbished',
+  'Aftermarket',
+  'Compatible',
+  'Retail',
+];
 
 export default function AdminProducts() {
   const [search, setSearch] = useState('');
