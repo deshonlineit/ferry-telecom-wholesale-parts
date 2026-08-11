@@ -6,4 +6,6 @@ The product taxonomy lives in TWO places that must stay identical: the reclassif
 
 **Why:** if a category exists only in one, new products can never be classified into it, or the reclassifier rejects it.
 
+**Decision (Aug 2026):** complete smartwatches belong in `devices` ("Phones, Tablets & Watches"); complete earbuds stay in `audio`; smartwatch repair parts stay in `apple-watch`. Shipped via split-wearables.mjs in post-merge.
+
 **How to apply:** when adding/renaming a category, update both taxonomies, add CATEGORY_SYNONYMS in smart-search, AND ship the DB change via a deterministic, idempotent `scripts/split-*.mjs` script invoked from `scripts/post-merge.sh` (dev-DB edits alone don't reach production). Split scripts must also rewrite `scripts/reclassify-cache.tsv` so reclassify reruns don't revert the moves.

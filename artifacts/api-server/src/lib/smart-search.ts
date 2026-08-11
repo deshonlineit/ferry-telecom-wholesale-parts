@@ -98,7 +98,9 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
     "wireless charger",
   ],
   audio: ["headphones", "earbuds", "headset", "earphones"],
-  "apple-watch": ["watch band", "band", "iwatch", "apple watch", "smartwatch"],
+  // Note: repair-part searches keep working via part terms ("watch band",
+  // "apple watch"); the bare device terms below belong to complete devices.
+  "apple-watch": ["watch band", "band", "iwatch", "apple watch", "watch part", "watch parts"],
   devices: [
     "phone",
     "phones",
@@ -109,6 +111,10 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
     "device",
     "devices",
     "complete device",
+    "smartwatch",
+    "smartwatches",
+    "galaxy watch",
+    "complete smartwatch",
   ],
   "photo-video": [
     "tripod",

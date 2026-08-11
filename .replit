@@ -28,6 +28,10 @@ args = "typecheck-api"
 task = "workflow.run"
 args = "stock-race-test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "smartwatch-search-test"
+
 [[workflows.workflow]]
 name = "isolation-test"
 author = "agent"
@@ -60,6 +64,17 @@ args = "node artifacts/api-server/tests/stock-race.test.mjs"
 
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow]]
+name = "smartwatch-search-test"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node artifacts/api-server/tests/smartwatch-search.test.mjs"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"

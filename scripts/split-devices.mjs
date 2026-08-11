@@ -13,9 +13,9 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const DRY_RUN = process.argv.includes("--dry-run");
 
 const SLUG = "devices";
-const NAME = "Phones & Tablets";
+const NAME = "Phones, Tablets & Watches";
 const DESC =
-  "Complete devices: whole smartphones and tablets (e.g. Galaxy Tab S9 256GB, Galaxy Z Fold5, Galaxy A54) — not parts or accessories";
+  "Complete devices: whole smartphones, tablets and smartwatches (e.g. Galaxy Tab S9 256GB, Galaxy Z Fold5, Galaxy Watch6 44mm) — not parts or accessories";
 
 // A complete device: a phone/tablet model name together with a storage size,
 // without any part/accessory keyword. Two guards keep this conservative:
