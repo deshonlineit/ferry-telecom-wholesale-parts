@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "UhbOr1Yy_rskJZFKUkT_Z"
+uri = "file://docs/rebuild-plan.md"
+type = "text"
+title = "Ferry Telecom — PHP/MySQL Rebuild Plan"
+description = "Provisional engineering plan covering the full functional rebuild, vanilla-JavaScript frontend, WebP uploads, Picqer synchronization, migration and acceptance checks. Live WordPress inspection is still pending secure access."
+logical_id = "0cd97c94-900b-40b0-b0d5-5f6484a8383d"
+content_hash = "sha256:0e258ec51d2db182b25eec6740cec2659f89f980c7d1363203d2a3ca0d06a6db"
+size = 16054
+mtime_ms = 1788647223496
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/0cd97c94-900b-40b0-b0d5-5f6484a8383d/fbd61150-b013-4dca-a682-0026e535ca79"
+storage_version_token = "1788647241568324"
+content_type = "text/markdown"
