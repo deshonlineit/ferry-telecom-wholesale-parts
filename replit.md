@@ -35,6 +35,13 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 _Describe the high-level user-facing capabilities of this app once they exist._
 
+## Existing-site research and rebuild scope
+
+- The live store at ferrytelecom.com remains untouched. This project is a separate build, not an instruction to publish, replace the live site, or change its domain/DNS.
+- Inventory the existing store's customer journeys, staff workflows, business rules, and integrations before further migration work. Compare these with the new app; do not assume a visual copy or product CSV captures the complete behavior.
+- Preserve needed capabilities while improving usability and performance. Identify unnecessary functions for review rather than silently dropping them; functional removals require the owner's agreement.
+- Initial investigation is read-only. Prefer a sanitized backup and an isolated staging copy for deeper inspection and test transactions.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
