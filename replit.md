@@ -46,7 +46,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 - Competitor research informs design and navigation improvements, not wholesale copying or unverified claims about competitors' private account and checkout behavior. Initial public references: https://www.mobileparts.shop/nl (separate assortment/service navigation), https://foneday.shop/catalog (device/category/quality filters), https://gsmnetshop.nl/ (brand → model selector).
 - Requested rebuild target: core PHP backend, MySQL, and a headless HTML/CSS/vanilla-JavaScript frontend; no CMS, Laravel, third-party application frameworks, Composer/npm libraries, or external fonts. Treat standard PHP extensions as a proposed prerequisite to confirm in the hosting audit. This is a planning decision, not authorization to replace the current runtime/database immediately.
 - Uploaded product images must be automatically converted to compressed WebP, with responsive sizes and legibility checks. Preserve the existing Picqer inventory integration's business behavior after inspecting its actual configuration and ownership rules.
-- Detailed provisional scope and acceptance gates: `docs/rebuild-plan.md`. Final scope requires authenticated read-only WordPress/hosting inspection; public pages and the local prototype are not a complete audit.
+- Detailed scope and acceptance gates: `docs/rebuild-plan.md`; authenticated read-only source findings: `docs/wordpress-audit.md`. Active configuration, database mapping and safe functional walkthroughs are still required; source presence is not proof of live behavior.
 
 ## User preferences
 

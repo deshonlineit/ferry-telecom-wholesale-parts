@@ -2,13 +2,15 @@
 
 ## Status and boundaries
 
-This is a provisional engineering plan, not a completed audit of the live WordPress website.
+This is an evidence-informed engineering plan, not a completed functional or database audit of the live WordPress website. The first authenticated source inventory is recorded in `docs/wordpress-audit.md`.
 
 Confirmed so far:
-- The public store and hosting login page are reachable. Hosting authentication has not yet been performed.
+- Read-only hosting authentication succeeded. The main WordPress source, custom child-theme modules, a separate screen-buyback WordPress installation, and custom Picqer/shipping integrations have been inventoried without changing remote files or settings.
 - The separate local prototype uses React/TypeScript, an Express API, PostgreSQL, and third-party frontend/auth packages. It is not the requested target stack.
-- The owner reports a live Picqer inventory integration. Its implementation, field ownership, warehouse selection and order flow have not yet been verified.
+- A Picqer shipping-label endpoint and PDF generation code are present. This does not establish the entire inventory integration: stock/order synchronization ownership, configuration, warehouse selection and live webhook registrations still need verification.
 - Initial competitor references are Mobileparts.shop, Foneday and GSMnet. Only public pages have been inspected, not their authenticated checkout or administration.
+- Additional confirmed source-level scope includes custom RMA/credit notes, address books, group-pricing customization, invoice payment support, QR-invoice components, currency switching, secondary-site product/price transfer and a separate Shopify fulfillment script. Runtime usage and configuration must be verified individually.
+- Hosting database metadata reports MariaDB 11.4.13. The requested destination remains MySQL; MariaDB compatibility is not a reason to silently change that target. The hosting schema-export response contains database-level DDL only, so table structures and active settings remain unverified.
 
 Keep ferrytelecom.com operating unchanged. No publishing, domain/DNS changes, live orders, emails, payment attempts, stock updates, or integration reconfiguration are authorized by this plan. Research uses read-only operations; deeper functional tests use an isolated copy with side effects disabled.
 
@@ -33,6 +35,12 @@ Laravel is excluded because it is a framework. “No libraries” is interpreted
 
 This architecture can be lightweight, but removing frameworks does not by itself guarantee speed or security. We must implement and test validation, access control, session security, background retries and database transactions explicitly. Do not invent cryptography or process raw card data.
 
+### Early feasibility gate for the strict dependency ban
+
+The existing Picqer label service uses `dompdf/dompdf`. Screen-buyback table PDF export also loads Dompdf, while the installed QR-invoice component declares `sprain/swiss-qr-bill` and `genkgo/camt`. These are specific existing dependencies, not hypothetical ones.
+
+Before committing the full rewrite, establish which outputs/imports are actually used and prove library-free replacements for required PDF labels, invoices, QR bills and statement handling using approved non-sensitive fixtures. Validate printing, encoding, dimensions, QR readability and financial correctness. A browser print button is not automatically equivalent to downloadable/server-generated PDFs. Neither these functions nor the dependency ban may be silently discarded; an unresolved feasibility conflict requires an explicit decision.
+
 Use a separated frontend and API without automatically choosing an SEO-hostile, blank client-rendered application. Public product/category URLs should have indexable HTML and metadata through static generation or a thin PHP delivery layer sharing the same application services. Interactive account/pricing/cart behavior uses the API. Personalized prices and responses must never enter shared caches.
 
 ## 2. Phase A — authenticated discovery and baseline
@@ -56,6 +64,8 @@ Deliverables:
 
 Gate: all discovered functions are accounted for; unverified behavior is clearly marked, not treated as absent.
 
+The current source inventory is the first part of this phase, not its exit gate. The next evidence needed is active configuration and schema/aggregate information from a sanitized database export or separately authorized read-only database access, plus safe customer/staff walkthroughs. Do not upload PHP probes, execute WordPress bootstrap scripts, create backup jobs or change hosting configuration to manufacture that access.
+
 ## 3. Phase B — information architecture and visual design
 
 Compare relevant competitor journeys, not just their homepages. Study model selection, quality explanations, stock visibility, quantity entry, quick ordering, mobile filtering and account navigation.
@@ -74,6 +84,8 @@ Gate: reviewed visual direction and representative mobile/desktop flows, backed 
 
 Create a separate application and database; leave both the live WordPress store and the current prototype intact while the replacement is being developed.
 
+Confirm a hosting/database option that provides the requested MySQL engine. The existing host currently reports MariaDB, so do not promise a same-server MySQL deployment without checking availability or receiving agreement on a compatible alternative.
+
 Provisional entities, to refine after discovery:
 - Products, variants, categories, product-category relationships, brands, models, compatibility and aliases.
 - Media records and generated image sizes.
@@ -82,6 +94,8 @@ Provisional entities, to refine after discovery:
 - Inventory snapshots, pending reservations, warehouse/product mappings, integration events and jobs.
 - Feature settings, audit events, legacy ID mappings and URL redirects.
 - Returns, invoices and other domain records where the audit confirms they are needed.
+
+The source audit now confirms that RMA return items, credit notes, address books and screen-buyback price-table synchronization must be included in the migration inventory rather than treated as optional future features. Their live data and exact state transitions are still unverified.
 
 Use decimal-safe money calculations, transactional order creation, server-side pricing and validation. A customer can access only their account, orders and assigned prices. Admin endpoints must enforce staff permissions independently of the interface.
 
