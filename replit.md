@@ -39,8 +39,11 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 - The live store at ferrytelecom.com remains untouched. This project is a separate build, not an instruction to publish, replace the live site, or change its domain/DNS.
 - Inventory the existing store's customer journeys, staff workflows, business rules, and integrations before further migration work. Compare these with the new app; do not assume a visual copy or product CSV captures the complete behavior.
-- Preserve needed capabilities while improving usability and performance. Identify unnecessary functions for review rather than silently dropping them; functional removals require the owner's agreement.
+- Rebuild all existing business capabilities first, rather than reducing the store to an MVP. Preserve behavior, not necessarily the original plugins or implementation. Only later, with the owner's agreement, disable unnecessary functions reversibly instead of deleting them or their data.
 - Initial investigation is read-only. Prefer a sanitized backup and an isolated staging copy for deeper inspection and test transactions.
+- Redesign the full customer experience to be substantially more attractive while retaining Ferry Telecom's identity and fast B2B ordering. A homepage-only facelift is insufficient: catalog, product details, cart, checkout, and account flows are included.
+- Improve category structure and device compatibility together. Support both category → brand/model → product and brand/model → part type → product; do not rely on imported category labels as evidence of compatibility.
+- Competitor research informs design and navigation improvements, not wholesale copying or unverified claims about competitors' private account and checkout behavior. Initial public references: https://www.mobileparts.shop/nl (separate assortment/service navigation), https://foneday.shop/catalog (device/category/quality filters), https://gsmnetshop.nl/ (brand → model selector).
 
 ## User preferences
 
