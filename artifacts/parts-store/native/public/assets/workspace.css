@@ -1,0 +1,245 @@
+/* workspace.css - Ferry Telecom Workbench Aesthetic */
+:root {
+    --brand-blue: #0056b3;
+    --brand-blue-dark: #004494;
+    --brand-blue-light: #e0f2fe;
+    
+    --wb-bg: #f8fafc;
+    --wb-surface: #ffffff;
+    --wb-border: #cbd5e1;
+    --wb-border-light: #e2e8f0;
+    
+    --wb-text: #0f172a;
+    --wb-text-muted: #475569;
+    --wb-text-light: #94a3b8;
+    
+    --wb-success: #16a34a;
+    --wb-success-bg: #dcfce7;
+    --wb-warning: #ea580c;
+    --wb-warning-bg: #ffedd5;
+    --wb-danger: #dc2626;
+    --wb-danger-bg: #fee2e2;
+    --wb-info: #0284c7;
+    --wb-info-bg: #e0f2fe;
+    
+    --wb-radius: 4px;
+    --wb-radius-lg: 8px;
+    --wb-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --wb-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Base Overrides for Workbench feel */
+.layout-sidebar {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+.layout-sidebar aside .card {
+    padding: 1rem;
+    position: sticky;
+    top: 5rem;
+}
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.sidebar-nav a {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: var(--wb-radius);
+    color: var(--wb-text);
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+}
+.sidebar-nav a:hover {
+    background: var(--wb-bg);
+    border-left-color: var(--wb-border);
+    text-decoration: none;
+}
+.sidebar-nav a.active {
+    background: var(--brand-blue-light);
+    color: var(--brand-blue-dark);
+    border-left-color: var(--brand-blue);
+    font-weight: 600;
+}
+
+/* Dense Data Tables */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--wb-border-light);
+    border-radius: var(--wb-radius);
+    background: var(--wb-surface);
+    margin-bottom: 1.5rem;
+}
+table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+table.data-table th {
+    background: var(--wb-bg);
+    color: var(--wb-text-muted);
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--wb-border-light);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 0.75rem;
+}
+table.data-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--wb-border-light);
+    color: var(--wb-text);
+    font-variant-numeric: tabular-nums;
+}
+table.data-table tbody tr:hover {
+    background-color: var(--wb-bg);
+}
+table.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Badges */
+.wb-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    letter-spacing: 0.01em;
+}
+.wb-badge-neutral { background: var(--wb-bg); color: var(--wb-text-muted); border: 1px solid var(--wb-border-light); }
+.wb-badge-info { background: var(--wb-info-bg); color: var(--wb-info); }
+.wb-badge-success { background: var(--wb-success-bg); color: var(--wb-success); }
+.wb-badge-warning { background: var(--wb-warning-bg); color: var(--wb-warning); }
+.wb-badge-danger { background: var(--wb-danger-bg); color: var(--wb-danger); }
+
+/* Forms & Details */
+.form-section {
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--wb-border-light);
+}
+.form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+.form-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--wb-text);
+}
+.wb-details {
+    background: var(--wb-bg);
+    border: 1px solid var(--wb-border-light);
+    border-radius: var(--wb-radius);
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+.wb-details summary {
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    user-select: none;
+    color: var(--brand-blue);
+}
+.wb-details summary:hover {
+    background: var(--brand-blue-light);
+}
+.wb-details-content {
+    padding: 1rem;
+    border-top: 1px solid var(--wb-border-light);
+    background: var(--wb-surface);
+}
+
+/* Action Bars */
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.page-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--wb-text);
+}
+
+/* Toast Container */
+#wb-toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+.wb-toast {
+    background: var(--wb-surface);
+    border: 1px solid var(--wb-border);
+    box-shadow: var(--wb-shadow);
+    padding: 0.75rem 1rem;
+    border-radius: var(--wb-radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: auto;
+    animation: toast-in 0.2s ease-out forwards;
+    min-width: 250px;
+}
+.wb-toast-success { border-left: 4px solid var(--wb-success); }
+.wb-toast-error { border-left: 4px solid var(--wb-danger); }
+.wb-toast-info { border-left: 4px solid var(--wb-info); }
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Value displays */
+.data-label {
+    font-size: 0.75rem;
+    color: var(--wb-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.125rem;
+}
+.data-value {
+    font-size: 0.875rem;
+    color: var(--wb-text);
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+/* Admin specific */
+.admin-card-danger {
+    border-top: 3px solid var(--wb-danger);
+}
+.model-check-item {
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    padding: 0.375rem 0.5rem; 
+    border-radius: var(--wb-radius); 
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.model-check-item:hover {
+    background: var(--wb-bg);
+}

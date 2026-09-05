@@ -28,3 +28,17 @@ mtime_ms = 1788648189190
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/74a2b416-4464-46d6-b97a-3546608910a0/aa2b6b3f-429a-4994-b996-d81ad124e203"
 storage_version_token = "1788648193236287"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "FUUiasAlswiP7Me2kE6Gm"
+uri = "file://screenshots/native-product-mobile.jpg"
+type = "image"
+title = "Mobiele PHP-testwinkel"
+description = "De gerepareerde productpagina op 390 pixels breed, met lokale WebP-afbeelding en duidelijke testmarkering."
+logical_id = "f6c74d35-3b79-48bf-af28-08f3a2a63138"
+content_hash = "sha256:be184730100af62fb1d0ee46f9848e5fde02ff52a89555234eb81214da12f649"
+size = 76614
+mtime_ms = 1788649897852
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/f6c74d35-3b79-48bf-af28-08f3a2a63138/67955675-77b0-46ef-b4f7-a13b27c503de"
+storage_version_token = "1788649978417908"
+content_type = "image/jpeg"

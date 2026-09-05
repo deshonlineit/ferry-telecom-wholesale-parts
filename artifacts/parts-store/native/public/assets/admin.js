@@ -1,0 +1,490 @@
+// Admin Dashboard: Products, Orders, Customers, Settings, Buyback
+
+(function initWorkbench() {
+    window.Workbench = window.Workbench || {};
+    if (!window.Workbench.toast) {
+        window.Workbench.toast = (msg, type = 'info') => {
+            let container = document.getElementById('wb-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'wb-toast-container';
+                document.body.appendChild(container);
+            }
+            const t = document.createElement('div');
+            t.className = `wb-toast wb-toast-${type}`;
+            t.textContent = msg;
+            container.appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transition = 'opacity 0.2s';
+                setTimeout(() => t.remove(), 200);
+            }, 3000);
+        };
+        
+        window.Workbench.statusMap = {
+            'processing': { label: 'Verwerken', badge: 'warning' },
+            'shipped': { label: 'Verzonden', badge: 'info' },
+            'completed': { label: 'Voltooid', badge: 'success' },
+            'cancelled': { label: 'Geannuleerd', badge: 'danger' },
+            'submitted': { label: 'Ingediend', badge: 'warning' },
+            'received': { label: 'Ontvangen', badge: 'info' },
+            'assessed': { label: 'Beoordeeld', badge: 'info' },
+            'approved': { label: 'Goedgekeurd', badge: 'success' },
+            'rejected': { label: 'Afgewezen', badge: 'danger' },
+            'credited': { label: 'Gecrediteerd', badge: 'success' },
+            'active': { label: 'Actief', badge: 'success' },
+            'pending': { label: 'In afwachting', badge: 'warning' },
+            'blocked': { label: 'Geblokkeerd', badge: 'danger' },
+            'isolated': { label: 'Geïsoleerd', badge: 'success' }
+        };
+        
+        window.Workbench.badge = (status, defaultLabel) => {
+            if (!status && defaultLabel) return `<span class="wb-badge wb-badge-neutral">${window.Core.escapeHtml(defaultLabel)}</span>`;
+            const s = window.Workbench.statusMap[status];
+            if (s) return `<span class="wb-badge wb-badge-${s.badge}">${window.Core.escapeHtml(s.label)}</span>`;
+            return `<span class="wb-badge wb-badge-neutral">${window.Core.escapeHtml(status || '')}</span>`;
+        };
+    }
+})();
+
+const adminLayout = (content, activeRoute) => `
+    <div class="layout-sidebar">
+        <aside>
+            <div class="card admin-card-danger">
+                <h3 class="form-section-title" style="color:var(--wb-danger); margin-top:0.5rem; margin-bottom:1rem;">Beheer (Staff)</h3>
+                <div class="sidebar-nav">
+                    <a href="${window.APP_BASE}admin" class="${activeRoute === 'dashboard' ? 'active' : ''}">Dashboard</a>
+                    <a href="${window.APP_BASE}admin/products" class="${activeRoute === 'products' ? 'active' : ''}">Producten</a>
+                    <a href="${window.APP_BASE}admin/orders" class="${activeRoute === 'orders' ? 'active' : ''}">Bestellingen</a>
+                    <a href="${window.APP_BASE}admin/customers" class="${activeRoute === 'customers' ? 'active' : ''}">Klanten</a>
+                    <a href="${window.APP_BASE}admin/returns" class="${activeRoute === 'returns' ? 'active' : ''}">Retouren</a>
+                    <a href="${window.APP_BASE}admin/buyback" class="${activeRoute === 'buyback' ? 'active' : ''}">Buyback</a>
+                    <a href="${window.APP_BASE}admin/settings" class="${activeRoute === 'settings' ? 'active' : ''}">Instellingen</a>
+                    <a href="${window.APP_BASE}admin/messages" class="${activeRoute === 'messages' ? 'active' : ''}">Lokale Berichten</a>
+                    <a href="${window.APP_BASE}admin/integrations" class="${activeRoute === 'integrations' ? 'active' : ''}">Integraties</a>
+                    <a href="${window.APP_BASE}admin/audit" class="${activeRoute === 'audit' ? 'active' : ''}">Audit Log</a>
+                </div>
+            </div>
+        </aside>
+        <div>${content}</div>
+    </div>
+`;
+
+function renderTable(headers, rowsHtml, emptyMsg) {
+    return `
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                <tbody>${rowsHtml || `<tr><td colspan="${headers.length}" style="text-align:center; padding:2rem;">${emptyMsg}</td></tr>`}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+window.Router.add(/^admin$/, async (match, root) => {
+    if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
+    const data = await window.Core.fetch('/admin/dashboard');
+    const s = data.stats;
+    const esc = window.Core.escapeHtml;
+    
+    const content = `
+        <div class="page-header">
+            <h1>Dashboard</h1>
+        </div>
+        ${data.safety.test_mode ? '<div class="alert warning" style="margin-bottom:1.5rem"><strong>TESTMODUS ACTIEF:</strong> Live API connecties geblokkeerd. Geen echte betalingen of e-mails.</div>' : ''}
+        
+        <div class="grid-cols-4" style="margin-bottom:2rem">
+            <div class="card"><div class="data-label">Producten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.products}</div></div>
+            <div class="card"><div class="data-label">Klanten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.customers}</div></div>
+            <div class="card"><div class="data-label">Open Bestellingen</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.orders}</div></div>
+            <div class="card"><div class="data-label">Omzet</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0; color:var(--wb-success)">${window.Core.formatMoney(s.revenue_cents)}</div></div>
+        </div>
+
+        <div class="grid-cols-2">
+            <div>
+                <h3 class="form-section-title">Recente Bestellingen</h3>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        ${data.recent_orders.length ? data.recent_orders.map(o => `<tr><td><a href="${window.APP_BASE}admin/orders" style="font-weight:600">${esc(o.number)}</a></td><td>${window.Workbench.badge(o.status)}</td><td style="text-align:right">${window.Core.formatMoney(o.total_cents)}</td></tr>`).join('') : '<tr><td colspan="3">Geen recente orders.</td></tr>'}
+                    </table>
+                </div>
+            </div>
+            <div>
+                <h3 class="form-section-title">Lage Voorraad</h3>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        ${data.low_stock.length ? data.low_stock.map(p => `<tr><td><a href="${window.APP_BASE}admin/products/${p.id}" style="font-weight:600">${esc(p.sku)}</a></td><td><div style="max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${esc(p.name)}">${esc(p.name)}</div></td><td style="text-align:right;"><span style="color:var(--wb-danger);font-weight:700">${p.stock}</span> stuks</td></tr>`).join('') : '<tr><td colspan="3">Voorraad is op peil.</td></tr>'}
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    root.innerHTML = adminLayout(content, 'dashboard');
+});
+
+window.Router.add(/^admin\/products$/, async (match, root, qs) => {
+    if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
+    const searchParams = new URLSearchParams(qs);
+    const q = searchParams.get('q') || '';
+    const cat = searchParams.get('category') || '';
+    const brand = searchParams.get('brand') || '';
+    const quality = searchParams.get('quality') || '';
+    const stock = searchParams.get('stock') || '';
+    const sort = searchParams.get('sort') || '';
+    const page = searchParams.get('page') || '1';
+    const limit = searchParams.get('limit') || '50';
+    const esc = window.Core.escapeHtml;
+
+    const [catalogData, data] = await Promise.all([
+        window.Core.fetch('/catalog'),
+        window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&page=${page}&limit=${limit}`)
+    ]);
+    
+    const rows = data.products.map(p => `
+        <tr>
+            <td><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(p.sku)}</span></td>
+            <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong></td>
+            <td>${window.Core.formatMoney(p.list_price_cents)}</td>
+            <td><span class="${p.stock < 10 ? 'wb-badge wb-badge-warning' : 'wb-badge wb-badge-neutral'}" style="font-weight:700">${p.stock}</span></td>
+            <td>${window.Workbench.badge(p.active ? 'active' : 'blocked', p.active ? 'Actief' : 'Inactief')}</td>
+        </tr>
+    `).join('');
+
+    const paginationHtml = window.Core.renderPagination(data.page, data.pages, searchParams, window.APP_BASE + 'admin/products');
+    const catsHtml = catalogData.categories.map(c => `<option value="${c.id}" ${c.id == cat ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+    const brandsHtml = catalogData.brands.map(b => `<option value="${b.id}" ${b.id == brand ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
+    const qualitiesHtml = catalogData.qualities.map(q_str => `<option value="${esc(q_str)}" ${q_str == quality ? 'selected' : ''}>${esc(q_str)}</option>`).join('');
+
+    const content = `
+        <div class="page-header">
+            <h1>Producten</h1>
+            <div class="page-actions">
+                <button type="button" class="btn btn-outline action-import">CSV Import</button>
+                <a href="${window.APP_BASE}admin/products/new" class="btn">Nieuw Product</a>
+            </div>
+        </div>
+        
+        <div class="card" style="padding:1rem; margin-bottom:1.5rem; background:var(--wb-bg)">
+            <form style="display:flex; flex-wrap:wrap; gap:0.75rem;" id="admin-filter-form">
+                <input type="text" name="q" value="${esc(q)}" class="form-control" style="flex:1 1 150px;" placeholder="Zoek op naam/sku...">
+                <select name="category" class="form-control" style="flex:1 1 150px;"><option value="">Alle Categorieën</option>${catsHtml}</select>
+                <select name="brand" class="form-control" style="flex:1 1 150px;"><option value="">Alle Merken</option>${brandsHtml}</select>
+                <select name="quality" class="form-control" style="flex:1 1 150px;"><option value="">Alle Kwaliteiten</option>${qualitiesHtml}</select>
+                <select name="stock" class="form-control" style="flex:1 1 150px;"><option value="">Alle Voorraad</option><option value="in_stock" ${stock === 'in_stock' ? 'selected' : ''}>Op voorraad</option></select>
+                <select name="sort" class="form-control" style="flex:1 1 150px;"><option value="">Relevantie</option><option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Prijs oplopend</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Prijs aflopend</option></select>
+                <button type="submit" class="btn btn-outline" style="flex:0 0 auto;">Toepassen</button>
+            </form>
+        </div>
+        
+        ${renderTable(['SKU', 'Naam', 'Inkoopprijs (Base)', 'Voorraad', 'Status'], rows, 'Geen producten gevonden.')}
+        ${paginationHtml}
+    `;
+
+    root.innerHTML = adminLayout(content, 'products');
+
+    document.getElementById('admin-filter-form').onsubmit = (e) => {
+        e.preventDefault();
+        const p = new URLSearchParams();
+        const fd = new FormData(e.target);
+        for (let [k,v] of fd.entries()) {
+            if (v) p.set(k, v);
+        }
+        window.Router.navigate(window.APP_BASE + 'admin/products?' + p.toString());
+    };
+
+    root.querySelector('.action-import').addEventListener('click', () => {
+        const html = `
+            <form id="import-form">
+                <div class="alert" style="font-size:0.875rem;">Verwachte CSV kolommen: sku, name, category, brand, quality, stock, price</div>
+                <div class="form-group" style="margin-bottom:1.5rem;">
+                    <label>CSV Bestand Selecteren</label>
+                    <input type="file" name="file" accept=".csv" required class="form-control">
+                </div>
+                <div class="form-group" style="margin-bottom:1.5rem">
+                    <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                        <input type="checkbox" name="preview" value="1" checked> Alleen preview (controle)
+                    </label>
+                </div>
+                <button type="submit" class="btn" style="width:100%">Bestand Verwerken</button>
+                <div id="import-result" style="margin-top:1rem; white-space:pre-wrap; font-family:monospace; font-size:0.75rem; background:var(--wb-bg); padding:0.5rem; border-radius:var(--wb-radius); display:none;"></div>
+            </form>
+        `;
+        const overlay = window.UI.showModal('Producten Importeren', html);
+        
+        document.getElementById('import-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            try {
+                const res = await window.Core.fetch('/admin/import', { method: 'POST', body: fd });
+                const r = document.getElementById('import-result');
+                r.style.display = 'block';
+                r.innerHTML = `<strong>Resultaat:</strong> Rijen: ${res.rows}, Gemaakt: ${res.created}, Bijgewerkt: ${res.updated}\n`;
+                if (res.errors && res.errors.length) {
+                    r.innerHTML += `\n<strong style="color:var(--wb-danger)">Fouten:</strong>\n${esc(res.errors.join('\n'))}`;
+                } else if (!fd.get('preview')) {
+                    window.Workbench.toast('Import voltooid', 'success');
+                    setTimeout(() => { window.UI.closeModal(overlay); window.Router.route(); }, 1500);
+                }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+        };
+    });
+});
+
+window.Router.add(/^admin\/orders$/, async (match, root) => {
+    if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
+    const data = await window.Core.fetch('/admin/orders');
+    const esc = window.Core.escapeHtml;
+    
+    const rows = data.orders.map(o => `
+        <tr>
+            <td><strong style="font-size:0.9375rem">${esc(o.number)}</strong></td>
+            <td>${new Date(o.created_at).toLocaleDateString()}</td>
+            <td>${esc(o.customer_name)}</td>
+            <td>
+                <select class="form-control action-status-select" data-id="${o.id}" data-current="${o.status}" style="padding:0.25rem 0.5rem; font-size:0.8125rem; height:auto;">
+                    <option value="processing" ${o.status==='processing'?'selected':''}>Verwerken</option>
+                    <option value="shipped" ${o.status==='shipped'?'selected':''}>Verzonden</option>
+                    <option value="completed" ${o.status==='completed'?'selected':''}>Voltooid</option>
+                    <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Geannuleerd</option>
+                </select>
+            </td>
+            <td>${window.Core.formatMoney(o.total_cents)}</td>
+            <td><button type="button" class="btn btn-sm btn-outline action-track" data-id="${o.id}" data-tracking="${esc(o.tracking||'')}" data-status="${o.status}">T&T</button></td>
+        </tr>
+    `).join('');
+
+    const content = `
+        <div class="page-header">
+            <h1>Bestellingen Beheer</h1>
+        </div>
+        ${renderTable(['Order #', 'Datum', 'Klant', 'Status', 'Totaal', 'Actie'], rows, 'Geen bestellingen gevonden.')}
+    `;
+    root.innerHTML = adminLayout(content, 'orders');
+
+    root.querySelectorAll('.action-status-select').forEach(s => {
+        s.addEventListener('change', (e) => {
+            const el = e.currentTarget;
+            const id = parseInt(el.dataset.id, 10);
+            const newStatus = el.value;
+            const oldStatus = el.dataset.current;
+            
+            const html = `
+                <form id="status-form">
+                    <p style="margin-bottom:1rem; font-size:0.875rem;">Status wijzigen naar <strong>${window.Workbench.statusMap[newStatus]?.label || newStatus}</strong>?</p>
+                    <div class="form-group">
+                        <label>Optionele Notitie</label>
+                        <textarea name="note" class="form-control" rows="2" placeholder="Reden of notitie voor de klant..."></textarea>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
+                        <button type="submit" class="btn">Bevestigen</button>
+                        <button type="button" class="btn btn-outline" id="cancel-status">Annuleren</button>
+                    </div>
+                </form>
+            `;
+            const overlay = window.UI.showModal('Order Status Wijzigen', html);
+            
+            document.getElementById('cancel-status').onclick = () => {
+                el.value = oldStatus;
+                window.UI.closeModal(overlay);
+            };
+            
+            document.getElementById('status-form').onsubmit = async (ev) => {
+                ev.preventDefault();
+                try {
+                    await window.Core.fetch(`/admin/orders/${id}`, { method: 'PATCH', body: { status: newStatus, note: ev.target.note.value } });
+                    window.UI.closeModal(overlay);
+                    window.Workbench.toast('Status succesvol bijgewerkt', 'success');
+                    window.Router.route();
+                } catch(err) { 
+                    window.Workbench.toast(err.message, 'error'); 
+                    el.value = oldStatus;
+                }
+            };
+        });
+    });
+    
+    root.querySelectorAll('.action-track').forEach(btn => btn.addEventListener('click', (e) => {
+        const b = e.currentTarget;
+        const id = parseInt(b.dataset.id, 10);
+        const row = b.closest('tr');
+        const statusSelect = row ? row.querySelector('.action-status-select') : null;
+        const currentStatus = statusSelect ? statusSelect.value : b.dataset.status;
+        
+        const html = `
+            <form id="tracking-form">
+                <div class="form-group">
+                    <label>Tracking URL</label>
+                    <input type="url" name="tracking" value="${b.dataset.tracking}" class="form-control" placeholder="https://...">
+                </div>
+                <button type="submit" class="btn" style="width:100%; margin-top:1rem;">Opslaan</button>
+            </form>
+        `;
+        const overlay = window.UI.showModal('Tracking Bijwerken', html);
+        document.getElementById('tracking-form').onsubmit = async (ev) => {
+            ev.preventDefault();
+            try {
+                await window.Core.fetch(`/admin/orders/${id}`, { method: 'PATCH', body: { tracking: ev.target.tracking.value, status: currentStatus } });
+                window.UI.closeModal(overlay);
+                window.Workbench.toast('Tracking bijgewerkt', 'success');
+                window.Router.route();
+            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+        };
+    }));
+});
+
+window.Router.add(/^admin\/customers$/, async (match, root) => {
+    if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
+    const data = await window.Core.fetch('/admin/customers');
+    const esc = window.Core.escapeHtml;
+    
+    const rows = data.customers.map(c => `
+        <tr>
+            <td><strong style="font-size:0.9375rem">${esc(c.name)}</strong><br><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(c.email)}</span></td>
+            <td>${esc(c.company)}</td>
+            <td>
+                <select class="form-control action-cust-select" data-id="${c.id}" data-field="status" style="padding:0.25rem 0.5rem; font-size:0.8125rem; height:auto;" ${c.id === window.Core.user.id ? 'disabled' : ''}>
+                    <option value="pending" ${c.status==='pending'?'selected':''}>In afwachting</option>
+                    <option value="active" ${c.status==='active'?'selected':''}>Actief</option>
+                    <option value="blocked" ${c.status==='blocked'?'selected':''}>Geblokkeerd</option>
+                </select>
+            </td>
+            <td>
+                <select class="form-control action-cust-select" data-id="${c.id}" data-field="group_id" style="padding:0.25rem 0.5rem; font-size:0.8125rem; height:auto;" ${c.id === window.Core.user.id ? 'disabled' : ''}>
+                    ${data.groups.map(g => `<option value="${g.id}" ${c.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}
+                </select>
+            </td>
+        </tr>
+    `).join('');
+
+    const content = `
+        <div class="page-header">
+            <h1>Klanten Beheer</h1>
+        </div>
+        ${renderTable(['Klant', 'Bedrijf', 'Status Toegang', 'Prijsgroep'], rows, 'Geen klanten gevonden.')}
+    `;
+    root.innerHTML = adminLayout(content, 'customers');
+
+    root.querySelectorAll('.action-cust-select').forEach(s => {
+        s.addEventListener('change', async (e) => {
+            const el = e.currentTarget;
+            const id = parseInt(el.dataset.id, 10);
+            const field = el.dataset.field;
+            const payload = {};
+            payload[field] = field === 'group_id' ? parseInt(el.value, 10) : el.value;
+            try {
+                await window.Core.fetch(`/admin/customers/${id}`, { method: 'PATCH', body: payload });
+                window.Workbench.toast('Klantinstellingen bijgewerkt', 'success');
+            } catch(err) { 
+                window.Workbench.toast(err.message, 'error'); 
+                window.Router.route(); 
+            }
+        });
+    });
+});
+
+window.Router.add(/^admin\/settings$/, async (match, root) => {
+    if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
+    const data = await window.Core.fetch('/admin/settings');
+    const s = data.settings;
+    
+    const content = `
+        <div class="page-header">
+            <h1>Instellingen</h1>
+        </div>
+        <div class="card" style="max-width:800px">
+            <form id="settings-form">
+                <div class="form-section">
+                    <h3 class="form-section-title">Financieel & Logistiek</h3>
+                    <div class="grid-cols-2">
+                        <div class="form-group">
+                            <label>Standaard Verzendkosten (in centen)</label>
+                            <input type="number" name="shipping_cents" value="${s.shipping_cents||''}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Gratis Verzending Vanaf (in centen)</label>
+                            <input type="number" name="free_shipping_cents" value="${s.free_shipping_cents||''}" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="grid-cols-2">
+                        <div class="form-group">
+                            <label>Standaard BTW Tarief (Basispoints, bijv. 2100 = 21%)</label>
+                            <input type="number" name="tax_bps" value="${s.tax_bps||''}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Lage Voorraad Drempel (Aantal)</label>
+                            <input type="number" name="low_stock_threshold" value="${s.low_stock_threshold||''}" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Instellingen Opslaan</button>
+            </form>
+        </div>
+    `;
+    root.innerHTML = adminLayout(content, 'settings');
+    
+    document.getElementById('settings-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = Object.fromEntries(fd.entries());
+        for (let k in payload) payload[k] = parseInt(payload[k], 10);
+        try {
+            await window.Core.fetch('/admin/settings', { method: 'PATCH', body: payload });
+            window.Workbench.toast('Instellingen opgeslagen', 'success');
+        } catch(err) { window.Workbench.toast(err.message, 'error'); }
+    };
+});
+
+window.Router.add(/^admin\/integrations$/, async (match, root) => {
+    if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
+    const data = await window.Core.fetch('/admin/integrations');
+    const esc = window.Core.escapeHtml;
+    
+    const rows = data.connections.map(c => `
+        <tr><td><strong>${esc(c.name)}</strong></td><td>${window.Workbench.badge(c.mode)}</td><td>${window.Workbench.badge(c.status)}</td></tr>
+    `).join('');
+    
+    const evRows = data.events.map(e => `
+        <tr><td>${new Date(e.created_at).toLocaleString()}</td><td><span style="font-weight:600">${esc(e.type || 'simulated')}</span></td><td><pre style="margin:0; font-size:0.75rem; background:var(--wb-bg); padding:0.5rem; border-radius:var(--wb-radius);">${esc(JSON.stringify(e.payload))}</pre></td></tr>
+    `).join('');
+
+    const content = `
+        <div class="page-header">
+            <h1>Systeemintegraties (Simulatie)</h1>
+        </div>
+        <div class="alert warning" style="margin-bottom:2rem">De API en webhook verbindingen zijn veilig geïsoleerd op deze server. Hier kunt u webhook payloads lokaal testen zonder dat er daadwerkelijk extern verkeer plaatsvindt.</div>
+        
+        <div class="grid-cols-2" style="margin-bottom:2rem; align-items:start;">
+            <div>
+                <h3 class="form-section-title">Huidige Verbindingen</h3>
+                ${renderTable(['Systeem', 'Modus', 'Status'], rows, 'Geen verbindingen geregistreerd.')}
+            </div>
+            <div class="card">
+                <h3 class="form-section-title">Webhook Simuleren</h3>
+                <form id="sim-form">
+                    <div class="form-group">
+                        <label>Simulatie Event Type</label>
+                        <select name="event" class="form-control">
+                            <option value="stock">Voorraad Update (ERP Sync)</option>
+                            <option value="shipment">Verzendstatus Gewijzigd (WMS)</option>
+                            <option value="payment">Betaling Bevestigd (PSP)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-outline" style="width:100%">Trigger Event</button>
+                </form>
+            </div>
+        </div>
+        
+        <h3 class="form-section-title">Onderschepte Events Log</h3>
+        ${renderTable(['Datum', 'Event Type', 'JSON Payload'], evRows, 'Geen gelogde events.')}
+    `;
+    root.innerHTML = adminLayout(content, 'integrations');
+    
+    document.getElementById('sim-form').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await window.Core.fetch('/admin/integrations/simulate', { method: 'POST', body: { event: e.target.event.value } });
+            window.Workbench.toast('Simulatie uitgevoerd', 'success');
+            window.Router.route();
+        } catch(err) { window.Workbench.toast(err.message, 'error'); }
+    };
+});
