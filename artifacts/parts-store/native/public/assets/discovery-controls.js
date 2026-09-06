@@ -164,7 +164,7 @@
             const categoryName = cat?.slug === 'housing' ? 'Behuizing & onderdelen' : cat?.name;
             const subject = part?.name || categoryName || 'Onderdelen';
             const title = model ? `${subject} voor ${model.name}` : (part?.name || categoryName || (query ? 'Zoekresultaten' : 'Alle onderdelen'));
-            const showCategoryModels = Boolean(cat || part || query || family);
+            const showCategoryModels = !model && Boolean(cat || part || query || family);
             const chips = [
                 query && ['q', `“${query}”`], cat && ['category', categoryName], part && ['part', part.name], family && ['family', family.label], brand && ['brand', brand.name],
                 model && ['model', model.name], params.get('quality') && ['quality', params.get('quality')],

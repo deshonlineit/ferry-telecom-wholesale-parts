@@ -1,0 +1,911 @@
+/* ==========================================================================
+   B2B Navigation & Compact Catalog Discovery
+   ========================================================================== */
+
+/* 1. Mega Menu Header (Overrides for nav#store-menu) */
+body:not(:has(.admin-shell)) .app-header .header-inner {
+    height: 72px;
+    gap: 24px;
+}
+body:not(:has(.admin-shell)) .app-header .logo {
+    flex-shrink: 0;
+}
+body:not(:has(.admin-shell)) .app-header .logo img {
+    display: block;
+    height: 40px;
+    width: auto;
+}
+body:not(:has(.admin-shell)) .app-header .search-bar {
+    flex: 1;
+    min-width: 120px;
+    max-width: 620px;
+    margin: 0;
+}
+body:not(:has(.admin-shell)) .app-header .search-input-wrapper {
+    border: 1px solid #dfe3e9;
+    border-radius: 7px;
+    background: #f7f8fa;
+    min-height: 44px;
+    padding: 0 14px;
+}
+body:not(:has(.admin-shell)) .app-header .search-input-wrapper:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px #0075dd12;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+}
+body:not(:has(.admin-shell)) .store-mega-menu {
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-light);
+    border-top: 1px solid var(--border-light);
+    position: relative;
+    z-index: 900;
+}
+body:not(:has(.admin-shell)) .store-mega-menu > .container {
+    position: relative;
+    width: calc(100% - 48px);
+}
+#store-menu [hidden] {
+    display: none !important;
+}
+#store-menu :is(button, a, input):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
+#store-menu .b2b-menu-error {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 0;
+    font-size: 13px;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-skeleton {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+}
+body:not(:has(.admin-shell)) .b2b-skeleton-item {
+    width: 80px;
+    height: 20px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    animation: pulse 1.5s infinite;
+}
+
+body:not(:has(.admin-shell)) .b2b-top-nav {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex-wrap: wrap;
+    gap: 0 4px;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    gap: 8px;
+    padding: 0.6rem 1.1rem;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    white-space: nowrap;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    text-decoration: none;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-nav-link,
+body:not(:has(.admin-shell)) .b2b-nav-link:hover {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: #f4f8fe;
+    text-decoration: none;
+}
+
+/* Mega Dropdown */
+body:not(:has(.admin-shell)) .b2b-dropdown-overlay {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.12);
+    border-bottom: 1px solid var(--border-light);
+    z-index: 1000;
+    height: min(470px, calc(100dvh - 170px));
+    border: 1px solid #dde3eb;
+    border-top: 2px solid var(--primary);
+    border-radius: 0 0 8px 8px;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-dropdown-overlay {
+    display: flex;
+}
+
+body:not(:has(.admin-shell)) .b2b-mega-layout {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    margin: 0 auto;
+    height: 100%;
+}
+
+body:not(:has(.admin-shell)) .b2b-mega-families {
+    width: 224px;
+    flex-shrink: 0;
+    background: #f6f8fb;
+    border-right: 1px solid var(--border-light);
+    overflow-y: auto;
+    padding: 1rem 0;
+}
+
+body:not(:has(.admin-shell)) .b2b-family-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    min-height: 40px;
+    padding: 0.5rem 1.25rem;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #1d1d1f;
+    cursor: pointer;
+}
+
+body:not(:has(.admin-shell)) .b2b-family-btn:hover {
+    background: #e8e8ed;
+}
+
+body:not(:has(.admin-shell)) .b2b-family-btn.active {
+    background: #fff;
+    font-weight: 600;
+    color: var(--primary);
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+
+body:not(:has(.admin-shell)) .b2b-mega-models {
+    flex: 1;
+    min-width: 0;
+    padding: 20px 24px;
+    overflow-y: auto;
+    background: #fff;
+}
+
+body:not(:has(.admin-shell)) .b2b-mega-heading {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+body:not(:has(.admin-shell)) .b2b-mega-heading small {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 400;
+    color: #64748b;
+}
+body:not(:has(.admin-shell)) :is(.b2b-menu-close, .b2b-menu-back, .b2b-menu-retry) {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    border: 1px solid #dbe2eb;
+    border-radius: 4px;
+    background: #fff;
+    color: #48617e;
+    padding: 7px 11px;
+    min-height: 32px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+body:not(:has(.admin-shell)) .b2b-menu-back {
+    display: none;
+}
+body:not(:has(.admin-shell)) .b2b-mega-accessories + .b2b-menu-close {
+    margin: 24px;
+}
+body:not(:has(.admin-shell)) .b2b-model-search-wrap {
+    display: block;
+    position: relative;
+    max-width: 360px;
+}
+body:not(:has(.admin-shell)) .b2b-model-search-wrap > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+}
+body:not(:has(.admin-shell)) .b2b-model-count {
+    margin: 0 0 8px;
+    color: #64748b;
+    font-size: 12px;
+}
+body:not(:has(.admin-shell)) .b2b-model-empty {
+    font-size: 13px;
+    color: #52647a;
+    padding-block: 12px;
+}
+body:not(:has(.admin-shell)) .b2b-family-all {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 32px;
+    padding: 8px;
+    margin-bottom: 4px;
+    color: var(--primary);
+    border-bottom: 1px solid #edf0f5;
+}
+body:not(:has(.admin-shell)) .b2b-mega-brands {
+    padding: 0 12px 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #dfe5ee;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+body:not(:has(.admin-shell)) .b2b-brand-btn {
+    padding: 7px 9px;
+    min-height: 34px;
+    font: inherit;
+    font-size: 12px;
+    background: #fff;
+    color: #344b66;
+    border: 1px solid #d9e1ed;
+    border-radius: 4px;
+    cursor: pointer;
+}
+body:not(:has(.admin-shell)) .b2b-brand-btn.active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #edf5ff;
+}
+body:not(:has(.admin-shell)) .b2b-model-search {
+    width: 100%;
+    max-width: 360px;
+    height: 36px;
+    padding: 8px 11px;
+    margin: 0 0 14px;
+    font: inherit;
+    font-size: 13px;
+    background: #f7f9fc;
+    border: 1px solid #dfe4eb;
+    border-radius: 5px;
+}
+
+body:not(:has(.admin-shell)) .b2b-mega-view-all {
+    font-size: 0.8125rem;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+body:not(:has(.admin-shell)) .b2b-mega-view-all:hover {
+    text-decoration: underline;
+}
+
+body:not(:has(.admin-shell)) .b2b-models-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+    gap: 2px 16px;
+    align-content: start;
+}
+
+body:not(:has(.admin-shell)) .b2b-models-grid.active {
+    display: grid;
+}
+
+body:not(:has(.admin-shell)) .b2b-model-link {
+    font-size: 0.8125rem;
+    color: #1d1d1f;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 5px 8px;
+    line-height: 1.4;
+    border-radius: 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+body:not(:has(.admin-shell)) .b2b-model-link:hover {
+    color: var(--primary);
+    background: #f0f6ff;
+    text-decoration: none;
+}
+body:not(:has(.admin-shell)) .b2b-model-link[aria-current="page"] {
+    background: #e9f2ff;
+    color: var(--primary);
+    font-weight: 600;
+}
+
+body:not(:has(.admin-shell)) .b2b-mega-accessories {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: start;
+    gap: 8px 24px;
+    padding: 24px;
+    width: 100%;
+    overflow: auto;
+}
+
+body:not(:has(.admin-shell)) .b2b-acc-group {
+    min-width: 220px;
+}
+body:not(:has(.admin-shell)) .b2b-acc-group h4 {
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    color: var(--apple-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 0.25rem;
+}
+body:not(:has(.admin-shell)) .b2b-acc-link {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #1d1d1f;
+    padding: 0.25rem 0;
+    text-decoration: none;
+}
+body:not(:has(.admin-shell)) .b2b-acc-link:hover {
+    color: var(--primary);
+}
+
+
+/* Mobile menu handling */
+body:not(:has(.admin-shell)) .b2b-mobile-toggle {
+    display: none;
+}
+body:not(:has(.admin-shell)) .mobile-chevron {
+    display: block;
+    width: 12px;
+    opacity: 0.55;
+}
+@media (max-width: 960px) {
+    body:not(:has(.admin-shell)) .app-header .header-inner {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        height: auto;
+        gap: 10px;
+        padding-block: 12px;
+    }
+    body:not(:has(.admin-shell)) .app-header .logo {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    body:not(:has(.admin-shell)) .app-header .logo img {
+        height: 30px;
+    }
+    body:not(:has(.admin-shell)) .app-header .user-nav {
+        grid-column: 2;
+        grid-row: 1;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-width: 0;
+    }
+    body:not(:has(.admin-shell)) .app-header .search-bar {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+}
+
+@media (max-width: 768px) {
+    body:not(:has(.admin-shell)) .b2b-mobile-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: none;
+        border: none;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #1d1d1f;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+    }
+    body:not(:has(.admin-shell)) .mobile-chevron {
+        display: block;
+        transition: transform 0.2s;
+    }
+    body:not(:has(.admin-shell)) .b2b-top-nav {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        width: 100%;
+        max-height: min(72dvh, calc(100dvh - 260px));
+        overflow-y: auto;
+        background: #fff;
+        box-shadow: 0 12px 24px #14233b26;
+        border-top: 1px solid var(--border-light);
+    }
+    body:not(:has(.admin-shell)) .store-mega-menu > .container {
+        width: calc(100% - 24px);
+    }
+    body:not(:has(.admin-shell)) .b2b-top-nav.mobile-open {
+        display: flex;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-item {
+        border-bottom: 1px solid var(--border-light);
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-link {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        justify-content: flex-start;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-link .mobile-chevron {
+        margin-left: auto;
+    }
+    body:not(:has(.admin-shell)) .b2b-dropdown-overlay {
+        position: static;
+        display: none;
+        height: auto;
+        box-shadow: none;
+        border-top: 1px solid var(--border-light);
+        border-bottom: none;
+        padding: 0;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-dropdown-overlay {
+        display: flex;
+        flex-direction: column;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-nav-link .mobile-chevron {
+        transform: rotate(180deg);
+    }
+    body:not(:has(.admin-shell)) .b2b-mega-layout {
+        flex-direction: column;
+        height: auto;
+    }
+    body:not(:has(.admin-shell)) .b2b-mega-families {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        height: auto;
+        max-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-light);
+        padding: 10px;
+    }
+    body:not(:has(.admin-shell)) .b2b-family-btn {
+        width: auto;
+        min-height: 38px;
+        padding: 8px 10px;
+        gap: 8px;
+        border: 1px solid #dce3eb;
+        border-radius: 4px;
+    }
+    body:not(:has(.admin-shell)) .b2b-mega-models {
+        height: auto;
+        max-height: none;
+        padding: 1rem;
+    }
+    body:not(:has(.admin-shell)) .b2b-models-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+    }
+    body:not(:has(.admin-shell)) .b2b-model-link {
+        min-height: 40px;
+    }
+    body:not(:has(.admin-shell)) .b2b-brand-families.active {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    body:not(:has(.admin-shell)) .b2b-mega-heading small {
+        display: block;
+        margin: 4px 0 0;
+    }
+    body:not(:has(.admin-shell)) .b2b-menu-back {
+        display: block;
+        margin-top: 14px;
+    }
+}
+
+
+/* 2. Compact Catalog Discovery Area */
+body:not(:has(.admin-shell)) .catalog-breadcrumb {
+    margin-bottom: 8px;
+    padding-block: 0;
+}
+body:not(:has(.admin-shell)) .catalog-heading {
+    padding: 4px 0 12px;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 12px;
+}
+body:not(:has(.admin-shell)) .catalog-heading h1 {
+    font-size: 1.375rem;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+body:not(:has(.admin-shell)) .catalog-description {
+    font-size: 0.8125rem;
+    color: var(--apple-muted);
+    margin: 0.25rem 0 0;
+}
+body:not(:has(.admin-shell)) .catalog-eyebrow {
+    display: none;
+}
+
+/* Quick Categories (Pills) */
+body:not(:has(.admin-shell)) .quick-categories {
+    padding: 0;
+    margin-bottom: 0.75rem;
+    gap: 0.35rem;
+    justify-content: flex-start;
+}
+body:not(:has(.admin-shell)) .quick-category {
+    min-height: 34px;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.8125rem;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid #dde2e9;
+}
+body:not(:has(.admin-shell)) .quick-category.active {
+    background: #25364d;
+    color: #fff;
+    border-color: #25364d;
+}
+body:not(:has(.admin-shell)) .quick-category small {
+    background: rgba(0,0,0,0.06);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+body:not(:has(.admin-shell)) .quick-category.active small {
+    background: rgba(255,255,255,0.2);
+}
+
+/* Category Models Selector (Make it very tight) */
+body:not(:has(.admin-shell)) .category-models {
+    padding: 0.75rem 1rem;
+    margin-bottom: 12px;
+    background: #fdfdfd;
+    border-radius: 6px;
+    box-shadow: none;
+    border: 1px solid var(--border-light);
+}
+body:not(:has(.admin-shell)) .category-model-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+body:not(:has(.admin-shell)) .category-model-heading strong {
+    font-size: 0.9375rem;
+}
+body:not(:has(.admin-shell)) .category-model-heading small {
+    display: none; /* Hide verbose instructions */
+}
+body:not(:has(.admin-shell)) .device-family-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+body:not(:has(.admin-shell)) .device-family-choice {
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid var(--border-light);
+    font-size: 0.75rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.25rem;
+}
+body:not(:has(.admin-shell)) .device-family-choice small {
+    background: rgba(0,0,0,0.05);
+    padding: 0 4px;
+    border-radius: 2px;
+}
+body:not(:has(.admin-shell)) .device-family-choice.active {
+    background: #1d1d1f;
+    color: #fff;
+    border-color: #1d1d1f;
+}
+body:not(:has(.admin-shell)) .category-model-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+body:not(:has(.admin-shell)) .category-model-choice {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid var(--border-light);
+}
+body:not(:has(.admin-shell)) .category-model-choice:hover {
+    border-color: var(--primary);
+}
+body:not(:has(.admin-shell)) .category-model-choice.active {
+    background: #eef5ff;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+body:not(:has(.admin-shell)) .category-model-tools {
+    max-width: 260px;
+    margin-bottom: 0.25rem;
+}
+body:not(:has(.admin-shell)) .category-model-tools input {
+    min-height: 34px;
+    font-size: 0.8125rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+}
+body:not(:has(.admin-shell)) .category-model-search span { display: none; }
+body:not(:has(.admin-shell)) .category-model-caption {
+    font-size: 0.75rem;
+    color: var(--apple-muted);
+    margin-bottom: 0.25rem;
+}
+body:not(:has(.admin-shell)) .category-model-empty {
+    font-size: 0.8125rem;
+    color: var(--apple-muted);
+}
+
+/* Filter Bar (.catalog-refine-row) */
+body:not(:has(.admin-shell)) .catalog-refine-row {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border-light);
+    box-shadow: none;
+}
+body:not(:has(.admin-shell)) .catalog-tool-field {
+    font-size: 0.75rem;
+    color: var(--apple-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+}
+body:not(:has(.admin-shell)) .catalog-tool-field select {
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 0.1rem 1.25rem 0.1rem 0.4rem;
+    font-size: 0.8125rem;
+    min-height: 32px;
+    color: #1d1d1f;
+}
+body:not(:has(.admin-shell)) .stock-shortcut,
+body:not(:has(.admin-shell)) #open-catalog-filters {
+    min-height: 32px;
+    padding: 0 0.5rem;
+    font-size: 0.8125rem;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid var(--border-light);
+    color: #1d1d1f;
+    cursor: pointer;
+    font-weight: 500;
+}
+body:not(:has(.admin-shell)) .stock-shortcut.active {
+    background: #1d1d1f;
+    color: #fff;
+    border-color: #1d1d1f;
+}
+body:not(:has(.admin-shell)) #open-catalog-filters:hover,
+body:not(:has(.admin-shell)) .stock-shortcut:hover:not(.active) {
+    background: #e8e8ed;
+}
+
+/* Toolbar & Active Filters */
+body:not(:has(.admin-shell)) .active-filters {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+body:not(:has(.admin-shell)) .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #eef5ff;
+    border: 1px solid #cce0ff;
+    color: var(--primary);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+body:not(:has(.admin-shell)) .filter-chip span {
+    color: #8bb4e8;
+    font-weight: bold;
+}
+body:not(:has(.admin-shell)) .filter-chip:hover {
+    background: #dbeaff;
+    text-decoration: none;
+}
+body:not(:has(.admin-shell)) .clear-filters {
+    font-size: 0.75rem;
+    color: var(--apple-muted);
+    text-decoration: underline;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.4rem;
+}
+
+body:not(:has(.admin-shell)) .catalog-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+}
+body:not(:has(.admin-shell)) .catalog-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+body:not(:has(.admin-shell)) .catalog-sort select {
+    padding: 0.15rem 1.25rem 0.15rem 0.4rem;
+    font-size: 0.8125rem;
+    min-height: 32px;
+    width: auto;
+    max-width: 100%;
+    color: #25364d;
+    background: #fff;
+    line-height: normal;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+}
+
+body:not(:has(.admin-shell)) .catalog-price-notice {
+    background: #f1f6fd;
+    color: #3a5476;
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #dce7f5;
+}
+body:not(:has(.admin-shell)) .catalog-price-notice a {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Part type picker */
+body:not(:has(.admin-shell)) .part-type-picker {
+    margin-bottom: 1rem;
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+body:not(:has(.admin-shell)) .part-type-intro {
+    display: none;
+}
+body:not(:has(.admin-shell)) .part-type-options {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+body:not(:has(.admin-shell)) .part-type-option {
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+body:not(:has(.admin-shell)) .part-type-option b {
+    background: rgba(0,0,0,0.05);
+    padding: 0 4px;
+    border-radius: 2px;
+    font-weight: normal;
+}
+body:not(:has(.admin-shell)) .part-type-option small { display: none; }
+body:not(:has(.admin-shell)) .part-type-option.active {
+    background: #1d1d1f;
+    color: #fff;
+    border-color: #1d1d1f;
+}
+body:not(:has(.admin-shell)) .part-type-option.active b {
+    background: rgba(255,255,255,0.2);
+}
+
+/* Desktop layout constraints */
+@media (min-width: 1024px) {
+    body:not(:has(.admin-shell)) .catalog-layout {
+        display: block;
+    }
+}
+@media (max-width: 768px) {
+    body:not(:has(.admin-shell)) .catalog-heading {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+    body:not(:has(.admin-shell)) .catalog-heading h1 {
+        font-size: 20px;
+        line-height: 1.3;
+    }
+    body:not(:has(.admin-shell)) .catalog-refine-row {
+        gap: 8px;
+        padding: 10px;
+        align-items: center;
+    }
+    body:not(:has(.admin-shell)) .catalog-tool-field {
+        flex-wrap: wrap;
+        min-width: 0;
+        flex: 1 1 110px;
+    }
+    body:not(:has(.admin-shell)) .catalog-tool-field select {
+        max-width: 100%;
+        width: 100%;
+    }
+    body:not(:has(.admin-shell)) :is(.quick-category, .device-family-choice, .category-model-choice, .part-type-option) {
+        min-height: 38px;
+    }
+    body:not(:has(.admin-shell)) :is(.catalog-tool-field select, .stock-shortcut, #open-catalog-filters, #catalog-sort) {
+        min-height: 38px;
+    }
+    body:not(:has(.admin-shell)) .catalog-toolbar {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sort {
+        min-width: 0;
+    }
+    body:not(:has(.admin-shell)) .catalog-sort select {
+        min-width: 0;
+        flex: 1;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    #store-menu *, #store-menu *::before, #store-menu *::after {
+        animation: none;
+        transition: none;
+        scroll-behavior: auto;
+    }
+}

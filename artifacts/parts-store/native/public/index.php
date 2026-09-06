@@ -65,6 +65,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <link rel="stylesheet" href="/test-shop/assets/buyer-currency.css?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/admin-prices.css?v=<?= @filemtime(__DIR__ . '/assets/admin-prices.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/b2b-catalog.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-catalog.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/b2b-navigation.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-navigation.css') ?: 1 ?>">
     <script>window.APP_BASE = '/test-shop/';</script>
 </head>
 <body>
@@ -73,10 +74,10 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <header class="app-header">
         <div class="container header-inner">
             <a href="/test-shop/" class="logo" aria-label="Home">
-                <img src="/test-shop/assets/logo.svg" alt="Ferry Telecom Wholesale" style="height: 28px;">
+                <img src="/test-shop/assets/logo.svg" alt="Ferry Telecom Wholesale">
             </a>
             
-            <div class="search-bar" style="flex: 1; max-width: 400px; margin: 0 2rem;">
+            <div class="search-bar">
                 <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
                     <div class="search-input-wrapper" style="display: flex; align-items: center; gap: 0.5rem;">
                         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #86868b;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -87,7 +88,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
                 </form>
             </div>
             
-            <nav class="user-nav" id="user-nav" style="display: flex; gap: 1.5rem; align-items: center;">
+            <nav class="user-nav" id="user-nav">
                 <!-- Nav populated by JS -->
             </nav>
         </div>

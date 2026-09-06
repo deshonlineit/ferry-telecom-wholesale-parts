@@ -9,7 +9,7 @@
 - [Post-merge reconciliation](post-merge-reconciliation.md) — after task merges: rerun codegen + zod/v4 sed, apply new DB columns, pnpm install, restart workflows; check for dropped auth middleware.
 - [Hosting audit boundaries](hosting-audit-boundaries.md) — cPanel schema export may omit tables; source presence and database metadata do not prove live WordPress behavior.
 - [Compatibility provenance](catalog-source-provenance.md) — model tags are evidence, not proof; a compatible device does not imply a product-brand filter.
-- [Native script verification](native-script-verification.md) — per-file syntax checks can miss shared-scope collisions that leave the storefront working but break staff routes.
+- [Native script verification](native-script-verification.md) — shared-scope and real pointer/focus checks catch failures hidden by per-file syntax and click-only tests.
 - [Inline ordering accessibility](inline-ordering-accessibility.md) — quantity/add controls need an interactive search dialog with real keyboard focus, not just highlighted listbox links.
 - [Native test fixtures](native-test-fixtures.md) — synthetic carts can reference retained SKUs; clean owned customer dependencies, not every QA-labelled catalog record.
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.

@@ -1,247 +1,400 @@
-(function() {
+(function () {
     const esc = window.Core.escapeHtml;
+    const MOBILE_WIDTH = 768;
 
-    window.StoreMenu = {
-        init: function() {
+    const currentParams = () => new URLSearchParams(window.location?.search || '');
+    const compatibilityUrl = changes => {
+        const params = currentParams();
+        ['brand', 'q', 'page'].forEach(key => params.delete(key));
+        Object.entries(changes || {}).forEach(([key, value]) => {
+            if (value === '' || value === null || value === undefined) params.delete(key);
+            else params.set(key, String(value));
+        });
+        return window.APP_BASE + 'catalog' + (params.size ? '?' + params.toString() : '');
+    };
+    const orderedModels = models => [...models].sort((a, b) =>
+        Number(Boolean(b.order_known)) - Number(Boolean(a.order_known))
+        || Number(b.sort_order || 0) - Number(a.sort_order || 0)
+        || String(b.name).localeCompare(String(a.name), 'nl', {numeric: true})
+    );
+    const deviceData = catalog => {
+        const familiesById = new Map((catalog.device_families || []).map(family => [String(family.id), family]));
+        const brandsById = new Map((catalog.brands || []).map(brand => [String(brand.id), brand]));
+        const groups = new Map();
+        (catalog.models || []).forEach(model => {
+            const family = familiesById.get(String(model.family || ''));
+            const brand = brandsById.get(String(model.brand_id));
+            if (!family || !brand) return;
+            const key = String(brand.id);
+            if (!groups.has(key)) groups.set(key, {brand, families: new Map(), modelCount: 0});
+            const group = groups.get(key);
+            if (!group.families.has(String(family.id))) group.families.set(String(family.id), {family, models: []});
+            group.families.get(String(family.id)).models.push(model);
+            group.modelCount++;
+        });
+        return [...groups.values()].map(group => ({
+            brand: group.brand,
+            modelCount: group.modelCount,
+            families: [...group.families.values()].map(entry => ({
+                family: entry.family,
+                models: orderedModels(entry.models)
+            }))
+        })).sort((a, b) => b.modelCount - a.modelCount
+            || String(a.brand.name).localeCompare(String(b.brand.name), 'nl'));
+    };
+
+    const setHidden = (element, hidden) => {
+        if (!element) return;
+        element.hidden = hidden;
+        element.inert = hidden;
+        if (hidden) element.setAttribute('inert', '');
+        else element.removeAttribute('inert');
+    };
+
+    const Menu = window.StoreMenu = {
+        _nav: null,
+        _container: null,
+        _openItem: null,
+        _mobileOpen: false,
+        _listenersBound: false,
+        _request: 0,
+
+        compatibilityUrl,
+        orderedModels,
+        deviceData,
+
+        init() {
             let nav = document.getElementById('store-menu');
-            if (nav && nav.dataset.b2bInit) return;
-            
             if (!nav) {
                 nav = document.createElement('nav');
                 nav.id = 'store-menu';
-                nav.className = 'store-menu';
                 const headerInner = document.querySelector('.app-header .header-inner');
-                if (headerInner) {
-                    headerInner.parentNode.insertBefore(nav, headerInner.nextSibling);
-                } else {
-                    return;
-                }
+                if (!headerInner) return;
+                headerInner.parentNode.insertBefore(nav, headerInner.nextSibling);
             }
-            nav.dataset.b2bInit = "true";
-            nav.innerHTML = '';
-            
-            const menuContainer = document.createElement('div');
-            menuContainer.className = 'container store-menu-container';
-            
-            const menuWrap = document.createElement('div');
-            menuWrap.className = 'b2b-menu-wrapper';
-            
-            const menuBtn = document.createElement('button');
-            menuBtn.className = 'b2b-menu-btn';
-            menuBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg> MENU <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-            menuBtn.setAttribute('aria-expanded', 'false');
-            menuBtn.setAttribute('aria-controls', 'b2b-menu-dropdown');
-            
-            const menuDropdown = document.createElement('div');
-            menuDropdown.id = 'b2b-menu-dropdown';
-            menuDropdown.className = 'b2b-menu-dropdown';
-            menuDropdown.hidden = true;
-            
-            menuWrap.appendChild(menuBtn);
-            menuWrap.appendChild(menuDropdown);
-            menuContainer.appendChild(menuWrap);
-            nav.appendChild(menuContainer);
+            if (nav.dataset.b2bInit === 'true') {
+                Menu._nav = nav;
+                return;
+            }
+            nav.dataset.b2bInit = 'true';
+            nav.className = 'store-mega-menu';
+            Menu._nav = nav;
 
-            let catalogData = null;
-            let isLoading = false;
+            const container = document.createElement('div');
+            container.className = 'container position-relative';
+            container.style.padding = '0';
+            Menu._container = container;
+            nav.replaceChildren(container);
+            Menu.renderLoading();
+            Menu.bindGlobalListeners();
+            Menu.load();
+        },
 
-            const loadCatalog = async () => {
-                if (catalogData || isLoading) return;
-                isLoading = true;
-                try {
-                    menuDropdown.innerHTML = '<div class="b2b-menu-loader"><div class="spinner" style="width:24px;height:24px;border-width:2px;"></div></div>';
-                    catalogData = await window.Core.fetch('/catalog');
-                    renderMenu();
-                } catch (err) {
-                    menuDropdown.innerHTML = `<div class="b2b-menu-error text-danger p-3">Kon menu niet laden. <button type="button" class="btn btn-outline btn-sm b2b-menu-retry mt-2">Opnieuw proberen</button></div>`;
-                    const retry = menuDropdown.querySelector('.b2b-menu-retry');
-                    if (retry) retry.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        isLoading = false;
-                        loadCatalog();
-                    });
-                } finally {
-                    isLoading = false;
-                }
-            };
+        renderLoading() {
+            Menu._container.innerHTML = '<div class="b2b-nav-skeleton" aria-label="Assortiment laden"><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div></div>';
+        },
 
-            const renderMenu = () => {
-                if (!catalogData) return;
-                
-                const brandFamilies = {};
-                const familyModels = {};
-                (catalogData.models || []).forEach(m => {
-                    if (!brandFamilies[m.brand_id]) brandFamilies[m.brand_id] = new Set();
-                    if (m.family) brandFamilies[m.brand_id].add(m.family);
-                    
-                    if (!familyModels[m.family]) familyModels[m.family] = [];
-                    familyModels[m.family].push(m);
-                });
-                
-                const rootHtml = [];
-                
-                // Group brands and families
-                (catalogData.brands || []).filter(b => b.count > 0).forEach(brand => {
-                    const fSet = brandFamilies[brand.id];
-                    if (!fSet || fSet.size === 0) {
-                        rootHtml.push(`<a href="${window.APP_BASE}catalog?brand=${brand.id}" class="b2b-menu-item"><strong>${esc(brand.name.toUpperCase())} PARTS</strong></a>`);
-                        return;
-                    }
-                    
-                    rootHtml.push(`<div class="b2b-menu-group">`);
-                    rootHtml.push(`<div class="b2b-menu-heading">${esc(brand.name.toUpperCase())} PARTS</div>`);
-                    
-                    const families = (catalogData.device_families || []).filter(f => fSet.has(f.id) && f.count > 0);
-                    families.forEach(f => {
-                        rootHtml.push(`<button type="button" class="b2b-menu-item b2b-has-children" data-panel="family-${f.id}" aria-expanded="false">
-                            <span>${esc(f.label)}</span>
-                            <svg class="chevron-right" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        </button>`);
-                    });
-                    rootHtml.push(`</div>`);
-                });
-                
-                // Group non-part categories
-                const supplies = window.App.groupCategories ? window.App.groupCategories(catalogData.categories).supplies : [];
-                if (supplies.length > 0) {
-                    rootHtml.push(`<div class="b2b-menu-group"><div class="b2b-menu-heading">ACCESSORIES & TOOLS</div>`);
-                    supplies.filter(c => c.count > 0).forEach(c => {
-                        rootHtml.push(`<a href="${window.APP_BASE}catalog?category=${c.id}" class="b2b-menu-item"><strong>${esc(c.name.toUpperCase())}</strong></a>`);
-                    });
-                    rootHtml.push(`</div>`);
-                }
-
-                let panelsHtml = `<div class="b2b-menu-panel b2b-panel-active" id="panel-root">${rootHtml.join('')}</div>`;
-                
-                (catalogData.device_families || []).forEach(f => {
-                    const models = familyModels[f.id] || [];
-                    if (models.length === 0) return;
-                    
-                    models.sort((a, b) => {
-                        return Number(Boolean(b.order_known)) - Number(Boolean(a.order_known))
-                            || Number(b.sort_order || 0) - Number(a.sort_order || 0)
-                            || b.name.localeCompare(a.name, 'nl', {numeric: true});
-                    });
-                    
-                    panelsHtml += `
-                        <div class="b2b-menu-panel b2b-panel-hidden" id="panel-family-${f.id}">
-                            <button type="button" class="b2b-menu-back" data-target="panel-root">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                                Terug naar menu
-                            </button>
-                            <div class="b2b-menu-heading">${esc(f.label)}</div>
-                            <a href="${window.APP_BASE}catalog?family=${f.id}" class="b2b-menu-item b2b-menu-all">Alle ${esc(f.label)} onderdelen →</a>
-                            <div class="b2b-menu-list">
-                                ${models.map(m => `
-                                    <a href="${window.APP_BASE}catalog?model=${m.id}" class="b2b-menu-item">
-                                        <span>${esc(m.name)}</span>
-                                    </a>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `;
-                });
-
-                menuDropdown.innerHTML = `<div class="b2b-menu-slider">${panelsHtml}</div>`;
-                menuDropdown.querySelectorAll('.b2b-menu-panel').forEach(panel => {
-                    panel.inert = panel.id !== 'panel-root';
-                    panel.setAttribute('aria-hidden', String(panel.inert));
-                });
-            };
-
-            const toggleMenu = (force) => {
-                const isHidden = force !== undefined ? !force : !menuDropdown.hidden;
-                menuDropdown.hidden = isHidden;
-                menuBtn.classList.toggle('active', !isHidden);
-                menuBtn.setAttribute('aria-expanded', !isHidden);
-                
-                if (!isHidden) {
-                    loadCatalog();
-                    const panels = menuDropdown.querySelectorAll('.b2b-menu-panel');
-                    panels.forEach(p => {
-                        p.classList.remove('b2b-panel-active');
-                        p.classList.add('b2b-panel-hidden');
-                        p.inert = true;
-                        p.setAttribute('aria-hidden', 'true');
-                    });
-                    const root = menuDropdown.querySelector('#panel-root');
-                    if (root) {
-                        root.classList.remove('b2b-panel-hidden');
-                        root.classList.remove('b2b-panel-hidden-left', 'b2b-panel-hidden-right');
-                        root.classList.add('b2b-panel-active');
-                        root.inert = false;
-                        root.setAttribute('aria-hidden', 'false');
-                    }
-                }
-            };
-
-            menuBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                toggleMenu();
+        load() {
+            const request = ++Menu._request;
+            return window.Core.fetch('/catalog').then(catalog => {
+                if (request === Menu._request) Menu.renderMegaMenu(Menu._container, catalog);
+            }).catch(() => {
+                if (request === Menu._request) Menu.renderError();
             });
+        },
 
-            document.addEventListener('click', (e) => {
-                if (!menuWrap.contains(e.target) && !menuDropdown.hidden) {
-                    toggleMenu(false);
+        renderError() {
+            Menu._container.replaceChildren();
+            const error = document.createElement('div');
+            error.className = 'b2b-menu-error text-danger p-3';
+            error.textContent = 'Kon menu niet laden. ';
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'b2b-menu-retry';
+            retry.textContent = 'Opnieuw proberen';
+            retry.addEventListener('click', () => {
+                Menu.renderLoading();
+                Menu.load();
+            });
+            error.appendChild(retry);
+            Menu._container.appendChild(error);
+        },
+
+        bindGlobalListeners() {
+            if (Menu._listenersBound) return;
+            Menu._listenersBound = true;
+            document.addEventListener('click', event => {
+                if (!Menu._nav?.contains(event.target)) Menu.closeAll();
+            });
+            document.addEventListener('focusin', event => {
+                if ((Menu._openItem || Menu._mobileOpen) && !Menu._nav?.contains(event.target)) Menu.closeAll();
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key !== 'Escape' || (!Menu._openItem && !Menu._mobileOpen)) return;
+                event.preventDefault();
+                const restore = Menu._mobileOpen && window.innerWidth <= MOBILE_WIDTH
+                    ? Menu._mobileToggle : Menu._openItem?._b2bTrigger || Menu._mobileToggle;
+                Menu.closeAll();
+                restore?.focus();
+            });
+            let viewportWidth = window.innerWidth;
+            window.addEventListener?.('resize', () => {
+                if (window.innerWidth !== viewportWidth) Menu.closeAll();
+                viewportWidth = window.innerWidth;
+            });
+            window.addEventListener?.('popstate', () => Menu.closeAll());
+            window.addEventListener?.('hashchange', () => Menu.closeAll());
+        },
+
+        closeItem(item) {
+            if (!item) return;
+            item._openedByHover = false;
+            item.classList.remove('is-open');
+            item._b2bTrigger?.setAttribute('aria-expanded', 'false');
+            setHidden(item._b2bOverlay, true);
+            if (Menu._openItem === item) Menu._openItem = null;
+        },
+
+        openItem(item, fromHover = false) {
+            if (!item?._b2bOverlay) return;
+            if (Menu._openItem && Menu._openItem !== item) Menu.closeItem(Menu._openItem);
+            Menu.refreshLinks(item._b2bOverlay);
+            item._openedByHover = fromHover;
+            item.classList.add('is-open');
+            item._b2bTrigger.setAttribute('aria-expanded', 'true');
+            setHidden(item._b2bOverlay, false);
+            Menu._openItem = item;
+            Menu.filterModels(item._b2bOverlay);
+        },
+
+        refreshLinks(overlay) {
+            overlay.querySelectorAll('a').forEach(link => {
+                const target = new URL(link.href, window.location.href);
+                if (link.classList.contains('b2b-model-link')) {
+                    const model = target.searchParams.get('model');
+                    link.href = compatibilityUrl({family: target.searchParams.get('family'), model});
+                    if (model === currentParams().get('model')) link.setAttribute('aria-current', 'page');
+                    else link.removeAttribute('aria-current');
+                } else if (link.classList.contains('b2b-family-all')) {
+                    link.href = compatibilityUrl({family: target.searchParams.get('family'), model: ''});
+                } else if (link.classList.contains('b2b-acc-link')) {
+                    link.href = compatibilityUrl({category: target.searchParams.get('category'), part: '', family: '', model: ''});
                 }
             });
+        },
 
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !menuDropdown.hidden) {
-                    toggleMenu(false);
-                    menuBtn.focus();
-                }
+        toggleItem(item) {
+            if (Menu._openItem === item && !item._openedByHover) Menu.closeItem(item);
+            else Menu.openItem(item);
+        },
+
+        closeAll() {
+            Menu.closeItem(Menu._openItem);
+            Menu._mobileOpen = false;
+            Menu._mobileToggle?.setAttribute('aria-expanded', 'false');
+            Menu._list?.classList.remove('mobile-open');
+        },
+
+        createDropdownItem(label, id, content) {
+            const item = document.createElement('li');
+            item.className = 'b2b-nav-item has-dropdown';
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = 'b2b-nav-link';
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.setAttribute('aria-controls', id);
+            trigger.innerHTML = `<span>${esc(label)}</span><svg class="mobile-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+            const overlay = document.createElement('div');
+            overlay.id = id;
+            overlay.className = 'b2b-dropdown-overlay';
+            overlay.innerHTML = content;
+            setHidden(overlay, true);
+            item._b2bTrigger = trigger;
+            item._b2bOverlay = overlay;
+            trigger.addEventListener('click', event => {
+                event.stopPropagation();
+                Menu.toggleItem(item);
             });
+            item.addEventListener('mouseenter', () => {
+                if (window.innerWidth > MOBILE_WIDTH && Menu._openItem !== item) Menu.openItem(item, true);
+            });
+            item.addEventListener('mouseleave', () => {
+                if (window.innerWidth > MOBILE_WIDTH && !item.contains(document.activeElement)) Menu.closeItem(item);
+            });
+            item.appendChild(trigger);
+            item.appendChild(overlay);
+            return item;
+        },
 
-            menuDropdown.addEventListener('click', (e) => {
-                const fwdBtn = e.target.closest('.b2b-has-children');
-                const backBtn = e.target.closest('.b2b-menu-back');
-                const link = e.target.closest('a');
-                
-                if (link) {
-                    toggleMenu(false);
+        familyGrid(group, prefix, familyOffset = 0, groupActive = true) {
+            const familyButtons = [];
+            const grids = [];
+            group.families.forEach((entry, index) => {
+                const familyIndex = familyOffset + index;
+                const panelId = `${prefix}-models-${familyIndex}`;
+                const active = groupActive && index === 0;
+                familyButtons.push(`<button type="button" class="b2b-family-btn${active ? ' active' : ''}" data-family-index="${familyIndex}" aria-expanded="${active}" aria-controls="${panelId}"><span>${esc(entry.family.label)}</span><span aria-hidden="true">›</span></button>`);
+                const links = entry.models.map(model =>
+                    `<a href="${esc(compatibilityUrl({family: model.family, model: model.id}))}" class="b2b-model-link" title="${esc(model.name)}">${esc(model.name)}</a>`
+                ).join('');
+                grids.push(`<div class="b2b-models-grid${active ? ' active' : ''}" id="${panelId}" data-family-grid="${familyIndex}"${active ? '' : ' hidden inert'}><a class="b2b-family-all" href="${esc(compatibilityUrl({family: entry.family.id, model: ''}))}">Alle onderdelen voor ${esc(entry.family.label)}</a>${links}</div>`);
+            });
+            return {familyButtons: familyButtons.join(''), grids: grids.join('')};
+        },
+
+        deviceContent(groups, prefix, showBrands) {
+            let offset = 0;
+            const familySections = [];
+            const grids = [];
+            groups.forEach((group, brandIndex) => {
+                const sectionId = `${prefix}-brand-families-${brandIndex}`;
+                const section = Menu.familyGrid(group, prefix, offset, brandIndex === 0);
+                familySections.push(`<div class="b2b-brand-families${brandIndex === 0 ? ' active' : ''}" id="${sectionId}" data-brand-families="${brandIndex}"${brandIndex === 0 ? '' : ' hidden inert'}>${section.familyButtons}</div>`);
+                grids.push(section.grids);
+                offset += group.families.length;
+            });
+            const brands = showBrands ? `<div class="b2b-mega-brands">${groups.map((group, index) =>
+                `<button type="button" class="b2b-brand-btn${index === 0 ? ' active' : ''}" data-brand-index="${index}" aria-expanded="${index === 0}" aria-controls="${prefix}-brand-families-${index}">${esc(group.brand.name)}</button>`
+            ).join('')}</div>` : '';
+            return `<div class="b2b-mega-layout"><div class="b2b-mega-families">${brands}${familySections.join('')}</div><div class="b2b-mega-models"><div class="b2b-mega-heading"><span>Kies een model <small>Nieuw naar oud</small></span><button type="button" class="b2b-menu-close">Menu sluiten</button></div><label class="b2b-model-search-wrap"><span>Model zoeken</span><input type="search" class="b2b-model-search" placeholder="Typ een modelnaam…" autocomplete="off"></label><p class="b2b-model-count" role="status" aria-live="polite"></p><p class="b2b-model-empty" hidden>Geen modellen gevonden. Wis de zoekopdracht of probeer een andere naam.</p>${grids.join('')}<button type="button" class="b2b-menu-back">Terug naar assortiment</button></div></div>`;
+        },
+
+        bindDropdown(item) {
+            const overlay = item._b2bOverlay;
+            const activateFamily = button => {
+                overlay.querySelectorAll('.b2b-family-btn').forEach(candidate => {
+                    const active = candidate === button;
+                    candidate.classList.toggle('active', active);
+                    candidate.setAttribute('aria-expanded', String(active));
+                });
+                overlay.querySelectorAll('[data-family-grid]').forEach(grid => {
+                    const active = grid.dataset.familyGrid === button.dataset.familyIndex;
+                    grid.classList.toggle('active', active);
+                    setHidden(grid, !active);
+                });
+                const input = overlay.querySelector('.b2b-model-search');
+                if (input) {
+                    input.value = '';
+                    Menu.filterModels(overlay);
+                }
+            };
+            overlay.addEventListener('click', event => {
+                const close = event.target.closest?.('.b2b-menu-close, .b2b-menu-back');
+                if (close) {
+                    Menu.closeItem(item);
+                    item._b2bTrigger.focus();
                     return;
                 }
-                
-                if (fwdBtn) {
-                    e.stopPropagation();
-                    const targetId = `panel-${fwdBtn.dataset.panel}`;
-                    const targetPanel = menuDropdown.querySelector(`#${targetId}`);
-                    const currentPanel = fwdBtn.closest('.b2b-menu-panel');
-                    
-                    if (targetPanel && currentPanel) {
-                        currentPanel.classList.remove('b2b-panel-active');
-                        currentPanel.classList.add('b2b-panel-hidden-left');
-                        currentPanel.inert = true;
-                        currentPanel.setAttribute('aria-hidden', 'true');
-                        
-                        targetPanel.classList.remove('b2b-panel-hidden', 'b2b-panel-hidden-right', 'b2b-panel-hidden-left');
-                        targetPanel.classList.add('b2b-panel-active');
-                        targetPanel.inert = false;
-                        targetPanel.setAttribute('aria-hidden', 'false');
-                        targetPanel.scrollTop = 0;
-                        targetPanel.querySelector('button, a')?.focus({preventScroll: true});
-                    }
-                } else if (backBtn) {
-                    e.stopPropagation();
-                    const targetId = backBtn.dataset.target;
-                    const targetPanel = menuDropdown.querySelector(`#${targetId}`);
-                    const currentPanel = backBtn.closest('.b2b-menu-panel');
-                    
-                    if (targetPanel && currentPanel) {
-                        currentPanel.classList.remove('b2b-panel-active');
-                        currentPanel.classList.add('b2b-panel-hidden', 'b2b-panel-hidden-right');
-                        currentPanel.inert = true;
-                        currentPanel.setAttribute('aria-hidden', 'true');
-                        
-                        targetPanel.classList.remove('b2b-panel-hidden-left');
-                        targetPanel.classList.add('b2b-panel-active');
-                        targetPanel.inert = false;
-                        targetPanel.setAttribute('aria-hidden', 'false');
-                        targetPanel.querySelector('button, a')?.focus({preventScroll: true});
-                    }
+                const brandButton = event.target.closest?.('.b2b-brand-btn');
+                if (brandButton) {
+                    overlay.querySelectorAll('.b2b-brand-btn').forEach(button => {
+                        const active = button === brandButton;
+                        button.classList.toggle('active', active);
+                        button.setAttribute('aria-expanded', String(active));
+                    });
+                    overlay.querySelectorAll('[data-brand-families]').forEach(section => {
+                        const active = section.dataset.brandFamilies === brandButton.dataset.brandIndex;
+                        section.classList.toggle('active', active);
+                        setHidden(section, !active);
+                        if (active) activateFamily(section.querySelector('.b2b-family-btn'));
+                    });
+                    return;
+                }
+                const familyButton = event.target.closest?.('.b2b-family-btn');
+                if (familyButton) activateFamily(familyButton);
+                if (event.target.closest?.('a')) Menu.closeAll();
+            });
+            overlay.addEventListener('input', event => {
+                if (event.target.classList.contains('b2b-model-search')) Menu.filterModels(overlay);
+            });
+            overlay.addEventListener('keydown', event => {
+                if (event.target.classList.contains('b2b-model-search') && event.key === 'Escape' && event.target.value) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.target.value = '';
+                    Menu.filterModels(overlay);
                 }
             });
+        },
+
+        filterModels(overlay) {
+            const input = overlay.querySelector('.b2b-model-search');
+            const active = overlay.querySelector('.b2b-models-grid.active');
+            if (!input || !active) return;
+            const query = input.value.trim().toLocaleLowerCase('nl');
+            let visible = 0;
+            active.querySelectorAll('.b2b-model-link').forEach(link => {
+                const match = !query || link.textContent.toLocaleLowerCase('nl').includes(query);
+                link.hidden = !match;
+                if (match) visible++;
+            });
+            const empty = overlay.querySelector('.b2b-model-empty');
+            const count = overlay.querySelector('.b2b-model-count');
+            if (empty) empty.hidden = visible > 0;
+            if (count) count.textContent = `${visible} ${visible === 1 ? 'model' : 'modellen'}`;
+        },
+
+        categoryItem(label, categories, id) {
+            const links = categories.map(category =>
+                `<div class="b2b-acc-group"><a href="${esc(compatibilityUrl({category: category.id, part: '', family: '', model: ''}))}" class="b2b-acc-link fw-bold">${esc(category.name)}</a></div>`
+            ).join('');
+            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">Menu sluiten</button></div>`);
+        },
+
+        renderMegaMenu(container, catalog) {
+            Menu.closeAll();
+            const groups = deviceData(catalog);
+            const top = groups.slice(0, 5);
+            const other = groups.slice(5);
+            const mobileToggle = document.createElement('button');
+            mobileToggle.type = 'button';
+            mobileToggle.className = 'b2b-mobile-toggle';
+            mobileToggle.setAttribute('aria-expanded', 'false');
+            mobileToggle.setAttribute('aria-controls', 'b2b-top-navigation');
+            mobileToggle.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>Assortiment</span>';
+            const list = document.createElement('ul');
+            list.id = 'b2b-top-navigation';
+            list.className = 'b2b-top-nav';
+            Menu._mobileToggle = mobileToggle;
+            Menu._list = list;
+            mobileToggle.addEventListener('click', event => {
+                event.stopPropagation();
+                Menu._mobileOpen = !Menu._mobileOpen;
+                mobileToggle.setAttribute('aria-expanded', String(Menu._mobileOpen));
+                list.classList.toggle('mobile-open', Menu._mobileOpen);
+                if (!Menu._mobileOpen) Menu.closeItem(Menu._openItem);
+            });
+
+            const allItem = document.createElement('li');
+            allItem.className = 'b2b-nav-item';
+            allItem.innerHTML = `<a class="b2b-nav-link" href="${window.APP_BASE}catalog">Alles</a>`;
+            list.appendChild(allItem);
+            top.forEach((group, index) => {
+                const item = Menu.createDropdownItem(group.brand.name, `b2b-device-menu-${index}`, Menu.deviceContent([group], `top-${index}`, false));
+                Menu.bindDropdown(item);
+                list.appendChild(item);
+            });
+            if (other.length) {
+                const item = Menu.createDropdownItem('Overige merken', 'b2b-device-menu-other', Menu.deviceContent(other, 'other', true));
+                Menu.bindDropdown(item);
+                list.appendChild(item);
+            }
+
+            const grouped = window.App.groupCategories ? window.App.groupCategories(catalog.categories || []) : {parts: catalog.categories || [], supplies: []};
+            if (grouped.parts.length) {
+                const item = Menu.categoryItem('Onderdelen', grouped.parts, 'b2b-parts-menu');
+                Menu.bindDropdown(item);
+                list.appendChild(item);
+            }
+            if (grouped.supplies.length) {
+                const item = Menu.categoryItem('Accessoires & Tools', grouped.supplies, 'b2b-supplies-menu');
+                Menu.bindDropdown(item);
+                list.appendChild(item);
+            }
+            list.addEventListener('click', event => {
+                if (event.target.closest?.('a')) Menu.closeAll();
+            });
+            container.replaceChildren(mobileToggle, list);
         }
     };
 })();

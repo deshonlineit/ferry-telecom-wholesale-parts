@@ -32,3 +32,9 @@ Hand styling work the real rendered markup when behavior and presentation are im
 **Why:** A parallel native design handoff treated wrapper elements as inputs and assumed dialog controls that the actual controller did not render. Successful behavior tests did not expose the resulting unstyled controls and mobile intrinsic-width overflow.
 
 **How to apply:** Share the actual render contract before final styling, then check the integrated mobile surface. For density changes, measure where the first product actually appears and check touch targets, complete names and wrapped headers. Do not treat a helper's “responsive” or “compact” completion report as evidence.
+
+Exercise pointer entry followed by click as a single interaction for hover-enabled navigation, and verify both open and closed layouts.
+
+**Why:** Real pointer clicks first enter the target. A click-only test double can pass while the preceding hover opens the menu and the click immediately closes it. Browser focus restoration must also target a control that remains visible after mobile navigation closes.
+
+**How to apply:** Include the real pointer sequence and mobile Escape in the controller regression; assess the navigation and surrounding catalog controls together, not the trigger alone.

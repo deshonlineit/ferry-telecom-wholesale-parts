@@ -6,6 +6,18 @@ De nieuwe versie staat afzonderlijk onder `/test-shop/`. De oude prototypebronco
 
 De native service is uitsluitend een ontwikkel-/testomgeving. De productie-build is bewust geblokkeerd; dit is geen publicatieklare webshop.
 
+## Navigatie en compacte catalogus — 6 september 2026
+
+- De publieke navigatie van MobileSentrix Europe en GSM Parts Center is visueel bekeken. Hun herkenbare ingangen voor merken en afdelingen dienen als referentie; branding, promoties, beoordelingen en beloften zijn niet overgenomen.
+- De losse blauwe MENU-knop is vervangen door een geïntegreerde navigatiebalk met merken, onderdelen en accessoires. Het brede desktopmenu groepeert echte families en volledige modelreeksen, met een lokale modelzoeker en duidelijke actieve familie. Mobiel opent dezelfde inhoud onder **Assortiment**.
+- Merkknoppen openen de bijbehorende compatibele families; ze zetten geen productmerkfilter. Modelkeuze behoudt de actuele categorie, ook na eerdere navigatie zonder herladen. Een gekozen model toont een compacte wisselknop in plaats van nogmaals het volledige familie-/modellenblok boven de tabel.
+- Visuele nulmeting en resultaat op 1280 × 900: de eerste productrij begint nu op **525,56 px**, tegenover circa **652 px** daarvoor. Er passen vier volledige productrijen in plaats van twee in het eerste scherm. Vergelijk `screenshots/navigation-before-desktop.jpg` met `screenshots/navigation-after-desktop.jpg`.
+- De gerichte browsercontrole bevestigt alle **47 iPhone-modellen**, nieuwste eerst. Zoeken op iPhone 5 geeft 5S, 5C en 5; wissen herstelt alle modellen. iPhone 17 Pro Max geeft 11 onderdelen; iPhone 5 geeft 22. De schermcategorie blijft behouden bij modelkeuze en geeft voor iPhone 5 vijf onderdelen; sorteren en voorraadfilter werken met dezelfde context.
+- Klikken, hover plus klikken, opnieuw sluiten, buiten klikken, zoeken, Escape, zichtbaar focusherstel en mobiele navigatie zijn gecontroleerd. Een tijdens controle gevonden hover-/klikbotsing is hersteld en opgenomen in de regressietest. Verborgen panelen blijven inert.
+- Ingelogd met de bestaande demoklant zijn header, prijzen en bestelvelden bekeken. Productsuggesties tonen acht echte resultaten met prijs, aantal en toevoegen. Op 390 px is de documentbreedte 375/375 px; op 320 px 305/305 px, zonder horizontale overloop. De mobiele modelkeuze en zoek-/bestelbediening passen volledig.
+- De gezamenlijke scriptcontrole (27 routes), menu-/URL-/chronologieregressie en bestaande B2B-zoek-/bestelregressie slagen. Geen applicatiefouten in de browsercontrole. De volledige aankooproute is niet opnieuw doorlopen; er is tijdens deze menucontrole niets toegevoegd aan de winkelwagen en geen bestelling aangemaakt.
+- Uitsluitend native PHP/HTML/CSS/JavaScript gewijzigd. Geen nieuwe afhankelijkheden, backend-/prijslogica, live hosting, betalingen, mail of voorraad gewijzigd.
+
 ## B2B-tabel en direct bestellen — 6 september 2026
 
 - Homepage, catalogus en gerelateerde producten gebruiken compacte producttabellen: foto, naam/SKU, bronkenmerken en compatibiliteit, voorraad, eigen klantprijs/valuta, aantal en direct toevoegen bij elkaar. Gasten zien aanmeldlinks; alleen actieve klanten krijgen bestelknoppen. Er is geen reviewbron geïmporteerd: de tabel vermeldt expliciet `Geen reviewgegevens`.
