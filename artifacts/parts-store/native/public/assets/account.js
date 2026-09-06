@@ -177,7 +177,7 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
     }));
 
     const editAddress = (id = null) => {
-        let addr = { label:'', name:'', company:'', line1:'', line2:'', postal_code:'', city:'', country:'CH', is_default:0 };
+        let addr = { label:'', name:'', company:'', line1:'', line2:'', postal_code:'', city:'', country: window.Core.country || 'CH', is_default:0 };
         if (id) addr = data.addresses.find(a => a.id === id);
         
         const html = `
@@ -189,6 +189,11 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
                     <div class="grid-cols-2">
                         <div class="form-group"><label>Postcode</label><input type="text" name="postal_code" value="${esc(addr.postal_code)}" class="form-control" required></div>
                         <div class="form-group"><label>Woonplaats</label><input type="text" name="city" value="${esc(addr.city)}" class="form-control" required></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Land van levering</label>
+                        <select name="country" class="form-control" required>${window.BuyerCurrency.options(addr.country)}</select>
+                        <small class="text-muted">Zwitserland wordt afgerekend in CHF; alle andere landen in EUR.</small>
                     </div>
                     
                     <details class="wb-details" ${addr.company || addr.line2 ? 'open' : ''}>
@@ -243,7 +248,7 @@ window.Router.add(/^account\/orders$/, async (match, root) => {
             <td><a href="${window.APP_BASE}account/orders/${o.id}" style="font-weight:600">${esc(o.number)}</a></td>
             <td>${new Date(o.created_at).toLocaleDateString()}</td>
             <td>${window.Workbench.badge(o.status)}</td>
-            <td>${window.Core.formatMoney(o.total_cents)}</td>
+            <td>${window.Core.formatMoney(o.total_cents, o.currency || 'CHF')}<br><small class="text-muted">${esc(o.currency || 'CHF')}</small></td>
             <td>
                 <a href="${window.APP_BASE}account/orders/${o.id}" class="btn btn-sm btn-outline">Details</a>
             </td>
@@ -272,13 +277,14 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
     try {
         const data = await window.Core.fetch(`/orders/${id}`);
         const o = data.order;
+        const orderCurrency = o.currency || 'CHF';
         
         const itemsHtml = data.items.map(i => `
             <tr>
                 <td><div style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(i.sku)}</div><div style="font-weight:500">${esc(i.name)}</div></td>
-                <td>${window.Core.formatMoney(i.price_cents)}</td>
+                <td>${window.Core.formatMoney(i.price_cents, orderCurrency)}</td>
                 <td>${i.quantity}</td>
-                <td style="text-align:right">${window.Core.formatMoney(i.total_cents)}</td>
+                <td style="text-align:right">${window.Core.formatMoney(i.total_cents, orderCurrency)}</td>
                 <td style="text-align:right">
                     ${(o.status === 'shipped' || o.status === 'completed') ? `<button type="button" class="btn btn-sm btn-outline action-return" data-itemid="${i.id}" data-max="${i.quantity}" data-name="${esc(i.name)}">Retourneren</button>` : ''}
                 </td>
@@ -316,6 +322,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                         <tr><td style="color:var(--wb-text-muted)">Status:</td><td>${window.Workbench.badge(o.status)}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">Tracking:</td><td>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" style="font-weight:500;">Volg Pakket</a>` : '-'}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">Betaalmethode:</td><td>${esc(o.payment_method)}</td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">Valuta:</td><td><strong>${esc(orderCurrency)}</strong></td></tr>
                     </table>
                 </div>
             </div>
@@ -326,10 +333,10 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                     <tbody>${itemsHtml}</tbody>
                 </table>
                 <div style="padding:1.5rem; background:var(--wb-bg); text-align:right; border-top:1px solid var(--wb-border-light)">
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Subtotaal: <span style="display:inline-block; width:80px; color:var(--wb-text)">${window.Core.formatMoney(o.subtotal_cents)}</span></div>
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Verzendkosten: <span style="display:inline-block; width:80px; color:var(--wb-text)">${window.Core.formatMoney(o.shipping_cents)}</span></div>
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">BTW: <span style="display:inline-block; width:80px; color:var(--wb-text)">${window.Core.formatMoney(o.tax_cents)}</span></div>
-                    <div style="font-size:1.125rem; font-weight:700; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--wb-border);">Totaal: <span style="display:inline-block; width:80px;">${window.Core.formatMoney(o.total_cents)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Subtotaal: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.subtotal_cents, orderCurrency)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Verzendkosten: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.shipping_cents, orderCurrency)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">BTW: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.tax_cents, orderCurrency)}</span></div>
+                    <div style="font-size:1.125rem; font-weight:700; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--wb-border);">Totaal (${esc(orderCurrency)}): <span style="display:inline-block; width:100px;">${window.Core.formatMoney(o.total_cents, orderCurrency)}</span></div>
                 </div>
             </div>
             
@@ -401,7 +408,7 @@ window.Router.add(/^account\/returns$/, async (match, root) => {
             <td>${new Date(r.created_at).toLocaleDateString()}</td>
             <td><a href="${window.APP_BASE}account/orders/${r.order_id}">Order #${r.order_id}</a></td>
             <td>${window.Workbench.badge(r.status)}</td>
-            <td>${window.Core.formatMoney(r.credit_cents)}</td>
+            <td>${window.Core.formatMoney(r.credit_cents, r.currency || r.order_currency || 'CHF')}<br><small class="text-muted">${esc(r.currency || r.order_currency || 'CHF')}</small></td>
             <td><a href="${window.APP_BASE}account/returns/${r.id}" class="btn btn-sm btn-outline">Details</a></td>
         </tr>
     `).join('');
@@ -428,10 +435,11 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
     try {
         const data = await window.Core.fetch(`/returns/${id}`);
         const r = data.return;
+        const returnCurrency = r.currency || r.order_currency || data.order?.currency || 'CHF';
         const itemsHtml = data.items.map(i => `
             <tr>
                 <td style="font-weight:500">${esc(i.name)}</td>
-                <td>${window.Core.formatMoney(i.price_cents)}</td>
+                <td>${window.Core.formatMoney(i.price_cents, returnCurrency)}</td>
                 <td>${i.quantity}</td>
             </tr>
         `).join('');
@@ -466,7 +474,7 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
                     <tbody>${itemsHtml}</tbody>
                 </table>
                 <div style="padding:1.5rem; background:var(--wb-bg); text-align:right; border-top:1px solid var(--wb-border-light);">
-                    <div style="font-size:1.125rem; font-weight:700; color:var(--wb-success)">Totaal Gecrediteerd: ${window.Core.formatMoney(r.credit_cents)}</div>
+                    <div style="font-size:1.125rem; font-weight:700; color:var(--wb-success)">Totaal Gecrediteerd (${esc(returnCurrency)}): ${window.Core.formatMoney(r.credit_cents, returnCurrency)}</div>
                 </div>
             </div>
             
@@ -493,7 +501,7 @@ window.Router.add(/^account\/buyback$/, async (match, root) => {
             <td style="font-weight:600">${esc(r.number)}</td>
             <td>${new Date(r.created_at).toLocaleDateString()}</td>
             <td>${window.Workbench.badge(r.status)}</td>
-            <td>${window.Core.formatMoney(r.total_cents)}</td>
+            <td>${window.Core.formatMoney(r.total_cents, r.currency || data.currency || 'CHF')}</td>
         </tr>
     `).join('');
 
@@ -520,7 +528,7 @@ window.Router.add(/^account\/buyback$/, async (match, root) => {
                 <tr>
                     <td style="font-weight:500">${esc(i.model)}</td>
                     <td>${esc(i.grade)}</td>
-                    <td>${window.Core.formatMoney(i.price_cents)}</td>
+                    <td>${window.Core.formatMoney(i.price_cents, i.currency || bbData.currency || 'CHF')}</td>
                     <td style="width:100px; padding:0.25rem 0.5rem;"><input type="number" class="form-control" name="qty_${i.id}" value="0" min="0" style="padding:0.25rem; font-size:0.875rem;"></td>
                 </tr>
             `).join('');

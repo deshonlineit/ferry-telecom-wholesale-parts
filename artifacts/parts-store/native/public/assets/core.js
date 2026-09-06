@@ -6,6 +6,9 @@ window.Core = {
     user: null,
     capabilities: {},
     currency: 'CHF',
+    country: 'CH',
+    exchangeRate: null,
+    pricingReady: true,
     cart: { items: [], total_cents: 0 },
     
     async fetch(url, options = {}) {
@@ -36,9 +39,22 @@ window.Core = {
         }
         
         if (!res.ok) {
-            throw new Error(data.error || `HTTP error ${res.status}`);
+            const error = new Error(data.error || data.message || `HTTP error ${res.status}`);
+            error.status = res.status;
+            error.data = data;
+            error.response = res;
+            throw error;
         }
         return data;
+    },
+
+    updateCurrencyContext(data = {}) {
+        const context = {...data, ...(data.context || {}), ...(data.currency_context || {})};
+        const country = context.country || context.delivery_country;
+        if (country) this.country = String(country).toUpperCase();
+        if (context.currency) this.currency = context.currency;
+        if (Object.prototype.hasOwnProperty.call(context, 'exchange_rate')) this.exchangeRate = context.exchange_rate;
+        if (Object.prototype.hasOwnProperty.call(context, 'pricing_ready')) this.pricingReady = Boolean(context.pricing_ready);
     },
     
     async init() {
@@ -47,7 +63,7 @@ window.Core = {
             this.csrf = data.csrf;
             this.user = data.user;
             this.capabilities = data.capabilities;
-            this.currency = data.currency || 'CHF';
+            this.updateCurrencyContext(data);
             
             await this.refreshCart();
             this.renderNav();
@@ -66,6 +82,7 @@ window.Core = {
         try {
             const data = await this.fetch('/cart');
             this.cart = data || { items: [], total_cents: 0 };
+            this.updateCurrencyContext(data || {});
             this.updateCartCount();
         } catch(e) {
             console.error('Failed to load cart', e);
@@ -81,9 +98,38 @@ window.Core = {
         });
     },
 
-    formatMoney(cents) {
+    formatMoney(cents, currency = this.currency) {
         if (typeof cents !== 'number') return '';
-        return (cents / 100).toFixed(2) + ' ' + this.currency;
+        return (cents / 100).toFixed(2) + ' ' + currency;
+    },
+
+    currencyNotice(context = this) {
+        const rate = context.exchange_rate || context.exchangeRate;
+        if ((context.currency || this.currency) !== 'CHF') return '';
+        if (!rate || rate.status === 'unavailable') return 'CHF-prijzen zijn niet beschikbaar: er is geen bruikbare wisselkoers.';
+        if (rate.status === 'stale') return 'CHF-prijzen zijn niet beschikbaar: de wisselkoers is verouderd.';
+        return '';
+    },
+
+    async changeCountry(country, select) {
+        window.UI.closeSuggestions();
+        const sequence = this.countryChangeSequence = (this.countryChangeSequence || 0) + 1;
+        if (select) select.disabled = true;
+        try {
+            const data = await this.fetch('/currency', {method: 'POST', body: {country}});
+            if (sequence !== this.countryChangeSequence) return;
+            this.updateCurrencyContext(data);
+            await this.refreshCart();
+            this.renderNav();
+            await window.Router.route();
+        } catch (error) {
+            if (sequence === this.countryChangeSequence) {
+                if (select) select.value = this.country;
+                alert(error.message);
+            }
+        } finally {
+            if (select && sequence === this.countryChangeSequence) select.disabled = false;
+        }
     },
 
     renderNav() {
@@ -92,6 +138,14 @@ window.Core = {
         
         const count = this.cart.items ? this.cart.items.reduce((a,b)=>a+b.quantity,0) : 0;
         let html = '';
+        if (!this.user || this.user.role !== 'staff') {
+            const options = window.BuyerCurrency?.options(this.country) || `<option value="${this.country}">${this.country}</option>`;
+            html += `<label class="delivery-country" title="Prijzen en levering voor dit land">
+                <span>Levering</span>
+                <select aria-label="Land van levering" onchange="window.Core.changeCountry(this.value, this)">${options}</select>
+                <strong>${this.currency}</strong>
+            </label>`;
+        }
         
         if (this.user) {
             html += `<a href="${window.APP_BASE}account" class="nav-link">
@@ -298,6 +352,7 @@ window.App = {
 
     async init() {
         await window.Core.init();
+        window.StoreMenu.init();
         window.Router.route();
     },
     
@@ -333,61 +388,15 @@ window.App = {
     },
 
     handleSearchInput(val, owner = 'search-input') {
-        if (owner !== (this.searchOwner || 'search-input')) window.UI.closeSuggestions();
-        this.searchOwner = owner;
-        clearTimeout(this.searchTimer);
-        if (this.searchAbort) this.searchAbort.abort();
-        const sequence = this.searchSequence = (this.searchSequence || 0) + 1;
-        if (val.trim().length < 2) {
-            window.UI.closeSuggestions();
-            return;
-        }
-        this.searchTimer = setTimeout(async () => {
-            this.searchAbort = new AbortController();
-            try {
-                const res = await window.Core.fetch(`/search/suggestions?q=${encodeURIComponent(val)}`, {
-                    signal: this.searchAbort.signal
-                });
-                if (sequence === this.searchSequence) this.renderSuggestions(res, val);
-            } catch(e) {
-                if (e.name !== 'AbortError') console.error('Search error', e);
-            }
-        }, 180);
+        return window.B2BOrdering.searchInput(val, owner);
     },
 
     handleSearchKeydown(event) {
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            window.UI.closeSuggestions();
-            return;
-        }
-        const {container} = this.searchElements();
-        if (!container || container.style.display === 'none') return;
-        const options = [...container.querySelectorAll('a')];
-        if (!options.length) return;
-        if (event.key === 'Enter' && this.searchIndex >= 0) {
-            event.preventDefault();
-            const href = options[this.searchIndex]?.href;
-            window.UI.closeSuggestions();
-            if (href) window.Router.navigate(href);
-            return;
-        }
-        if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
-        event.preventDefault();
-        const current = this.searchIndex ?? -1;
-        this.searchIndex = current < 0
-            ? (event.key === 'ArrowDown' ? 0 : options.length - 1)
-            : (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
-        options.forEach((option, index) => {
-            const active = index === this.searchIndex;
-            option.classList.toggle('is-active', active);
-            option.setAttribute('aria-selected', String(active));
-        });
-        event.currentTarget.setAttribute('aria-activedescendant', options[this.searchIndex].id);
-        options[this.searchIndex].scrollIntoView({block: 'nearest'});
+        return window.B2BOrdering.searchKeydown(event);
     },
 
     handleSearchFocus(owner = 'search-input') {
+        if (this.restoringSearchFocus) return;
         if (owner !== (this.searchOwner || 'search-input')) window.UI.closeSuggestions();
         this.searchOwner = owner;
         const input = document.getElementById(owner);
@@ -397,84 +406,11 @@ window.App = {
     },
 
     renderSuggestions(data, query) {
-        const {container, input} = this.searchElements();
-        const esc = window.Core.escapeHtml;
-        if (!container) return;
-        this.searchIndex = -1;
-        input?.setAttribute('aria-expanded', 'true');
-        input?.removeAttribute('aria-activedescendant');
-        
-        if (!data.products?.length && !data.categories?.length && !data.models?.length) {
-            container.innerHTML = `<div class="suggestion-group"><div class="suggestion-empty">Geen resultaten gevonden voor "${esc(query)}"</div></div>`;
-            container.style.display = 'block';
-            return;
-        }
-        
-        let html = '';
-        if (data.categories && data.categories.length) {
-            html += `<div class="suggestion-group">
-                <div class="suggestion-group-title">Categorieën</div>
-                ${data.categories.map(c => `<a href="${window.APP_BASE}catalog?category=${c.id}" class="suggestion-item"><span class="suggestion-text">${esc(c.name)}</span><span class="suggestion-meta badge">${c.count}</span></a>`).join('')}
-            </div>`;
-        }
-        
-        if (data.models && data.models.length) {
-            html += `<div class="suggestion-group">
-                <div class="suggestion-group-title">Modellen</div>
-                ${data.models.map(m => `<a href="${window.APP_BASE}catalog?model=${m.id}" class="suggestion-item"><span class="suggestion-text">${esc(m.name)}</span><span class="suggestion-meta badge">${m.count}</span></a>`).join('')}
-            </div>`;
-        }
-        
-        if (data.products && data.products.length) {
-            html += `<div class="suggestion-group">
-                <div class="suggestion-group-title">Producten</div>
-                ${data.products.map(p => `
-                    <a href="${window.APP_BASE}products/${p.id}" class="suggestion-product">
-                        <div class="suggestion-img">
-                            ${p.image_url ? `<img src="${esc(p.image_url)}" alt="">` : `<div class="img-placeholder"></div>`}
-                        </div>
-                        <div class="suggestion-product-info">
-                            <div class="suggestion-product-name">${esc(p.name)}</div>
-                            <div class="suggestion-product-sku">SKU: ${esc(p.sku)}</div>
-                        </div>
-                        <div class="suggestion-product-price">
-                            ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : ''}
-                        </div>
-                    </a>
-                `).join('')}
-            </div>`;
-        }
-        
-        html += `<a href="${window.APP_BASE}catalog?q=${encodeURIComponent(query)}" class="suggestion-footer">Bekijk alle ${data.total} resultaten &rarr;</a>`;
-        container.innerHTML = html;
-        container.querySelectorAll('a').forEach((option, index) => {
-            option.id = (this.searchOwner || 'search-input') + '-option-' + index;
-            option.setAttribute('role', 'option');
-            option.setAttribute('aria-selected', 'false');
-        });
-        container.style.display = 'block';
+        return window.B2BOrdering.renderSuggestions(data, query);
     },
 
-    async addToCartWithQty(id, qty) {
-        try {
-            await window.Core.fetch('/cart', { method: 'POST', body: { product_id: id, quantity: qty } });
-            await window.Core.refreshCart();
-            window.UI.showModal('Winkelwagen', `
-                <div class="modal-success-content">
-                    <div class="success-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                    <h3 class="mt-4 mb-2 text-center">Toegevoegd aan winkelwagen</h3>
-                    <p class="text-muted text-center mb-4">Het product is succesvol toegevoegd.</p>
-                    <div class="modal-actions" style="display:flex; gap:1rem; justify-content:center;">
-                        <button class="btn btn-outline" onclick="window.UI.closeModal(this.closest('.modal-overlay'))">Verder winkelen</button>
-                        <a href="${window.APP_BASE}cart" class="btn btn-primary">Naar winkelwagen</a>
-                    </div>
-                </div>
-            `);
-        } catch(e) {
-            alert(e.message);
-        }
+    async addToCartWithQty(id, qty, button) {
+        return window.B2BOrdering.quickAdd(id, qty, button);
     }
 };
 

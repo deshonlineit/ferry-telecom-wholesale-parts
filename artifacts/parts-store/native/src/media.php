@@ -217,8 +217,8 @@ function mediaOrderDocument(int $orderId, string $kind): never
                 (string) $item['sku'],
                 (string) $item['name'],
                 (int) $item['quantity'],
-                mediaChf((int) $item['price_cents']),
-                mediaChf((int) $item['total_cents'])
+                mediaMoney((int) $item['price_cents'], (string) $order['currency']),
+                mediaMoney((int) $item['total_cents'], (string) $order['currency'])
             ));
         } else {
             $pdf->line(sprintf('[  ] %d x %s | %s', (int) $item['quantity'], (string) $item['sku'], (string) $item['name']));
@@ -226,10 +226,10 @@ function mediaOrderDocument(int $orderId, string $kind): never
     }
     if ($isInvoice) {
         $pdf->rule();
-        $pdf->line('Subtotal: ' . mediaChf((int) $order['subtotal_cents']));
-        $pdf->line(sprintf('Tax (snapshot %.2f%%): %s', ((int) $order['tax_bps']) / 100, mediaChf((int) $order['tax_cents'])));
-        $pdf->line('Shipping: ' . mediaChf((int) $order['shipping_cents']));
-        $pdf->heading('Total: ' . mediaChf((int) $order['total_cents']), 13);
+        $pdf->line('Subtotal: ' . mediaMoney((int) $order['subtotal_cents'], (string) $order['currency']));
+        $pdf->line(sprintf('Tax (snapshot %.2f%%): %s', ((int) $order['tax_bps']) / 100, mediaMoney((int) $order['tax_cents'], (string) $order['currency'])));
+        $pdf->line('Shipping: ' . mediaMoney((int) $order['shipping_cents'], (string) $order['currency']));
+        $pdf->heading('Total: ' . mediaMoney((int) $order['total_cents'], (string) $order['currency']), 13);
         $pdf->line('Payment method: ' . (string) $order['payment_method']);
         $pdf->line('No bank account, payment link, or live payment instructions are included in this isolated test document.');
         $pdf->line('Swiss QR-bill payment is unavailable; no non-compliant QR code has been generated.');
@@ -300,15 +300,15 @@ function mediaCreditDocument(int $returnId): never
             (string) $item['sku'],
             (string) $item['name'],
             (int) $item['quantity'],
-            mediaChf((int) $item['price_cents']),
-            mediaChf((int) $item['line_cents'])
+            mediaMoney((int) $item['price_cents'], (string) $return['currency']),
+            mediaMoney((int) $item['line_cents'], (string) $return['currency'])
         ));
     }
     $pdf->rule();
     $creditedTax = (int) $return['credit_cents'] - $returnedSubtotal;
-    $pdf->line('Returned item subtotal: ' . mediaChf($returnedSubtotal));
-    $pdf->line('Credited tax (original order allocation): ' . mediaChf($creditedTax));
-    $pdf->heading('Credited amount: ' . mediaChf((int) $return['credit_cents']), 13);
+    $pdf->line('Returned item subtotal: ' . mediaMoney($returnedSubtotal, (string) $return['currency']));
+    $pdf->line('Credited tax (original order allocation): ' . mediaMoney($creditedTax, (string) $return['currency']));
+    $pdf->heading('Credited amount: ' . mediaMoney((int) $return['credit_cents'], (string) $return['currency']), 13);
     $pdf->line('This is an isolated test credit record. It does not initiate a bank transfer or card refund.');
     mediaSendPdf($pdf->output(), strtolower($number) . '.pdf');
 }
@@ -593,9 +593,10 @@ function mediaFetchOne(string $sql, array $parameters): ?array
     return $row === false ? null : $row;
 }
 
-function mediaChf(int $cents): string
+function mediaMoney(int $cents, string $currency): string
 {
-    return 'CHF ' . number_format($cents / 100, 2, '.', "'");
+    $currency = in_array($currency, ['EUR', 'CHF'], true) ? $currency : 'CHF';
+    return $currency . ' ' . number_format($cents / 100, 2, '.', "'");
 }
 
 function mediaSendPdf(string $pdf, string $filename): never

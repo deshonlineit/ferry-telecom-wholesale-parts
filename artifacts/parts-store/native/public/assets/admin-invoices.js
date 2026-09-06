@@ -41,28 +41,37 @@
     function renderRows(invoices) {
         return invoices.map(invoice => {
             const id = Number(invoice.id);
+            const cur = invoice.currency || 'CHF';
             return `<tr data-invoice-id="${id}">
                 <td><button type="button" class="invoice-number-link" data-invoice-edit="${id}">${esc(invoice.order_number)}</button><small class="invoice-row-subtitle">Factuur bij bestelling</small></td>
                 <td><strong>${esc(invoice.company || invoice.customer_name)}</strong><small class="invoice-row-subtitle">${esc(invoice.company ? invoice.customer_name : invoice.email)}</small></td>
                 <td>${date(invoice.issued_at)}</td>
                 <td>${badge(invoice.payment_status)}</td>
                 <td class="${invoice.payment_status === 'overdue' ? 'invoice-overdue-date' : ''}">${date(invoice.due_date)}</td>
-                <td class="finance-amount">${money(invoice.total_cents)}${invoice.credited_cents > 0 ? `<small class="invoice-row-subtitle">Credit: ${money(invoice.credited_cents)}</small>` : ''}</td>
-                <td class="finance-amount">${invoice.verified ? money(invoice.paid_cents) : '<span class="text-muted">Niet bevestigd</span>'}</td>
-                <td class="finance-amount"><strong>${invoice.outstanding_cents === null ? 'Te controleren' : money(invoice.outstanding_cents)}</strong>${invoice.credit_balance_cents > 0 ? `<small class="invoice-row-subtitle">Tegoed: ${money(invoice.credit_balance_cents)}</small>` : ''}</td>
+                <td class="finance-amount">${window.Core.formatMoney(invoice.total_cents, cur)}${invoice.credited_cents > 0 ? `<small class="invoice-row-subtitle">Credit: ${window.Core.formatMoney(invoice.credited_cents, cur)}</small>` : ''}</td>
+                <td class="finance-amount">${invoice.verified ? window.Core.formatMoney(invoice.paid_cents, cur) : '<span class="text-muted">Niet bevestigd</span>'}</td>
+                <td class="finance-amount"><strong>${invoice.outstanding_cents === null ? 'Te controleren' : window.Core.formatMoney(invoice.outstanding_cents, cur)}</strong>${invoice.credit_balance_cents > 0 ? `<small class="invoice-row-subtitle">Tegoed: ${window.Core.formatMoney(invoice.credit_balance_cents, cur)}</small>` : ''}</td>
                 <td><div class="invoice-row-actions"><button type="button" class="btn btn-sm btn-outline" data-invoice-edit="${id}">Beheren</button><a class="btn btn-sm btn-outline" href="${window.APP_BASE}api/documents/${id}/invoice.pdf" target="_blank" rel="noopener" aria-label="Factuur ${esc(invoice.order_number)} als PDF openen">PDF</a></div></td>
             </tr>`;
         }).join('');
     }
 
-    function renderSummary(summary, params) {
-        const tiles = [
-            { status: 'unpaid', name: 'Openstaand', value: money(summary.outstanding_cents), detail: `${summary.unpaid_count} bevestigde onbetaalde facturen` },
-            { status: 'overdue', name: 'Achterstallig', value: money(summary.overdue_cents), detail: `${summary.overdue_count} voorbij de vervaldatum` },
-            { status: 'unverified', name: 'Te controleren', value: summary.unverified_count, detail: 'Nog geen bevestigde betaalregistratie' },
-            { status: 'paid', name: 'Betaald', value: summary.paid_count, detail: 'Geen openstaand bedrag' }
-        ];
-        return tiles.map(tile => `<a class="finance-summary-tile finance-${tile.status}" href="${buildUrl(params, { status: tile.status, q: null })}"><span>${tile.name}</span><strong>${esc(tile.value)}</strong><small>${esc(tile.detail)}</small></a>`).join('');
+    function renderSummary(summaryList, params) {
+        const summaries = Array.isArray(summaryList) ? summaryList : [Object.assign({currency: 'CHF'}, summaryList)];
+        return summaries.map(summary => {
+            const cur = summary.currency || 'CHF';
+            const tiles = [
+                { status: 'unpaid', name: 'Openstaand', value: window.Core.formatMoney(summary.outstanding_cents, cur), detail: `${summary.unpaid_count} bevestigde onbetaalde facturen` },
+                { status: 'overdue', name: 'Achterstallig', value: window.Core.formatMoney(summary.overdue_cents, cur), detail: `${summary.overdue_count} voorbij de vervaldatum` },
+                { status: 'unverified', name: 'Te controleren', value: summary.unverified_count, detail: 'Nog geen bevestigde betaalregistratie' },
+                { status: 'paid', name: 'Betaald', value: summary.paid_count, detail: 'Geen openstaand bedrag' }
+            ];
+            return `<div class="finance-currency-group">
+                <h4 style="margin:0 0 0.5rem 0;font-size:0.875rem;color:var(--wb-text-muted)">Valuta: ${cur}</h4>
+                <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+                ${tiles.map(tile => `<a class="finance-summary-tile finance-${tile.status}" style="flex:1;min-width:180px;" href="${buildUrl(params, { status: tile.status, q: null, currency: cur })}"><span>${tile.name}</span><strong>${esc(tile.value)}</strong><small>${esc(tile.detail)}</small></a>`).join('')}
+                </div></div>`;
+        }).join('');
     }
 
     function openInvoice(invoice, root, opener) {
@@ -73,12 +82,12 @@
         dialog.innerHTML = `
             <div class="invoice-dialog-heading"><div><span class="data-label">Betaalregistratie</span><h2 id="invoice-dialog-title">${esc(invoice.order_number)}</h2><p>${esc(invoice.company || invoice.customer_name)}</p></div><button type="button" class="btn btn-outline" data-invoice-close aria-label="Factuurvenster sluiten">Sluiten</button></div>
             <form id="invoice-payment-form">
-                <div class="invoice-metrics"><div><span>Factuurbedrag</span><strong>${money(invoice.total_cents)}</strong></div><div><span>Gecrediteerd</span><strong>${money(invoice.credited_cents)}</strong></div><div><span>Openstaand</span><strong>${invoice.outstanding_cents === null ? 'Te controleren' : money(invoice.outstanding_cents)}</strong></div></div>
+                <div class="invoice-metrics"><div><span>Factuurbedrag</span><strong>${window.Core.formatMoney(invoice.total_cents, invoice.currency || 'CHF')}</strong></div><div><span>Gecrediteerd</span><strong>${window.Core.formatMoney(invoice.credited_cents, invoice.currency || 'CHF')}</strong></div><div><span>Openstaand</span><strong>${invoice.outstanding_cents === null ? 'Te controleren' : window.Core.formatMoney(invoice.outstanding_cents, invoice.currency || 'CHF')}</strong></div></div>
                 <p class="invoice-current-status">Huidige status: ${badge(invoice.payment_status)}</p>
                 ${cancelled ? '<div class="alert warning">Deze bestelling is geannuleerd en wordt niet als openstaand geïnd. Eventueel eerder ontvangen geld blijft geregistreerd; terugbetalingen worden niet automatisch uitgevoerd.</div>' : ''}
-                ${invoice.credit_balance_cents > 0 ? `<div class="alert warning">Er is een tegoed van ${money(invoice.credit_balance_cents)}. Deze registratie voert geen terugbetaling uit.</div>` : ''}
+                ${invoice.credit_balance_cents > 0 ? `<div class="alert warning">Er is een tegoed van ${window.Core.formatMoney(invoice.credit_balance_cents, invoice.currency || 'CHF')}. Deze registratie voert geen terugbetaling uit.</div>` : ''}
                 <div class="invoice-form-grid">
-                    <div class="form-group"><label for="invoice-paid-amount">Totaal ontvangen bedrag (${esc(window.Core.currency)})</label><input id="invoice-paid-amount" name="paid_amount" type="number" inputmode="decimal" step="0.01" min="0" max="1000000" value="${(Number(invoice.paid_cents) / 100).toFixed(2)}" required aria-describedby="invoice-amount-help"><small id="invoice-amount-help">Het totaal dat u bevestigt, niet een extra betaling.</small><button type="button" class="btn btn-sm btn-outline" data-invoice-fill-paid>Volledig ontvangen invullen</button></div>
+                    <div class="form-group"><label for="invoice-paid-amount">Totaal ontvangen bedrag (${esc(invoice.currency || 'CHF')})</label><input id="invoice-paid-amount" name="paid_amount" type="number" inputmode="decimal" step="0.01" min="0" max="1000000" value="${(Number(invoice.paid_cents) / 100).toFixed(2)}" required aria-describedby="invoice-amount-help"><small id="invoice-amount-help">Het totaal dat u bevestigt, niet een extra betaling.</small><button type="button" class="btn btn-sm btn-outline" data-invoice-fill-paid>Volledig ontvangen invullen</button></div>
                     <div class="form-group"><label for="invoice-due-date">Vervaldatum</label><input id="invoice-due-date" name="due_date" type="date" value="${esc(invoice.due_date || '')}"><small>Leeg betekent: geen vervaldatum vastgesteld.</small></div>
                 </div>
                 <label class="invoice-verified-label"><input id="invoice-verified" name="verified" type="checkbox" ${invoice.verified ? 'checked' : ''}><span>Ik heb de betaalgegevens gecontroleerd.</span></label>

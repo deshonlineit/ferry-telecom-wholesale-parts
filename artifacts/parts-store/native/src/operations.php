@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/admin-finance.php';
+require_once __DIR__ . '/pricing-admin.php';
 
 /*
  * Staff operations, returns, buyback and CSV import for the isolated test shop.
@@ -50,7 +51,8 @@ function opId(string $value): int
 
 function opProduct(array $row): array
 {
-    foreach (['id', 'category_id', 'brand_id', 'stock', 'list_price_cents', 'minimum_quantity'] as $key) {
+    foreach (['id', 'category_id', 'brand_id', 'stock', 'list_price_cents', 'minimum_quantity',
+        'purchase_price_eur_cents', 'list_price_eur_cents', 'pricing_version'] as $key) {
         if (array_key_exists($key, $row) && $row[$key] !== null) {
             $row[$key] = (int)$row[$key];
         }
@@ -61,7 +63,7 @@ function opProduct(array $row): array
     if (array_key_exists('active', $row)) {
         $row['active'] = (bool)$row['active'];
     }
-    $row['price_cents'] = isset($row['list_price_cents']) ? (int)$row['list_price_cents'] : null;
+    $row['price_cents'] = isset($row['list_price_eur_cents']) ? (int)$row['list_price_eur_cents'] : null;
     return $row;
 }
 
@@ -143,7 +145,11 @@ function opReplaceRelations(int $productId, array $input, string $kind): void
         if (isset($prices[$groupId])) {
             throw new HttpError(422, 'Duplicate customer group price.');
         }
-        $prices[$groupId] = integer($entry['price_cents'] ?? null, 0, 100000000);
+        if (!array_key_exists('price_eur_cents', $entry)) {
+            throw new HttpError(422, 'A group price requires price_eur_cents.');
+        }
+        $prices[$groupId] = $entry['price_eur_cents'] === null
+            ? null : integer($entry['price_eur_cents'], 0, 100000000);
     }
     if ($prices !== []) {
         $ids = array_keys($prices);
@@ -154,9 +160,14 @@ function opReplaceRelations(int $productId, array $input, string $kind): void
             throw new HttpError(422, 'One or more customer groups do not exist.');
         }
     }
-    db()->prepare('DELETE FROM group_prices WHERE product_id = ?')->execute([$productId]);
-    $insert = db()->prepare('INSERT INTO group_prices(product_id,group_id,price_cents) VALUES(?,?,?)');
+    /* Clearing a canonical override must never delete its retained CHF source row. */
+    db()->prepare('UPDATE group_prices SET price_eur_cents=NULL WHERE product_id = ?')->execute([$productId]);
+    $insert = db()->prepare(
+        'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,0,?)
+         ON DUPLICATE KEY UPDATE price_eur_cents=VALUES(price_eur_cents)'
+    );
     foreach ($prices as $groupId => $price) {
+        if ($price === null) continue;
         $insert->execute([$productId, $groupId, $price]);
     }
 }
@@ -164,7 +175,7 @@ function opReplaceRelations(int $productId, array $input, string $kind): void
 function opProductPayload(array $input, bool $create): array
 {
     $allowed = ['sku', 'name', 'description', 'category_id', 'brand_id', 'quality', 'stock',
-        'list_price_cents', 'minimum_quantity', 'featured'];
+        'purchase_price_eur_cents', 'list_price_eur_cents', 'minimum_quantity', 'featured'];
     $result = [];
     foreach ($allowed as $field) {
         if (!array_key_exists($field, $input)) {
@@ -178,13 +189,15 @@ function opProductPayload(array $input, bool $create): array
             'category_id', 'brand_id' => ($input[$field] === null || $input[$field] === '')
                 ? null : integer($input[$field], 1, 2147483647),
             'stock' => integer($input[$field], 0, 100000000),
-            'list_price_cents' => integer($input[$field], 0, 100000000),
+            'purchase_price_eur_cents' => $input[$field] === null || $input[$field] === ''
+                ? null : integer($input[$field], 0, 100000000),
+            'list_price_eur_cents' => integer($input[$field], 0, 100000000),
             'minimum_quantity' => integer($input[$field], 1, 100000000),
             'featured' => opBool($input[$field]),
         };
     }
     if ($create) {
-        foreach (['sku', 'name', 'description', 'quality', 'stock', 'list_price_cents'] as $required) {
+        foreach (['sku', 'name', 'description', 'quality', 'stock', 'list_price_eur_cents'] as $required) {
             if (!array_key_exists($required, $result)) {
                 throw new HttpError(422, "Missing product field: $required.");
             }
@@ -252,8 +265,8 @@ function opAdminProducts(string $method, string $path): bool
         $sort = (string)($_GET['sort'] ?? '');
         $orderBy = match ($sort) {
             '', 'newest' => 'p.updated_at DESC,p.id DESC',
-            'price_asc' => 'p.list_price_cents ASC,p.id ASC',
-            'price_desc' => 'p.list_price_cents DESC,p.id ASC',
+            'price_asc' => 'p.list_price_eur_cents ASC,p.id ASC',
+            'price_desc' => 'p.list_price_eur_cents DESC,p.id ASC',
             'name_asc' => 'p.name ASC,p.id ASC',
             'stock_asc' => 'p.stock ASC,p.id ASC',
             'stock_desc' => 'p.stock DESC,p.id ASC',
@@ -325,7 +338,9 @@ function opAdminProducts(string $method, string $path): bool
                 if (!is_array($input['model_ids'])) throw new HttpError(422, 'Invalid model IDs.');
                 opReplaceRelations($id, $input['model_ids'], 'models');
             }
-            audit('product.created', 'product', $id, ['by' => (int)$staff['id']]);
+            audit('product.created', 'product', $id, [
+                'by' => (int)$staff['id'], 'pricing_after' => pricingSnapshot($id),
+            ]);
             $pdo->commit();
         } catch (PDOException $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -343,10 +358,10 @@ function opAdminProducts(string $method, string $path): bool
         $existing = opRow('SELECT * FROM products WHERE id=?', [$id]);
         if ($existing === null) throw new HttpError(404, 'Product not found.');
         if ($method === 'GET') {
-            $prices = opRows('SELECT group_id,price_cents FROM group_prices WHERE product_id=? ORDER BY group_id', [$id]);
+            $prices = opRows('SELECT group_id,price_eur_cents FROM group_prices WHERE product_id=? AND price_eur_cents IS NOT NULL ORDER BY group_id', [$id]);
             foreach ($prices as &$price) {
                 $price['group_id'] = (int)$price['group_id'];
-                $price['price_cents'] = (int)$price['price_cents'];
+                $price['price_eur_cents'] = (int)$price['price_eur_cents'];
             }
             unset($price);
             $models = opRows('SELECT model_id FROM product_models WHERE product_id=? ORDER BY model_id', [$id]);
@@ -362,9 +377,28 @@ function opAdminProducts(string $method, string $path): bool
         if ($method === 'PATCH') {
             $input = body();
             $fields = opProductPayload($input, false);
+            $priceTouched = array_key_exists('purchase_price_eur_cents', $fields)
+                || array_key_exists('list_price_eur_cents', $fields)
+                || array_key_exists('group_prices', $input);
+            $expectedVersion = null;
+            if ($priceTouched) {
+                if (!array_key_exists('pricing_version', $input)) {
+                    throw new HttpError(409, 'pricing_version is required when changing prices.');
+                }
+                $expectedVersion = integer($input['pricing_version'], 0, 2147483647);
+            }
             $pdo = db();
             try {
                 $pdo->beginTransaction();
+                $priceBefore = null;
+                if ($priceTouched) {
+                    $locked = opRow('SELECT pricing_version FROM products WHERE id=? FOR UPDATE', [$id]);
+                    if ($locked === null) throw new HttpError(404, 'Product not found.');
+                    if ((int)$locked['pricing_version'] !== $expectedVersion) {
+                        throw new HttpError(409, 'Pricing changed. Reload the product and retry.');
+                    }
+                    $priceBefore = pricingSnapshot($id);
+                }
                 if ($fields !== []) {
                     $sets = implode(',', array_map(static fn(string $f): string => "$f=?", array_keys($fields)));
                     $pdo->prepare("UPDATE products SET $sets WHERE id=?")->execute([...array_values($fields), $id]);
@@ -373,11 +407,19 @@ function opAdminProducts(string $method, string $path): bool
                     if (!is_array($input['group_prices'])) throw new HttpError(422, 'Invalid group prices.');
                     opReplaceRelations($id, $input['group_prices'], 'prices');
                 }
+                if ($priceTouched) {
+                    $pdo->prepare('UPDATE products SET pricing_version=pricing_version+1 WHERE id=?')->execute([$id]);
+                }
                 if (array_key_exists('model_ids', $input)) {
                     if (!is_array($input['model_ids'])) throw new HttpError(422, 'Invalid model IDs.');
                     opReplaceRelations($id, $input['model_ids'], 'models');
                 }
-                audit('product.updated', 'product', $id, ['fields' => array_keys($fields), 'by' => (int)$staff['id']]);
+                $auditDetails = ['fields' => array_keys($fields), 'by' => (int)$staff['id']];
+                if ($priceTouched) {
+                    $auditDetails['pricing_before'] = $priceBefore;
+                    $auditDetails['pricing_after'] = pricingSnapshot($id);
+                }
+                audit('product.updated', 'product', $id, $auditDetails);
                 $pdo->commit();
             } catch (PDOException $e) {
                 if ($pdo->inTransaction()) $pdo->rollBack();
@@ -402,7 +444,11 @@ function opReturns(string $method, string $path): bool
 {
     if ($path === '/returns' && $method === 'GET') {
         $user = requireUser();
-        $rows = opRows('SELECT id,number,order_id,status,reason,created_at,credit_cents FROM returns WHERE user_id=? ORDER BY id DESC', [(int)$user['id']]);
+        $rows = opRows(
+            'SELECT r.id,r.number,r.order_id,r.status,r.reason,r.created_at,r.credit_cents,o.currency
+             FROM returns r JOIN orders o ON o.id=r.order_id WHERE r.user_id=? ORDER BY r.id DESC',
+            [(int)$user['id']]
+        );
         foreach ($rows as &$row) {
             foreach (['id', 'order_id', 'credit_cents'] as $key) $row[$key] = (int)$row[$key];
         }
@@ -481,8 +527,9 @@ function opReturns(string $method, string $path): bool
         $user = $admin ? requireStaff() : requireUser();
         $id = opId($match[2]);
         $return = opRow(
-            'SELECT id,number,order_id,status,reason,credit_cents,note,created_at FROM returns WHERE id=?'
-                . ($admin ? '' : ' AND user_id=?'),
+            'SELECT r.id,r.number,r.order_id,r.status,r.reason,r.credit_cents,r.note,r.created_at,o.currency
+             FROM returns r JOIN orders o ON o.id=r.order_id WHERE r.id=?'
+                . ($admin ? '' : ' AND r.user_id=?'),
             $admin ? [$id] : [$id, (int)$user['id']]
         );
         if ($return === null) throw new HttpError(404, 'Return not found.');
@@ -498,7 +545,12 @@ function opReturns(string $method, string $path): bool
     }
     if ($path === '/admin/returns' && $method === 'GET') {
         requireStaff();
-        $rows = opRows('SELECT r.id,r.number,r.order_id,r.status,r.reason,r.credit_cents,r.created_at,u.name customer_name FROM returns r JOIN users u ON u.id=r.user_id ORDER BY r.id DESC');
+        $rows = opRows(
+            'SELECT r.id,r.number,r.order_id,r.status,r.reason,r.credit_cents,r.created_at,
+                    u.name customer_name,o.currency
+             FROM returns r JOIN users u ON u.id=r.user_id JOIN orders o ON o.id=r.order_id
+             ORDER BY r.id DESC'
+        );
         foreach ($rows as &$row) foreach (['id', 'order_id', 'credit_cents'] as $key) $row[$key] = (int)$row[$key];
         unset($row);
         respond(['returns' => $rows]);
@@ -842,36 +894,95 @@ function opImport(string $method, string $path): bool
         unset($row);
     }
     if ($errors !== []) respond(['rows' => $dataRows, 'created' => 0, 'updated' => 0, 'errors' => $errors], 422);
+    $pricingVersions = [];
+    $versionLookup = db()->prepare('SELECT pricing_version FROM products WHERE sku=?');
+    foreach ($rows as $row) {
+        $versionLookup->execute([$row['sku']]);
+        $version = $versionLookup->fetchColumn();
+        $pricingVersions[$row['sku']] = $version === false ? null : (int)$version;
+    }
+    if ($preview) {
+        $created = count(array_filter($pricingVersions, static fn(mixed $version): bool => $version === null));
+        respond([
+            'rows' => count($rows), 'created' => $created, 'updated' => count($rows) - $created,
+            'errors' => [], 'preview' => true, 'pricing_versions' => $pricingVersions,
+        ]);
+    }
+    $postedVersions = $_POST['pricing_versions'] ?? null;
+    if (is_string($postedVersions)) {
+        try {
+            $postedVersions = json_decode($postedVersions, true, 32, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new HttpError(422, 'pricing_versions must be valid JSON.');
+        }
+    }
+    if (!is_array($postedVersions) || count($postedVersions) !== count($rows)) {
+        throw new HttpError(422, 'Confirmation requires the complete preview pricing_versions map.');
+    }
+    foreach ($rows as $row) {
+        $sku = $row['sku'];
+        if (!array_key_exists($sku, $postedVersions)) {
+            throw new HttpError(422, "Missing preview pricing version for SKU $sku.");
+        }
+        $version = $postedVersions[$sku];
+        if ($version !== null && (!is_int($version) || $version < 0 || $version > 2147483647)) {
+            throw new HttpError(422, "Invalid preview pricing version for SKU $sku.");
+        }
+    }
     $pdo = db();
     $created = 0;
     $updated = 0;
     try {
         $pdo->beginTransaction();
-        $existing = $pdo->prepare('SELECT id FROM products WHERE sku=? FOR UPDATE');
-        $insert = $pdo->prepare('INSERT INTO products(sku,name,description,category_id,brand_id,quality,stock,list_price_cents,minimum_quantity,active) VALUES(?,?,"",?,?,?,?,?,1,1)');
-        $update = $pdo->prepare('UPDATE products SET name=?,category_id=?,brand_id=?,quality=?,stock=?,list_price_cents=?,active=1 WHERE id=?');
+        $existing = $pdo->prepare('SELECT id,pricing_version FROM products WHERE sku=? FOR UPDATE');
+        $lockedBySku = [];
+        $lockSkus = array_keys($pricingVersions);
+        sort($lockSkus, SORT_STRING);
+        foreach ($lockSkus as $sku) {
+            $existing->execute([$sku]);
+            $locked = $existing->fetch(PDO::FETCH_ASSOC);
+            $lockedBySku[$sku] = $locked ?: null;
+            $expected = $postedVersions[$sku];
+            if (($locked === false && $expected !== null)
+                || ($locked !== false && ($expected === null || (int)$locked['pricing_version'] !== $expected))) {
+                throw new HttpError(409, "Pricing changed for SKU $sku. Preview the CSV again.");
+            }
+        }
+        $insert = $pdo->prepare(
+            'INSERT INTO products(sku,name,description,category_id,brand_id,quality,stock,list_price_cents,list_price_eur_cents,minimum_quantity,active)
+             VALUES(?,?,"",?,?,?,?,0,?,1,1)'
+        );
+        $update = $pdo->prepare(
+            'UPDATE products SET name=?,category_id=?,brand_id=?,quality=?,stock=?,
+             list_price_eur_cents=?,pricing_version=pricing_version+1,active=1 WHERE id=?'
+        );
         foreach ($rows as $row) {
-            $existing->execute([$row['sku']]);
-            $id = $existing->fetchColumn();
-            if ($id === false) {
+            $locked = $lockedBySku[$row['sku']];
+            if ($locked === null) {
                 $insert->execute([$row['sku'], $row['name'], $row['category_id'], $row['brand_id'], $row['quality'], $row['stock'], $row['price']]);
+                $newId = (int)$pdo->lastInsertId();
+                audit('product.imported_created', 'product', $newId, [
+                    'pricing_before' => null, 'pricing_after' => pricingSnapshot($newId), 'by' => (int)$staff['id'],
+                ]);
                 $created++;
             } else {
+                $id = (int)$locked['id'];
+                $pricingBefore = pricingSnapshot((int)$id);
                 $update->execute([$row['name'], $row['category_id'], $row['brand_id'], $row['quality'], $row['stock'], $row['price'], (int)$id]);
+                audit('product.imported_updated', 'product', (int)$id, [
+                    'pricing_before' => $pricingBefore, 'pricing_after' => pricingSnapshot((int)$id), 'by' => (int)$staff['id'],
+                ]);
                 $updated++;
             }
         }
-        if ($preview) {
-            $pdo->rollBack();
-        } else {
-            audit('products.imported', 'product', 0, ['rows' => count($rows), 'created' => $created, 'updated' => $updated, 'by' => (int)$staff['id']]);
-            $pdo->commit();
-        }
+        audit('products.imported', 'product', 0, ['rows' => count($rows), 'created' => $created, 'updated' => $updated, 'by' => (int)$staff['id']]);
+        $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;
     }
-    respond(['rows' => count($rows), 'created' => $created, 'updated' => $updated, 'errors' => [], 'preview' => $preview]);
+    respond(['rows' => count($rows), 'created' => $created, 'updated' => $updated, 'errors' => [],
+        'preview' => false, 'pricing_versions' => $pricingVersions]);
 }
 
 function opAdminGeneral(string $method, string $path): bool
@@ -884,13 +995,17 @@ function opAdminGeneral(string $method, string $path): bool
              (SELECT COUNT(*) FROM products WHERE active=1) products,
              (SELECT COUNT(*) FROM orders) orders,
              (SELECT COUNT(*) FROM users WHERE role='customer') customers,
-             (SELECT COALESCE(SUM(total_cents),0) FROM orders WHERE status <> 'cancelled') revenue_cents,
              (SELECT COUNT(*) FROM products WHERE active=1 AND stock<=?) low_stock,
              (SELECT COUNT(*) FROM returns WHERE status IN ('submitted','approved')) open_returns",
             [$threshold]
         ) ?? [];
         foreach ($stats as $key => $value) $stats[$key] = (int)$value;
-        $recent = opRows('SELECT o.id,o.number,o.status,o.total_cents,o.created_at,u.name customer_name FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 8');
+        $revenue = [];
+        foreach (opRows("SELECT currency,COALESCE(SUM(total_cents),0) total_cents FROM orders WHERE status<>'cancelled' GROUP BY currency ORDER BY currency") as $row) {
+            $revenue[] = ['currency' => (string)$row['currency'], 'total_cents' => (int)$row['total_cents']];
+        }
+        $stats['revenue_by_currency'] = $revenue;
+        $recent = opRows('SELECT o.id,o.number,o.status,o.total_cents,o.currency,o.created_at,u.name customer_name FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 8');
         foreach ($recent as &$row) { $row['id'] = (int)$row['id']; $row['total_cents'] = (int)$row['total_cents']; }
         unset($row);
         $low = opRows('SELECT * FROM products WHERE active=1 AND stock<=? ORDER BY stock,id LIMIT 20', [$threshold]);
@@ -941,18 +1056,18 @@ function opAdminGeneral(string $method, string $path): bool
     if ($path === '/admin/settings' && $method === 'GET') {
         requireStaff();
         respond(['settings' => [
-            'currency' => 'CHF',
+            'currency' => 'EUR',
             'tax_bps' => opSetting('tax_bps', 810),
-            'shipping_cents' => opSetting('shipping_cents', 1200),
-            'free_shipping_cents' => opSetting('free_shipping_cents', 15000),
+            'shipping_eur_cents' => opSetting('shipping_eur_cents', 0),
+            'free_shipping_eur_cents' => opSetting('free_shipping_eur_cents', 0),
             'low_stock_threshold' => opSetting('low_stock_threshold', 5),
         ], 'safety' => ['test_mode' => true, 'live_connections' => 0, 'external_endpoints' => false]]);
     }
     if ($path === '/admin/settings' && $method === 'PATCH') {
         $staff = requireStaff();
         $input = body();
-        $limits = ['tax_bps' => 10000, 'shipping_cents' => 100000000,
-            'free_shipping_cents' => 100000000, 'low_stock_threshold' => 100000000];
+        $limits = ['tax_bps' => 10000, 'shipping_eur_cents' => 100000000,
+            'free_shipping_eur_cents' => 100000000, 'low_stock_threshold' => 100000000];
         $changed = [];
         foreach ($limits as $name => $max) {
             if (!array_key_exists($name, $input)) continue;
@@ -962,10 +1077,10 @@ function opAdminGeneral(string $method, string $path): bool
         foreach ($changed as $name => $value) $statement->execute([$name, (string)$value]);
         audit('settings.updated', 'settings', 0, ['fields' => array_keys($changed), 'by' => (int)$staff['id']]);
         respond(['settings' => [
-            'currency' => 'CHF',
+            'currency' => 'EUR',
             'tax_bps' => opSetting('tax_bps', 810),
-            'shipping_cents' => opSetting('shipping_cents', 1200),
-            'free_shipping_cents' => opSetting('free_shipping_cents', 15000),
+            'shipping_eur_cents' => opSetting('shipping_eur_cents', 0),
+            'free_shipping_eur_cents' => opSetting('free_shipping_eur_cents', 0),
             'low_stock_threshold' => opSetting('low_stock_threshold', 5),
         ], 'safety' => ['test_mode' => true, 'live_connections' => 0, 'external_endpoints' => false]]);
     }
@@ -1011,6 +1126,7 @@ function opAdminGeneral(string $method, string $path): bool
 function handleOperations(string $method, string $path): bool
 {
     return handleAdminFinance($method, $path)
+        || handlePricingAdmin($method, $path)
         || opAdminProducts($method, $path)
         || opReturns($method, $path)
         || opBuyback($method, $path)

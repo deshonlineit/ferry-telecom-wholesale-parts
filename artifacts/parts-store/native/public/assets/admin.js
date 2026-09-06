@@ -45,7 +45,17 @@
             if (s) return `<span class="wb-badge wb-badge-${s.badge}">${window.Core.escapeHtml(s.label)}</span>`;
             return `<span class="wb-badge wb-badge-neutral">${window.Core.escapeHtml(status || '')}</span>`;
         };
+
     }
+    window.Workbench.parseCentsStrict = (val) => {
+        if (val === '' || val === null || val === undefined) return null;
+        const str = String(val).trim();
+        if (str === '-' || str === '') return null;
+        const match = str.match(/^(\d+)([.,](\d{0,2}))?$/);
+        if (!match) return NaN;
+        const cents = Number(match[1]) * 100 + Number((match[3] || '').padEnd(2, '0'));
+        return Number.isSafeInteger(cents) && cents <= 100000000 ? cents : NaN;
+    };
 })();
 
 const adminLayout = (content, activeRoute) => window.Admin.layout(content, activeRoute);
@@ -65,7 +75,7 @@ window.Router.add(/^admin$/, async (match, root) => {
     if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
     const data = await window.Core.fetch('/admin/dashboard');
     const s = data.stats;
-    const f = data.finance;
+    const financeData = Array.isArray(data.finance) ? data.finance : (data.finance ? [Object.assign({currency: 'CHF'}, data.finance)] : []);
     const invAtt = data.invoice_attention;
     const esc = window.Core.escapeHtml;
     
@@ -75,16 +85,18 @@ window.Router.add(/^admin$/, async (match, root) => {
         </div>
         ${data.safety && data.safety.test_mode ? '<div class="alert warning" style="margin-bottom:1.5rem"><strong>TESTMODUS ACTIEF:</strong> Live API connecties geblokkeerd. Geen echte betalingen of e-mails.</div>' : ''}
         
+        ${financeData.map(f => `
+        <div style="margin-bottom:1rem; font-weight:600; color:var(--wb-text-muted);">Valuta: ${f.currency || 'CHF'}</div>
         <div class="admin-finance-summary" style="margin-bottom:2rem">
             <a href="${window.APP_BASE}admin/invoices?status=unpaid" class="finance-summary-tile tile-warning">
                 <span>Onbetaald</span>
                 <strong>${f.unpaid_count}</strong>
-                <small>${window.Core.formatMoney(f.outstanding_cents)}</small>
+                <small>${window.Core.formatMoney(f.outstanding_cents, f.currency || 'CHF')}</small>
             </a>
             <a href="${window.APP_BASE}admin/invoices?status=overdue" class="finance-summary-tile tile-danger">
                 <span>Achterstallig</span>
                 <strong>${f.overdue_count}</strong>
-                <small>${window.Core.formatMoney(f.overdue_cents)}</small>
+                <small>${window.Core.formatMoney(f.overdue_cents, f.currency || 'CHF')}</small>
             </a>
             <a href="${window.APP_BASE}admin/invoices?status=unverified" class="finance-summary-tile tile-info">
                 <span>Te controleren</span>
@@ -97,6 +109,7 @@ window.Router.add(/^admin$/, async (match, root) => {
                 <small>Alle betaalde facturen</small>
             </a>
         </div>
+        `).join('')}
 
         <div class="admin-dashboard-stats" style="margin-bottom:2rem">
             <div class="card"><div class="data-label">Actieve producten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.products}</div></div>
@@ -113,7 +126,7 @@ window.Router.add(/^admin$/, async (match, root) => {
                         ${invAtt.length ? invAtt.map(i => `<tr>
                             <td><a href="${window.APP_BASE}admin/invoices?q=${esc(i.order_number)}" style="font-weight:600">${esc(i.order_number)}</a><br><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(i.company || i.customer_name)}</span></td>
                             <td><span class="status-badge status-${i.payment_status}">${esc({unverified: 'Te controleren', unpaid: 'Alle onbetaalde', open: 'Openstaand', partial: 'Deels betaald', overdue: 'Achterstallig', paid: 'Betaald', cancelled: 'Geannuleerd'}[i.payment_status] || i.payment_status)}</span></td>
-                            <td style="text-align:right"><strong>${i.outstanding_cents === null ? 'Te controleren' : window.Core.formatMoney(i.outstanding_cents)}</strong><br><span style="font-size:0.75rem; color:var(--wb-text-muted)">${i.due_date ? 'Vervaldatum: ' + new Date(i.due_date).toLocaleDateString() : 'Geen vervaldatum'}</span></td>
+                            <td style="text-align:right"><strong>${i.outstanding_cents === null ? 'Te controleren' : window.Core.formatMoney(i.outstanding_cents, i.currency || 'CHF')}</strong><br><span style="font-size:0.75rem; color:var(--wb-text-muted)">${i.due_date ? 'Vervaldatum: ' + new Date(i.due_date).toLocaleDateString() : 'Geen vervaldatum'}</span></td>
                         </tr>`).join('') : '<tr><td colspan="3">Geen urgente facturen.</td></tr>'}
                     </table>
                 </div>
@@ -131,7 +144,7 @@ window.Router.add(/^admin$/, async (match, root) => {
             <h3 class="form-section-title">Recente Bestellingen</h3>
             <div class="table-responsive">
                 <table class="data-table">
-                    ${data.recent_orders && data.recent_orders.length ? data.recent_orders.map(o => `<tr><td><a href="${window.APP_BASE}admin/orders" style="font-weight:600">${esc(o.number)}</a></td><td>${window.Workbench.badge(o.status)}</td><td style="text-align:right">${window.Core.formatMoney(o.total_cents)}</td></tr>`).join('') : '<tr><td colspan="3">Geen recente orders.</td></tr>'}
+                    ${data.recent_orders && data.recent_orders.length ? data.recent_orders.map(o => `<tr><td><a href="${window.APP_BASE}admin/orders" style="font-weight:600">${esc(o.number)}</a></td><td>${window.Workbench.badge(o.status)}</td><td style="text-align:right">${window.Core.formatMoney(o.total_cents, o.currency || 'CHF')}</td></tr>`).join('') : '<tr><td colspan="3">Geen recente orders.</td></tr>'}
                 </table>
             </div>
         </div>
@@ -163,11 +176,11 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         <tr class="${!p.active ? 'archived-row' : ''}">
             <td><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(p.sku)}</span></td>
             <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong>${p.featured ? ' <span class="wb-badge wb-badge-warning" style="font-size:0.65rem">Uitgelicht</span>' : ''}</td>
-            <td>${window.Core.formatMoney(p.list_price_cents)}</td>
+            <td>${p.list_price_eur_cents != null ? window.Core.formatMoney(p.list_price_eur_cents, 'EUR') : '<span style="color:var(--wb-text-muted)">Onbekend</span>'}</td>
             <td><span class="wb-badge ${p.stock <= stockThreshold ? 'wb-badge-warning' : 'wb-badge-neutral'}" style="font-weight:700">${p.stock} stuks${p.stock === 0 ? ' · Uitverkocht' : (p.stock <= stockThreshold ? ' · Lage voorraad' : '')}</span></td>
             <td>${window.Workbench.badge(p.active ? 'active' : 'archived')}</td>
             <td>
-                <button type="button" class="btn btn-sm btn-outline action-quick-edit" data-id="${p.id}" data-stock="${p.stock}" data-price="${p.list_price_cents}" data-featured="${p.featured}">Snel Wijzigen</button>
+                <button type="button" class="btn btn-sm btn-outline action-quick-edit" data-id="${p.id}" data-stock="${p.stock}" data-price-eur="${p.list_price_eur_cents ?? ''}" data-version="${p.pricing_version ?? 0}" data-featured="${p.featured}">Snel Wijzigen</button>
                 ${!p.active 
                     ? `<button type="button" class="btn btn-sm btn-outline action-restore" data-id="${p.id}">Herstellen</button>` 
                     : `<button type="button" class="btn btn-sm btn-danger action-archive" data-id="${p.id}">Archiveren</button>`}
@@ -216,7 +229,7 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
             </form>
         </div>
         
-        ${renderTable(['SKU', 'Naam', 'Inkoopprijs (Base)', 'Voorraad', 'Status', 'Acties'], rows, 'Geen producten gevonden.')}
+        ${renderTable(['SKU', 'Naam', 'Basisverkoopprijs (EUR)', 'Voorraad', 'Status', 'Acties'], rows, 'Geen producten gevonden.')}
         ${paginationHtml}
     `;
 
@@ -242,13 +255,14 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         const id = parseInt(b.dataset.id, 10);
         const html = `
             <form id="quick-edit-form" class="admin-quick-edit">
+                <input type="hidden" name="pricing_version" value="${b.dataset.version}">
                 <div class="form-group">
                     <label>Actuele Voorraad</label>
                     <input type="number" name="stock" value="${b.dataset.stock}" class="form-control" min="0" step="1" required>
                 </div>
                 <div class="form-group">
-                    <label>Basisprijs (CHF)</label>
-                    <input type="number" name="list_price" value="${(parseInt(b.dataset.price,10)/100).toFixed(2)}" step="0.01" min="0" class="form-control" required>
+                    <label>Basisprijs (EUR)</label>
+                    <input type="text" inputmode="decimal" name="list_price_eur" value="${b.dataset.priceEur ? (parseInt(b.dataset.priceEur,10)/100).toFixed(2) : ''}" class="form-control" required>
                 </div>
                 <div class="form-group" style="margin-bottom:1.5rem">
                     <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
@@ -266,11 +280,15 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
             btn.disabled = true;
             btn.textContent = 'Opslaan...';
             try {
+                const listPriceEurCents = window.Workbench.parseCentsStrict(fd.get('list_price_eur'));
+                if (Number.isNaN(listPriceEurCents) || listPriceEurCents === null) throw new Error("Ongeldig bedrag voor basisprijs");
+
                 await window.Core.fetch(`/admin/products/${id}`, { 
                     method: 'PATCH', 
                     body: { 
                         stock: parseInt(fd.get('stock'), 10),
-                        list_price_cents: Math.round(parseFloat(fd.get('list_price')) * 100),
+                        list_price_eur_cents: listPriceEurCents,
+                        pricing_version: parseInt(fd.get('pricing_version'), 10),
                         featured: fd.get('featured') ? 1 : 0
                     } 
                 });
@@ -304,7 +322,7 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
     root.querySelector('.action-import').addEventListener('click', () => {
         const html = `
             <form id="import-form">
-                <div class="alert" style="font-size:0.875rem;">Verwachte CSV kolommen: sku, name, category, brand, quality, stock, price</div>
+                <div class="alert" style="font-size:0.875rem;">Verwachte CSV kolommen: sku, name, category, brand, quality, stock, price (EUR)</div>
                 <div class="form-group" style="margin-bottom:1.5rem;">
                     <label>CSV Bestand Selecteren</label>
                     <input type="file" name="file" accept=".csv" required class="form-control">
@@ -320,9 +338,16 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         `;
         const overlay = window.UI.showModal('Producten Importeren', html);
         
+        let lastPreviewVersions = null;
+
         document.getElementById('import-form').onsubmit = async (e) => {
             e.preventDefault();
             const fd = new FormData(e.target);
+            if (lastPreviewVersions && !fd.get('preview')) {
+                fd.append('pricing_versions', JSON.stringify(lastPreviewVersions));
+            }
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
             try {
                 const res = await window.Core.fetch('/admin/import', { method: 'POST', body: fd });
                 const r = document.getElementById('import-result');
@@ -330,11 +355,19 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                 r.innerHTML = `<strong>Resultaat:</strong> Rijen: ${res.rows}, Gemaakt: ${res.created}, Bijgewerkt: ${res.updated}\n`;
                 if (res.errors && res.errors.length) {
                     r.innerHTML += `\n<strong style="color:var(--wb-danger)">Fouten:</strong>\n${esc(res.errors.join('\n'))}`;
+                } else if (fd.get('preview')) {
+                    if (res.pricing_versions) {
+                        lastPreviewVersions = res.pricing_versions;
+                    }
+                    r.innerHTML += `\n<em>Controle geslaagd. Vink 'Alleen preview' uit en klik nogmaals om door te voeren.</em>`;
                 } else if (!fd.get('preview')) {
                     window.Workbench.toast('Import voltooid', 'success');
                     setTimeout(() => { window.UI.closeModal(overlay); window.Router.route(); }, 1500);
                 }
-            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+            finally {
+                btn.disabled = false;
+            }
         };
     });
 });
@@ -357,7 +390,7 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
                     <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Geannuleerd</option>
                 </select>
             </td>
-            <td>${window.Core.formatMoney(o.total_cents)}</td>
+            <td>${window.Core.formatMoney(o.total_cents, o.currency || 'CHF')}</td>
             <td><button type="button" class="btn btn-sm btn-outline action-track" data-id="${o.id}" data-tracking="${esc(o.tracking||'')}" data-status="${o.status}">T&T</button></td>
         </tr>
     `).join('');
@@ -506,12 +539,12 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
                     <h3 class="form-section-title">Financieel & Logistiek</h3>
                     <div class="grid-cols-2">
                         <div class="form-group">
-                            <label>Standaard Verzendkosten (CHF)</label>
-                            <input type="number" name="shipping_chf" value="${s.shipping_cents ? (s.shipping_cents/100).toFixed(2) : ''}" step="0.01" min="0" class="form-control" required>
+                            <label>Standaard Verzendkosten (EUR)</label>
+                            <input type="text" inputmode="decimal" name="shipping_eur" value="${s.shipping_eur_cents != null ? (s.shipping_eur_cents/100).toFixed(2) : ''}" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label>Gratis Verzending Vanaf (CHF)</label>
-                            <input type="number" name="free_shipping_chf" value="${s.free_shipping_cents ? (s.free_shipping_cents/100).toFixed(2) : ''}" step="0.01" min="0" class="form-control" required>
+                            <label>Gratis Verzending Vanaf (EUR)</label>
+                            <input type="text" inputmode="decimal" name="free_shipping_eur" value="${s.free_shipping_eur_cents != null ? (s.free_shipping_eur_cents/100).toFixed(2) : ''}" class="form-control" required>
                         </div>
                     </div>
                     <div class="grid-cols-2">
@@ -534,11 +567,17 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
     document.getElementById('settings-form').onsubmit = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
+
+        const shippingEurCents = window.Workbench.parseCentsStrict(fd.get('shipping_eur'));
+        if (Number.isNaN(shippingEurCents) || shippingEurCents === null) return window.Workbench.toast('Ongeldig bedrag voor verzendkosten', 'error');
+        const freeShippingEurCents = window.Workbench.parseCentsStrict(fd.get('free_shipping_eur'));
+        if (Number.isNaN(freeShippingEurCents) || freeShippingEurCents === null) return window.Workbench.toast('Ongeldig bedrag voor gratis verzending', 'error');
+
         const payload = Object.fromEntries(fd.entries());
-        payload.shipping_cents = Math.round(parseFloat(payload.shipping_chf) * 100);
-        payload.free_shipping_cents = Math.round(parseFloat(payload.free_shipping_chf) * 100);
-        delete payload.shipping_chf;
-        delete payload.free_shipping_chf;
+        payload.shipping_eur_cents = shippingEurCents;
+        payload.free_shipping_eur_cents = freeShippingEurCents;
+        delete payload.shipping_eur;
+        delete payload.free_shipping_eur;
         for (let k in payload) payload[k] = parseInt(payload[k], 10);
         try {
             await window.Core.fetch('/admin/settings', { method: 'PATCH', body: payload });

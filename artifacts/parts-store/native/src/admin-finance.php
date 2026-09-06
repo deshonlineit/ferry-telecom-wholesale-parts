@@ -6,10 +6,10 @@ declare(strict_types=1);
  * annotation only: it never invokes a payment provider or changes an order.
  */
 
-function financeLoadInvoices(): array
+function financeLoadInvoices(?string $currency = null): array
 {
-    $statement = db()->query(
-        "SELECT o.id,o.number,o.status order_status,o.total_cents,o.created_at,
+    $sql =
+        "SELECT o.id,o.number,o.status order_status,o.total_cents,o.currency,o.created_at,
                 u.name customer_name,u.company,u.email,
                 f.verified,f.due_date,f.paid_cents,f.version,
                 COALESCE((
@@ -18,8 +18,14 @@ function financeLoadInvoices(): array
                 ),0) credited_cents
          FROM orders o
          JOIN users u ON u.id=o.user_id
-         LEFT JOIN invoice_accounting f ON f.order_id=o.id"
-    );
+         LEFT JOIN invoice_accounting f ON f.order_id=o.id";
+    $parameters = [];
+    if ($currency !== null) {
+        $sql .= ' WHERE o.currency=?';
+        $parameters[] = $currency;
+    }
+    $statement = db()->prepare($sql);
+    $statement->execute($parameters);
     $rows = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $rows[] = financeInvoiceRow($row);
@@ -66,12 +72,14 @@ function financeInvoiceRow(array $row): array
         'verified' => $verified,
         'version' => $row['version'] === null ? 0 : (int)$row['version'],
         'order_status' => (string)$row['order_status'],
+        'currency' => (string)$row['currency'],
     ];
 }
 
-function financeSummary(array $invoices): array
+function financeSummaryForCurrency(array $invoices, string $currency): array
 {
     $summary = [
+        'currency' => $currency,
         'unpaid_count' => 0,
         'outstanding_cents' => 0,
         'overdue_count' => 0,
@@ -93,6 +101,21 @@ function financeSummary(array $invoices): array
         }
     }
     return $summary;
+}
+
+function financeSummary(array $invoices): array
+{
+    $grouped = [];
+    foreach ($invoices as $invoice) {
+        $currency = (string) ($invoice['currency'] ?? 'CHF');
+        $grouped[$currency][] = $invoice;
+    }
+    ksort($grouped);
+    return array_map(
+        static fn(array $rows, string $currency): array => financeSummaryForCurrency($rows, $currency),
+        array_values($grouped),
+        array_keys($grouped)
+    );
 }
 
 function financeInvoiceAttention(array $invoices, int $limit): array
@@ -133,6 +156,8 @@ function financeList(): never
     $q = mb_strtolower(trim((string)($_GET['q'] ?? '')));
     $status = (string)($_GET['status'] ?? 'all');
     $sort = (string)($_GET['sort'] ?? 'newest');
+    $currencyInput = trim((string)($_GET['currency'] ?? ''));
+    $currency = $currencyInput === '' ? null : strtoupper($currencyInput);
     $page = integer($_GET['page'] ?? 1, 1, 1000000);
     $limit = integer($_GET['limit'] ?? 50, 1, 100);
     if (!in_array($status, ['all', 'unverified', 'unpaid', 'open', 'partial', 'overdue', 'paid', 'cancelled'], true)) {
@@ -141,7 +166,10 @@ function financeList(): never
     if (!in_array($sort, ['newest', 'oldest', 'due', 'amount_desc'], true)) {
         throw new HttpError(422, 'Invalid invoice sort.');
     }
-    $all = financeLoadInvoices();
+    if ($currency !== null && !in_array($currency, ['EUR', 'CHF'], true)) {
+        throw new HttpError(422, 'Invalid invoice currency.');
+    }
+    $all = financeLoadInvoices($currency);
     $invoices = array_values(array_filter($all, static function (array $invoice) use ($q, $status): bool {
         if ($q !== '') {
             $haystack = mb_strtolower(implode(' ', [
@@ -174,6 +202,11 @@ function financeList(): never
         'page' => $page,
         'pages' => $pages,
         'summary' => financeSummary($all),
+        'currency' => $currency,
+        'filters' => [
+            'q' => $q, 'status' => $status, 'sort' => $sort,
+            'currency' => $currency, 'limit' => $limit,
+        ],
     ]);
 }
 

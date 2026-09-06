@@ -22,7 +22,7 @@ window.App.groupCategories = function(cats) {
 };
 
 window.App.canOrderProduct = function(p) {
-    return Boolean(window.Core.user) && window.Core.user.role !== 'staff' && p.price_cents !== null && p.stock >= p.minimum_quantity;
+    return window.B2BOrdering.canOrder() && p.price_cents !== null && p.stock >= p.minimum_quantity;
 };
 
 window.App.thumbnailUrl = function(image) {
@@ -75,7 +75,7 @@ window.App.renderProductCard = function(p) {
                 ${canBuy ? `
                 <div class="part-action">
                     <input type="number" id="qty-${p.id}" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="part-qty form-control" aria-label="Aantal">
-                    <button type="button" class="btn btn-primary part-add-btn" onclick="window.App.addToCartWithQty(${p.id}, parseInt(this.parentElement.querySelector('input').value, 10))" aria-label="Toevoegen" title="Aan winkelwagen toevoegen">
+                    <button type="button" class="btn btn-primary part-add-btn" onclick="window.App.addToCartWithQty(${p.id}, Number(this.parentElement.querySelector('input').value), this)" aria-label="Toevoegen" title="Aan winkelwagen toevoegen">
                         Voeg toe
                     </button>
                 </div>
@@ -132,9 +132,7 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
         <div class="section-title mt-5">
             <h2>Gerelateerde Producten</h2>
         </div>
-        <div class="product-container view-list">
-            ${data.related.map(rp => window.App.renderProductCard(rp)).join('')}
-        </div>
+        ${window.App.renderProductTable(data.related)}
     ` : '';
 
     const isStaff = window.Core.user && window.Core.user.role === 'staff';
@@ -185,7 +183,7 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
                     <div class="purchase-box mb-4">
                         <div class="purchase-controls">
                             <input type="number" id="pd-qty" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="form-control qty-input" style="width: 100px; text-align: center;">
-                            <button type="button" class="btn btn-primary flex-1" style="font-weight: 600;" onclick="window.App.addToCartWithQty(${p.id}, parseInt(document.getElementById('pd-qty').value, 10))">
+                            <button type="button" class="btn btn-primary flex-1" style="font-weight: 600;" onclick="window.App.addToCartWithQty(${p.id}, Number(document.getElementById('pd-qty').value), this)">
                                 In Winkelwagen
                             </button>
                         </div>
@@ -255,6 +253,7 @@ window.Router.add(/^cart$/, async (match, root) => {
     }
     await window.Core.refreshCart();
     const cart = window.Core.cart;
+    const cartCurrency = cart.currency || window.Core.currency;
 
     if (!cart.items || cart.items.length === 0) {
         root.innerHTML = `
@@ -280,14 +279,14 @@ window.Router.add(/^cart$/, async (match, root) => {
                 ${item.stock < item.quantity ? `<div class="alert danger small mt-2 p-2">Voorraad gewijzigd (max ${item.stock})</div>` : ''}
             </div>
             <div class="cart-item-price hidden-mobile">
-                ${window.Core.formatMoney(item.price_cents)}
+                ${window.Core.formatMoney(item.price_cents, cartCurrency)}
             </div>
             <div class="cart-item-qty">
                 <input type="number" value="${item.quantity}" min="0" max="${item.stock}" class="form-control" aria-label="Aantal" onchange="window.App.updateCartItem(${item.product_id}, this.value)">
                 <button type="button" class="btn btn-link text-danger btn-sm p-0 mt-1" onclick="window.App.updateCartItem(${item.product_id}, 0)">Verwijderen</button>
             </div>
             <div class="cart-item-total font-weight-bold">
-                ${window.Core.formatMoney(item.total_cents)}
+                ${window.Core.formatMoney(item.total_cents, cartCurrency)}
             </div>
         </div>
     `).join('');
@@ -295,7 +294,7 @@ window.Router.add(/^cart$/, async (match, root) => {
     root.innerHTML = `
         <div class="page-header mb-4">
             <h1>Winkelwagen</h1>
-            <span class="text-muted">${cart.items.length} product(en)</span>
+            <span class="text-muted">${cart.items.length} product(en) · levering ${esc(cart.country || window.Core.country)} · ${esc(cartCurrency)}</span>
         </div>
         <div class="commerce-layout">
             <div class="cart-main">
@@ -320,20 +319,21 @@ window.Router.add(/^cart$/, async (match, root) => {
                     <h3 class="mb-4">Besteloverzicht</h3>
                     <div class="summary-row">
                         <span class="text-muted">Subtotaal</span>
-                        <span class="font-weight-bold">${window.Core.formatMoney(cart.subtotal_cents)}</span>
+                        <span class="font-weight-bold">${window.Core.formatMoney(cart.subtotal_cents, cartCurrency)}</span>
                     </div>
                     <div class="summary-row">
                         <span class="text-muted">Verzendkosten</span>
-                        <span>${window.Core.formatMoney(cart.shipping_cents)}</span>
+                        <span>${window.Core.formatMoney(cart.shipping_cents, cartCurrency)}</span>
                     </div>
                     <div class="summary-row summary-border pb-4 mb-4" style="border-bottom:1px solid var(--border-light)">
                         <span class="text-muted">BTW</span>
-                        <span>${window.Core.formatMoney(cart.tax_cents)}</span>
+                        <span>${window.Core.formatMoney(cart.tax_cents, cartCurrency)}</span>
                     </div>
                     <div class="summary-row summary-total" style="font-size:1.25rem; font-weight:700;">
                         <span>Totaal</span>
-                        <span class="text-primary">${window.Core.formatMoney(cart.total_cents)}</span>
+                        <span class="text-primary">${window.Core.formatMoney(cart.total_cents, cartCurrency)}</span>
                     </div>
+                    <div class="currency-context-note ${window.Core.currencyNotice(cart) ? 'error' : ''}">${esc(window.Core.currencyNotice(cart) || `Levering: ${cart.country || window.Core.country} · valuta ${cartCurrency}`)}</div>
                     <a href="${window.APP_BASE}checkout" class="btn btn-primary btn-block btn-lg mt-4">Afrekenen &rarr;</a>
                 </div>
             </div>
@@ -379,7 +379,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
         } else {
             addrHtml = addresses.map((a, i) => `
                 <label class="address-card ${a.is_default || i === 0 ? 'selected' : ''}">
-                    <input type="radio" name="address_id" value="${a.id}" ${a.is_default || i === 0 ? 'checked' : ''} onchange="document.querySelectorAll('.address-card').forEach(c=>c.classList.remove('selected')); this.closest('.address-card').classList.add('selected');">
+                    <input type="radio" name="address_choice" value="${a.id}" ${a.is_default || i === 0 ? 'checked' : ''}>
                     <div class="address-header mb-2">
                         <strong>${esc(a.label || 'Adres')}</strong>
                         <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -407,6 +407,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 <div class="checkout-main">
                     <form id="checkout-form" onsubmit="event.preventDefault(); window.App.submitCheckout(this);">
                         <input type="hidden" name="idempotency_key" value="${idem}">
+                        <input type="hidden" name="quote_token" value="">
                         
                         <div class="card p-0 mb-4">
                             <div class="checkout-step">
@@ -416,6 +417,24 @@ window.Router.add(/^checkout$/, async (match, root) => {
                                 </div>
                                 <div class="address-grid">
                                     ${addrHtml}
+                                </div>
+                                <label class="address-card mt-3">
+                                    <input type="radio" name="address_choice" value="new" ${addresses.length === 0 ? 'checked' : ''}>
+                                    <div class="address-header"><strong>Ander afleveradres</strong><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+                                </label>
+                                <div id="checkout-address-fields" class="checkout-address-fields mt-3" ${addresses.length ? 'hidden' : ''}>
+                                    <div class="form-group"><label>Adreslabel</label><input class="form-control" name="address_label" placeholder="Bijv. kantoor"></div>
+                                    <div class="grid-cols-2">
+                                        <div class="form-group"><label>Naam</label><input class="form-control" name="address_name"></div>
+                                        <div class="form-group"><label>Bedrijf</label><input class="form-control" name="address_company"></div>
+                                    </div>
+                                    <div class="form-group"><label>Straat en huisnummer</label><input class="form-control" name="address_line1"></div>
+                                    <div class="form-group"><label>Adresregel 2</label><input class="form-control" name="address_line2"></div>
+                                    <div class="grid-cols-2">
+                                        <div class="form-group"><label>Postcode</label><input class="form-control" name="address_postal_code"></div>
+                                        <div class="form-group"><label>Plaats</label><input class="form-control" name="address_city"></div>
+                                    </div>
+                                    <div class="form-group"><label>Land van levering</label><select class="form-control" name="address_country">${window.BuyerCurrency.options(window.Core.country)}</select></div>
                                 </div>
                                 <div class="mt-3">
                                     <a href="${window.APP_BASE}account/addresses" class="btn btn-outline btn-sm">Nieuw adres toevoegen</a>
@@ -467,43 +486,142 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 <div class="checkout-sidebar">
                     <div class="summary-card card sticky-card">
                         <h3 class="mb-4">Besteloverzicht</h3>
+                        <div id="checkout-quote-status" class="currency-context-note mb-3">Offerte wordt berekend…</div>
+                        <div id="checkout-summary">
                         <div class="summary-items mb-4 pb-4" style="border-bottom:1px solid var(--border-light)">
                             ${cartRes.items.map(item => `
                                 <div class="summary-row" style="align-items:flex-start">
                                     <span class="text-muted pr-2">${item.quantity}x ${esc(item.name)}</span>
-                                    <span>${window.Core.formatMoney(item.total_cents)}</span>
+                                    <span>${window.Core.formatMoney(item.total_cents, cartRes.currency || window.Core.currency)}</span>
                                 </div>
                             `).join('')}
                         </div>
                         <div class="summary-row">
                             <span class="text-muted">Subtotaal</span>
-                            <span class="font-weight-bold">${window.Core.formatMoney(cartRes.subtotal_cents)}</span>
+                            <span class="font-weight-bold">${window.Core.formatMoney(cartRes.subtotal_cents, cartRes.currency || window.Core.currency)}</span>
                         </div>
                         <div class="summary-row">
                             <span class="text-muted">Verzendkosten</span>
-                            <span>${window.Core.formatMoney(cartRes.shipping_cents)}</span>
+                            <span>${window.Core.formatMoney(cartRes.shipping_cents, cartRes.currency || window.Core.currency)}</span>
                         </div>
                         <div class="summary-row summary-border pb-4 mb-4" style="border-bottom:1px solid var(--border-light)">
                             <span class="text-muted">BTW</span>
-                            <span>${window.Core.formatMoney(cartRes.tax_cents)}</span>
+                            <span>${window.Core.formatMoney(cartRes.tax_cents, cartRes.currency || window.Core.currency)}</span>
                         </div>
                         <div class="summary-row summary-total" style="font-size:1.25rem; font-weight:700;">
                             <span>Totaal</span>
-                            <span class="text-primary">${window.Core.formatMoney(cartRes.total_cents)}</span>
+                            <span class="text-primary">${window.Core.formatMoney(cartRes.total_cents, cartRes.currency || window.Core.currency)}</span>
                         </div>
-                        <button form="checkout-form" type="submit" class="btn btn-primary btn-block btn-lg mt-4" ${addresses.length===0?'disabled':''}>Bestelling Plaatsen &rarr;</button>
+                        </div>
+                        <button id="checkout-submit" form="checkout-form" type="submit" class="btn btn-primary btn-block btn-lg mt-4" disabled>Bestelling Plaatsen &rarr;</button>
                     </div>
                 </div>
             </div>
         `;
 
+        const form = root.querySelector('#checkout-form');
+        const submitButton = root.querySelector('#checkout-submit');
+        const quoteStatus = root.querySelector('#checkout-quote-status');
+        const addressFields = root.querySelector('#checkout-address-fields');
+        const quoteGate = window.BuyerCurrency.createQuoteGate(submitButton, form.quote_token);
+        let quoteTimer = null;
+
+        const checkoutAddressPayload = () => {
+            const choice = form.querySelector('[name="address_choice"]:checked')?.value;
+            if (!choice) return null;
+            if (choice !== 'new') return {address_id: Number.parseInt(choice, 10)};
+            const address = {
+                label: form.address_label.value.trim(),
+                name: form.address_name.value.trim(),
+                company: form.address_company.value.trim(),
+                line1: form.address_line1.value.trim(),
+                line2: form.address_line2.value.trim(),
+                postal_code: form.address_postal_code.value.trim(),
+                city: form.address_city.value.trim(),
+                country: form.address_country.value
+            };
+            if (!address.label || !address.name || !address.line1 || !address.postal_code || !address.city || !address.country) return null;
+            return {address};
+        };
+
+        const renderCheckoutQuote = (quote, message = '') => {
+            const currency = quote.currency || window.Core.currency;
+            const country = quote.country || quote.delivery_country || checkoutAddressPayload()?.address?.country || window.Core.country;
+            const notice = window.Core.currencyNotice(quote);
+            root.querySelector('#checkout-summary').innerHTML = `
+                <div class="summary-items mb-4 pb-4" style="border-bottom:1px solid var(--border-light)">
+                    ${(quote.items || []).map(item => `<div class="summary-row" style="align-items:flex-start"><span class="text-muted pr-2">${item.quantity}x ${esc(item.name)}</span><span>${window.Core.formatMoney(item.total_cents, currency)}</span></div>`).join('')}
+                </div>
+                <div class="summary-row"><span class="text-muted">Subtotaal</span><span class="font-weight-bold">${window.Core.formatMoney(quote.subtotal_cents, currency)}</span></div>
+                <div class="summary-row"><span class="text-muted">Verzendkosten</span><span>${window.Core.formatMoney(quote.shipping_cents, currency)}</span></div>
+                <div class="summary-row summary-border pb-4 mb-4" style="border-bottom:1px solid var(--border-light)"><span class="text-muted">BTW</span><span>${window.Core.formatMoney(quote.tax_cents, currency)}</span></div>
+                <div class="summary-row summary-total" style="font-size:1.25rem;font-weight:700"><span>Totaal</span><span class="text-primary">${window.Core.formatMoney(quote.total_cents, currency)}</span></div>
+                <div class="currency-context-note ${notice ? 'error' : ''}">Levering: ${esc(country)} · valuta ${esc(currency)}${notice ? ` · ${esc(notice)}` : ''}</div>
+            `;
+            quoteStatus.className = `currency-context-note mb-3 ${notice ? 'error' : ''}`;
+            quoteStatus.textContent = message || notice || 'Offerte is actueel.';
+        };
+
+        const applyAuthoritativeQuote = (quote, message = '') => {
+            const country = quote.country || quote.delivery_country || checkoutAddressPayload()?.address?.country;
+            window.Core.updateCurrencyContext({...quote, country});
+            window.Core.renderNav();
+            renderCheckoutQuote(quote, message);
+        };
+
+        const requestQuote = async (sequence = quoteGate.begin()) => {
+            quoteStatus.className = 'currency-context-note mb-3';
+            quoteStatus.textContent = 'Offerte wordt berekend…';
+            const addressPayload = checkoutAddressPayload();
+            if (!addressPayload) {
+                quoteStatus.textContent = 'Vul eerst het volledige afleveradres in.';
+                return;
+            }
+            try {
+                const response = await window.Core.fetch('/checkout/quote', {method: 'POST', body: addressPayload});
+                if (!quoteGate.isCurrent(sequence)) return;
+                const quote = response.cart ? {...response.cart, quote_token: response.quote_token || response.cart.quote_token} : response;
+                applyAuthoritativeQuote(quote);
+                quoteGate.succeed(sequence, quote.quote_token, !window.Core.currencyNotice(quote));
+            } catch (error) {
+                if (!quoteGate.fail(sequence)) return;
+                quoteStatus.className = 'currency-context-note mb-3 error';
+                quoteStatus.textContent = error.message;
+            }
+        };
+
+        const scheduleQuote = () => {
+            clearTimeout(quoteTimer);
+            const sequence = quoteGate.begin();
+            quoteStatus.className = 'currency-context-note mb-3';
+            quoteStatus.textContent = 'Offerte wordt berekend…';
+            quoteTimer = setTimeout(() => requestQuote(sequence), 180);
+        };
+
+        form.querySelectorAll('[name="address_choice"]').forEach(input => input.addEventListener('change', () => {
+            root.querySelectorAll('.address-card').forEach(card => card.classList.remove('selected'));
+            input.closest('.address-card')?.classList.add('selected');
+            addressFields.hidden = input.value !== 'new';
+            scheduleQuote();
+        }));
+        addressFields.querySelectorAll('input, select').forEach(input => input.addEventListener('input', scheduleQuote));
+        requestQuote();
+
         window.App.submitCheckout = async (form) => {
-            const fd = new FormData(form);
-            const data = Object.fromEntries(fd.entries());
-            if (!data.address_id) return alert('Selecteer een verzendadres');
+            const addressPayload = checkoutAddressPayload();
+            if (!addressPayload) return alert('Selecteer of vul een volledig verzendadres in');
+            if (!form.quote_token.value) return alert('Wacht tot de offerte is berekend');
+            const acceptedToken = form.quote_token.value;
+            const data = {
+                ...addressPayload,
+                quote_token: acceptedToken,
+                idempotency_key: form.idempotency_key.value,
+                payment_method: form.payment_method.value,
+                notes: form.notes.value
+            };
             
-            const btn = form.querySelector('button[type="submit"]');
-            btn.disabled = true;
+            const btn = submitButton;
+            const checkoutSequence = quoteGate.begin();
             btn.textContent = 'Bezig met plaatsen...';
             
             try {
@@ -511,8 +629,27 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 await window.Core.refreshCart();
                 window.Router.navigate(window.APP_BASE + 'account/orders?success=' + res.order.id);
             } catch(e) {
-                alert(e.message);
-                btn.disabled = false;
+                if (!quoteGate.isCurrent(checkoutSequence)) {
+                    btn.textContent = 'Bestelling Plaatsen →';
+                    return;
+                }
+                if (e.status === 409) {
+                    const rawChangedQuote = e.data?.quote || e.data?.current_quote || e.data?.cart || (e.data?.quote_token ? e.data : null);
+                    const changedQuote = rawChangedQuote
+                        ? {...rawChangedQuote, quote_token: e.data?.quote_token || rawChangedQuote.quote_token}
+                        : null;
+                    if (changedQuote) {
+                        applyAuthoritativeQuote(changedQuote, 'Bedragen zijn gewijzigd. Controleer de nieuwe offerte en klik nogmaals om te bestellen.');
+                        quoteGate.succeed(checkoutSequence, changedQuote.quote_token, !window.Core.currencyNotice(changedQuote));
+                    } else {
+                        await requestQuote();
+                        quoteStatus.className = 'currency-context-note mb-3 error';
+                        quoteStatus.textContent = 'Bedragen zijn gewijzigd. Controleer de nieuwe offerte en klik daarna opnieuw.';
+                    }
+                } else {
+                    alert(e.message);
+                    quoteGate.succeed(checkoutSequence, acceptedToken);
+                }
                 btn.textContent = 'Bestelling Plaatsen →';
             }
         };

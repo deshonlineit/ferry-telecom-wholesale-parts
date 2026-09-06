@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/catalog-part-types.php';
 require_once __DIR__ . '/device-family-metadata.php';
+require_once __DIR__ . '/catalog-b2b.php';
 
 function catalogCompact(string $value): string
 {
@@ -392,13 +393,15 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
     if (in_array($sort, ['price_asc', 'price_desc'], true) && $user) {
         $priceJoin = ' LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=? ';
         $priceParams[] = $user['group_id'];
-        $order = 'COALESCE(gp.price_cents,p.list_price_cents) ' . ($sort === 'price_asc' ? 'ASC' : 'DESC') . ',p.id ASC';
+        $order = 'COALESCE(gp.price_eur_cents,p.list_price_eur_cents) ' . ($sort === 'price_asc' ? 'ASC' : 'DESC') . ',p.id ASC';
         $orderParams = [];
     }
     $query = db()->prepare("SELECT p.* FROM products p $priceJoin WHERE $condition ORDER BY $order LIMIT ? OFFSET ?");
     $query->execute([...$priceParams, ...$parameters, ...$orderParams, $limit, ($page - 1) * $limit]);
+    $context = currencyContext();
     return [
-        'products' => array_map(fn ($p) => catalogProductWithPartType($p, $user), $query->fetchAll()),
+        'products' => catalogEnrichProducts($query->fetchAll(), $user),
         'total' => $total, 'page' => $page, 'pages' => $pages,
+        'currency' => $context['currency'], 'currency_context' => $context,
     ];
 }

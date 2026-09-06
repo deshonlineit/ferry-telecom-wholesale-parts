@@ -62,6 +62,9 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <link rel="stylesheet" href="/test-shop/assets/storefront-redesign.css?v=<?= @filemtime(__DIR__ . '/assets/storefront-redesign.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/category-models.css?v=<?= @filemtime(__DIR__ . '/assets/category-models.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/home-search.css?v=<?= @filemtime(__DIR__ . '/assets/home-search.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/buyer-currency.css?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/admin-prices.css?v=<?= @filemtime(__DIR__ . '/assets/admin-prices.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/b2b-catalog.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-catalog.css') ?: 1 ?>">
     <script>window.APP_BASE = '/test-shop/';</script>
 </head>
 <body>
@@ -77,10 +80,10 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
                 <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
                     <div class="search-input-wrapper" style="display: flex; align-items: center; gap: 0.5rem;">
                         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #86868b;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="search" name="q" id="search-input" placeholder="Wat zoekt u?" aria-label="Zoeken in assortiment" role="combobox" aria-autocomplete="list" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" style="border: none; background: transparent; width: 100%; outline: none; font-size: 0.9375rem;" oninput="window.App.handleSearchInput ? window.App.handleSearchInput(this.value, 'search-input') : window.App.handleSearchInput(this.value)" onfocus="window.App.handleSearchFocus ? window.App.handleSearchFocus('search-input') : window.App.handleSearchFocus()" onkeydown="window.App.handleSearchKeydown(event)">
+                        <input type="search" name="q" id="search-input" placeholder="Wat zoekt u? Product, SKU of model…" aria-label="Zoeken in assortiment, vanaf drie tekens" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" style="border: none; background: transparent; width: 100%; outline: none; font-size: 0.9375rem;" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
                         <button type="submit" class="search-submit" aria-label="Zoeken" style="display:none;">Zoeken</button>
                     </div>
-                    <div id="search-suggestions" class="search-suggestions" role="listbox" aria-label="Zoeksuggesties" style="display:none;"></div>
+                    <div id="search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Producten direct bestellen" style="display:none;"></div>
                 </form>
             </div>
             
@@ -88,6 +91,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
                 <!-- Nav populated by JS -->
             </nav>
         </div>
+        <nav id="store-menu" class="store-menu" aria-label="Assortiment menu"></nav>
     </header>
 
     <main id="app-root" class="main-content container">
@@ -133,16 +137,21 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     </footer>
 
     <script src="/test-shop/assets/core.js?v=<?= $v_core ?>"></script>
+    <script src="/test-shop/assets/b2b-ordering.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-ordering.js') ?: 1 ?>"></script>
+    <script src="/test-shop/assets/buyer-currency.js?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/discovery-controls.js?v=<?= $v_disc ?>"></script>
     <script src="/test-shop/assets/quick-finder.js?v=<?= $v_qf ?>"></script>
     <script src="/test-shop/assets/category-models.js?v=<?= @filemtime(__DIR__ . '/assets/category-models.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/store.js?v=<?= $v_store ?>"></script>
+    <script src="/test-shop/assets/b2b-catalog.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-catalog.js') ?: 1 ?>"></script>
+    <script src="/test-shop/assets/b2b-menu.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-menu.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/home-search.js?v=<?= @filemtime(__DIR__ . '/assets/home-search.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/home.js?v=<?= $v_home ?>"></script>
     <script src="/test-shop/assets/account.js?v=<?= $v_acc ?>"></script>
     <script src="/test-shop/assets/admin-shell.js?v=<?= @filemtime(__DIR__ . '/assets/admin-shell.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/admin.js?v=<?= $v_admin ?>"></script>
     <script src="/test-shop/assets/admin-products.js?v=<?= $v_aprod ?>"></script>
+    <script src="/test-shop/assets/admin-prices.js?v=<?= @filemtime(__DIR__ . '/assets/admin-prices.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/admin-operations.js?v=<?= $v_aops ?>"></script>
     <script src="/test-shop/assets/admin-invoices.js?v=<?= @filemtime(__DIR__ . '/assets/admin-invoices.js') ?: 1 ?>"></script>
     <script>

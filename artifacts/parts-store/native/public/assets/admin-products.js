@@ -10,7 +10,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     const isNew = match[1] === 'new';
     const id = isNew ? null : match[1];
 
-    let p = { sku:'', name:'', description:'', category_id:'', brand_id:'', quality:'', stock:0, list_price_cents:0, minimum_quantity:1, featured:0 };
+    let p = { sku:'', name:'', description:'', category_id:'', brand_id:'', quality:'', stock:0, list_price_eur_cents:null, purchase_price_eur_cents:null, pricing_version:0, minimum_quantity:1, featured:0 };
     let groupPrices = [];
     let images = [];
     let modelIds = [];
@@ -36,11 +36,11 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     
     const groupPricesHtml = groups.map(g => {
         const existing = groupPrices.find(gp => gp.group_id === g.id);
-        const val = existing ? (existing.price_cents / 100).toFixed(2) : '';
+        const val = existing && existing.price_eur_cents != null ? (existing.price_eur_cents / 100).toFixed(2) : '';
         return `
             <div class="form-group" style="margin-bottom:0.75rem;">
-                <label style="font-size:0.75rem;">Prijs voor ${esc(g.name)} (CHF)</label>
-                <input type="number" name="gp_${g.id}" value="${val}" class="form-control" step="0.01" min="0" placeholder="Standaardprijs als leeg">
+                <label style="font-size:0.75rem;">Prijs voor ${esc(g.name)} (EUR)</label>
+                <input type="text" inputmode="decimal" name="gp_eur_${g.id}" value="${val}" class="form-control" placeholder="Standaardprijs als leeg">
             </div>
         `;
     }).join('');
@@ -137,13 +137,18 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                     </div>
                     
                     <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Prijsbeheer</h3>
+                        <h3 class="form-section-title">Prijsbeheer (EUR)</h3>
+                        <input type="hidden" name="pricing_version" value="${p.pricing_version}">
                         <div class="form-group">
-                            <label>Basisverkoopprijs (CHF)</label>
-                            <input type="number" name="list_price" value="${(p.list_price_cents / 100).toFixed(2)}" class="form-control" step="0.01" min="0" required>
+                            <label>Inkoopprijs / Cost (EUR)</label>
+                            <input type="text" inputmode="decimal" name="purchase_price_eur" value="${p.purchase_price_eur_cents != null ? (p.purchase_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" placeholder="Onbekend">
+                        </div>
+                        <div class="form-group">
+                            <label>Basisverkoopprijs (EUR)</label>
+                            <input type="text" inputmode="decimal" name="list_price_eur" value="${p.list_price_eur_cents != null ? (p.list_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" required>
                         </div>
                         <details class="wb-details" ${groupPrices.length > 0 ? 'open' : ''} style="margin-bottom:0;">
-                            <summary>Specifieke B2B Groepsprijzen</summary>
+                            <summary>Specifieke B2B Groepsprijzen (EUR)</summary>
                             <div class="wb-details-content">
                                 ${groupPricesHtml}
                             </div>
@@ -215,20 +220,40 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     document.getElementById('admin-product-form').onsubmit = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
+
+        const parseFormCents = (val, fieldName) => {
+            if (!val) return null;
+            const c = window.Workbench.parseCentsStrict(val);
+            if (Number.isNaN(c)) throw new Error("Ongeldig bedrag ingevuld voor " + fieldName);
+            return c;
+        };
+
+        const listPriceEurCents = parseFormCents(fd.get('list_price_eur'), 'Basisverkoopprijs');
+        if (listPriceEurCents === null) {
+            window.Workbench.toast('Basisverkoopprijs is verplicht', 'error');
+            return;
+        }
+
         const payload = {
             sku: fd.get('sku'), name: fd.get('name'), description: fd.get('description'),
             category_id: fd.get('category_id') ? parseInt(fd.get('category_id'), 10) : null,
             brand_id: fd.get('brand_id') ? parseInt(fd.get('brand_id'), 10) : null,
             quality: fd.get('quality'), stock: parseInt(fd.get('stock'), 10),
-            list_price_cents: Math.round(parseFloat(fd.get('list_price')) * 100),
+            list_price_eur_cents: listPriceEurCents,
+            purchase_price_eur_cents: parseFormCents(fd.get('purchase_price_eur'), 'Inkoopprijs'),
+            pricing_version: fd.get('pricing_version') ? parseInt(fd.get('pricing_version'), 10) : 0,
             minimum_quantity: parseInt(fd.get('minimum_quantity'), 10),
             featured: fd.get('featured') ? 1 : 0
         };
 
         const gps = [];
         groups.forEach(g => {
-            const val = fd.get(`gp_${g.id}`);
-            if (val !== '') gps.push({ group_id: g.id, price_cents: Math.round(parseFloat(val) * 100) });
+            const val = fd.get(`gp_eur_${g.id}`);
+            if (val !== '') {
+                gps.push({ group_id: g.id, price_eur_cents: parseFormCents(val, `Groepsprijs ${g.name}`) });
+            } else {
+                gps.push({ group_id: g.id, price_eur_cents: null });
+            }
         });
         payload.group_prices = gps;
         payload.model_ids = fd.getAll('models[]').map(m => parseInt(m, 10));

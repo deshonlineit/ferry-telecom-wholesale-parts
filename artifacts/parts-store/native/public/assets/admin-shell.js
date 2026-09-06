@@ -22,6 +22,7 @@
                         <div class="admin-nav-group">Beheer (Staff)</div>
                         <a href="${window.APP_BASE}admin" class="${activeRoute === 'dashboard' ? 'active' : ''}" ${activeRoute === 'dashboard' ? 'aria-current="page"' : ''}>Dashboard</a>
                         <a href="${window.APP_BASE}admin/products" class="${activeRoute === 'products' ? 'active' : ''}" ${activeRoute === 'products' ? 'aria-current="page"' : ''}>Producten</a>
+                        <a href="${window.APP_BASE}admin/prices" class="${activeRoute === 'prices' ? 'active' : ''}" ${activeRoute === 'prices' ? 'aria-current="page"' : ''} style="color: var(--wb-warning);">EUR Prijzen</a>
                         <a href="${window.APP_BASE}admin/orders" class="${activeRoute === 'orders' ? 'active' : ''}" ${activeRoute === 'orders' ? 'aria-current="page"' : ''}>Bestellingen</a>
                         <a href="${window.APP_BASE}admin/invoices" class="${activeRoute === 'invoices' ? 'active' : ''}" ${activeRoute === 'invoices' ? 'aria-current="page"' : ''}>Facturen</a>
                         <a href="${window.APP_BASE}admin/customers" class="${activeRoute === 'customers' ? 'active' : ''}" ${activeRoute === 'customers' ? 'aria-current="page"' : ''}>Klanten</a>

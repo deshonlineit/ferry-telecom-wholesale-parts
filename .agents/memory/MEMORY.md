@@ -10,7 +10,10 @@
 - [Hosting audit boundaries](hosting-audit-boundaries.md) — cPanel schema export may omit tables; source presence and database metadata do not prove live WordPress behavior.
 - [Compatibility provenance](catalog-source-provenance.md) — model tags are evidence, not proof; a compatible device does not imply a product-brand filter.
 - [Native script verification](native-script-verification.md) — per-file syntax checks can miss shared-scope collisions that leave the storefront working but break staff routes.
+- [Inline ordering accessibility](inline-ordering-accessibility.md) — quantity/add controls need an interactive search dialog with real keyboard focus, not just highlighted listbox links.
+- [Native test fixtures](native-test-fixtures.md) — synthetic carts can reference retained SKUs; clean owned customer dependencies, not every QA-labelled catalog record.
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.
+- [Nullable currency initialization](currency-initialization-semantics.md) — recurring initialization must not resurrect deliberately cleared group prices from retained CHF sources.
 - [Publishing preflight visibility](publishing-preflight-visibility.md) — a pending database-validation screen may have no new build record; do not attribute it to an old failed build.
 - [Native media isolation](native-media-isolation.md) — bulk PHP imports can exhaust a sibling preview's filesystem watchers; generated media is not JavaScript source.
 - [Account metadata updates](account-metadata-updates.md) — identity-provider metadata updates require the dedicated metadata endpoint; empty merges do not revoke roles.

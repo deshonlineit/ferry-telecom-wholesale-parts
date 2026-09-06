@@ -3,9 +3,21 @@ declare(strict_types=1);
 
 function handleAuth(string $method, string $path): bool
 {
+    if ($path === '/currency' && $method === 'GET') {
+        respond(currencyContext());
+    }
+    if ($path === '/currency' && $method === 'POST') {
+        $country = strtoupper(text(body()['country'] ?? '', 2));
+        currencyCountry($country);
+        startSession();
+        $_SESSION['currency_country'] = $country;
+        respond(currencyContext($country));
+    }
     if ($path === '/session' && $method === 'GET') {
+        $context = currencyContext();
         respond([
-            'user' => currentUser(), 'csrf' => csrf(), 'test_mode' => true, 'currency' => 'CHF',
+            'user' => currentUser(), 'csrf' => csrf(), 'test_mode' => true,
+            'currency' => $context['currency'], 'currency_context' => $context,
             'capabilities' => ['live_stock' => false, 'payments' => false, 'email' => false],
         ]);
     }

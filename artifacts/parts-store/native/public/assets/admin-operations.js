@@ -24,7 +24,7 @@ window.Router.add(/^admin\/returns$/, async (match, root) => {
                     <option value="credited" ${r.status==='credited'?'selected':''}>Gecrediteerd</option>
                 </select>
             </td>
-            <td>${window.Core.formatMoney(r.credit_cents)}</td>
+            <td>${window.Core.formatMoney(r.credit_cents, r.currency || 'CHF')}</td>
             <td><a href="${window.APP_BASE}admin/returns/${r.id}" class="btn btn-sm btn-outline">Details</a></td>
         </tr>
     `).join('');
@@ -93,7 +93,7 @@ window.Router.add(/^admin\/returns\/(\d+)$/, async (match, root) => {
     
     const r = data.return;
     const itemsHtml = data.items.map(i => `
-        <tr><td><strong style="font-weight:500">${esc(i.name)}</strong></td><td>${window.Core.formatMoney(i.price_cents)}</td><td>${i.quantity}</td></tr>
+        <tr><td><strong style="font-weight:500">${esc(i.name)}</strong></td><td>${window.Core.formatMoney(i.price_cents, r.currency || 'CHF')}</td><td>${i.quantity}</td></tr>
     `).join('');
 
     const content = `
@@ -138,7 +138,7 @@ window.Router.add(/^admin\/buyback$/, async (match, root) => {
         <tr>
             <td style="font-weight:500">${esc(i.model)}</td>
             <td>${esc(i.grade)}</td>
-            <td>${window.Core.formatMoney(i.price_cents)}</td>
+            <td>${window.Core.formatMoney(i.price_cents, 'CHF')}</td>
             <td>${window.Workbench.badge(i.active ? 'active' : 'blocked', i.active ? 'Actief' : 'Inactief')}</td>
             <td><button type="button" class="btn btn-sm btn-outline action-edit-bb" data-id="${i.id}" data-model="${esc(i.model)}" data-grade="${esc(i.grade)}" data-price="${i.price_cents}" data-active="${i.active}">Bewerken</button></td>
         </tr>
@@ -157,7 +157,7 @@ window.Router.add(/^admin\/buyback$/, async (match, root) => {
                     <option value="rejected" ${r.status==='rejected'?'selected':''}>Afgewezen</option>
                 </select>
             </td>
-            <td>${window.Core.formatMoney(r.total_cents)}</td>
+            <td>${window.Core.formatMoney(r.total_cents, r.currency || 'CHF')}</td>
         </tr>
     `).join('');
 

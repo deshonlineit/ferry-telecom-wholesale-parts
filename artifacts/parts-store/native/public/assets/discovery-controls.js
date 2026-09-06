@@ -212,10 +212,9 @@
                                 <option value="stock" ${sort === 'stock' ? 'selected' : ''}>Meeste voorraad</option>
                                 ${window.Core.user ? `<option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Prijs laag–hoog</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Prijs hoog–laag</option>` : ''}
                             </select></div>
-                            <div class="view-toggle"><button type="button" data-view="grid" class="${view === 'grid' ? 'active' : ''}" aria-label="Rasterweergave" aria-pressed="${view === 'grid'}">▦</button><button type="button" data-view="list" class="${view === 'list' ? 'active' : ''}" aria-label="Lijstweergave" aria-pressed="${view === 'list'}">☰</button></div>
                         </div>
                         ${!window.Core.user ? `<div class="catalog-price-notice"><span>Uw eigen klantprijzen zien?</span><a href="${window.APP_BASE}login">Inloggen →</a></div>` : ''}
-                        <div class="product-container view-${view}">${result.products.length ? result.products.map(p => window.App.renderProductCard(p)).join('') : `<div class="empty-state"><h2>${part ? 'Geen ' + escape(part.name.toLocaleLowerCase('nl')) + ' in deze selectie' : 'Geen onderdelen met deze combinatie'}</h2><p>${part ? escape(part.description) + ' Kies een ander model of bekijk de andere uitvoeringen.' : 'Haal een filter weg of probeer een andere zoekterm.'}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${part ? 'Andere uitvoeringen bekijken' : 'Bekijk alle onderdelen'}</a></div>`}</div>${pagination}
+                        ${result.products.length ? window.App.renderProductTable(result.products) : `<div class="empty-state"><h2>${part ? 'Geen ' + escape(part.name.toLocaleLowerCase('nl')) + ' in deze selectie' : 'Geen onderdelen met deze combinatie'}</h2><p>${part ? escape(part.description) + ' Kies een ander model of bekijk de andere uitvoeringen.' : 'Haal een filter weg of probeer een andere zoekterm.'}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${part ? 'Andere uitvoeringen bekijken' : 'Bekijk alle onderdelen'}</a></div>`}${pagination}
                     </section>
                 </div>
                 <dialog id="catalog-filter-dialog" class="filter-dialog"><div class="filter-dialog-heading"><h2>Verfijn uw selectie</h2><button type="button" class="btn-close" aria-label="Filters sluiten">×</button></div>${filterForm('mobile', true)}</dialog>
@@ -245,10 +244,6 @@
             document.getElementById('quick-quality').addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {quality: event.target.value})));
             root.querySelector('[data-stock-toggle]').addEventListener('click', () => window.Router.navigate(D.buildUrl(params, {stock: params.get('stock') === 'in_stock' ? '' : 'in_stock'})));
             document.getElementById('catalog-sort').addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {sort: event.target.value})));
-            root.querySelectorAll('.view-toggle button').forEach(button => button.addEventListener('click', () => {
-                window.App.toggleView(button.dataset.view);
-                root.querySelectorAll('.view-toggle button').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
-            }));
             const dialog = document.getElementById('catalog-filter-dialog');
             const opener = document.getElementById('open-catalog-filters');
             opener.addEventListener('click', () => dialog.showModal());

@@ -1,0 +1,46 @@
+.delivery-country {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem .4rem;
+    border: 1px solid var(--border-light);
+    border-radius: .45rem;
+    font-size: .75rem;
+    color: var(--text-muted);
+    background: var(--card-bg, #fff);
+}
+.delivery-country select {
+    max-width: 9rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+.currency-context-note { font-size: .8rem; color: var(--text-muted); margin-top: .65rem; }
+.currency-context-note.error { color: var(--danger, #b42318); }
+.checkout-address-fields[hidden] { display: none !important; }
+
+.layout-sidebar > * { min-width: 0; }
+.layout-sidebar .table-responsive {
+    max-width: 100%;
+    min-width: 0;
+}
+@media (max-width: 768px) {
+    .layout-sidebar {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+        max-width: 100%;
+    }
+    .layout-sidebar aside .card { position: static; }
+    .layout-sidebar .sidebar-nav {
+        flex-direction: row;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    .layout-sidebar .sidebar-nav a { flex: 0 0 auto; }
+    .layout-sidebar .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        contain: inline-size;
+    }
+}

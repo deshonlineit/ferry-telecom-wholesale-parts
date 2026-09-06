@@ -230,22 +230,41 @@ function settings(): array
     return db()->query('SELECT name,value FROM settings')->fetchAll(PDO::FETCH_KEY_PAIR);
 }
 
+require_once __DIR__ . '/currency.php';
+
 function priceFor(array $product, ?array $user): ?int
 {
     if (!$user) {
         return null;
     }
-    $query = db()->prepare('SELECT price_cents FROM group_prices WHERE product_id=? AND group_id=?');
+    $query = db()->prepare('SELECT price_eur_cents FROM group_prices WHERE product_id=? AND group_id=?');
     $query->execute([$product['id'], $user['group_id']]);
     $price = $query->fetchColumn();
-    return $price === false ? (int) $product['list_price_cents'] : (int) $price;
+    $eur = $price === false || $price === null
+        ? ($product['list_price_eur_cents'] === null ? null : (int) $product['list_price_eur_cents'])
+        : (int) $price;
+    if ($eur === null) {
+        throw new HttpError(503, 'EUR pricing is not initialized for this product.');
+    }
+    $context = currencyContext();
+    return $context['currency'] === 'CHF' ? currencyConvert($eur, 'EUR', 'CHF', $context['exchange_rate']) : $eur;
 }
 
 function productForUser(array $product, ?array $user): array
 {
     $product['price_cents'] = priceFor($product, $user);
+    $context = currencyContext();
+    $product['currency'] = $context['currency'];
     if (!$user || $user['role'] !== 'staff') {
-        unset($product['list_price_cents']);
+        foreach (array_keys($product) as $key) {
+            $plain = str_contains($key, '.') ? substr($key, (int) strrpos($key, '.') + 1) : $key;
+            if ($plain === 'list_price_cents' || $plain === 'list_price_eur_cents'
+                || $plain === 'purchase_price_eur_cents' || $plain === 'price_eur_cents'
+                || $plain === 'pricing_version' || str_contains($plain, 'group_price')
+                || str_contains($plain, 'purchase_price') || str_contains($plain, 'base_price')) {
+                unset($product[$key]);
+            }
+        }
     }
     return $product;
 }

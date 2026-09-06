@@ -14,6 +14,9 @@ function handleCatalog(string $method, string $path): bool
     if ($path === '/products') {
         respond(catalogProductList($_GET, currentUser()));
     }
+    if ($path === '/search/products') {
+        respond(catalogB2bSearch($_GET, currentUser()));
+    }
     if ($path === '/search/suggestions') {
         $search = text($_GET['q'] ?? '', 190);
         if (mb_strlen($search) < 2) {
@@ -51,9 +54,13 @@ function handleCatalog(string $method, string $path): bool
         $models = $query->fetchAll();
         $query = db()->prepare('SELECT * FROM products WHERE active=1 AND category_id=? AND id<>? ORDER BY featured DESC,stock>0 DESC LIMIT 4');
         $query->execute([$product['category_id'], $product['id']]);
+        $context = currencyContext();
+        $enriched = catalogEnrichProducts([$product], $user);
+        $related = catalogEnrichProducts($query->fetchAll(), $user);
         respond([
-            'product' => catalogProductWithPartType($product, $user), 'images' => $images, 'models' => $models,
-            'related' => array_map(fn ($p) => catalogProductWithPartType($p, $user), $query->fetchAll()),
+            'product' => $enriched[0], 'images' => $images, 'models' => $models,
+            'related' => $related,
+            'currency' => $context['currency'], 'currency_context' => $context,
         ]);
     }
     return false;

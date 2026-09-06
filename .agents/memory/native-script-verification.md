@@ -9,6 +9,12 @@ Verify native frontend scripts together in their shared browser scope, not only 
 
 **How to apply:** Keep the combined-script route check alongside syntax checks. Shared helper initializers must not compete for top-level lexical names. Browser-check affected staff operations as well as the storefront before claiming the complete interface works.
 
+Assert shared helper capabilities after loading the actual script sequence; do not test copied versions of production functions.
+
+**Why:** A money parser defined inside an unrelated “toast not initialized” guard was absent in the real page, although a copied-parser test passed and every route registered. Both grid editing and Excel paste then failed.
+
+**How to apply:** Initialize each capability independently, and run validation against the real shared globals after all scripts load, including when earlier modules have already populated the shared object.
+
 Verify the actual control-to-request connection when redesigning discovery, not just the server's filtering or sorting capabilities.
 
 **Why:** Backend sorting tests passed while the visible sort control still constructed an invalid URL. A redesign also left contextual facets disconnected from their new endpoint behavior. These failures are invisible to script registration and API-only tests.

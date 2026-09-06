@@ -52,13 +52,14 @@
                     </div>
                 </div>
 
-                <form class="instant-search" role="search">
+                <form class="instant-search" role="search" data-search-root>
                     <label for="home-search" class="instant-sr-only">Zoek direct in het assortiment</label>
                     <div class="search-input-container">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                        <input type="search" id="home-search" name="q" value="${esc(params.get('q') || '')}" placeholder="Zoek iPhone 13 Pro, S23 of een onderdeel…" autocomplete="off" aria-controls="home-model-options home-live-results" aria-describedby="home-search-hint">
+                        <input type="search" id="home-search" name="q" value="${esc(params.get('q') || '')}" placeholder="Wat zoekt u? Zoek product, SKU of model…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="home-search-suggestions" aria-describedby="home-search-hint">
                     </div>
-                    <span class="instant-search-note" id="home-search-hint" style="display:none;">Resultaat terwijl u typt</span>
+                    <div id="home-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Producten direct bestellen" style="display:none;"></div>
+                    <span class="instant-search-note" id="home-search-hint">Vanaf 3 tekens · direct toevoegen aan uw winkelwagen</span>
                 </form>
 
                 <div class="instant-categories-strip">
@@ -86,7 +87,7 @@
                         <div data-home-status role="status" aria-live="polite" class="text-muted"></div>
                     </div>
                     <div data-home-error class="alert error" hidden></div>
-                    <div class="product-container view-grid" data-home-products></div>
+                    <div class="b2b-products" data-home-products></div>
                     <div class="results-actions">
                         <a class="btn btn-outline instant-all-results" data-home-all href="${window.APP_BASE}catalog" hidden></a>
                     </div>
@@ -140,7 +141,7 @@
             root.querySelector('[data-home-heading]').textContent = filtered ? 'Gevonden onderdelen' : 'Assortiment';
             root.querySelector('[data-home-status]').textContent = `${result.total.toLocaleString('nl-NL')} ${result.total === 1 ? 'onderdeel' : 'onderdelen'}${params.get('q') ? ' voor “' + params.get('q') + '”' : ''}`;
             root.querySelector('[data-home-products]').innerHTML = result.products.length
-                ? result.products.map(product => window.App.renderProductCard(product)).join('')
+                ? window.App.renderProductTable(result.products)
                 : `<div class="instant-empty"><strong>Geen passende onderdelen gevonden.</strong><p>Probeer een andere zoekterm${filtered ? ' of wis uw selectie' : ''}.</p>${filtered ? '<button type="button" data-home-reset>Alles wissen</button>' : ''}</div>`;
             const all = root.querySelector('[data-home-all]');
             all.hidden = !result.products.length;
@@ -199,13 +200,12 @@
                     error.innerHTML = '<p>De onderdelen konden niet worden opgehaald.</p><button type="button" data-home-retry>Opnieuw proberen</button>';
                 }
             });
-            input.addEventListener('input', () => controller.search(input.value));
-            input.addEventListener('keydown', event => {
-                if (event.key === 'ArrowDown') {
-                    const first = root.querySelector('[data-home-model]:not(:disabled)');
-                    if (first) { event.preventDefault(); first.focus(); }
-                }
+            input.addEventListener('input', () => {
+                window.App.handleSearchInput(input.value, 'home-search');
+                if (!input.value.trim()) controller.search('');
             });
+            input.addEventListener('focus', () => window.App.handleSearchFocus('home-search'));
+            input.addEventListener('keydown', event => window.App.handleSearchKeydown(event));
             root.addEventListener('keydown', event => {
                 if (!event.target.hasAttribute('data-home-model')) return;
                 const models = [...root.querySelectorAll('[data-home-model]:not(:disabled)')];
@@ -217,7 +217,11 @@
                 }
                 if (event.key === 'Escape') { event.preventDefault(); input.focus(); }
             });
-            root.querySelector('.instant-search').addEventListener('submit', event => { event.preventDefault(); controller.change({q: input.value.trim(), model: '', brand: '', family: ''}); });
+            root.querySelector('.instant-search').addEventListener('submit', event => {
+                event.preventDefault();
+                window.UI.closeSuggestions();
+                controller.change({q: input.value.trim(), model: '', brand: '', family: ''});
+            });
             root.addEventListener('click', event => {
                 const target = event.target.closest('button');
                 if (!target) return;
