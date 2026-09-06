@@ -3,20 +3,50 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKSPACE="$(cd "$ROOT/../../.." && pwd)"
 STATE="$WORKSPACE/.local/native-mysql"
+source "$ROOT/bin/lib/mysql-runtime.sh"
 mkdir -p "$STATE" "$ROOT/storage/sessions" "$ROOT/storage/originals" "$ROOT/public/media"
 chmod 700 "$STATE" "$ROOT/storage" "$ROOT/storage/sessions" "$ROOT/storage/originals"
+DB_PID=""
+WEB_PID=""
+FX_PID=""
+cleanup() {
+  local child
+  trap - EXIT INT TERM
+  for child in "$WEB_PID" "$FX_PID" "$DB_PID"; do
+    [[ -n "$child" ]] && kill "$child" 2>/dev/null || true
+  done
+  for child in "$WEB_PID" "$FX_PID" "$DB_PID"; do
+    [[ -n "$child" ]] && wait "$child" 2>/dev/null || true
+  done
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+exec 9>"$STATE/bootstrap.lock"
+if ! flock -w 90 9; then
+  echo "Another isolated database startup is still in progress." >&2
+  exit 1
+fi
 if [[ ! -d "$STATE/data/mysql" ]]; then
   mysqld --no-defaults --initialize-insecure --datadir="$STATE/data" --log-error="$STATE/mysql.log"
 fi
 if ! mysqladmin --no-defaults --socket="$STATE/mysql.sock" --user=root ping >/dev/null 2>&1; then
+  native_mysql_clear_stale_runtime "$STATE"
   mysqld --no-defaults --datadir="$STATE/data" --socket="$STATE/mysql.sock" --pid-file="$STATE/mysql.pid" \
-    --skip-networking --mysqlx=0 --log-error="$STATE/mysql.log" --secure-file-priv=NULL &
+    --skip-networking --mysqlx=0 --log-error="$STATE/mysql.log" --secure-file-priv=NULL 9>&- &
   DB_PID=$!
-  trap 'kill "${WEB_PID:-}" "${FX_PID:-}" "${DB_PID:-}" 2>/dev/null || true' EXIT INT TERM
   for ((i=0; i<90; i++)); do
     mysqladmin --no-defaults --socket="$STATE/mysql.sock" --user=root ping >/dev/null 2>&1 && break
+    if ! kill -0 "$DB_PID" 2>/dev/null; then
+      echo "Isolated database startup failed; see $STATE/mysql.log. Existing data was retained." >&2
+      exit 1
+    fi
     sleep 1
   done
+  if ! mysqladmin --no-defaults --socket="$STATE/mysql.sock" --user=root ping >/dev/null 2>&1; then
+    echo "Isolated database did not become ready within 90 seconds; existing data was retained." >&2
+    exit 1
+  fi
 fi
 mysql --no-defaults --socket="$STATE/mysql.sock" --user=root <<'SQL'
 CREATE DATABASE IF NOT EXISTS ferry_isolated_test CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
@@ -35,6 +65,8 @@ if [[ "$(mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isol
   mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test -e \
     "INSERT INTO settings(name,value) VALUES('source_compatibility_imported','true')"
 fi
+flock -u 9
+exec 9>&-
 env -i PATH="$PATH" HOME="$HOME" php "$ROOT/bin/sync-exchange-rates.php" \
   || echo "ECB reference unavailable; currency status remains visible in administration." >&2
 env -i PATH="$PATH" HOME="$HOME" php "$ROOT/bin/sync-exchange-rates.php" --watch &
@@ -46,5 +78,4 @@ env -i PATH="$PATH" HOME="$HOME" \
     -d 'disable_functions=mail,curl_exec,curl_multi_exec,exec,shell_exec,system,passthru,popen,proc_open,fsockopen,pfsockopen,stream_socket_client,socket_connect' \
     -S "0.0.0.0:${PORT:?PORT is required}" -t "$ROOT/public" "$ROOT/router.php" &
 WEB_PID=$!
-trap 'kill "${WEB_PID:-}" "${FX_PID:-}" "${DB_PID:-}" 2>/dev/null || true' EXIT INT TERM
 wait "$WEB_PID"
