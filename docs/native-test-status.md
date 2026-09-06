@@ -6,7 +6,72 @@ De nieuwe versie staat afzonderlijk onder `/test-shop/`. De oude prototypebronco
 
 De native service is uitsluitend een ontwikkel-/testomgeving. De productie-build is bewust geblokkeerd; dit is geen publicatieklare webshop.
 
-## Rustigere winkel en korte modelselectie — 6 september 2026
+## Compacte weergave zonder jaarblokken — 6 september 2026
+
+De eigenaar heeft de te grote koppen, ronde categorieblokken, hoge familiekaarten en jaargroepen afgewezen. De actuele weergave vervangt daarom de ruim opgezette presentatie hieronder:
+
+- Startpagina en catalogus tonen één vlakke modellenlijst, zonder jaarkoppen of jaarsecties. Sortering van nieuw naar oud blijft intern behouden; jaartallen die onderdeel zijn van een officiële modelnaam blijven staan.
+- Op 1024×900 pixels zijn alle 46 iPhone-modellen voor LCD tegelijk zichtbaar, in zes kolommen met acht rijen, vóór de productresultaten. De modelknoppen zijn op desktop circa 34 pixels hoog in plaats van grote kaarten.
+- De kop is nu eenvoudig “Onderdelen”, naast één zoekveld. Categorieën en toestelfamilies zijn compacte tekstknoppen; aantallen staan als kleine badges met een toegankelijk onderdeel-label.
+- Modelnamen blijven volledig leesbaar. De familie-overzichten zijn niet afgekapt, verborgen achter een menu of in een interne scrolbox geplaatst.
+- Op mobiel passen de keuzes in twee kolommen met grotere aanraakvlakken. De smalle categorieband kan horizontaal worden verschoven; de pagina zelf blijft binnen het scherm.
+- Productkaarten en overige koppen zijn compacter; de originele foto's, beschikbaarheid en gastprijsafscherming blijven behouden.
+
+De homepage- en cataloguscontroles slagen, inclusief live zoeken, modelklik, filterbehoud, keyboardbediening en bescherming tegen verouderde antwoorden. De gezamenlijke uitvoering van alle 26 routes en 17 snelle-modelzoekscenario's slagen eveneens. Nieuwe regressies bewaken een vlakke lijst zonder jaarsecties én de ongewijzigde chronologische modelvolgorde.
+
+Visueel gecontroleerd in `screenshots/compact-models-desktop.jpg`, `screenshots/compact-models-mobile.jpg` en `screenshots/compact-storefront.jpg`. Geen backend-, prijs-, valuta-, voorraad- of bestelwijzigingen in deze correctie; de volledige kooproute is hiervoor niet opnieuw uitgevoerd.
+
+## Volledige toestelfamilies, echte catalogfoto's en winkelontwerp — eerdere versie, 6 september 2026
+
+Deze uitwerking vervangt de eerdere beperkte modelselectie bij bladeren. De limiet van zes geldt alleen nog voor live zoeksuggesties, niet voor een gekozen toestelfamilie.
+
+- Op de startpagina en in de catalogus werkt **LCD & schermen → iPhone / iPad / Samsung Galaxy / overige aanwezige families → alle bijbehorende modellen**.
+- Er zijn 291 positief gekoppelde modellen: 47 iPhone, 39 iPad, 160 Samsung, 22 Pixel, 16 Apple Watch en 7 MacBook. Aantallen worden aangepast aan de gekozen onderdelencategorie en overige filters.
+- De volledige lijst is op expliciete releasejaarmetadata gesorteerd, over alle toestelreeksen heen. Er zijn 290 bekende jaartoewijzingen; de meerjarige MacBook-alias A1534 blijft onder “Jaar onbekend”. Er worden geen releasemaanden verzonnen.
+- Alle jaargroepen blijven open, inclusief oudere modellen en modellen met maar één onderdeel. Er is geen interne scrolbox, inklapmenu of paginering voor deze lijst.
+- De bestaande live modelzoeker blijft behouden. Een expliciete familiekeuze blijft ook met resterende onderdeelzoekwoorden alle positief getelde modellen tonen. Familie wisselen verwijdert een verouderde modelkeuze; een nieuwe modelzoekopdracht verwijdert een verouderde familie.
+- Categorie, overige filters en browsergeschiedenis blijven behouden. Een toestelfamilie wordt via compatibiliteitskoppelingen gefilterd en legt nooit stilzwijgend een productmerk op.
+- Na een expliciete modelkeuze wordt het bijgewerkte productresultaat gefocust en in beeld gebracht.
+
+### Werkelijke foto's
+
+De oude import beperkte de fotolijst tot uitgelichte producten. De volledige export is nu op exact bestaande SKU's gekoppeld; bronproduct-ID's zijn niet als native product-ID gebruikt. Er is niet opnieuw geseed.
+
+- Van **44 naar 7.778 producten met foto**: 7.734 toegevoegd, afkomstig van 6.342 unieke toegestane bron-URL's.
+- Nul download-/importfouten; nul ontbrekende beeldvarianten of geschoonde originelen. Alle 7.778 hebben lokale WebP-varianten van 320, 640 en 1280 pixels.
+- De vijf genoemde voorbeelden zijn afzonderlijk gecontroleerd: `IPH15PL06`, `IPH15PL46`, `IPH15PL42`, `IPH15PRM06`, `IPH15PRM43`.
+- Voor 73 echte bronartikelen ontbreekt een foto. Alle bijbehorende bronpagina's zijn gecontroleerd: 68 tonen alleen een generieke “Awaiting product image”-afbeelding; 5 verwijzen naar de homepage zonder verifieerbaar product. Geen van deze afbeeldingen is als echte productfoto overgenomen.
+- Daarnaast hebben 7 lokale QA-artikelen geen bijbehorende exportregel, waarvan 5 actief en 2 inactief. Deze bestaande testgegevens zijn niet verwijderd of aangepast.
+- Dekking: 98,98% van alle 7.858 native records; 99,07% van de 7.851 actieve, export-gekoppelde artikelen.
+- SHA-256-vergelijkingen bevestigen dat alle beschermde productvelden behalve `image_url` en alle groepsprijzen identiek zijn gebleven; ook voorraadtellingen zijn ongewijzigd.
+
+De download- en importstappen zijn hervatbaar. De downloader valideert iedere manifest-URL opnieuw, gebruikt uitsluitend HTTPS naar de toegestane eigen uploadpaden en volgt geen redirects. Bestandsinhoud, bestandsgrootte en pixels blijven gevalideerd; echte AVIF-bronbeelden worden alleen in de CLI-voorbewerking geconverteerd, niet door de webuploadbeveiliging te versoepelen.
+
+Rapporten staan onder `artifacts/parts-store/native/storage/`: `catalog-photo-final-report.json`, `catalog-photo-download-report.json`, `catalog-photo-missing-source-report.json` en `catalog-photo-import-manifest.json`. Het volledige aanvullende bronpaginaonderzoek staat in `.local/research/catalog-photo-remaining-source-audit-20260906.json`.
+
+### Ontwerp en controles
+
+Het klantgedeelte heeft een nieuwe visuele hiërarchie, grote echte productfoto's, duidelijke categorie- en familiekeuzes, open jaargroepen en samenhangende product-, formulier-, winkelmand- en checkoutoppervlakken. Het zoeken blijft rechtstreeks werken. Medewerkersschermen worden expliciet van de winkelstijlen uitgesloten; financiële en bestelregels zijn niet gewijzigd. Een aanvankelijke mobiele overflow, te kleine foto's en conflicterende oude CSS-regels zijn tijdens de visuele controle hersteld.
+
+Geslaagd: gedeelde uitvoering van de 26 native routes, homepage- en categoriezoektests, 17 snelle-modelzoektests, 15 filter-URL-tests, zoek- en route-racecontroles, expliciete chronologieregressies, PHP/JavaScript-syntaxis en diffcontrole. Daarnaast slagen 15 bron-URL-beveiligingsgevallen en de validatie van alle 7.778 bestaande manifestbronnen.
+
+De grote native mediaverzameling is uitgesloten van de bestandsbewaking van het aparte prototype, nadat die de gedeelde watcherlimiet raakte. Dit is uitsluitend een ontwikkelconfiguratiegrens; React-applicatiegedrag, PostgreSQL en productie-instellingen zijn niet gewijzigd. De native service en de aparte webpreview zijn schoon gestart.
+
+De laatste browserronde bevestigde onder meer:
+
+- LCD → iPhone toont 46 bijbehorende modellen, met jaargroepen 2025–2012 zonder interne scrolbox. iPhone 15 Plus kiezen geeft de 11 bijbehorende onderdelen; teruggaan herstelt dezelfde filters.
+- Wisselen naar iPad/Samsung behoudt LCD en verwijdert de oude modelkeuze. `13 Pro` en `S23` geven tijdens typen de juiste modelkeuzes zonder verouderde familie of Apple Watch-suggestie. Wegnavigeren tijdens zoeken wordt niet ongedaan gemaakt door een laat antwoord.
+- Gasten zien geen prijzen. Een echte lokale foto werd circa 325×325 pixels weergegeven; vergroten en sluiten werkten.
+- Met de geïsoleerde klant zijn één voorradig artikel op minimumaantal, winkelmandtotalen, checkoutvelden en accountschermen gecontroleerd. Er is geen bestelling geplaatst. De winkelmand is daarna exact naar de eerdere lege staat teruggebracht.
+- Op 390 en 320 pixels werkten familiekeuze, modelkeuze en de ingelogde productlijst zonder horizontale pagina-overflow. De eerste geselecteerde productkaart stond respectievelijk rond Y=499 en Y=428.
+- De browserronde vond nog overflow in een lange mobiele producttitel en onduidelijke catalogusopmaak. Deze zijn met begrensde grids, passende mobiele typografie, afzonderlijke modelaantallen en volwaardige familiekaarten hersteld. Ook de mobiele gastheader overlapt niet meer. De gerichte schermafbeeldingen na die CSS-correcties bevestigen de passende productpagina op 320 pixels en de catalogus op 390 pixels; de hele browserronde is niet opnieuw uitgevoerd.
+- Een hoverkleur die op een gekozen familie leek is gescheiden van de echte geselecteerde toestand. Er waren geen applicatiefouten of mislukte native API-aanvragen tijdens de browserronde.
+
+Actuele visuele controles: `screenshots/storefront-final-desktop.jpg`, `screenshots/storefront-final-mobile.jpg`, `screenshots/storefront-product-mobile-fixed.jpg` en `screenshots/storefront-catalog-mobile-fixed.jpg`.
+
+De bestaande brede producttekstzoeker is niet herschreven: vóór een expliciete modelkeuze kan een losse term nog ruimere productmatches opleveren. De modelzoeker en expliciete model-/familiefilters zijn wel afzonderlijk gecontroleerd.
+
+## Rustigere winkel en korte modelselectie — eerdere versie, 6 september 2026
 
 De winkelweergave heeft een neutralere achtergrond, heldere systeemtypografie, rustigere knoppen en vernieuwde product-/catalogusoppervlakken. De nieuwe algemene winkelstijlen sluiten de medewerkersomgeving expliciet uit. Er zijn geen externe fonts of andere runtime-afhankelijkheden toegevoegd.
 

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/catalog-part-types.php';
+require_once __DIR__ . '/device-family-metadata.php';
 
 function catalogCompact(string $value): string
 {
@@ -38,6 +39,7 @@ function catalogUnfilteredFacets(): array
          LEFT JOIN products p ON p.id=pm.product_id AND p.active=1
          GROUP BY m.id ORDER BY m.name'
     )->fetchAll();
+    $models = deviceAnnotateModels($models, $brands);
     $facets = [
         'categories' => $categories, 'brands' => $brands, 'models' => $models,
         'qualities' => db()->query("SELECT DISTINCT quality FROM products WHERE active=1 AND quality<>'' ORDER BY quality")->fetchAll(PDO::FETCH_COLUMN),
@@ -108,6 +110,17 @@ function catalogProductCondition(array $input, array $exclude = []): array
             $parameters[] = integer($input[$key], 1);
         }
     }
+    if (!in_array('family', $exclude, true) && !empty($input['family'])) {
+        $family = text($input['family'], 30);
+        $allowed = array_column(deviceFamilyDefinitions(), 'id');
+        if (!in_array($family, $allowed, true)) throw new HttpError(400, 'Onbekende toestelfamilie.');
+        $ids = array_map('intval', array_column(array_filter(catalogUnfilteredFacets()['models'], fn ($m) => ($m['family'] ?? null) === $family), 'id'));
+        if (!$ids) $where[] = '1=0';
+        else {
+            $where[] = 'EXISTS(SELECT 1 FROM product_models family_pm WHERE family_pm.product_id=p.id AND family_pm.model_id IN (' . implode(',', array_fill(0, count($ids), '?')) . '))';
+            array_push($parameters, ...$ids);
+        }
+    }
     if (!in_array('model', $exclude, true) && !empty($input['model'])) {
         $where[] = 'EXISTS(SELECT 1 FROM product_models pm WHERE pm.product_id=p.id AND pm.model_id=?)';
         $parameters[] = integer($input['model'], 1);
@@ -158,7 +171,7 @@ function catalogFacets(array $input = []): array
 {
     $base = catalogUnfilteredFacets();
     $partTypes = catalogPartTypeFacets($input);
-    $contextKeys = ['category', 'brand', 'model', 'q', 'quality', 'stock', 'featured', 'part'];
+    $contextKeys = ['category', 'brand', 'model', 'family', 'q', 'quality', 'stock', 'featured', 'part'];
     $contextual = false;
     foreach ($contextKeys as $key) {
         if (isset($input[$key]) && $input[$key] !== '') {
@@ -168,12 +181,14 @@ function catalogFacets(array $input = []): array
     }
     if (!$contextual) {
         $base['part_types'] = $partTypes;
+        $base['device_families'] = catalogDeviceFamilyFacets($input);
         return $base;
     }
 
     $categoryCounts = catalogFacetCounts('p.category_id', $input, ['category', 'part']);
     $brandCounts = catalogFacetCounts('p.brand_id', $input, ['brand', 'model']);
-    $modelPredicate = catalogProductCondition($input, ['model']);
+    // Model search is the cross-family escape hatch; family browsing itself is rendered client-side.
+    $modelPredicate = catalogProductCondition($input, ['model', 'family']);
     $query = db()->prepare(
         "SELECT facet_pm.model_id AS id,COUNT(DISTINCT p.id) AS count
          FROM products p
@@ -211,7 +226,44 @@ function catalogFacets(array $input = []): array
         'qualities' => $query->fetchAll(PDO::FETCH_COLUMN),
         'total' => (int) $queryTotal->fetchColumn(),
         'part_types' => $partTypes,
+        'device_families' => catalogDeviceFamilyFacets($input),
     ];
+}
+
+function catalogDeviceFamilyFacets(array $input): array
+{
+    $base = catalogUnfilteredFacets();
+    $familyInput = $input;
+    if (!empty($familyInput['q'])) {
+        $deviceTokens = [];
+        foreach ($base['models'] as $model) {
+            foreach (preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($model['name'], 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $token) $deviceTokens[$token] = true;
+        }
+        foreach ($base['brands'] as $brand) {
+            foreach (preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($brand['name'], 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $token) $deviceTokens[$token] = true;
+        }
+        foreach (deviceFamilyDefinitions() as $family) {
+            foreach (preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($family['label'], 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $token) $deviceTokens[$token] = true;
+        }
+        $words = preg_split('/\s+/u', trim(mb_strtolower((string) $familyInput['q'], 'UTF-8')), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $familyInput['q'] = implode(' ', array_filter($words, static function ($word) use ($deviceTokens) {
+            $token = preg_replace('/[^\p{L}\p{N}]/u', '', $word);
+            return $token === '' || !isset($deviceTokens[$token]);
+        }));
+    }
+    $predicate = catalogProductCondition($familyInput, ['family', 'model', 'brand']);
+    $counts = [];
+    foreach (deviceFamilyDefinitions() as $family) {
+        $ids = array_map('intval', array_column(array_filter($base['models'], fn ($model) => ($model['family'] ?? null) === $family['id']), 'id'));
+        if (!$ids) { $counts[$family['id']] = 0; continue; }
+        $sql = "SELECT COUNT(DISTINCT p.id) FROM products p WHERE {$predicate['condition']} AND EXISTS(SELECT 1 FROM product_models dfpm WHERE dfpm.product_id=p.id AND dfpm.model_id IN (" . implode(',', array_fill(0, count($ids), '?')) . '))';
+        $query = db()->prepare($sql);
+        $query->execute([...$predicate['parameters'], ...$ids]);
+        $counts[$family['id']] = (int) $query->fetchColumn();
+    }
+    return array_map(static fn ($family) => [
+        'id' => $family['id'], 'label' => $family['label'], 'count' => $counts[$family['id']] ?? 0, 'groups' => $family['groups']
+    ], deviceFamilyDefinitions());
 }
 
 function catalogCategoryAliases(): array

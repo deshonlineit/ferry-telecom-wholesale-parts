@@ -39,31 +39,57 @@
                     return refresh(!typing);
                 },
                 // A newly typed model must not remain constrained by the previous device.
-                search(query) { return this.change({q: query.trim(), model: '', brand: ''}, {typing: true}); },
+                search(query) { return this.change({q: query.trim(), model: '', brand: '', family: ''}, {typing: true}); },
                 reset() { params = new URLSearchParams(); io.sync(params, false); return refresh(); },
                 current: () => new URLSearchParams(params)
             };
         },
         shell(params) {
             return `<section class="instant-home" aria-labelledby="instant-home-title">
-                <div class="instant-intro"><div><h1 id="instant-home-title">Wat zoekt u?</h1><p>Het juiste onderdeel. Zonder omwegen.</p></div><a href="${window.APP_BASE}catalog">Alle onderdelen →</a></div>
+                <div class="instant-intro">
+                    <div class="intro-text">
+                        <h1 id="instant-home-title">Onderdelen</h1>
+                    </div>
+                </div>
+
                 <form class="instant-search" role="search">
                     <label for="home-search" class="instant-sr-only">Zoek direct in het assortiment</label>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
-                    <input type="search" id="home-search" name="q" value="${esc(params.get('q') || '')}" placeholder="Zoek iPhone 13 Pro, S23 of een onderdeel…" autocomplete="off" aria-controls="home-model-options home-live-results" aria-describedby="home-search-hint">
-                    <span class="instant-search-note" id="home-search-hint">Resultaat terwijl u typt</span>
+                    <div class="search-input-container">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" id="home-search" name="q" value="${esc(params.get('q') || '')}" placeholder="Zoek iPhone 13 Pro, S23 of een onderdeel…" autocomplete="off" aria-controls="home-model-options home-live-results" aria-describedby="home-search-hint">
+                    </div>
+                    <span class="instant-search-note" id="home-search-hint" style="display:none;">Resultaat terwijl u typt</span>
                 </form>
-                <div class="instant-categories"><span class="instant-label">Of kies een onderdeel</span><div class="instant-category-options" role="group" aria-label="Onderdeel kiezen"></div></div>
+
+                <div class="instant-categories-strip">
+                    <div class="instant-category-options" role="group" aria-label="Onderdeel kiezen"></div>
+                </div>
+
                 <section class="instant-models" aria-label="Model kiezen" hidden>
-                    <div class="instant-model-title"><span class="instant-label">Kies uw model</span><span data-home-model-count></span><button type="button" data-home-refine>Model zoeken</button></div>
-                    <p class="instant-model-help">Typ uw model in het zoekveld hierboven. Geen merkkeuze nodig.</p>
+                    <div class="instant-model-title">
+                        <h2>Toestel en model</h2>
+                        <div class="instant-model-meta">
+                            <span data-home-model-count></span>
+                            <button type="button" class="btn btn-outline" data-home-refine>Model zoeken</button>
+                        </div>
+                    </div>
+                    <nav class="instant-family-options" data-home-family-options aria-label="Kies een toestelfamilie"></nav>
+                    <p class="instant-model-help text-muted"></p>
                     <div class="instant-model-options" id="home-model-options" role="group" aria-label="Beschikbare modellen"></div>
                 </section>
+
                 <div class="instant-selection" aria-label="Gekozen filters"></div>
+
                 <section class="instant-results" id="home-live-results" aria-busy="true" aria-label="Producten">
-                    <div class="instant-results-heading"><h2 data-home-heading>Producten ophalen…</h2><span data-home-status role="status" aria-live="polite"></span></div>
-                    <div data-home-error hidden></div><div class="product-container view-list" data-home-products></div>
-                    <a class="instant-all-results" data-home-all href="${window.APP_BASE}catalog" hidden></a>
+                    <div class="instant-results-heading">
+                        <h2 data-home-heading tabindex="-1">Assortiment</h2>
+                        <div data-home-status role="status" aria-live="polite" class="text-muted"></div>
+                    </div>
+                    <div data-home-error class="alert error" hidden></div>
+                    <div class="product-container view-grid" data-home-products></div>
+                    <div class="results-actions">
+                        <a class="btn btn-outline instant-all-results" data-home-all href="${window.APP_BASE}catalog" hidden></a>
+                    </div>
                 </section>
             </section>`;
         },
@@ -74,24 +100,44 @@
             const category = params.get('category') || '';
             const model = catalog.models.find(item => String(item.id) === params.get('model'));
             const query = window.FastFinder.modelQuery(params.get('q'));
-            const {models: choices, total: modelTotal} = window.CategoryModels.shortlist(catalog, query, params.get('model'));
+            const family = params.get('family') || model?.family || '';
+            const browseFamily = Boolean(family && (params.get('family') || !query));
+            const searched = window.CategoryModels.shortlist(catalog, query, params.get('model'));
+            const choices = browseFamily ? window.CategoryModels.familyModels(catalog, family) : searched.models;
+            const modelTotal = browseFamily ? choices.length : searched.total;
             const currentFocus = document.activeElement;
             const focusKey = currentFocus?.dataset?.homeCategory !== undefined ? ['homeCategory', currentFocus.dataset.homeCategory]
                 : currentFocus?.dataset?.homeModel !== undefined ? ['homeModel', currentFocus.dataset.homeModel] : null;
-            root.querySelector('.instant-category-options').innerHTML = `<button type="button" data-home-category="" aria-pressed="${!category}">Alles</button>` + categories
+            root.querySelector('.instant-category-options').innerHTML = `<button type="button" data-home-category="" aria-pressed="${!category}">
+                <div class="cat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20"/></svg></div>
+                <span>Alles</span>
+            </button>` + categories
                 .filter(item => Number(item.count) > 0 || String(item.id) === category)
-                .map(item => `<button type="button" data-home-category="${item.id}" aria-pressed="${String(item.id) === category}">${esc(labels[item.slug] || item.name)}</button>`).join('');
-            const showModels = Boolean((category || params.get('q') || model) && choices.length);
+                .map(item => {
+                    let icon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>';
+                    if (item.slug === 'batteries') icon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="16" height="12" rx="2" ry="2"/><line x1="22" y1="10" x2="22" y2="14"/><line x1="6" y1="12" x2="14" y2="12"/></svg>';
+                    if (item.slug === 'screens') icon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+                    if (item.slug === 'charging') icon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+                    if (item.slug === 'cameras') icon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+                    if (item.slug === 'tools') icon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
+
+                    return `<button type="button" data-home-category="${item.id}" aria-pressed="${String(item.id) === category}">
+                        <div class="cat-icon">${icon}</div>
+                        <span>${esc(labels[item.slug] || item.name)}</span>
+                    </button>`;
+                }).join('');
+            const families = (catalog.device_families || []).filter(item => Number(item.count) > 0 || item.id === family);
+            const showModels = Boolean(category || params.get('q') || model || family);
             root.querySelector('.instant-models').hidden = !showModels;
-            root.querySelector('[data-home-model-count]').textContent = query ? `${choices.length < modelTotal ? choices.length + ' van ' : ''}${modelTotal} ${modelTotal === 1 ? 'model' : 'modellen'}` : '';
+            root.querySelector('[data-home-family-options]').innerHTML = families.map(item => `<button type="button" data-home-family="${esc(item.id)}" aria-pressed="${item.id === family}"><strong>${esc(item.label)}</strong><small aria-label="${Number(item.count)} onderdelen" title="${Number(item.count)} onderdelen">${Number(item.count)}</small></button>`).join('');
+            root.querySelector('[data-home-model-count]').textContent = family || query ? `${choices.length < modelTotal ? choices.length + ' van ' : ''}${modelTotal} ${modelTotal === 1 ? 'model' : 'modellen'}` : '';
             root.querySelector('.instant-model-help').textContent = query
                 ? choices.length < modelTotal ? 'Typ verder om uw exacte model te vinden.' : 'Kies uw uitvoering voor de juiste onderdelen.'
-                : 'Een korte selectie. Staat uw model er niet tussen? Typ het in het zoekveld hierboven.';
+                : family ? 'Alle modellen · van nieuw naar oud' : 'Kies een toestelfamilie of zoek direct op model.';
             root.querySelector('[data-home-refine]').textContent = model ? 'Ander model' : 'Model zoeken';
             root.querySelector('.instant-model-options').innerHTML = choices.map(item => `<button type="button" data-home-model="${item.id}" aria-pressed="${String(item.id) === params.get('model')}"><span>${esc(item.name)}</span><small aria-label="${Number(item.count)} onderdelen">${Number(item.count)}</small></button>`).join('');
-            root.querySelector('.instant-model-options').scrollTop = 0;
-            root.querySelector('.instant-selection').innerHTML = `${model ? `<button type="button" data-home-remove-model aria-label="Model ${esc(model.name)} verwijderen">${esc(model.name)} <span aria-hidden="true">×</span></button>` : ''}${filtered ? '<button type="button" data-home-reset>Alles wissen</button>' : ''}`;
-            root.querySelector('[data-home-heading]').textContent = filtered ? 'Gevonden onderdelen' : 'Onderdelen';
+            root.querySelector('.instant-selection').innerHTML = `${model ? `<button type="button" class="btn btn-outline" style="padding: 0.25rem 1rem; font-size: 0.875rem;" data-home-remove-model aria-label="Model ${esc(model.name)} verwijderen">${esc(model.name)} <span aria-hidden="true" style="margin-left: 0.25rem;">×</span></button>` : ''}${filtered ? `<button type="button" class="btn btn-outline" style="padding: 0.25rem 1rem; font-size: 0.875rem;" data-home-reset>Alles wissen</button>` : ''}`;
+            root.querySelector('[data-home-heading]').textContent = filtered ? 'Gevonden onderdelen' : 'Assortiment';
             root.querySelector('[data-home-status]').textContent = `${result.total.toLocaleString('nl-NL')} ${result.total === 1 ? 'onderdeel' : 'onderdelen'}${params.get('q') ? ' voor “' + params.get('q') + '”' : ''}`;
             root.querySelector('[data-home-products]').innerHTML = result.products.length
                 ? result.products.map(product => window.App.renderProductCard(product)).join('')
@@ -113,6 +159,7 @@
             window.UI.closeSuggestions();
             const input = root.querySelector('#home-search');
             let currentCatalog;
+            let focusResultsAfterModel = false;
             const controller = H.controller(params, {
                 active: () => root.isConnected && version === window.Router.renderVersion,
                 load: (selection, signal) => Promise.all(H.requests(selection).map(url => window.Core.fetch(url, {signal}))),
@@ -133,6 +180,12 @@
                     H.paint(root, data, selection);
                     root.querySelector('[data-home-products]').inert = false;
                     root.querySelector('[data-home-all]').inert = false;
+                    if (focusResultsAfterModel) {
+                        focusResultsAfterModel = false;
+                        const heading = root.querySelector('[data-home-heading]');
+                        heading.focus({preventScroll: true});
+                        heading.scrollIntoView({block: 'start'});
+                    }
                 },
                 error() {
                     root.classList.remove('is-searching');
@@ -164,14 +217,19 @@
                 }
                 if (event.key === 'Escape') { event.preventDefault(); input.focus(); }
             });
-            root.querySelector('.instant-search').addEventListener('submit', event => { event.preventDefault(); controller.change({q: input.value.trim(), model: '', brand: ''}); });
+            root.querySelector('.instant-search').addEventListener('submit', event => { event.preventDefault(); controller.change({q: input.value.trim(), model: '', brand: '', family: ''}); });
             root.addEventListener('click', event => {
                 const target = event.target.closest('button');
                 if (!target) return;
                 if (target.hasAttribute('data-home-category')) controller.change({category: target.dataset.homeCategory});
+                if (target.hasAttribute('data-home-family')) {
+                    const selection = controller.current();
+                    controller.change({family: target.dataset.homeFamily, model: '', q: window.CategoryModels.cleanFamilyQuery(currentCatalog, selection.get('q'))});
+                }
                 if (target.hasAttribute('data-home-model')) {
                     const model = currentCatalog?.models.find(item => String(item.id) === target.dataset.homeModel);
                     if (model) window.FastFinder.remember(model);
+                    focusResultsAfterModel = true;
                     controller.change({model: target.dataset.homeModel});
                 }
                 if (target.hasAttribute('data-home-refine')) { input.focus(); input.select(); }

@@ -30,40 +30,46 @@ window.App.renderProductCard = function(p) {
     const canBuy = window.App.canOrderProduct(p);
     
     let stockClass = p.stock > 10 ? 'stock-ok' : (p.stock > 0 ? 'stock-low' : 'stock-out');
-    let stockText = p.stock > 0 ? `${p.stock} op voorraad` : 'Niet op voorraad';
+    let stockText = p.stock > 0 ? (p.stock > 10 ? 'Op voorraad' : `Laatste ${p.stock}`) : 'Niet op voorraad';
+
+    let srcSetAttr = '';
+    if (p.image_url && p.image_url.includes('-1280w.webp')) {
+        const base = p.image_url.replace('-1280w.webp', '');
+        srcSetAttr = `srcset="${base}-320w.webp 320w, ${base}-640w.webp 640w, ${base}-1280w.webp 1280w" sizes="(max-width: 768px) 150px, 300px"`;
+    }
 
     return `
         <div class="part-card">
             ${p.image_url ? `
                 <button type="button" class="part-img-link part-photo-preview" data-photo-url="${esc(p.image_url)}" data-photo-name="${esc(p.name)}" aria-label="Foto van ${esc(p.name)} vergroten">
-                    <img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">
+                    <img src="${esc(p.image_url)}" ${srcSetAttr} alt="${esc(p.name)}" loading="lazy">
                 </button>
             ` : `
                 <div class="part-img-link part-no-photo" aria-label="Geen foto beschikbaar">
-                    <div class="img-placeholder"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>
+                    <div class="img-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>
                 </div>
             `}
             <div class="part-main">
                 <div class="part-meta">
-                    <span class="part-sku" title="SKU">${esc(p.sku)}</span>
                     ${p.quality ? `<span class="part-quality">${esc(p.quality)}</span>` : ''}
                     ${p.part_type?.name ? `<span class="part-type-badge">${esc(p.part_type.name)}</span>` : ''}
                 </div>
                 <h3 class="part-name"><a href="${window.APP_BASE}products/${p.id}">${esc(p.name)}</a></h3>
                 <div class="part-stock ${stockClass}">
-                    <span class="status-dot"></span>${stockText}
+                    <span class="status-dot"></span>
+                    ${stockText} <span class="part-sku" title="SKU">· ${esc(p.sku)}</span>
                 </div>
-                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<small class="text-muted">Minimale afname ${p.minimum_quantity}; onvoldoende voorraad</small>` : ''}
+                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<small class="text-danger mt-1 d-block" style="color: #ff3b30; font-weight: 500;">Minimale afname ${p.minimum_quantity}</small>` : ''}
             </div>
             <div class="part-buy-area">
                 <div class="part-price">
-                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">Prijs na inloggen</a>`}
+                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">Log in voor prijs</a>`}
                 </div>
                 ${canBuy ? `
                 <div class="part-action">
                     <input type="number" id="qty-${p.id}" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="part-qty form-control" aria-label="Aantal">
-                    <button type="button" class="btn btn-primary part-add-btn" onclick="window.App.addToCartWithQty(${p.id}, parseInt(this.parentElement.querySelector('input').value, 10))" aria-label="${esc(p.name)} toevoegen aan winkelwagen" title="Aan winkelwagen toevoegen">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <button type="button" class="btn btn-primary part-add-btn" onclick="window.App.addToCartWithQty(${p.id}, parseInt(this.parentElement.querySelector('input').value, 10))" aria-label="Toevoegen" title="Aan winkelwagen toevoegen">
+                        Voeg toe
                     </button>
                 </div>
                 ` : (isStaff ? '<span class="text-muted small font-weight-bold">Beheer</span>' : '')}
@@ -100,7 +106,7 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
 
     const thumbnailsHtml = allImages.map((img, idx) => `
         <button type="button" class="gallery-thumb" data-gallery-index="${idx}" aria-label="Foto ${idx + 1} van ${allImages.length} tonen">
-            <img src="${esc(img.url)}" alt="Miniatuur ${idx + 1} van ${esc(p.name)}">
+            <img src="${esc(img.url)}" alt="Miniatuur ${idx + 1} van ${esc(p.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
         </button>
     `).join('');
 
@@ -129,15 +135,15 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
 
     root.innerHTML = `
         <div class="breadcrumb mb-4">
-            <a href="${window.APP_BASE}catalog" class="btn btn-link btn-sm pl-0 text-muted">&larr; Terug naar assortiment</a>
+            <a href="${window.APP_BASE}catalog" class="btn-link" style="color: var(--apple-muted); font-size: 0.9375rem; font-weight: 500;">&larr; Assortiment</a>
         </div>
         
         <div class="product-detail-layout">
             <div class="product-gallery">
                 ${allImages.length ? `
-                    <button type="button" class="main-image-container part-photo-preview" data-photo-images="${esc(JSON.stringify(allImages))}" data-photo-name="${esc(p.name)}" aria-label="Foto van ${esc(p.name)} vergroten" title="Klik om te vergroten">
-                        <img id="main-img" src="${esc(allImages[0].url)}" alt="${esc(p.name)}">
-                        <div class="zoom-hint"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></div>
+                    <button type="button" class="main-image-container part-photo-preview" data-photo-images="${esc(JSON.stringify(allImages))}" data-photo-name="${esc(p.name)}" aria-label="Foto van ${esc(p.name)} vergroten" title="Klik om te vergroten" style="position: relative;">
+                        <img id="main-img" src="${esc(allImages[0].url)}" alt="${esc(p.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.05)); mix-blend-mode: multiply;">
+                        <div class="zoom-hint" style="position: absolute; bottom: 1rem; right: 1rem; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); padding: 0.5rem; border-radius: 50%; color: #1d1d1f;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></div>
                     </button>
                     ${allImages.length > 1 ? `<div class="gallery-thumbnails mt-3">${thumbnailsHtml}</div>` : ''}
                 ` : `
@@ -148,10 +154,10 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
             </div>
             
             <div class="product-info">
-                <div class="product-meta mb-3">
-                    <span class="sku-large" title="SKU">${esc(p.sku)}</span>
-                    ${p.quality ? `<span class="part-quality ml-3">${esc(p.quality)}</span>` : ''}
-                    ${p.part_type?.name ? `<span class="part-type-badge ml-3">${esc(p.part_type.name)}</span>` : ''}
+                <div class="product-meta mb-3" style="display: flex; gap: 0.5rem; align-items: center;">
+                    ${p.quality ? `<span class="part-quality">${esc(p.quality)}</span>` : ''}
+                    ${p.part_type?.name ? `<span class="part-type-badge">${esc(p.part_type.name)}</span>` : ''}
+                    <span class="part-sku" title="SKU" style="color: var(--apple-muted); font-size: 0.875rem; font-weight: 500;">· ${esc(p.sku)}</span>
                 </div>
                 
                 <h1 class="product-title-lg mb-2">${esc(p.name)}</h1>
@@ -169,13 +175,12 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
                 ${canBuy ? `
                     <div class="purchase-box mb-4">
                         <div class="purchase-controls">
-                            <input type="number" id="pd-qty" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="form-control qty-input">
-                            <button type="button" class="btn btn-primary btn-lg flex-1" onclick="window.App.addToCartWithQty(${p.id}, parseInt(document.getElementById('pd-qty').value, 10))">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                            <input type="number" id="pd-qty" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="form-control qty-input" style="width: 100px; text-align: center;">
+                            <button type="button" class="btn btn-primary flex-1" style="font-weight: 600;" onclick="window.App.addToCartWithQty(${p.id}, parseInt(document.getElementById('pd-qty').value, 10))">
                                 In Winkelwagen
                             </button>
                         </div>
-                        ${p.minimum_quantity > 1 ? `<div class="qty-hint mt-2 text-muted small">Minimale afname: ${p.minimum_quantity} stuks</div>` : ''}
+                        ${p.minimum_quantity > 1 ? `<div class="qty-hint mt-3 text-muted small" style="font-weight: 500;">Minimale afname: ${p.minimum_quantity} stuks</div>` : ''}
                     </div>
                 ` : (isStaff ? '<div class="alert warning mb-4">Als beheerder kunt u geen bestellingen plaatsen.</div>' : (!window.Core.user ? '<div class="alert warning mb-4"><a href="'+window.APP_BASE+'login">Log in</a> om dit product te bestellen.</div>' : ''))}
                 

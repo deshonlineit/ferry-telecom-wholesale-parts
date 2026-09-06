@@ -25,6 +25,7 @@ assert(!/<select|<dialog|type="submit"/.test(shell), 'No dropdown, popup or comp
 assert(!shell.includes('data-fast-finder'), 'No competing brand/model form');
 assert(shell.includes('id="home-search"'));
 assert(shell.includes('data-home-refine'));
+assert(shell.includes('data-home-heading tabindex="-1"'));
 assert(shell.includes('home-model-options home-live-results'));
 assert(H.shell(new URLSearchParams('q=%22%3E%3Cscript%3E')).includes('&quot;&gt;&lt;script&gt;'));
 assert(!H.requests(new URLSearchParams())[1].includes('featured='), 'Alles includes the whole assortment, not only featured products');
@@ -93,11 +94,17 @@ console.log('PASS: homepage has one live search field, no dropdown/modal/submit 
     };
     const catalog = {
         categories: [{id: 1, slug: 'screens', name: 'Displays', count: 6}],
-        models: [{id: 132, name: 'iPhone 13', count: 6}, {id: 133, name: 'iPhone 13 Mini', count: 1}, {id: 199, name: 'No match', count: 0}]
+        brands: [{id: 1, name: 'Apple'}],
+        device_families: [{id: 'iphone', label: 'iPhone', count: 6, groups: [{id: 'iphone', label: 'iPhone'}]}],
+        models: [
+            {id: 132, name: 'iPhone 13', brand_id: 1, count: 6, family: 'iphone', family_group: 'iphone', family_group_label: 'iPhone', sort_order: 132, order_known: true},
+            {id: 133, name: 'iPhone 13 Mini', brand_id: 1, count: 1, family: 'iphone', family_group: 'iphone', family_group_label: 'iPhone', sort_order: 131, order_known: true},
+            {id: 199, name: 'No match', brand_id: 1, count: 0}
+        ]
     };
     H.paint(root, [catalog, {total: 6, products: [{name: 'iPhone 13 LCD'}]}], new URLSearchParams('category=1&q=iphone+lcd&model=132'));
     assert.equal(nodes.get('.instant-models').hidden, false, 'Models stay visible even after choosing one');
-    assert.equal(nodes.get('.instant-model-options').scrollTop, 0, 'A chosen or searched model is not hidden by the previous scroll position');
+    assert(!nodes.get('.instant-model-options').innerHTML.includes('<details'), 'Model choices are open and have no internal collapsed panel');
     assert(nodes.get('.instant-model-options').innerHTML.includes('data-home-model="133"'));
     assert(nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="132"') < nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="133"'), 'Selected model remains immediately visible');
     assert(!nodes.get('.instant-model-options').innerHTML.includes('No match'));
@@ -107,14 +114,19 @@ console.log('PASS: homepage has one live search field, no dropdown/modal/submit 
     const many = {...catalog, models: [
         {id: 301, name: 'iPhone 13 Pro Max', count: 40},
         {id: 302, name: 'iPhone 13 Pro', count: 1},
-        ...Array.from({length: 12}, (_, index) => ({id: 400 + index, name: `Galaxy S${index + 20}`, count: 30}))
+        ...Array.from({length: 12}, (_, index) => ({id: 400 + index, name: `iPhone ${index + 20}`, brand_id: 1, count: 30, family: 'iphone', family_group: 'iphone', family_group_label: 'iPhone', sort_order: 200 + index, order_known: true}))
     ]};
     H.paint(root, [many, {total: 4, products: [{name: 'A matching part'}]}], new URLSearchParams('q=13+pro+lcd'));
     assert(nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="302"') < nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="301"'));
-    assert(!nodes.get('.instant-model-options').innerHTML.includes('Galaxy'));
-    H.paint(root, [many, {total: 4, products: [{name: 'A matching part'}]}], new URLSearchParams('category=1'));
-    assert.equal((nodes.get('.instant-model-options').innerHTML.match(/data-home-model="/g) || []).length, 6);
-    assert(nodes.get('.instant-model-help').textContent.includes('zoekveld'));
+    assert(!nodes.get('.instant-model-options').innerHTML.includes('iPhone 20'));
+    H.paint(root, [many, {total: 4, products: [{name: 'A matching part'}]}], new URLSearchParams('category=1&family=iphone'));
+    assert.equal((nodes.get('.instant-model-options').innerHTML.match(/data-home-model="/g) || []).length, 12);
+    assert(!/<section|<h3|data-home-model-group|Jaar onbekend/.test(nodes.get('.instant-model-options').innerHTML), 'Family models render as direct compact choices without year headings');
+    assert(nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="411"') < nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="400"'), 'The flat overview keeps newest-to-oldest ordering');
+    assert(nodes.get('.instant-model-help').textContent.includes('Alle modellen'));
+    H.paint(root, [many, {total: 4, products: [{name: 'Black matching part'}]}], new URLSearchParams('category=1&family=iphone&q=black'));
+    assert.equal((nodes.get('.instant-model-options').innerHTML.match(/data-home-model="/g) || []).length, 12, 'An explicitly selected family retains every contextual model when part keywords remain');
+    assert(nodes.get('[data-home-products]').innerHTML.includes('Black matching part'));
     H.paint(root, [{...catalog, models: []}, {total: 0, products: []}], new URLSearchParams('q=unmatched'));
     assert(nodes.get('[data-home-products]').innerHTML.includes('Geen passende onderdelen'));
     assert.equal(nodes.get('[data-home-all]').hidden, true);

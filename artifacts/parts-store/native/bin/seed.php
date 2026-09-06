@@ -152,12 +152,10 @@ try {
             }
             $insertLink->execute([$id, $modelIds[$modelKey]]);
         }
-        if ($featured) {
-            $imageUrl = explode('!', $row['images'] ?? '')[0];
-            $imageUrl = preg_replace('#^http://#', 'https://', trim($imageUrl));
-            if (str_starts_with($imageUrl, 'https://ferrytelecom.com/wp-content/uploads/')) {
-                $imagesToFetch[] = ['id' => $id, 'sku' => $sku, 'url' => $imageUrl, 'category' => $category];
-            }
+        $imageUrl = explode('!', $row['images'] ?? '')[0];
+        $imageUrl = preg_replace('#^http://#', 'https://', trim($imageUrl));
+        if (preg_match('#^https://(?:www\.)?ferrytelecom\.com/wp-content/uploads/#i', $imageUrl)) {
+            $imagesToFetch[] = ['id' => $id, 'sku' => $sku, 'url' => $imageUrl, 'category' => $category];
         }
         $count++;
     }

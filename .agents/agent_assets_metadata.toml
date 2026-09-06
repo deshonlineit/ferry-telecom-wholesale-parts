@@ -70,3 +70,17 @@ mtime_ms = 1788657423186
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/dab3964e-3b6f-47f5-9f95-30006ebf2210/68fb07e8-9c17-4f05-89c2-1d81059e2530"
 storage_version_token = "1788657817506921"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "2FG5BoVsSqk_IvdMM7YJn"
+uri = "file://screenshots/compact-models-desktop.jpg"
+type = "image"
+title = "Compacte modellenkeuze"
+description = "Alle 46 iPhone-modellen voor LCD in beeld op 1024×900 pixels, zonder jaarblokken."
+logical_id = "34af937c-0f2e-4a41-871b-63efd5d14490"
+content_hash = "sha256:a14a230518de64f0a0bed4d49f32d61fe7e7296070dc58efacd612ed731ee4e0"
+size = 111175
+mtime_ms = 1788698618952
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/34af937c-0f2e-4a41-871b-63efd5d14490/8a575da2-2a85-443e-a072-a465f9000102"
+storage_version_token = "1788698731142556"
+content_type = "image/jpeg"

@@ -1,7 +1,7 @@
 /* Catalog navigation and device selection. Kept separate from buying flows. */
 (function () {
     const escape = window.Core.escapeHtml;
-    const allowed = ['q', 'category', 'part', 'brand', 'model', 'quality', 'stock', 'featured', 'sort', 'page', 'limit'];
+    const allowed = ['q', 'category', 'part', 'brand', 'family', 'model', 'quality', 'stock', 'featured', 'sort', 'page', 'limit'];
     const getParams = value => new URLSearchParams(value instanceof URLSearchParams ? value.toString() : value || '');
     const D = window.Discovery = {
         buildUrl(params, changes = {}) {
@@ -13,6 +13,7 @@
                 else next.set(key, String(value));
             }
             if ('brand' in changes && String(changes.brand || '') !== String(getParams(params).get('brand') || '') && !('model' in changes)) next.delete('model');
+            if ('family' in changes && String(changes.family || '') !== String(getParams(params).get('family') || '') && !('model' in changes)) next.delete('model');
             if ('category' in changes && !('part' in changes) && (!changes.category || String(changes.category) !== String(getParams(params).get('category') || ''))) next.delete('part');
             if (Object.keys(changes).some(key => key !== 'page')) next.delete('page');
             return window.APP_BASE + 'catalog' + (next.size ? '?' + next.toString() : '');
@@ -157,14 +158,15 @@
             const cat = catalog.categories.find(c => String(c.id) === (params.get('category') || String(part?.category_id || '')));
             const brand = catalog.brands.find(b => String(b.id) === params.get('brand'));
             const model = catalog.models.find(m => String(m.id) === params.get('model'));
+            const family = (catalog.device_families || []).find(item => item.id === params.get('family'));
             if (model) window.FastFinder.remember(model);
             const query = params.get('q') || '';
             const categoryName = cat?.slug === 'housing' ? 'Behuizing & onderdelen' : cat?.name;
             const subject = part?.name || categoryName || 'Onderdelen';
             const title = model ? `${subject} voor ${model.name}` : (part?.name || categoryName || (query ? 'Zoekresultaten' : 'Alle onderdelen'));
-            const showCategoryModels = Boolean(cat || part || query);
+            const showCategoryModels = Boolean(cat || part || query || family);
             const chips = [
-                query && ['q', `“${query}”`], cat && ['category', categoryName], part && ['part', part.name], brand && ['brand', brand.name],
+                query && ['q', `“${query}”`], cat && ['category', categoryName], part && ['part', part.name], family && ['family', family.label], brand && ['brand', brand.name],
                 model && ['model', model.name], params.get('quality') && ['quality', params.get('quality')],
                 params.get('stock') && ['stock', params.get('stock') === 'out_of_stock' ? 'Tijdelijk uitverkocht' : 'Op voorraad'],
                 params.get('featured') && ['featured', 'Uitgelicht']
@@ -197,7 +199,7 @@
                 ${typePicker}
                 ${showCategoryModels ? window.CategoryModels.render(catalog, params, part?.name || categoryName || 'Uw zoekopdracht') : ''}
                 <div class="catalog-layout">
-                    <section class="catalog-main" aria-label="Productresultaten">
+                    <section class="catalog-main" data-catalog-results tabindex="-1" aria-label="Productresultaten">
                         <div class="catalog-refine-row">${showCategoryModels ? '' : `<label class="catalog-tool-field">Merk<select id="catalog-brand" class="form-control"><option value="">Alle merken</option>${catalog.brands.filter(b => b.count > 0 || String(b.id) === params.get('brand')).map(b => `<option value="${b.id}" ${String(b.id) === params.get('brand') ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label>`}
                         <label class="catalog-tool-field">Kwaliteit<select id="quick-quality" class="form-control"><option value="">Alle kwaliteiten</option>${[...new Set([...catalog.qualities, params.get('quality')].filter(Boolean))].map(q => `<option value="${escape(q)}" ${q === params.get('quality') ? 'selected' : ''}>${escape(q)}</option>`).join('')}</select></label>
                         <button type="button" class="stock-shortcut ${params.get('stock') === 'in_stock' ? 'active' : ''}" data-stock-toggle aria-pressed="${params.get('stock') === 'in_stock'}">Op voorraad</button>
@@ -234,6 +236,12 @@
             }
             document.getElementById('catalog-brand')?.addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {brand: event.target.value})));
             window.CategoryModels.bind(root.querySelector('[data-category-models]'), catalog, params);
+            if (D.focusResultsAfterModel) {
+                D.focusResultsAfterModel = false;
+                const results = root.querySelector('[data-catalog-results]');
+                results.focus({preventScroll: true});
+                results.scrollIntoView({block: 'start'});
+            }
             document.getElementById('quick-quality').addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {quality: event.target.value})));
             root.querySelector('[data-stock-toggle]').addEventListener('click', () => window.Router.navigate(D.buildUrl(params, {stock: params.get('stock') === 'in_stock' ? '' : 'in_stock'})));
             document.getElementById('catalog-sort').addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {sort: event.target.value})));

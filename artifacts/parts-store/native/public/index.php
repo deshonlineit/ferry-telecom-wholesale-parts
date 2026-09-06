@@ -70,21 +70,21 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <header class="app-header">
         <div class="container header-inner">
             <a href="/test-shop/" class="logo" aria-label="Home">
-                <img src="/test-shop/assets/logo.svg" alt="Ferry Telecom Wholesale">
+                <img src="/test-shop/assets/logo.svg" alt="Ferry Telecom Wholesale" style="height: 28px;">
             </a>
             
-            <div class="search-bar">
+            <div class="search-bar" style="flex: 1; max-width: 400px; margin: 0 2rem;">
                 <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
-                    <div class="search-input-wrapper">
-                        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="search" name="q" id="search-input" placeholder="Wat zoekt u? (Naam, SKU, of model...)" aria-label="Zoeken in assortiment" role="combobox" aria-autocomplete="list" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput ? window.App.handleSearchInput(this.value, 'search-input') : window.App.handleSearchInput(this.value)" onfocus="window.App.handleSearchFocus ? window.App.handleSearchFocus('search-input') : window.App.handleSearchFocus()" onkeydown="window.App.handleSearchKeydown(event)">
-                        <button type="submit" class="search-submit" aria-label="Zoeken">Zoeken</button>
+                    <div class="search-input-wrapper" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #86868b;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="search" name="q" id="search-input" placeholder="Wat zoekt u?" aria-label="Zoeken in assortiment" role="combobox" aria-autocomplete="list" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" style="border: none; background: transparent; width: 100%; outline: none; font-size: 0.9375rem;" oninput="window.App.handleSearchInput ? window.App.handleSearchInput(this.value, 'search-input') : window.App.handleSearchInput(this.value)" onfocus="window.App.handleSearchFocus ? window.App.handleSearchFocus('search-input') : window.App.handleSearchFocus()" onkeydown="window.App.handleSearchKeydown(event)">
+                        <button type="submit" class="search-submit" aria-label="Zoeken" style="display:none;">Zoeken</button>
                     </div>
                     <div id="search-suggestions" class="search-suggestions" role="listbox" aria-label="Zoeksuggesties" style="display:none;"></div>
                 </form>
             </div>
             
-            <nav class="user-nav" id="user-nav">
+            <nav class="user-nav" id="user-nav" style="display: flex; gap: 1.5rem; align-items: center;">
                 <!-- Nav populated by JS -->
             </nav>
         </div>
