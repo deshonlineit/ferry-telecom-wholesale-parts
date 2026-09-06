@@ -31,7 +31,10 @@ if [[ ! -d "$STATE/data/mysql" ]]; then
   mysqld --no-defaults --initialize-insecure --datadir="$STATE/data" --log-error="$STATE/mysql.log"
 fi
 if ! mysqladmin --no-defaults --socket="$STATE/mysql.sock" --user=root ping >/dev/null 2>&1; then
-  native_mysql_clear_stale_runtime "$STATE"
+  if ! native_mysql_clear_stale_runtime "$STATE"; then
+    echo "Isolated database runtime could not be reclaimed safely; startup stopped and the data directory was left untouched." >&2
+    exit 1
+  fi
   mysqld --no-defaults --datadir="$STATE/data" --socket="$STATE/mysql.sock" --pid-file="$STATE/mysql.pid" \
     --skip-networking --mysqlx=0 --log-error="$STATE/mysql.log" --secure-file-priv=NULL 9>&- &
   DB_PID=$!

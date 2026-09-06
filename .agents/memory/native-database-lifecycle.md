@@ -7,4 +7,6 @@ Treat socket, lock and PID files as process metadata, not proof that a database 
 
 **Why:** The isolated PHP preview once failed before its web server started because an old MySQL socket lock survived the previous process and blocked the replacement server. The publishing history shown alongside the white preview was unrelated to that startup failure.
 
+Reclaiming those files must fail closed: canonicalize the data directory before comparing it with a running database, treat unreadable or missing ownership information as "still owned", and re-verify ownership immediately before and after removal rather than trusting one earlier snapshot.
+
 **How to apply:** Inspect the native workflow and database startup logs before changing frontend code or publishing settings. Preserve the data directory and existing catalog/orders; do not reinitialize or replace the database to clear a runtime lock. Ensure owned child processes are allowed to shut down cleanly.

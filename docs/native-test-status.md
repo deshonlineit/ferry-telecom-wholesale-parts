@@ -10,7 +10,7 @@ De native service is uitsluitend een ontwikkel-/testomgeving. De productie-build
 
 - De native service stopte vóór het starten van PHP doordat een achtergebleven MySQL-socketvergrendeling de databaseherstart blokkeerde.
 - De opstartprocedure controleert nu echte socket-/proceseigendom voordat uitsluitend verouderde procesbestanden worden verwijderd. Parallelle initialisatie wordt vergrendeld, database-opstartfouten worden direct gemeld en eigen achtergrondprocessen worden bij afsluiten afgewacht.
-- Zes gerichte controles slagen: achtergebleven bestanden/PID-hergebruik, actieve socket, initialiserende database, beide datadir-argumentvormen, onafhankelijke database en ontbrekende eigendomsinformatie.
+- Veertien gerichte controles slagen: achtergebleven bestanden/PID-hergebruik, actieve socket, initialiserende database, alle datadir-argumentvormen inclusief niet-canonieke schrijfwijzen, database zonder datadir-argument, onleesbare procesinformatie, ontbrekende eigendomsinformatie, onafhankelijke database, en een socket die tijdens of vlak na de validatie wordt geclaimd. Onbekende eigendom leidt altijd tot behouden bestanden en een gestopte start.
 - Na de herstart zijn homepage en catalogus-API bereikbaar en visueel gecontroleerd. De catalogus toont 7.856 actieve producten en 291 modellen; de database bevat nog alle 7.858 productrecords en acht bestaande bestellingen. Bewijs: `screenshots/native-preview-restored.jpg`.
 - Geen databaseherinitialisatie, nieuwe bestellingen of publicatie uitgevoerd. Deze controle betreft alleen de native service; losse controles van het oude prototype zijn niet opnieuw uitgevoerd.
 
