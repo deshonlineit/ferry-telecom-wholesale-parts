@@ -50,6 +50,10 @@ router.patch("/me", requireCustomer, async (req, res): Promise<void> => {
     return;
   }
   const { companyName, contactName, defaultShippingAddress } = parsed.data;
+  if (!companyName.trim() || !contactName.trim()) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
 
   await db
     .update(customersTable)

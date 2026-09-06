@@ -32,6 +32,10 @@ args = "stock-race-test"
 task = "workflow.run"
 args = "smartwatch-search-test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "profile-test"
+
 [[workflows.workflow]]
 name = "isolation-test"
 author = "agent"
@@ -75,6 +79,17 @@ args = "node artifacts/api-server/tests/smartwatch-search.test.mjs"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "profile-test"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run test:profile"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [agent]
 stack = "PNPM_WORKSPACE"
