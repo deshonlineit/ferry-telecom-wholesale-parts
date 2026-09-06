@@ -36,11 +36,21 @@ import {
   AdminUpdateOrderStatusParams,
   AdminUpdateOrderStatusBody,
   AdminUpdateOrderStatusResponse,
+  AdminImportProductsBody,
+  AdminImportProductsResponse,
 } from "@workspace/api-zod";
 import { requireStaff } from "../middlewares/requireStaff";
-import { classifyToCategoryId } from "../lib/classifyProduct";
+import { classifyProductNames, classifyToCategoryId } from "../lib/classifyProduct";
+import {
+  CsvImportAbortedError,
+  CsvImportClassificationError,
+  CsvImportStructuralError,
+  importProductCsv,
+} from "../lib/productCsvImport";
 
 const router: IRouter = Router();
+const MAX_CONCURRENT_CSV_IMPORTS = 2;
+let activeCsvImports = 0;
 
 // Guard the entire namespace, including future admin endpoints.
 router.use("/admin", requireStaff);
@@ -184,6 +194,58 @@ router.post("/admin/products", async (req, res): Promise<void> => {
 
   const [row] = await adminProductSelect().where(eq(productsTable.id, created.id));
   res.status(201).json(AdminCreateProductResponse.parse(productToApi(row)));
+});
+
+router.post("/admin/products/import", async (req, res): Promise<void> => {
+  const body = AdminImportProductsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  if (activeCsvImports >= MAX_CONCURRENT_CSV_IMPORTS) {
+    res.status(429).json({ error: "Too many product imports are already running" });
+    return;
+  }
+  activeCsvImports += 1;
+  let disconnected = false;
+  const abortController = new AbortController();
+  req.once("aborted", () => {
+    disconnected = true;
+    abortController.abort();
+  });
+  res.once("close", () => {
+    if (!res.writableEnded) {
+      disconnected = true;
+      abortController.abort();
+    }
+  });
+  try {
+    const report = await importProductCsv(
+      body.data.csv,
+      classifyProductNames,
+      undefined,
+      () => disconnected,
+      abortController.signal,
+    );
+    if (!disconnected) res.json(AdminImportProductsResponse.parse(report));
+  } catch (error) {
+    if (error instanceof CsvImportStructuralError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    if (error instanceof CsvImportClassificationError) {
+      req.log.error({ err: error }, "CSV product classification failed");
+      res.status(502).json({
+        error: "Automatic category classification failed. No products were imported.",
+      });
+      return;
+    }
+    if (error instanceof CsvImportAbortedError) return;
+    req.log.error({ err: error }, "CSV product import failed");
+    if (!disconnected) res.status(500).json({ error: "Product import failed. No products were imported." });
+  } finally {
+    activeCsvImports -= 1;
+  }
 });
 
 router.patch("/admin/products/:id", async (req, res): Promise<void> => {

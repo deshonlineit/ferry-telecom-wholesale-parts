@@ -63,6 +63,38 @@ export interface ProductInput {
   description?: string | null;
 }
 
+export interface ProductCsvInput {
+  /** UTF-8 CSV text, limited by the server to 1 MiB and 1000 data rows. */
+  csv: string;
+}
+
+export type ProductCsvRowResultStatus = typeof ProductCsvRowResultStatus[keyof typeof ProductCsvRowResultStatus];
+
+
+export const ProductCsvRowResultStatus = {
+  imported: 'imported',
+  duplicate: 'duplicate',
+  invalid: 'invalid',
+} as const;
+
+export interface ProductCsvRowResult {
+  row: number;
+  sku: string;
+  name: string;
+  status: ProductCsvRowResultStatus;
+  message: string;
+  productId?: number;
+  category?: string;
+}
+
+export interface ProductCsvReport {
+  totalRows: number;
+  imported: number;
+  duplicates: number;
+  invalid: number;
+  rows: ProductCsvRowResult[];
+}
+
 export interface ProductPatch {
   /** @minLength 1 */
   sku?: string;

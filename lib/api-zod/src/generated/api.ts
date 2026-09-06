@@ -747,6 +747,36 @@ export const AdminUpdateProductResponse = zod.object({
 
 
 /**
+ * Imports comma- or semicolon-delimited UTF-8 CSV. Required headers are
+ * sku, name, brand, price (or listPrice), and stock. Category/categoryId
+ * columns are accepted but ignored because every accepted row is assigned
+ * a category by AI. Prices accept a decimal point or decimal comma (quote
+ * decimal-comma values in comma-delimited files). Existing products are
+ * never updated.
+ * @summary Import new products from CSV
+ */
+export const AdminImportProductsBody = zod.object({
+  "csv": zod.string().describe('UTF-8 CSV text, limited by the server to 1 MiB and 1000 data rows.')
+})
+
+export const AdminImportProductsResponse = zod.object({
+  "totalRows": zod.int(),
+  "imported": zod.int(),
+  "duplicates": zod.int(),
+  "invalid": zod.int(),
+  "rows": zod.array(zod.object({
+  "row": zod.int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "status": zod.enum(['imported', 'duplicate', 'invalid']),
+  "message": zod.string(),
+  "productId": zod.int().optional(),
+  "category": zod.string().optional()
+}))
+})
+
+
+/**
  * @summary Create a category
  */
 

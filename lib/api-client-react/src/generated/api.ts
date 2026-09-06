@@ -50,6 +50,8 @@ import type {
   OrderSummary,
   PriceTier,
   Product,
+  ProductCsvInput,
+  ProductCsvReport,
   ProductDetail,
   ProductImageInput,
   ProductImageResult,
@@ -2290,6 +2292,83 @@ export const useAdminUpdateProduct = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getAdminUpdateProductMutationOptions(options));
+    }
+
+export const getAdminImportProductsUrl = () => {
+
+
+
+
+  return `/api/admin/products/import`
+}
+
+/**
+ * Imports comma- or semicolon-delimited UTF-8 CSV. Required headers are
+ * sku, name, brand, price (or listPrice), and stock. Category/categoryId
+ * columns are accepted but ignored because every accepted row is assigned
+ * a category by AI. Prices accept a decimal point or decimal comma (quote
+ * decimal-comma values in comma-delimited files). Existing products are
+ * never updated.
+ * @summary Import new products from CSV
+ */
+export const adminImportProducts = async (productCsvInput: ProductCsvInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductCsvReport> => {
+
+  return customFetch<ProductCsvReport>(getAdminImportProductsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(productCsvInput)
+  }
+);}
+
+
+
+
+
+export const getAdminImportProductsMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminImportProducts>>, TError,{data: BodyType<ProductCsvInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminImportProducts>>, TError,{data: BodyType<ProductCsvInput>}, TContext> => {
+
+const mutationKey = ['adminImportProducts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminImportProducts>>, {data: BodyType<ProductCsvInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminImportProducts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminImportProductsMutationResult = NonNullable<Awaited<ReturnType<typeof adminImportProducts>>>
+    export type AdminImportProductsMutationBody = BodyType<ProductCsvInput>
+    export type AdminImportProductsMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Import new products from CSV
+ */
+export const useAdminImportProducts = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminImportProducts>>, TError,{data: BodyType<ProductCsvInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminImportProducts>>,
+        TError,
+        {data: BodyType<ProductCsvInput>},
+        TContext
+      > => {
+      return useMutation(getAdminImportProductsMutationOptions(options));
     }
 
 export const getAdminCreateCategoryUrl = () => {

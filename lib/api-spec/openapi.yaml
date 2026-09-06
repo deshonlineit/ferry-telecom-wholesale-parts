@@ -612,6 +612,43 @@ paths:
           description: Not found
         "400":
           description: Invalid input
+  /admin/products/import:
+    post:
+      operationId: adminImportProducts
+      tags: [admin]
+      summary: Import new products from CSV
+      description: |
+        Imports comma- or semicolon-delimited UTF-8 CSV. Required headers are
+        sku, name, brand, price (or listPrice), and stock. Category/categoryId
+        columns are accepted but ignored because every accepted row is assigned
+        a category by AI. Prices accept a decimal point or decimal comma (quote
+        decimal-comma values in comma-delimited files). Existing products are
+        never updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductCsvInput"
+      responses:
+        "200":
+          description: Ordered per-row import report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductCsvReport"
+        "400":
+          description: Invalid request or structurally invalid CSV
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: AI classification failed; no products were imported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /admin/categories:
     post:
       operationId: adminCreateCategory
@@ -869,6 +906,39 @@ components:
         featured: { type: boolean }
         imageUrl: { type: ["string", "null"] }
         description: { type: ["string", "null"] }
+    ProductCsvInput:
+      type: object
+      required: [csv]
+      additionalProperties: false
+      properties:
+        csv:
+          type: string
+          description: UTF-8 CSV text, limited by the server to 1 MiB and 1000 data rows.
+    ProductCsvRowResult:
+      type: object
+      required: [row, sku, name, status, message]
+      properties:
+        row: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        status:
+          type: string
+          enum: [imported, duplicate, invalid]
+        message: { type: string }
+        productId: { type: integer }
+        category: { type: string }
+    ProductCsvReport:
+      type: object
+      required: [totalRows, imported, duplicates, invalid, rows]
+      properties:
+        totalRows: { type: integer }
+        imported: { type: integer }
+        duplicates: { type: integer }
+        invalid: { type: integer }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductCsvRowResult"
     ProductPatch:
       type: object
       properties:

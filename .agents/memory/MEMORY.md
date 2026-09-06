@@ -4,7 +4,7 @@
 - [Rebuild api-zod dist after codegen/merges](db-types-rebuild.md) — stale lib/api-zod dist .d.ts makes new spec fields invisible to consumers; run `tsc -b lib/api-zod lib/api-client-react --force` and re-typecheck.
 - [Orval schema naming collisions](orval-schema-naming.md) — never name an OpenAPI component schema `<OperationId>{Body,Response}`; orval already generates those names and the api-zod exports clash.
 - [Radix Select empty values](radix-select-empty-value.md) — never use SelectItem value=""; use "all"/"none" sentinels or the page crashes at render.
-- [AI catalog reclassification](ai-catalog-taxonomy.md) — categories are AI-assigned, not from the WooCommerce CSV; rerun scripts/reclassify-products.mjs (resumable cache) after imports; keep smart-search synonyms in sync with category slugs.
+- [AI catalog reclassification](ai-catalog-taxonomy.md) — supplier categories are not authoritative; only unclassified imports need a catalog reclassification pass.
 - [Taxonomy sync](taxonomy-sync.md) — taxonomy is duplicated in reclassify script and API classifier; category moves must ship via idempotent split scripts in post-merge.sh, not dev-DB edits.
 - [Post-merge reconciliation](post-merge-reconciliation.md) — after task merges: rerun codegen + zod/v4 sed, apply new DB columns, pnpm install, restart workflows; check for dropped auth middleware.
 - [Hosting audit boundaries](hosting-audit-boundaries.md) — cPanel schema export may omit tables; source presence and database metadata do not prove live WordPress behavior.

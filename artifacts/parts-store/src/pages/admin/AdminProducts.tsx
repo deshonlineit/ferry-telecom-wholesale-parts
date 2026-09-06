@@ -12,6 +12,7 @@ import {
 } from '@workspace/api-client-react';
 import type { AdminProduct, ProductInput, ProductPatch } from '@workspace/api-client-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ProductCsvImport } from '@/components/admin/ProductCsvImport';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -217,7 +218,7 @@ export default function AdminProducts() {
     <AdminLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Products</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -225,6 +226,8 @@ export default function AdminProducts() {
             </p>
           </div>
 
+          <div className="flex items-center gap-2">
+          <ProductCsvImport />
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2" data-testid="button-create-product">
@@ -247,6 +250,7 @@ export default function AdminProducts() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Filters */}
