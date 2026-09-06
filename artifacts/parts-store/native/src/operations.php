@@ -266,6 +266,7 @@ function opAdminProducts(string $method, string $path): bool
         $countsStatement->execute($params);
         $counts = $countsStatement->fetch(PDO::FETCH_ASSOC) ?: ['all' => 0, 'active' => 0, 'archived' => 0];
         foreach ($counts as $key => $value) $counts[$key] = (int)$value;
+        $featuredTotal = (int)db()->query('SELECT COUNT(*) FROM products WHERE featured=1')->fetchColumn();
         $count = db()->prepare('SELECT COUNT(*) FROM products p' . $where . $statusWhere);
         $count->execute($params);
         $total = (int)$count->fetchColumn();
@@ -289,6 +290,7 @@ function opAdminProducts(string $method, string $path): bool
             'pages' => $pages,
             'status' => $status,
             'counts' => $counts,
+            'featured_total' => $featuredTotal,
             'stock_threshold' => opSetting('low_stock_threshold', 5),
         ]);
     }

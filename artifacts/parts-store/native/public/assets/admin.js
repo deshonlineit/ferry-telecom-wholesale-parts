@@ -181,7 +181,10 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
 
     const content = `
         <div class="page-header">
-            <h1>Producten</h1>
+            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                <h1>Producten</h1>
+                <span class="wb-badge wb-badge-warning" aria-live="polite" data-testid="admin-featured-total">Uitgelicht totaal: ${data.featured_total}</span>
+            </div>
             <div class="page-actions">
                 <button type="button" class="btn btn-outline action-import">CSV Import</button>
                 <a href="${window.APP_BASE}admin/products/new" class="btn">Nieuw Product</a>

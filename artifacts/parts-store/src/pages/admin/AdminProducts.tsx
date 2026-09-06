@@ -59,6 +59,9 @@ const QUALITY_OPTIONS = [
   'Retail',
 ];
 
+// Keep this query independent of table filters and pagination.
+const FEATURED_COUNT_PARAMS = { featured: true, page: 1, pageSize: 1 };
+
 export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -83,11 +86,29 @@ export default function AdminProducts() {
     query: { queryKey: getAdminListProductsQueryKey(params) },
   });
 
+  const {
+    data: featuredPage,
+    isFetching: isFeaturedCountFetching,
+    isError: isFeaturedCountError,
+  } = useAdminListProducts(FEATURED_COUNT_PARAMS, {
+    query: {
+      queryKey: getAdminListProductsQueryKey(FEATURED_COUNT_PARAMS),
+      staleTime: 0,
+      refetchOnWindowFocus: true,
+    },
+  });
+
   const { data: categories } = useListCategories();
   const { data: brands } = useListBrands();
 
-  const createProduct = useAdminCreateProduct();
-  const updateProduct = useAdminUpdateProduct();
+  const refreshProducts = () =>
+    queryClient.invalidateQueries({ queryKey: getAdminListProductsQueryKey() });
+  const createProduct = useAdminCreateProduct({
+    mutation: { onSuccess: refreshProducts },
+  });
+  const updateProduct = useAdminUpdateProduct({
+    mutation: { onSuccess: refreshProducts },
+  });
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -113,7 +134,6 @@ export default function AdminProducts() {
       { data },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getAdminListProductsQueryKey() });
           setIsCreateOpen(false);
           toast({ title: 'Product created', description: `${data.name} added to catalog.` });
         },
@@ -152,7 +172,6 @@ export default function AdminProducts() {
       { id: editingProduct.id, data },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getAdminListProductsQueryKey() });
           setIsEditOpen(false);
           setEditingProduct(null);
           toast({ title: 'Product updated', description: `${data.name} saved.` });
@@ -173,7 +192,6 @@ export default function AdminProducts() {
       { id: product.id, data: { featured: !product.featured } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getAdminListProductsQueryKey() });
           toast({
             title: !product.featured ? 'Marked as featured' : 'Removed from featured',
             description: `${product.name} ${!product.featured ? 'will show in "Popular This Week" on the homepage.' : 'no longer curated for the homepage.'}`,
@@ -232,7 +250,7 @@ export default function AdminProducts() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -281,6 +299,17 @@ export default function AdminProducts() {
             <Label htmlFor="featured-only" className="text-sm cursor-pointer">
               Featured only
             </Label>
+            <Badge
+              variant="secondary"
+              className="tabular-nums"
+              role="status"
+              aria-live="polite"
+              aria-busy={isFeaturedCountFetching}
+              title="Total featured products across the entire catalog, regardless of filters"
+              data-testid="badge-featured-count"
+            >
+              Featured total: {isFeaturedCountFetching ? '…' : isFeaturedCountError ? 'unavailable' : featuredPage?.total ?? '…'}
+            </Badge>
           </div>
         </div>
 
