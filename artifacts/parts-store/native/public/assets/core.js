@@ -194,14 +194,27 @@ window.Router = {
         window.scrollTo(0, 0);
     },
     async route() {
+        this.renderVersion = (this.renderVersion || 0) + 1;
+        const renderVersion = this.renderVersion;
+        window.UI.closeModal();
+        window.UI.closeGallery();
         let path = location.pathname;
         if (path.startsWith(window.APP_BASE)) {
             path = path.substring(window.APP_BASE.length);
         }
         if (!path) path = '';
         
+        if (path.startsWith('admin') && window.Core.user && window.Core.user.role === 'staff') {
+            document.body.setAttribute('data-area', 'admin');
+        } else {
+            document.body.removeAttribute('data-area');
+        }
+
         const qs = location.search;
-        const root = document.getElementById('app-root');
+        const mount = document.getElementById('app-root');
+        const root = document.createElement('div');
+        root.className = 'route-content';
+        mount.replaceChildren(root);
         root.innerHTML = '<div class="page-loader"><div class="spinner"></div></div>';
         
         for (const {pattern, handler} of this.routes) {
@@ -210,6 +223,7 @@ window.Router = {
                 try {
                     await handler(match, root, new URLSearchParams(qs));
                 } catch(err) {
+                    if (renderVersion !== this.renderVersion) return;
                     root.innerHTML = `
                         <div class="alert error mt-4">
                             <h3>Er is een fout opgetreden</h3>
@@ -282,32 +296,6 @@ window.App = {
         return `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted); opacity:0.8">${path}</svg>`;
     },
 
-    updateHeroFinder(brandId) {
-        const modelSelect = document.getElementById('hero-model');
-        if (!modelSelect || !this._heroModels) return;
-        modelSelect.innerHTML = '<option value="">Kies Model...</option>';
-        if (!brandId) {
-            modelSelect.disabled = true;
-            return;
-        }
-        modelSelect.disabled = false;
-        this._heroModels.filter(m => m.brand_id == brandId).forEach(m => {
-            const dis = m.count === 0 ? 'disabled' : '';
-            modelSelect.innerHTML += `<option value="${m.id}" ${dis}>${window.Core.escapeHtml(m.name)}</option>`;
-        });
-    },
-
-    submitHeroFinder() {
-        const b = document.getElementById('hero-brand')?.value;
-        const m = document.getElementById('hero-model')?.value;
-        const c = document.getElementById('hero-cat')?.value;
-        const p = new URLSearchParams();
-        if (b) p.set('brand', b);
-        if (m) p.set('model', m);
-        if (c) p.set('category', c);
-        window.Router.navigate(window.APP_BASE + 'catalog?' + p.toString());
-    },
-
     async init() {
         await window.Core.init();
         window.Router.route();
@@ -336,7 +324,17 @@ window.App = {
         }
     },
 
-    handleSearchInput(val) {
+    searchElements() {
+        const owner = this.searchOwner || 'search-input';
+        return {
+            input: document.getElementById(owner),
+            container: document.getElementById(owner === 'search-input' ? 'search-suggestions' : owner + '-suggestions')
+        };
+    },
+
+    handleSearchInput(val, owner = 'search-input') {
+        if (owner !== (this.searchOwner || 'search-input')) window.UI.closeSuggestions();
+        this.searchOwner = owner;
         clearTimeout(this.searchTimer);
         if (this.searchAbort) this.searchAbort.abort();
         const sequence = this.searchSequence = (this.searchSequence || 0) + 1;
@@ -359,10 +357,11 @@ window.App = {
 
     handleSearchKeydown(event) {
         if (event.key === 'Escape') {
+            event.preventDefault();
             window.UI.closeSuggestions();
             return;
         }
-        const container = document.getElementById('search-suggestions');
+        const {container} = this.searchElements();
         if (!container || container.style.display === 'none') return;
         const options = [...container.querySelectorAll('a')];
         if (!options.length) return;
@@ -388,19 +387,20 @@ window.App = {
         options[this.searchIndex].scrollIntoView({block: 'nearest'});
     },
 
-    handleSearchFocus() {
-        const input = document.getElementById('search-input');
+    handleSearchFocus(owner = 'search-input') {
+        if (owner !== (this.searchOwner || 'search-input')) window.UI.closeSuggestions();
+        this.searchOwner = owner;
+        const input = document.getElementById(owner);
         if (input && input.value.trim()) {
-            this.handleSearchInput(input.value);
+            this.handleSearchInput(input.value, owner);
         }
     },
 
     renderSuggestions(data, query) {
-        const container = document.getElementById('search-suggestions');
+        const {container, input} = this.searchElements();
         const esc = window.Core.escapeHtml;
         if (!container) return;
         this.searchIndex = -1;
-        const input = document.getElementById('search-input');
         input?.setAttribute('aria-expanded', 'true');
         input?.removeAttribute('aria-activedescendant');
         
@@ -448,7 +448,7 @@ window.App = {
         html += `<a href="${window.APP_BASE}catalog?q=${encodeURIComponent(query)}" class="suggestion-footer">Bekijk alle ${data.total} resultaten &rarr;</a>`;
         container.innerHTML = html;
         container.querySelectorAll('a').forEach((option, index) => {
-            option.id = 'search-option-' + index;
+            option.id = (this.searchOwner || 'search-input') + '-option-' + index;
             option.setAttribute('role', 'option');
             option.setAttribute('aria-selected', 'false');
         });
@@ -493,25 +493,58 @@ document.addEventListener('click', e => {
 window.addEventListener('popstate', () => window.Router.route());
 
 window.UI = {
-    showModal(title, contentHtml) {
+    showModal(title, contentHtml, options = {}) {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `
-            <div class="modal-content">
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title-${Date.now()}">
                 <div class="modal-header">
-                    <h2>${window.Core.escapeHtml(title)}</h2>
+                    <h2 id="modal-title-${Date.now()}">${window.Core.escapeHtml(title)}</h2>
                     <button type="button" class="modal-close" aria-label="Sluiten">&times;</button>
                 </div>
                 <div class="modal-body">${contentHtml}</div>
             </div>
         `;
+        
+        const previousActiveElement = document.activeElement;
+        
+        const cleanup = () => {
+            document.removeEventListener('keydown', keyHandler);
+            if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+                previousActiveElement.focus();
+            }
+        };
+
+        const close = () => {
+            window.UI.closeModal(overlay);
+            cleanup();
+        };
+
+        const keyHandler = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                close();
+            }
+        };
+
         document.body.appendChild(overlay);
-        overlay.querySelector('.modal-close').onclick = () => window.UI.closeModal(overlay);
-        overlay.addEventListener('click', e => { if(e.target === overlay) window.UI.closeModal(overlay); });
+        overlay.querySelector('.modal-close').onclick = close;
+        overlay.addEventListener('click', e => { if(e.target === overlay) close(); });
+        document.addEventListener('keydown', keyHandler);
+        
+        const focusable = overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (focusable.length) focusable[0].focus();
+        
+        overlay._cleanup = cleanup;
         return overlay;
     },
     
     closeModal(overlay) {
+        if (!overlay) {
+            document.querySelectorAll('.modal-overlay').forEach(item => this.closeModal(item));
+            return;
+        }
+        if (overlay._cleanup) overlay._cleanup();
         if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
     },
     
@@ -520,68 +553,129 @@ window.UI = {
         window.App.searchAbort?.abort();
         window.App.searchSequence = (window.App.searchSequence || 0) + 1;
         window.App.searchIndex = -1;
-        const el = document.getElementById('search-suggestions');
+        const {container: el, input} = window.App.searchElements();
         if (el) el.style.display = 'none';
-        const input = document.getElementById('search-input');
         input?.setAttribute('aria-expanded', 'false');
         input?.removeAttribute('aria-activedescendant');
     },
 
-    showGallery(images, initialIndex = 0) {
+    showGallery(images, initialIndex = 0, options = {}) {
         if (!images || !images.length) return;
-        let currentIndex = initialIndex;
-        const esc = window.Core.escapeHtml;
-        
-        const overlay = document.createElement('div');
-        overlay.className = 'gallery-overlay';
-        
+        this.closeGallery();
+        const validInitialIndex = Number.isInteger(initialIndex) ? initialIndex : 0;
+        let currentIndex = Math.max(0, Math.min(validInitialIndex, images.length - 1));
+        const opener = options.opener || document.activeElement;
+        const previousOverflow = document.body.style.overflow;
+        const dialog = document.createElement('dialog');
+        const titleId = `photo-preview-title-${Date.now()}`;
+        dialog.className = 'photo-preview-dialog';
+        dialog.setAttribute('aria-labelledby', titleId);
+        dialog.innerHTML = `
+            <div class="photo-preview-shell">
+                <header class="photo-preview-header gallery-toolbar">
+                    <div class="photo-preview-heading">
+                        <h2 class="photo-preview-title" id="${titleId}"></h2>
+                        <span class="photo-preview-counter gallery-counter" aria-live="polite"></span>
+                    </div>
+                    <button type="button" class="photo-preview-close gallery-close" aria-label="Fotovoorbeeld sluiten">&times;</button>
+                </header>
+                <div class="photo-preview-content gallery-content">
+                    <button type="button" class="photo-preview-nav gallery-nav prev" aria-label="Vorige foto">&lsaquo;</button>
+                    <figure class="photo-preview-figure">
+                        <img class="photo-preview-image gallery-img" alt="">
+                    </figure>
+                    <button type="button" class="photo-preview-nav gallery-nav next" aria-label="Volgende foto">&rsaquo;</button>
+                </div>
+            </div>
+        `;
+
+        const title = dialog.querySelector('.photo-preview-title');
+        const counter = dialog.querySelector('.photo-preview-counter');
+        const image = dialog.querySelector('.photo-preview-image');
+        const prevButton = dialog.querySelector('.photo-preview-nav.prev');
+        const nextButton = dialog.querySelector('.photo-preview-nav.next');
+        const productName = options.title || 'Productfoto';
+        title.textContent = productName;
+
         const render = () => {
-            overlay.innerHTML = `
-                <div class="gallery-toolbar">
-                    <span class="gallery-counter">${currentIndex + 1} / ${images.length}</span>
-                    <button class="gallery-close" aria-label="Sluiten">&times;</button>
-                </div>
-                <div class="gallery-content">
-                    <button class="gallery-nav prev" ${currentIndex === 0 ? 'disabled' : ''} aria-label="Vorige">&lsaquo;</button>
-                    <img src="${esc(images[currentIndex].url)}" class="gallery-img" alt="Gallery image">
-                    <button class="gallery-nav next" ${currentIndex === images.length - 1 ? 'disabled' : ''} aria-label="Volgende">&rsaquo;</button>
-                </div>
-            `;
-            
-            overlay.querySelector('.gallery-close').onclick = close;
-            const prevBtn = overlay.querySelector('.gallery-nav.prev');
-            const nextBtn = overlay.querySelector('.gallery-nav.next');
-            if (prevBtn) prevBtn.onclick = (e) => { e.stopPropagation(); prev(); };
-            if (nextBtn) nextBtn.onclick = (e) => { e.stopPropagation(); next(); };
-            
-            const img = overlay.querySelector('.gallery-img');
-            if (img) img.onclick = (e) => e.stopPropagation();
-            overlay.querySelector('.gallery-content').onclick = close;
+            image.src = images[currentIndex].url;
+            image.alt = images.length > 1
+                ? `${productName}, foto ${currentIndex + 1} van ${images.length}`
+                : productName;
+            counter.textContent = images.length > 1 ? `${currentIndex + 1} / ${images.length}` : '';
+            prevButton.disabled = currentIndex === 0;
+            nextButton.disabled = currentIndex === images.length - 1;
         };
-        
-        const next = () => { if (currentIndex < images.length - 1) { currentIndex++; render(); } };
-        const prev = () => { if (currentIndex > 0) { currentIndex--; render(); } };
-        const close = () => {
+        const next = () => {
+            if (currentIndex < images.length - 1) {
+                currentIndex++;
+                render();
+            }
+        };
+        const prev = () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                render();
+            }
+        };
+        let cleanedUp = false;
+        const cleanup = () => {
+            if (cleanedUp) return;
+            cleanedUp = true;
             document.removeEventListener('keydown', keyHandler);
-            overlay.remove();
-            document.body.style.overflow = '';
+            document.body.style.overflow = previousOverflow;
+            dialog.remove();
+            if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus();
         };
-        
+        const close = () => {
+            if (dialog.open) dialog.close();
+            else cleanup();
+        };
         const keyHandler = (e) => {
-            if (e.key === 'Escape') close();
-            else if (e.key === 'ArrowRight') next();
-            else if (e.key === 'ArrowLeft') prev();
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                next();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prev();
+            }
         };
-        
+
+        dialog.querySelector('.photo-preview-close').addEventListener('click', close);
+        prevButton.addEventListener('click', prev);
+        nextButton.addEventListener('click', next);
+        dialog.addEventListener('cancel', event => {
+            event.preventDefault();
+            close();
+        });
+        dialog.addEventListener('close', cleanup);
+        dialog.addEventListener('click', event => {
+            if (event.target !== dialog) return;
+            const rect = dialog.getBoundingClientRect();
+            const inside = event.clientX >= rect.left && event.clientX <= rect.right
+                && event.clientY >= rect.top && event.clientY <= rect.bottom;
+            if (!inside) close();
+        });
         document.addEventListener('keydown', keyHandler);
         document.body.style.overflow = 'hidden';
-        document.body.appendChild(overlay);
+        document.body.appendChild(dialog);
         render();
+        dialog.showModal();
+        dialog.querySelector('.photo-preview-close').focus();
+        return dialog;
+    },
+
+    closeGallery(dialog) {
+        const dialogs = dialog ? [dialog] : [...document.querySelectorAll('.photo-preview-dialog')];
+        dialogs.forEach(item => {
+            if (item.open && typeof item.close === 'function') item.close();
+            else item.remove();
+        });
     }
 };
 
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('#global-search')) {
+    if (!e.target.closest('#global-search, [data-search-root]')) {
         window.UI.closeSuggestions();
     }
 });

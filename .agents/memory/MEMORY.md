@@ -8,5 +8,6 @@
 - [Taxonomy sync](taxonomy-sync.md) — taxonomy is duplicated in reclassify script and API classifier; category moves must ship via idempotent split scripts in post-merge.sh, not dev-DB edits.
 - [Post-merge reconciliation](post-merge-reconciliation.md) — after task merges: rerun codegen + zod/v4 sed, apply new DB columns, pnpm install, restart workflows; check for dropped auth middleware.
 - [Hosting audit boundaries](hosting-audit-boundaries.md) — cPanel schema export may omit tables; source presence and database metadata do not prove live WordPress behavior.
-- [Compatibility provenance](catalog-source-provenance.md) — source model tags can contradict manufacturers; retain supported many-to-many links without treating tags as verified compatibility.
+- [Compatibility provenance](catalog-source-provenance.md) — model tags are evidence, not proof; a compatible device does not imply a product-brand filter.
 - [Native script verification](native-script-verification.md) — per-file syntax checks can miss shared-scope collisions that leave the storefront working but break staff routes.
+- [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.

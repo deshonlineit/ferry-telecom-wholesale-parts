@@ -96,6 +96,9 @@ try:
     partner.call("POST", "/auth/login", {"email": fixtures[2]["email"], "password": fixtures[2]["password"]})
     customer.call("GET", "/admin/products", expected=(403,))
     check(True, "customer cannot access staff product prices")
+    guest.call("GET", "/admin/invoices", expected=(401,))
+    customer.call("GET", "/admin/invoices", expected=(403,))
+    check(True, "invoice control is staff-only")
     catalog = customer.call("GET", "/catalog")
     check(catalog["total"] >= 7851 and len(catalog["categories"]) >= 12, "offline catalog imported")
     unique = secrets.token_hex(5)
@@ -108,6 +111,12 @@ try:
     }
     product = staff.call("POST", "/admin/products", payload)["product"]
     pid = product["id"]
+    staff.call("DELETE", f"/admin/products/{pid}")
+    archived = staff.call("GET", f"/admin/products?status=archived&q=QA-{unique}")
+    check(archived["total"] == 1 and not archived["products"][0]["active"], "archived products remain controllable")
+    staff.call("POST", f"/admin/products/{pid}/restore")
+    restored = staff.call("GET", f"/admin/products?status=active&q=QA-{unique}&page=999")
+    check(restored["page"] == restored["pages"] and restored["products"][0]["active"], "product restore and page clamp work")
     cp = customer.call("GET", f"/products/{pid}")["product"]
     pp = partner.call("GET", f"/products/{pid}")["product"]
     check(cp["price_cents"] == 101 and pp["price_cents"] == 71, "server resolves assigned group prices")
@@ -125,6 +134,34 @@ try:
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 2, "isolated stock decremented exactly once")
     oid = order["id"]
     detail = customer.call("GET", f"/orders/{oid}")
+    initial_invoice = staff.call("GET", f"/admin/invoices?q={order['number']}&limit=1")["invoices"][0]
+    check(initial_invoice["payment_status"] == "unverified" and initial_invoice["outstanding_cents"] is None
+          and initial_invoice["version"] == 0, "existing orders start unverified with unknown outstanding")
+    staff.call("PATCH", f"/admin/invoices/{oid}", {
+        "version": 0, "verified": True, "due_date": "2024-02-30", "paid_cents": 0, "note": "invalid QA date"
+    }, expected=(422,))
+    staff.call("PATCH", f"/admin/invoices/{oid}", {
+        "version": 0, "verified": False, "due_date": None, "paid_cents": 1, "note": "invalid QA cents"
+    }, expected=(422,))
+    staff.call("PATCH", f"/admin/invoices/{oid}", {
+        "version": 0, "verified": True, "due_date": "2000-01-01", "paid_cents": 1, "note": "QA local receipt"
+    }, csrf=False, expected=(403,))
+    overdue = staff.call("PATCH", f"/admin/invoices/{oid}", {
+        "version": 0, "verified": True, "due_date": "2000-01-01", "paid_cents": 1, "note": "QA local receipt"
+    })["invoice"]
+    check(overdue["payment_status"] == "overdue" and overdue["outstanding_cents"] == order["total_cents"] - 1,
+          "verified overdue invoice uses integer local accounting")
+    staff.call("PATCH", f"/admin/invoices/{oid}", {
+        "version": 0, "verified": True, "due_date": None, "paid_cents": 0, "note": "stale QA update"
+    }, expected=(409,))
+    partial = staff.call("PATCH", f"/admin/invoices/{oid}", {
+        "version": overdue["version"], "verified": True, "due_date": None,
+        "paid_cents": 1, "note": "QA partial receipt"
+    })["invoice"]
+    check(partial["payment_status"] == "partial", "partial invoice status is derived from received cents")
+    invoice_page = staff.call("GET", f"/admin/invoices?q={fixtures[1]['email']}&status=unpaid&page=999&limit=1")
+    check(invoice_page["page"] == invoice_page["pages"] and "unverified_count" in invoice_page["summary"],
+          "invoice search filter pagination and global summary work")
     check(detail["items"][0]["price_cents"] == 101 and detail["order"]["subtotal_cents"] == 303, "immutable own-price order snapshot")
     partner.call("GET", f"/orders/{oid}", expected=(403, 404))
     partner.call("GET", f"/documents/{oid}/invoice.pdf", expected=(403, 404))
@@ -150,6 +187,14 @@ try:
     original = detail["order"]
     goods_tax = original["tax_cents"] - (original["shipping_cents"] * original["tax_bps"] + 5000) // 10000
     check(credits == original["subtotal_cents"] + goods_tax, "split-return credits reconcile exactly, excluding shipping VAT")
+    credited_invoice = staff.call("GET", f"/admin/invoices?q={order['number']}")["invoices"][0]
+    check(credited_invoice["credited_cents"] == credits, "issued return credits reduce invoice payable")
+    paid_invoice = staff.call("PATCH", f"/admin/invoices/{oid}", {
+        "version": credited_invoice["version"], "verified": True, "due_date": None,
+        "paid_cents": order["total_cents"], "note": "QA paid locally"
+    })["invoice"]
+    check(paid_invoice["payment_status"] == "paid" and paid_invoice["credit_balance_cents"] == credits,
+          "paid invoice preserves an overpaid credit balance")
     customer.call("POST", "/returns", return_body, expected=(409, 422))
     check(True, "over-return rejected")
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 2, "damaged returns never restock automatically")
@@ -161,10 +206,16 @@ try:
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 1, "rejected checkout leaves stock intact")
     customer.call("POST", "/cart", {"product_id": pid, "quantity": 1})
     order2 = customer.call("POST", "/checkout", {**order_body, "idempotency_key": "cancel-" + unique})["order"]
+    staff.call("PATCH", f"/admin/invoices/{order2['id']}", {
+        "version": 0, "verified": True, "due_date": None, "paid_cents": 10, "note": "QA receipt before cancellation"
+    })
     staff.call("PATCH", f"/admin/orders/{order2['id']}", {"status": "cancelled", "note": "QA cancellation"})
     staff.call("PATCH", f"/admin/orders/{order2['id']}", {"status": "cancelled", "note": "QA retry"})
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 1, "cancellation restocks exactly once")
     cancelled = customer.call("GET", f"/orders/{order2['id']}")
+    cancelled_invoice = staff.call("GET", f"/admin/invoices?q={order2['number']}")["invoices"][0]
+    check(cancelled_invoice["payment_status"] == "cancelled" and cancelled_invoice["outstanding_cents"] == 0
+          and cancelled_invoice["paid_cents"] == 10, "cancelled invoice is non-collectable without erasing receipts")
     customer.call("POST", "/returns", {**return_body, "order_id": order2["id"], "items": [{"order_item_id": cancelled["items"][0]["id"], "quantity": 1}]}, expected=(409, 422))
     check(True, "cancelled orders cannot produce credit")
     fixture_image = next((ROOT / "../../../attached_assets/generated_images/products").glob("*.jpg"))

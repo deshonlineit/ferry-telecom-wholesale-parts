@@ -25,6 +25,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ferry_isolated_test.* TO 'ferry_test_app
 SQL
 printf 'FERRY_LOCAL_TEST_ONLY\n' > "$STATE/isolated.marker"
 mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test < "$ROOT/database/schema.sql"
+for migration in "$ROOT"/database/migrations/*.sql; do
+  [[ -f "$migration" ]] || continue
+  mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test < "$migration"
+done
 php "$ROOT/bin/seed.php"
 if [[ "$(mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test -Nse "SELECT COUNT(*) FROM settings WHERE name='source_compatibility_imported'")" == "0" ]]; then
   php "$ROOT/bin/import-compatibility.php"

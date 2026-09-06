@@ -4,28 +4,7 @@
     window.Workbench = window.Workbench || {};
 })();
 
-const adminOpsLayout = (content, activeRoute) => `
-    <div class="layout-sidebar">
-        <aside>
-            <div class="card admin-card-danger">
-                <h3 class="form-section-title" style="color:var(--wb-danger); margin-top:0.5rem; margin-bottom:1rem;">Beheer (Staff)</h3>
-                <div class="sidebar-nav">
-                    <a href="${window.APP_BASE}admin" class="${activeRoute === 'dashboard' ? 'active' : ''}">Dashboard</a>
-                    <a href="${window.APP_BASE}admin/products" class="${activeRoute === 'products' ? 'active' : ''}">Producten</a>
-                    <a href="${window.APP_BASE}admin/orders" class="${activeRoute === 'orders' ? 'active' : ''}">Bestellingen</a>
-                    <a href="${window.APP_BASE}admin/customers" class="${activeRoute === 'customers' ? 'active' : ''}">Klanten</a>
-                    <a href="${window.APP_BASE}admin/returns" class="${activeRoute === 'returns' ? 'active' : ''}">Retouren</a>
-                    <a href="${window.APP_BASE}admin/buyback" class="${activeRoute === 'buyback' ? 'active' : ''}">Buyback</a>
-                    <a href="${window.APP_BASE}admin/settings" class="${activeRoute === 'settings' ? 'active' : ''}">Instellingen</a>
-                    <a href="${window.APP_BASE}admin/messages" class="${activeRoute === 'messages' ? 'active' : ''}">Lokale Berichten</a>
-                    <a href="${window.APP_BASE}admin/integrations" class="${activeRoute === 'integrations' ? 'active' : ''}">Integraties</a>
-                    <a href="${window.APP_BASE}admin/audit" class="${activeRoute === 'audit' ? 'active' : ''}">Audit Log</a>
-                </div>
-            </div>
-        </aside>
-        <div>${content}</div>
-    </div>
-`;
+const adminOpsLayout = (content, activeRoute) => window.Admin.layout(content, activeRoute);
 
 window.Router.add(/^admin\/returns$/, async (match, root) => {
     if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
@@ -214,7 +193,7 @@ window.Router.add(/^admin\/buyback$/, async (match, root) => {
                 <div class="form-section" style="border:none; padding:0;">
                     <div class="form-group"><label>Toestel Model</label><input type="text" name="model" value="${m}" class="form-control" required placeholder="Bijv. iPhone 13"></div>
                     <div class="form-group"><label>Kwaliteit (Grade)</label><input type="text" name="grade" value="${g}" class="form-control" required placeholder="Bijv. OEM, Grade A"></div>
-                    <div class="form-group"><label>Prijs in centen</label><input type="number" name="price_cents" value="${p}" class="form-control" required placeholder="1500 voor 15.00"></div>
+                    <div class="form-group"><label>Prijs (CHF)</label><input type="number" name="price_chf" value="${(p/100).toFixed(2)}" step="0.01" min="0" class="form-control" required placeholder="15.00"></div>
                     <div class="form-group" style="margin-top:1.5rem">
                         <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
                             <input type="checkbox" name="active" value="1" ${a?'checked':''}> Zichtbaar en actief voor klanten
@@ -228,7 +207,7 @@ window.Router.add(/^admin\/buyback$/, async (match, root) => {
         document.getElementById('bb-item-form').onsubmit = async(e) => {
             e.preventDefault();
             const fd = new FormData(e.target);
-            const payload = { model: fd.get('model'), grade: fd.get('grade'), price_cents: parseInt(fd.get('price_cents'),10), active: fd.get('active')?1:0 };
+            const payload = { model: fd.get('model'), grade: fd.get('grade'), price_cents: Math.round(parseFloat(fd.get('price_chf')) * 100), active: fd.get('active')?1:0 };
             try {
                 await window.Core.fetch(id ? `/admin/buyback/${id}` : '/admin/buyback', { method: id ? 'PATCH':'POST', body: payload });
                 window.UI.closeModal(overlay);

@@ -42,3 +42,31 @@ mtime_ms = 1788649897852
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/f6c74d35-3b79-48bf-af28-08f3a2a63138/67955675-77b0-46ef-b4f7-a13b27c503de"
 storage_version_token = "1788649978417908"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "aTwpQatGQbR3hZWGaAoM8"
+uri = "file://screenshots/discovery-home-desktop.jpg"
+type = "image"
+title = "Nieuwe startpagina"
+description = "Wat zoekt u? met directe zoekhulp, optionele apparaatkeuze en gegroepeerde categorieën."
+logical_id = "acb8bad6-cd19-468d-b5fb-023925aa830b"
+content_hash = "sha256:79f9cecb79db305c4beaa89302953b56c7fd4c67eea716b56b47934f9c0bf883"
+size = 88308
+mtime_ms = 1788657217770
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/acb8bad6-cd19-468d-b5fb-023925aa830b/2f8226ac-1d36-452f-8e42-7d0d635d4cbc"
+storage_version_token = "1788657816902763"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "B4eKOk_dRVC2B1LipjetU"
+uri = "file://screenshots/discovery-catalog-desktop.jpg"
+type = "image"
+title = "Vernieuwd productoverzicht"
+description = "Contextuele selectie, duidelijke sortering en rustigere productkaarten."
+logical_id = "dab3964e-3b6f-47f5-9f95-30006ebf2210"
+content_hash = "sha256:eee41cdea1f94fabe14822e4473f89462d30aabd9e0b08da9f40383e0defdc23"
+size = 114749
+mtime_ms = 1788657423186
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/dab3964e-3b6f-47f5-9f95-30006ebf2210/68fb07e8-9c17-4f05-89c2-1d81059e2530"
+storage_version_token = "1788657817506921"
+content_type = "image/jpeg"

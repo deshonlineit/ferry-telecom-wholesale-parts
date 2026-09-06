@@ -26,6 +26,7 @@
             'shipped': { label: 'Verzonden', badge: 'info' },
             'completed': { label: 'Voltooid', badge: 'success' },
             'cancelled': { label: 'Geannuleerd', badge: 'danger' },
+            'archived': { label: 'Gearchiveerd', badge: 'neutral' },
             'submitted': { label: 'Ingediend', badge: 'warning' },
             'received': { label: 'Ontvangen', badge: 'info' },
             'assessed': { label: 'Beoordeeld', badge: 'info' },
@@ -47,28 +48,7 @@
     }
 })();
 
-const adminLayout = (content, activeRoute) => `
-    <div class="layout-sidebar">
-        <aside>
-            <div class="card admin-card-danger">
-                <h3 class="form-section-title" style="color:var(--wb-danger); margin-top:0.5rem; margin-bottom:1rem;">Beheer (Staff)</h3>
-                <div class="sidebar-nav">
-                    <a href="${window.APP_BASE}admin" class="${activeRoute === 'dashboard' ? 'active' : ''}">Dashboard</a>
-                    <a href="${window.APP_BASE}admin/products" class="${activeRoute === 'products' ? 'active' : ''}">Producten</a>
-                    <a href="${window.APP_BASE}admin/orders" class="${activeRoute === 'orders' ? 'active' : ''}">Bestellingen</a>
-                    <a href="${window.APP_BASE}admin/customers" class="${activeRoute === 'customers' ? 'active' : ''}">Klanten</a>
-                    <a href="${window.APP_BASE}admin/returns" class="${activeRoute === 'returns' ? 'active' : ''}">Retouren</a>
-                    <a href="${window.APP_BASE}admin/buyback" class="${activeRoute === 'buyback' ? 'active' : ''}">Buyback</a>
-                    <a href="${window.APP_BASE}admin/settings" class="${activeRoute === 'settings' ? 'active' : ''}">Instellingen</a>
-                    <a href="${window.APP_BASE}admin/messages" class="${activeRoute === 'messages' ? 'active' : ''}">Lokale Berichten</a>
-                    <a href="${window.APP_BASE}admin/integrations" class="${activeRoute === 'integrations' ? 'active' : ''}">Integraties</a>
-                    <a href="${window.APP_BASE}admin/audit" class="${activeRoute === 'audit' ? 'active' : ''}">Audit Log</a>
-                </div>
-            </div>
-        </aside>
-        <div>${content}</div>
-    </div>
-`;
+const adminLayout = (content, activeRoute) => window.Admin.layout(content, activeRoute);
 
 function renderTable(headers, rowsHtml, emptyMsg) {
     return `
@@ -85,27 +65,56 @@ window.Router.add(/^admin$/, async (match, root) => {
     if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
     const data = await window.Core.fetch('/admin/dashboard');
     const s = data.stats;
+    const f = data.finance;
+    const invAtt = data.invoice_attention;
     const esc = window.Core.escapeHtml;
     
     const content = `
         <div class="page-header">
             <h1>Dashboard</h1>
         </div>
-        ${data.safety.test_mode ? '<div class="alert warning" style="margin-bottom:1.5rem"><strong>TESTMODUS ACTIEF:</strong> Live API connecties geblokkeerd. Geen echte betalingen of e-mails.</div>' : ''}
+        ${data.safety && data.safety.test_mode ? '<div class="alert warning" style="margin-bottom:1.5rem"><strong>TESTMODUS ACTIEF:</strong> Live API connecties geblokkeerd. Geen echte betalingen of e-mails.</div>' : ''}
         
-        <div class="grid-cols-4" style="margin-bottom:2rem">
-            <div class="card"><div class="data-label">Producten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.products}</div></div>
-            <div class="card"><div class="data-label">Klanten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.customers}</div></div>
-            <div class="card"><div class="data-label">Open Bestellingen</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.orders}</div></div>
-            <div class="card"><div class="data-label">Omzet</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0; color:var(--wb-success)">${window.Core.formatMoney(s.revenue_cents)}</div></div>
+        <div class="admin-finance-summary" style="margin-bottom:2rem">
+            <a href="${window.APP_BASE}admin/invoices?status=unpaid" class="finance-summary-tile tile-warning">
+                <span>Onbetaald</span>
+                <strong>${f.unpaid_count}</strong>
+                <small>${window.Core.formatMoney(f.outstanding_cents)}</small>
+            </a>
+            <a href="${window.APP_BASE}admin/invoices?status=overdue" class="finance-summary-tile tile-danger">
+                <span>Achterstallig</span>
+                <strong>${f.overdue_count}</strong>
+                <small>${window.Core.formatMoney(f.overdue_cents)}</small>
+            </a>
+            <a href="${window.APP_BASE}admin/invoices?status=unverified" class="finance-summary-tile tile-info">
+                <span>Te controleren</span>
+                <strong>${f.unverified_count}</strong>
+                <small>Check transacties</small>
+            </a>
+            <a href="${window.APP_BASE}admin/invoices?status=paid" class="finance-summary-tile tile-success">
+                <span>Betaald</span>
+                <strong>${f.paid_count}</strong>
+                <small>Alle betaalde facturen</small>
+            </a>
         </div>
 
-        <div class="grid-cols-2">
+        <div class="admin-dashboard-stats" style="margin-bottom:2rem">
+            <div class="card"><div class="data-label">Actieve producten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.products}</div></div>
+            <div class="card"><div class="data-label">Klanten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.customers}</div></div>
+            <div class="card"><div class="data-label">Bestellingen totaal</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.orders}</div></div>
+            <div class="card"><div class="data-label">Lage voorraad</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0; color:var(--wb-danger)"><a href="${window.APP_BASE}admin/products?status=active&stock=low">${s.low_stock}</a></div></div>
+        </div>
+
+        <div class="admin-dashboard-panels" style="margin-bottom:2rem">
             <div>
-                <h3 class="form-section-title">Recente Bestellingen</h3>
+                <h3 class="form-section-title">Facturen Actie Vereist</h3>
                 <div class="table-responsive">
-                    <table class="data-table">
-                        ${data.recent_orders.length ? data.recent_orders.map(o => `<tr><td><a href="${window.APP_BASE}admin/orders" style="font-weight:600">${esc(o.number)}</a></td><td>${window.Workbench.badge(o.status)}</td><td style="text-align:right">${window.Core.formatMoney(o.total_cents)}</td></tr>`).join('') : '<tr><td colspan="3">Geen recente orders.</td></tr>'}
+                    <table class="data-table finance-table">
+                        ${invAtt.length ? invAtt.map(i => `<tr>
+                            <td><a href="${window.APP_BASE}admin/invoices?q=${esc(i.order_number)}" style="font-weight:600">${esc(i.order_number)}</a><br><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(i.company || i.customer_name)}</span></td>
+                            <td><span class="status-badge status-${i.payment_status}">${esc({unverified: 'Te controleren', unpaid: 'Alle onbetaalde', open: 'Openstaand', partial: 'Deels betaald', overdue: 'Achterstallig', paid: 'Betaald', cancelled: 'Geannuleerd'}[i.payment_status] || i.payment_status)}</span></td>
+                            <td style="text-align:right"><strong>${i.outstanding_cents === null ? 'Te controleren' : window.Core.formatMoney(i.outstanding_cents)}</strong><br><span style="font-size:0.75rem; color:var(--wb-text-muted)">${i.due_date ? 'Vervaldatum: ' + new Date(i.due_date).toLocaleDateString() : 'Geen vervaldatum'}</span></td>
+                        </tr>`).join('') : '<tr><td colspan="3">Geen urgente facturen.</td></tr>'}
                     </table>
                 </div>
             </div>
@@ -113,9 +122,17 @@ window.Router.add(/^admin$/, async (match, root) => {
                 <h3 class="form-section-title">Lage Voorraad</h3>
                 <div class="table-responsive">
                     <table class="data-table">
-                        ${data.low_stock.length ? data.low_stock.map(p => `<tr><td><a href="${window.APP_BASE}admin/products/${p.id}" style="font-weight:600">${esc(p.sku)}</a></td><td><div style="max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${esc(p.name)}">${esc(p.name)}</div></td><td style="text-align:right;"><span style="color:var(--wb-danger);font-weight:700">${p.stock}</span> stuks</td></tr>`).join('') : '<tr><td colspan="3">Voorraad is op peil.</td></tr>'}
+                        ${data.low_stock && data.low_stock.length ? data.low_stock.map(p => `<tr><td><a href="${window.APP_BASE}admin/products/${p.id}" style="font-weight:600">${esc(p.sku)}</a></td><td><div style="max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${esc(p.name)}">${esc(p.name)}</div></td><td style="text-align:right;"><span style="color:var(--wb-danger);font-weight:700">${p.stock}</span> stuks</td></tr>`).join('') : '<tr><td colspan="3">Voorraad is op peil.</td></tr>'}
                     </table>
                 </div>
+            </div>
+        </div>
+        <div>
+            <h3 class="form-section-title">Recente Bestellingen</h3>
+            <div class="table-responsive">
+                <table class="data-table">
+                    ${data.recent_orders && data.recent_orders.length ? data.recent_orders.map(o => `<tr><td><a href="${window.APP_BASE}admin/orders" style="font-weight:600">${esc(o.number)}</a></td><td>${window.Workbench.badge(o.status)}</td><td style="text-align:right">${window.Core.formatMoney(o.total_cents)}</td></tr>`).join('') : '<tr><td colspan="3">Geen recente orders.</td></tr>'}
+                </table>
             </div>
         </div>
     `;
@@ -131,22 +148,29 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
     const quality = searchParams.get('quality') || '';
     const stock = searchParams.get('stock') || '';
     const sort = searchParams.get('sort') || '';
+    const status = searchParams.get('status') || 'all';
     const page = searchParams.get('page') || '1';
     const limit = searchParams.get('limit') || '50';
     const esc = window.Core.escapeHtml;
 
     const [catalogData, data] = await Promise.all([
         window.Core.fetch('/catalog'),
-        window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&page=${page}&limit=${limit}`)
+        window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`)
     ]);
     
     const rows = data.products.map(p => `
-        <tr>
+        <tr class="${!p.active ? 'archived-row' : ''}">
             <td><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(p.sku)}</span></td>
-            <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong></td>
+            <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong>${p.featured ? ' <span class="wb-badge wb-badge-warning" style="font-size:0.65rem">Uitgelicht</span>' : ''}</td>
             <td>${window.Core.formatMoney(p.list_price_cents)}</td>
             <td><span class="${p.stock < 10 ? 'wb-badge wb-badge-warning' : 'wb-badge wb-badge-neutral'}" style="font-weight:700">${p.stock}</span></td>
-            <td>${window.Workbench.badge(p.active ? 'active' : 'blocked', p.active ? 'Actief' : 'Inactief')}</td>
+            <td>${window.Workbench.badge(p.active ? 'active' : 'archived')}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline action-quick-edit" data-id="${p.id}" data-stock="${p.stock}" data-price="${p.list_price_cents}" data-featured="${p.featured}">Snel Wijzigen</button>
+                ${!p.active 
+                    ? `<button type="button" class="btn btn-sm btn-outline action-restore" data-id="${p.id}">Herstellen</button>` 
+                    : `<button type="button" class="btn btn-sm btn-danger action-archive" data-id="${p.id}">Archiveren</button>`}
+            </td>
         </tr>
     `).join('');
 
@@ -170,13 +194,23 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                 <select name="category" class="form-control" style="flex:1 1 150px;"><option value="">Alle Categorieën</option>${catsHtml}</select>
                 <select name="brand" class="form-control" style="flex:1 1 150px;"><option value="">Alle Merken</option>${brandsHtml}</select>
                 <select name="quality" class="form-control" style="flex:1 1 150px;"><option value="">Alle Kwaliteiten</option>${qualitiesHtml}</select>
-                <select name="stock" class="form-control" style="flex:1 1 150px;"><option value="">Alle Voorraad</option><option value="in_stock" ${stock === 'in_stock' ? 'selected' : ''}>Op voorraad</option></select>
+                <select name="stock" class="form-control" style="flex:1 1 150px;">
+                    <option value="">Alle Voorraad</option>
+                    <option value="in_stock" ${stock === 'in_stock' ? 'selected' : ''}>Op voorraad</option>
+                    <option value="low" ${stock === 'low' ? 'selected' : ''}>Lage voorraad</option>
+                </select>
+                <select name="status" class="form-control" style="flex:1 1 150px;">
+                    <option value="all" ${status === 'all' ? 'selected' : ''}>Alle (Actief + Archief)</option>
+                    <option value="active" ${status === 'active' ? 'selected' : ''}>Alleen Actief</option>
+                    <option value="archived" ${status === 'archived' ? 'selected' : ''}>Alleen Gearchiveerd</option>
+                </select>
                 <select name="sort" class="form-control" style="flex:1 1 150px;"><option value="">Relevantie</option><option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Prijs oplopend</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Prijs aflopend</option></select>
                 <button type="submit" class="btn btn-outline" style="flex:0 0 auto;">Toepassen</button>
+                <button type="button" class="btn btn-outline action-clear-filters" style="flex:0 0 auto;">Wissen</button>
             </form>
         </div>
         
-        ${renderTable(['SKU', 'Naam', 'Inkoopprijs (Base)', 'Voorraad', 'Status'], rows, 'Geen producten gevonden.')}
+        ${renderTable(['SKU', 'Naam', 'Inkoopprijs (Base)', 'Voorraad', 'Status', 'Acties'], rows, 'Geen producten gevonden.')}
         ${paginationHtml}
     `;
 
@@ -187,10 +221,79 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         const p = new URLSearchParams();
         const fd = new FormData(e.target);
         for (let [k,v] of fd.entries()) {
-            if (v) p.set(k, v);
+            if (v && v !== 'all') p.set(k, v);
+            if (k === 'status' && v === 'all') p.delete('status');
         }
         window.Router.navigate(window.APP_BASE + 'admin/products?' + p.toString());
     };
+    
+    root.querySelector('.action-clear-filters').addEventListener('click', () => {
+        window.Router.navigate(window.APP_BASE + 'admin/products');
+    });
+
+    root.querySelectorAll('.action-quick-edit').forEach(btn => btn.addEventListener('click', (e) => {
+        const b = e.currentTarget;
+        const id = parseInt(b.dataset.id, 10);
+        const html = `
+            <form id="quick-edit-form" class="admin-quick-edit">
+                <div class="form-group">
+                    <label>Actuele Voorraad</label>
+                    <input type="number" name="stock" value="${b.dataset.stock}" class="form-control" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Basisprijs (CHF)</label>
+                    <input type="number" name="list_price" value="${(parseInt(b.dataset.price,10)/100).toFixed(2)}" step="0.01" min="0" class="form-control" required>
+                </div>
+                <div class="form-group" style="margin-bottom:1.5rem">
+                    <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                        <input type="checkbox" name="featured" value="1" ${b.dataset.featured == '1' ? 'checked' : ''}> Uitgelicht (Featured op homepage)
+                    </label>
+                </div>
+                <button type="submit" class="btn quick-edit-submit" style="width:100%">Wijzigingen Opslaan</button>
+            </form>
+        `;
+        const overlay = window.UI.showModal('Snel Product Wijzigen', html);
+        document.getElementById('quick-edit-form').onsubmit = async (ev) => {
+            ev.preventDefault();
+            const fd = new FormData(ev.target);
+            const btn = ev.target.querySelector('.quick-edit-submit');
+            btn.disabled = true;
+            btn.textContent = 'Opslaan...';
+            try {
+                await window.Core.fetch(`/admin/products/${id}`, { 
+                    method: 'PATCH', 
+                    body: { 
+                        stock: parseInt(fd.get('stock'), 10),
+                        list_price_cents: Math.round(parseFloat(fd.get('list_price')) * 100),
+                        featured: fd.get('featured') ? 1 : 0
+                    } 
+                });
+                window.UI.closeModal(overlay);
+                window.Workbench.toast('Product succesvol bijgewerkt', 'success');
+                window.Router.route();
+            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
+        };
+    }));
+
+    root.querySelectorAll('.action-archive').forEach(btn => btn.addEventListener('click', async (e) => {
+        if (!confirm('Weet u zeker dat u dit product wilt archiveren?')) return;
+        const id = e.currentTarget.dataset.id;
+        try {
+            await window.Core.fetch(`/admin/products/${id}`, { method: 'DELETE' });
+            window.Workbench.toast('Product gearchiveerd', 'success');
+            window.Router.route();
+        } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
+    }));
+
+    root.querySelectorAll('.action-restore').forEach(btn => btn.addEventListener('click', async (e) => {
+        if (!confirm('Product herstellen en weer actief maken?')) return;
+        const id = e.currentTarget.dataset.id;
+        try {
+            await window.Core.fetch(`/admin/products/${id}/restore`, { method: 'POST' });
+            window.Workbench.toast('Product hersteld', 'success');
+            window.Router.route();
+        } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
+    }));
 
     root.querySelector('.action-import').addEventListener('click', () => {
         const html = `
@@ -225,7 +328,7 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                     window.Workbench.toast('Import voltooid', 'success');
                     setTimeout(() => { window.UI.closeModal(overlay); window.Router.route(); }, 1500);
                 }
-            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
         };
     });
 });
@@ -327,7 +430,7 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
                 window.UI.closeModal(overlay);
                 window.Workbench.toast('Tracking bijgewerkt', 'success');
                 window.Router.route();
-            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
         };
     }));
 });
@@ -397,12 +500,12 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
                     <h3 class="form-section-title">Financieel & Logistiek</h3>
                     <div class="grid-cols-2">
                         <div class="form-group">
-                            <label>Standaard Verzendkosten (in centen)</label>
-                            <input type="number" name="shipping_cents" value="${s.shipping_cents||''}" class="form-control" required>
+                            <label>Standaard Verzendkosten (CHF)</label>
+                            <input type="number" name="shipping_chf" value="${s.shipping_cents ? (s.shipping_cents/100).toFixed(2) : ''}" step="0.01" min="0" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label>Gratis Verzending Vanaf (in centen)</label>
-                            <input type="number" name="free_shipping_cents" value="${s.free_shipping_cents||''}" class="form-control" required>
+                            <label>Gratis Verzending Vanaf (CHF)</label>
+                            <input type="number" name="free_shipping_chf" value="${s.free_shipping_cents ? (s.free_shipping_cents/100).toFixed(2) : ''}" step="0.01" min="0" class="form-control" required>
                         </div>
                     </div>
                     <div class="grid-cols-2">
@@ -426,11 +529,15 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
         e.preventDefault();
         const fd = new FormData(e.target);
         const payload = Object.fromEntries(fd.entries());
+        payload.shipping_cents = Math.round(parseFloat(payload.shipping_chf) * 100);
+        payload.free_shipping_cents = Math.round(parseFloat(payload.free_shipping_chf) * 100);
+        delete payload.shipping_chf;
+        delete payload.free_shipping_chf;
         for (let k in payload) payload[k] = parseInt(payload[k], 10);
         try {
             await window.Core.fetch('/admin/settings', { method: 'PATCH', body: payload });
             window.Workbench.toast('Instellingen opgeslagen', 'success');
-        } catch(err) { window.Workbench.toast(err.message, 'error'); }
+        } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
     };
 });
 
@@ -485,6 +592,6 @@ window.Router.add(/^admin\/integrations$/, async (match, root) => {
             await window.Core.fetch('/admin/integrations/simulate', { method: 'POST', body: { event: e.target.event.value } });
             window.Workbench.toast('Simulatie uitgevoerd', 'success');
             window.Router.route();
-        } catch(err) { window.Workbench.toast(err.message, 'error'); }
+        } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Wijzigingen Opslaan'; }
     };
 });

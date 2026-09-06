@@ -36,11 +36,11 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     
     const groupPricesHtml = groups.map(g => {
         const existing = groupPrices.find(gp => gp.group_id === g.id);
-        const val = existing ? existing.price_cents : '';
+        const val = existing ? (existing.price_cents / 100).toFixed(2) : '';
         return `
             <div class="form-group" style="margin-bottom:0.75rem;">
-                <label style="font-size:0.75rem;">Prijs voor ${esc(g.name)} (centen)</label>
-                <input type="number" name="gp_${g.id}" value="${val}" class="form-control" placeholder="Standaardprijs als leeg">
+                <label style="font-size:0.75rem;">Prijs voor ${esc(g.name)} (CHF)</label>
+                <input type="number" name="gp_${g.id}" value="${val}" class="form-control" step="0.01" min="0" placeholder="Standaardprijs als leeg">
             </div>
         `;
     }).join('');
@@ -114,7 +114,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                         <div class="grid-cols-2">
                             <div class="form-group">
                                 <label>Actuele Voorraad</label>
-                                <input type="number" name="stock" value="${p.stock}" class="form-control" required>
+                                <input type="number" name="stock" value="${p.stock}" class="form-control" min="0" step="1" required>
                             </div>
                             <div class="form-group">
                                 <label>Minimum Bestelaantal</label>
@@ -131,8 +131,8 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                     <div class="card" style="margin-bottom:1.5rem">
                         <h3 class="form-section-title">Prijsbeheer</h3>
                         <div class="form-group">
-                            <label>Inkoopprijs / Standaardprijs (in centen)</label>
-                            <input type="number" name="list_price_cents" value="${p.list_price_cents}" class="form-control" required>
+                            <label>Basisverkoopprijs (CHF)</label>
+                            <input type="number" name="list_price" value="${(p.list_price_cents / 100).toFixed(2)}" class="form-control" step="0.01" min="0" required>
                         </div>
                         <details class="wb-details" ${groupPrices.length > 0 ? 'open' : ''} style="margin-bottom:0;">
                             <summary>Specifieke B2B Groepsprijzen</summary>
@@ -169,28 +169,12 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             </div>
 
             <div class="card" style="display:flex; justify-content:flex-end; padding:1.5rem; background:var(--wb-bg)">
-                <button type="submit" class="btn" style="padding:0.75rem 2rem; font-size:1rem;">${isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'}</button>
+                <button type="submit" class="btn product-submit" style="padding:0.75rem 2rem; font-size:1rem;">${isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'}</button>
             </div>
         </form>
     `;
 
-    const fullHtml = `
-    <div class="layout-sidebar">
-        <aside>
-            <div class="card admin-card-danger">
-                <h3 class="form-section-title" style="color:var(--wb-danger); margin-top:0.5rem; margin-bottom:1rem;">Beheer (Staff)</h3>
-                <div class="sidebar-nav">
-                    <a href="${window.APP_BASE}admin">Dashboard</a>
-                    <a href="${window.APP_BASE}admin/products" class="active">Producten</a>
-                    <a href="${window.APP_BASE}admin/orders">Bestellingen</a>
-                    <a href="${window.APP_BASE}admin/customers">Klanten</a>
-                    <a href="${window.APP_BASE}admin/returns">Retouren</a>
-                    <a href="${window.APP_BASE}admin/buyback">Buyback</a>
-                </div>
-            </div>
-        </aside>
-        <div>${content}</div>
-    </div>`;
+    const fullHtml = window.Admin.layout(content, 'products');
 
     root.innerHTML = fullHtml;
 
@@ -202,7 +186,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             category_id: fd.get('category_id') ? parseInt(fd.get('category_id'), 10) : null,
             brand_id: fd.get('brand_id') ? parseInt(fd.get('brand_id'), 10) : null,
             quality: fd.get('quality'), stock: parseInt(fd.get('stock'), 10),
-            list_price_cents: parseInt(fd.get('list_price_cents'), 10),
+            list_price_cents: Math.round(parseFloat(fd.get('list_price')) * 100),
             minimum_quantity: parseInt(fd.get('minimum_quantity'), 10),
             featured: fd.get('featured') ? 1 : 0
         };
@@ -210,11 +194,13 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         const gps = [];
         groups.forEach(g => {
             const val = fd.get(`gp_${g.id}`);
-            if (val) gps.push({ group_id: g.id, price_cents: parseInt(val, 10) });
+            if (val !== '') gps.push({ group_id: g.id, price_cents: Math.round(parseFloat(val) * 100) });
         });
         payload.group_prices = gps;
         payload.model_ids = fd.getAll('models[]').map(m => parseInt(m, 10));
-
+        const btn = e.target.querySelector('.product-submit');
+        btn.disabled = true;
+        btn.textContent = 'Opslaan...';
         try {
             if (isNew) {
                 const res = await window.Core.fetch('/admin/products', { method: 'POST', body: payload });
@@ -225,7 +211,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                 window.Workbench.toast('Product opgeslagen', 'success');
                 window.Router.route(); 
             }
-        } catch(err) { window.Workbench.toast(err.message, 'error'); }
+        } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
     };
 
     if (!isNew) {
@@ -236,7 +222,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                 await window.Core.fetch(`/admin/products/${id}`, { method: 'DELETE' });
                 window.Workbench.toast('Product gearchiveerd', 'success');
                 window.Router.navigate(window.APP_BASE + 'admin/products');
-            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
         });
 
         const upBtn = root.querySelector('.action-upload-img');
@@ -249,7 +235,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                 await window.Core.fetch(`/admin/products/${id}/images`, { method: 'POST', body: fd });
                 window.Workbench.toast('Afbeelding geüpload', 'success');
                 window.Router.route();
-            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
         });
 
         root.querySelectorAll('.action-del-img').forEach(btn => btn.addEventListener('click', async (e) => {
@@ -258,7 +244,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                 await window.Core.fetch(`/admin/images/${e.currentTarget.dataset.id}`, { method: 'DELETE' });
                 window.Workbench.toast('Afbeelding verwijderd', 'success');
                 window.Router.route();
-            } catch(err) { window.Workbench.toast(err.message, 'error'); }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
         }));
     }
 });

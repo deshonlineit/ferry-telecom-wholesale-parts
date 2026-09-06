@@ -9,7 +9,7 @@ function handleCatalog(string $method, string $path): bool
         return false;
     }
     if ($path === '/catalog') {
-        respond(catalogFacets());
+        respond(catalogFacets($_GET));
     }
     if ($path === '/products') {
         respond(catalogProductList($_GET, currentUser()));
@@ -52,8 +52,8 @@ function handleCatalog(string $method, string $path): bool
         $query = db()->prepare('SELECT * FROM products WHERE active=1 AND category_id=? AND id<>? ORDER BY featured DESC,stock>0 DESC LIMIT 4');
         $query->execute([$product['category_id'], $product['id']]);
         respond([
-            'product' => productForUser($product, $user), 'images' => $images, 'models' => $models,
-            'related' => array_map(fn ($p) => productForUser($p, $user), $query->fetchAll()),
+            'product' => catalogProductWithPartType($product, $user), 'images' => $images, 'models' => $models,
+            'related' => array_map(fn ($p) => catalogProductWithPartType($p, $user), $query->fetchAll()),
         ]);
     }
     return false;

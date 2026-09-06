@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/catalog-part-types.php';
+
 function catalogCompact(string $value): string
 {
     return preg_replace('/[^\p{L}\p{N}]/u', '', mb_strtolower($value, 'UTF-8')) ?? '';
@@ -11,8 +13,12 @@ function catalogLike(string $value): string
     return '%' . str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value) . '%';
 }
 
-function catalogFacets(): array
+function catalogUnfilteredFacets(): array
 {
+    static $facets = null;
+    if ($facets !== null) {
+        return $facets;
+    }
     $categories = db()->query(
         "SELECT c.id,c.name,c.slug,COUNT(p.id) AS count,
             COALESCE((SELECT pi.image_url FROM products pi
@@ -32,10 +38,179 @@ function catalogFacets(): array
          LEFT JOIN products p ON p.id=pm.product_id AND p.active=1
          GROUP BY m.id ORDER BY m.name'
     )->fetchAll();
-    return [
+    $facets = [
         'categories' => $categories, 'brands' => $brands, 'models' => $models,
         'qualities' => db()->query("SELECT DISTINCT quality FROM products WHERE active=1 AND quality<>'' ORDER BY quality")->fetchAll(PDO::FETCH_COLUMN),
         'total' => (int) db()->query('SELECT COUNT(*) FROM products WHERE active=1')->fetchColumn(),
+    ];
+    return $facets;
+}
+
+/**
+ * Build the one product predicate used by listings and contextual facet counts.
+ * Exclusions implement "selfless" facets without changing search interpretation.
+ *
+ * @return array{condition:string,parameters:array,search:string,compact_name:string}
+ */
+function catalogProductCondition(array $input, array $exclude = []): array
+{
+    $where = ['p.active=1'];
+    $parameters = [];
+    $search = text($input['q'] ?? '', 190);
+    $tokens = catalogTokens($search);
+    $searchPart = catalogPartTypeFromSearch($search);
+    $ignoredSubtypeTokens = catalogPartTypeSearchTokensToIgnore($search, $searchPart);
+    $compactName = "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(p.name,' ',''),'-',''),'/',''),'.',''))";
+    if ($search !== '' && !in_array('q', $exclude, true)) {
+        // Search aliases must always come from the complete dictionaries, never contextual counts.
+        $facets = catalogUnfilteredFacets();
+        if (!$tokens) {
+            $where[] = '1=0';
+        }
+        foreach ($tokens as $term) {
+            if (in_array($term, $ignoredSubtypeTokens, true)) {
+                continue;
+            }
+            $alternatives = ["p.name LIKE ? ESCAPE '!'", "p.sku LIKE ? ESCAPE '!'", "p.quality LIKE ? ESCAPE '!'"];
+            array_push($parameters, catalogLike($term), catalogLike($term), catalogLike($term));
+            if (preg_match('/[\p{L}].*\d|\d.*[\p{L}]/u', $term)) {
+                $alternatives[] = "$compactName LIKE ? ESCAPE '!'";
+                $parameters[] = catalogLike($term);
+            }
+            $matched = catalogMatchedFacets($facets, $term);
+            foreach (['categories' => 'category_id', 'brands' => 'brand_id'] as $kind => $column) {
+                $rows = $kind === 'categories' ? $matched['categories'] : array_filter(
+                    $facets['brands'], fn ($b) => str_contains(catalogCompact($b['name']), $term)
+                );
+                $ids = array_map('intval', array_column($rows, 'id'));
+                if ($ids) {
+                    $alternatives[] = "p.$column IN (" . implode(',', array_fill(0, count($ids), '?')) . ')';
+                    array_push($parameters, ...$ids);
+                }
+            }
+            $ids = array_map('intval', array_column($matched['models'], 'id'));
+            if ($ids) {
+                $alternatives[] = 'EXISTS(SELECT 1 FROM product_models pm WHERE pm.product_id=p.id AND pm.model_id IN ('
+                    . implode(',', array_fill(0, count($ids), '?')) . '))';
+                array_push($parameters, ...$ids);
+            }
+            $where[] = '(' . implode(' OR ', $alternatives) . ')';
+        }
+        if ($searchPart !== null) {
+            $partPredicate = catalogPartTypeCondition($searchPart);
+            $where[] = $partPredicate['condition'];
+            array_push($parameters, ...$partPredicate['parameters']);
+        }
+    }
+    foreach (['brand' => 'brand_id', 'category' => 'category_id'] as $key => $column) {
+        if (!in_array($key, $exclude, true) && isset($input[$key]) && $input[$key] !== '') {
+            $where[] = "p.$column=?";
+            $parameters[] = integer($input[$key], 1);
+        }
+    }
+    if (!in_array('model', $exclude, true) && !empty($input['model'])) {
+        $where[] = 'EXISTS(SELECT 1 FROM product_models pm WHERE pm.product_id=p.id AND pm.model_id=?)';
+        $parameters[] = integer($input['model'], 1);
+    }
+    if (!in_array('quality', $exclude, true) && !empty($input['quality'])) {
+        $where[] = 'p.quality=?';
+        $parameters[] = text($input['quality'], 100);
+    }
+    if (!in_array('stock', $exclude, true) && in_array($input['stock'] ?? '', ['1', 'in_stock'], true)) {
+        $where[] = 'p.stock>0';
+    } elseif (!in_array('stock', $exclude, true) && ($input['stock'] ?? '') === 'out_of_stock') {
+        $where[] = 'p.stock=0';
+    }
+    if (!in_array('featured', $exclude, true) && (string) ($input['featured'] ?? '') === '1') {
+        $where[] = 'p.featured=1';
+    }
+    if (!in_array('part', $exclude, true) && array_key_exists('part', $input) && $input['part'] !== '') {
+        $partPredicate = catalogPartTypeCondition(catalogValidatePartType($input['part']));
+        $where[] = $partPredicate['condition'];
+        array_push($parameters, ...$partPredicate['parameters']);
+    }
+    return [
+        'condition' => implode(' AND ', $where),
+        'parameters' => $parameters,
+        'search' => $search,
+        'compact_name' => $compactName,
+    ];
+}
+
+function catalogFacetCounts(string $groupSql, array $input, array $exclude): array
+{
+    $predicate = catalogProductCondition($input, $exclude);
+    $query = db()->prepare(
+        "SELECT $groupSql AS id,COUNT(DISTINCT p.id) AS count
+         FROM products p
+         WHERE {$predicate['condition']}
+         GROUP BY $groupSql"
+    );
+    $query->execute($predicate['parameters']);
+    $counts = [];
+    foreach ($query->fetchAll() as $row) {
+        $counts[(int) $row['id']] = $row['count'];
+    }
+    return $counts;
+}
+
+function catalogFacets(array $input = []): array
+{
+    $base = catalogUnfilteredFacets();
+    $partTypes = catalogPartTypeFacets($input);
+    $contextKeys = ['category', 'brand', 'model', 'q', 'quality', 'stock', 'featured', 'part'];
+    $contextual = false;
+    foreach ($contextKeys as $key) {
+        if (isset($input[$key]) && $input[$key] !== '') {
+            $contextual = true;
+            break;
+        }
+    }
+    if (!$contextual) {
+        $base['part_types'] = $partTypes;
+        return $base;
+    }
+
+    $categoryCounts = catalogFacetCounts('p.category_id', $input, ['category', 'part']);
+    $brandCounts = catalogFacetCounts('p.brand_id', $input, ['brand', 'model']);
+    $modelPredicate = catalogProductCondition($input, ['model']);
+    $query = db()->prepare(
+        "SELECT facet_pm.model_id AS id,COUNT(DISTINCT p.id) AS count
+         FROM products p
+         JOIN product_models facet_pm ON facet_pm.product_id=p.id
+         WHERE {$modelPredicate['condition']}
+         GROUP BY facet_pm.model_id"
+    );
+    $query->execute($modelPredicate['parameters']);
+    $modelCounts = [];
+    foreach ($query->fetchAll() as $row) {
+        $modelCounts[(int) $row['id']] = $row['count'];
+    }
+    $withCounts = static function (array $rows, array $counts): array {
+        return array_map(static function (array $row) use ($counts): array {
+            $row['count'] = $counts[(int) $row['id']] ?? 0;
+            return $row;
+        }, $rows);
+    };
+
+    $qualityPredicate = catalogProductCondition($input, ['quality']);
+    $query = db()->prepare(
+        "SELECT DISTINCT p.quality FROM products p
+         WHERE {$qualityPredicate['condition']} AND p.quality<>''
+         ORDER BY p.quality"
+    );
+    $query->execute($qualityPredicate['parameters']);
+    $totalPredicate = catalogProductCondition($input);
+    $queryTotal = db()->prepare('SELECT COUNT(*) FROM products p WHERE ' . $totalPredicate['condition']);
+    $queryTotal->execute($totalPredicate['parameters']);
+
+    return [
+        'categories' => $withCounts($base['categories'], $categoryCounts),
+        'brands' => $withCounts($base['brands'], $brandCounts),
+        'models' => $withCounts($base['models'], $modelCounts),
+        'qualities' => $query->fetchAll(PDO::FETCH_COLUMN),
+        'total' => (int) $queryTotal->fetchColumn(),
+        'part_types' => $partTypes,
     ];
 }
 
@@ -46,7 +221,7 @@ function catalogCategoryAliases(): array
         'batteries' => ['batterij', 'batterijen', 'accu', 'accus', 'battery', 'batteries'],
         'charging' => ['laadpoort', 'laadpoorten', 'oplaadpoort', 'dockconnector', 'chargingport'],
         'cameras' => ['camera', 'cameras', 'lens', 'lenzen'],
-        'housing' => ['behuizing', 'achterglas', 'achterkant', 'backcover', 'housing', 'backglass'],
+        'housing' => ['behuizing', 'achterkant', 'housing'],
         'flex' => ['flex', 'flexkabel', 'flexkabels', 'knop', 'knoppen', 'button', 'buttons'],
         'audio' => ['speaker', 'speakers', 'luidspreker', 'luidsprekers', 'microfoon', 'audio', 'earpiece'],
         'adhesive' => ['adhesive', 'lijm', 'afdichting', 'plakstrip', 'plakstrips', 'tape'],
@@ -136,66 +311,11 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
 {
     $page = integer($input['page'] ?? 1, 1, 100000);
     $limit = integer($input['limit'] ?? 24, 1, 100);
-    $where = ['p.active=1'];
-    $parameters = [];
-    $search = text($input['q'] ?? '', 190);
-    $tokens = catalogTokens($search);
-    $compactName = "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(p.name,' ',''),'-',''),'/',''),'.',''))";
-    if ($search !== '') {
-        $facets ??= catalogFacets();
-        if (!$tokens) {
-            $where[] = '1=0';
-        }
-        foreach ($tokens as $term) {
-            $alternatives = ["p.name LIKE ? ESCAPE '!'", "p.sku LIKE ? ESCAPE '!'", "p.quality LIKE ? ESCAPE '!'"];
-            array_push($parameters, catalogLike($term), catalogLike($term), catalogLike($term));
-            if (preg_match('/[\p{L}].*\d|\d.*[\p{L}]/u', $term)) {
-                $alternatives[] = "$compactName LIKE ? ESCAPE '!'";
-                $parameters[] = catalogLike($term);
-            }
-            $matched = catalogMatchedFacets($facets, $term);
-            foreach (['categories' => 'category_id', 'brands' => 'brand_id'] as $kind => $column) {
-                $rows = $kind === 'categories' ? $matched['categories'] : array_filter(
-                    $facets['brands'], fn ($b) => str_contains(catalogCompact($b['name']), $term)
-                );
-                $ids = array_map('intval', array_column($rows, 'id'));
-                if ($ids) {
-                    $alternatives[] = "p.$column IN (" . implode(',', array_fill(0, count($ids), '?')) . ')';
-                    array_push($parameters, ...$ids);
-                }
-            }
-            $ids = array_map('intval', array_column($matched['models'], 'id'));
-            if ($ids) {
-                $alternatives[] = 'EXISTS(SELECT 1 FROM product_models pm WHERE pm.product_id=p.id AND pm.model_id IN ('
-                    . implode(',', array_fill(0, count($ids), '?')) . '))';
-                array_push($parameters, ...$ids);
-            }
-            $where[] = '(' . implode(' OR ', $alternatives) . ')';
-        }
-    }
-    foreach (['brand' => 'brand_id', 'category' => 'category_id'] as $key => $column) {
-        if (isset($input[$key]) && $input[$key] !== '') {
-            $where[] = "p.$column=?";
-            $parameters[] = integer($input[$key], 1);
-        }
-    }
-    if (!empty($input['model'])) {
-        $where[] = 'EXISTS(SELECT 1 FROM product_models pm WHERE pm.product_id=p.id AND pm.model_id=?)';
-        $parameters[] = integer($input['model'], 1);
-    }
-    if (!empty($input['quality'])) {
-        $where[] = 'p.quality=?';
-        $parameters[] = text($input['quality'], 100);
-    }
-    if (in_array($input['stock'] ?? '', ['1', 'in_stock'], true)) {
-        $where[] = 'p.stock>0';
-    } elseif (($input['stock'] ?? '') === 'out_of_stock') {
-        $where[] = 'p.stock=0';
-    }
-    if ((string) ($input['featured'] ?? '') === '1') {
-        $where[] = 'p.featured=1';
-    }
-    $condition = implode(' AND ', $where);
+    $predicate = catalogProductCondition($input);
+    $condition = $predicate['condition'];
+    $parameters = $predicate['parameters'];
+    $search = $predicate['search'];
+    $compactName = $predicate['compact_name'];
     $query = db()->prepare('SELECT COUNT(*) FROM products p WHERE ' . $condition);
     $query->execute($parameters);
     $total = (int) $query->fetchColumn();
@@ -226,7 +346,7 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
     $query = db()->prepare("SELECT p.* FROM products p $priceJoin WHERE $condition ORDER BY $order LIMIT ? OFFSET ?");
     $query->execute([...$priceParams, ...$parameters, ...$orderParams, $limit, ($page - 1) * $limit]);
     return [
-        'products' => array_map(fn ($p) => productForUser($p, $user), $query->fetchAll()),
+        'products' => array_map(fn ($p) => catalogProductWithPartType($p, $user), $query->fetchAll()),
         'total' => $total, 'page' => $page, 'pages' => $pages,
     ];
 }

@@ -6,14 +6,15 @@ const context = vm.createContext({
     document: { addEventListener() {} },
     console, URLSearchParams,
 });
-for (const file of ['core.js', 'store.js', 'account.js', 'admin.js', 'admin-products.js', 'admin-operations.js']) {
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/', file), 'utf8'), context, { filename: file });
+for (const file of ['core.js', 'discovery-controls.js', 'quick-finder.js', 'category-models.js', 'store.js', 'home-search.js', 'home.js', 'account.js', 'admin-shell.js', 'admin.js', 'admin-products.js', 'admin-operations.js', 'admin-invoices.js']) {
+    const p = path.join(__dirname, '../public/assets/', file);
+    vm.runInContext(fs.readFileSync(p, 'utf8'), context, { filename: file });
 }
 const required = [
-    'catalog', 'login', 'register', 'forgot', 'reset', 'cart', 'checkout',
+    '', 'catalog', 'login', 'register', 'forgot', 'reset', 'cart', 'checkout',
     'account', 'account/addresses', 'account/orders', 'account/returns',
     'admin', 'admin/products', 'admin/products/new', 'admin/products/1',
-    'admin/orders', 'admin/customers', 'admin/returns', 'admin/returns/1',
+    'admin/orders', 'admin/customers', 'admin/returns', 'admin/returns/1', 'admin/invoices',
     'admin/buyback', 'admin/settings', 'admin/messages', 'admin/audit', 'admin/integrations',
 ];
 for (const route of required) {

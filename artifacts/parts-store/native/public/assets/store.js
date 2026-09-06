@@ -1,49 +1,79 @@
 const esc = window.Core.escapeHtml;
 
+const categoryGroups = [
+    { title: "Onderdelen", keywords: ['screen', 'batter', 'charg', 'camera', 'hous', 'flex', 'audio', 'adhes'] },
+    { title: "Gereedschap & Accessoires", keywords: ['tool', 'protect', 'accessor', 'other'] }
+];
+
+window.App.groupCategories = function(cats) {
+    const parts = [];
+    const supplies = [];
+    const sorted = window.App.sortCategories(cats);
+    sorted.forEach(c => {
+        const s = (c.slug || c.name).toLowerCase();
+        let isPart = false;
+        for (let kw of categoryGroups[0].keywords) {
+            if (s.includes(kw)) { isPart = true; break; }
+        }
+        if (isPart) parts.push(c);
+        else supplies.push(c);
+    });
+    return { parts, supplies };
+};
+
+window.App.canOrderProduct = function(p) {
+    return Boolean(window.Core.user) && window.Core.user.role !== 'staff' && p.price_cents !== null && p.stock >= p.minimum_quantity;
+};
+
 window.App.renderProductCard = function(p) {
     const isStaff = window.Core.user && window.Core.user.role === 'staff';
-    const canBuy = !isStaff && p.price_cents !== null && p.stock > 0;
+    const canBuy = window.App.canOrderProduct(p);
     
     let stockClass = p.stock > 10 ? 'stock-ok' : (p.stock > 0 ? 'stock-low' : 'stock-out');
-    let stockText = p.stock > 10 ? 'Op voorraad' : (p.stock > 0 ? `Laatste ${p.stock} stuks` : 'Niet op voorraad');
+    let stockText = p.stock > 0 ? `${p.stock} op voorraad` : 'Niet op voorraad';
 
     return `
-        <div class="product-card">
-            <a href="${window.APP_BASE}products/${p.id}" class="product-card-img">
-                ${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">` : `<div class="img-placeholder">Geen foto</div>`}
-            </a>
-            <div class="product-card-body">
-                <div class="product-card-meta">
-                    <span class="sku">SKU: ${esc(p.sku)}</span>
-                    ${p.quality ? `<span class="badge quality-badge">${esc(p.quality)}</span>` : ''}
-                </div>
-                <h3 class="product-title"><a href="${window.APP_BASE}products/${p.id}">${esc(p.name)}</a></h3>
-                
-                <div class="product-price-row">
-                    <div class="price">
-                        ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">Log in voor prijs</a>`}
-                    </div>
-                </div>
-                <div class="stock-indicator ${stockClass}">
-                    <span class="stock-dot"></span>${stockText}
-                </div>
-            </div>
-            ${canBuy ? `
-            <div class="product-card-action">
-                <div class="qty-control">
-                    <input type="number" id="qty-${p.id}" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="form-control" aria-label="Aantal">
-                </div>
-                <button type="button" class="btn btn-primary" onclick="window.App.addToCartWithQty(${p.id}, parseInt(document.getElementById('qty-${p.id}').value, 10))" aria-label="Aan winkelwagen toevoegen">
-                    Toevoegen
+        <div class="part-card">
+            ${p.image_url ? `
+                <button type="button" class="part-img-link part-photo-preview" data-photo-url="${esc(p.image_url)}" data-photo-name="${esc(p.name)}" aria-label="Foto van ${esc(p.name)} vergroten">
+                    <img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">
                 </button>
+            ` : `
+                <div class="part-img-link part-no-photo" aria-label="Geen foto beschikbaar">
+                    <div class="img-placeholder"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>
+                </div>
+            `}
+            <div class="part-main">
+                <div class="part-meta">
+                    <span class="part-sku" title="SKU">${esc(p.sku)}</span>
+                    ${p.quality ? `<span class="part-quality">${esc(p.quality)}</span>` : ''}
+                    ${p.part_type?.name ? `<span class="part-type-badge">${esc(p.part_type.name)}</span>` : ''}
+                </div>
+                <h3 class="part-name"><a href="${window.APP_BASE}products/${p.id}">${esc(p.name)}</a></h3>
+                <div class="part-stock ${stockClass}">
+                    <span class="status-dot"></span>${stockText}
+                </div>
+                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<small class="text-muted">Minimale afname ${p.minimum_quantity}; onvoldoende voorraad</small>` : ''}
             </div>
-            ` : (isStaff ? '<div class="product-card-action"><span class="text-muted small">Beheerweergave</span></div>' : '')}
+            <div class="part-buy-area">
+                <div class="part-price">
+                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">Prijs na inloggen</a>`}
+                </div>
+                ${canBuy ? `
+                <div class="part-action">
+                    <input type="number" id="qty-${p.id}" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="part-qty form-control" aria-label="Aantal">
+                    <button type="button" class="btn btn-primary part-add-btn" onclick="window.App.addToCartWithQty(${p.id}, parseInt(this.parentElement.querySelector('input').value, 10))" aria-label="${esc(p.name)} toevoegen aan winkelwagen" title="Aan winkelwagen toevoegen">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                </div>
+                ` : (isStaff ? '<span class="text-muted small font-weight-bold">Beheer</span>' : '')}
+            </div>
         </div>
     `;
 };
 
 window.App.toggleView = function(view) {
-    localStorage.setItem('view_pref', view);
+    try { localStorage.setItem('view_pref', view); } catch (_) {}
     const grid = document.querySelector('.product-container');
     if (grid) {
         grid.className = `product-container view-${view}`;
@@ -52,266 +82,6 @@ window.App.toggleView = function(view) {
     const btn = document.querySelector(`.view-toggle button[data-view="${view}"]`);
     if (btn) btn.classList.add('active');
 };
-
-
-window.Router.add(/^$/, async (match, root) => {
-    root.innerHTML = '<div class="page-loader"><div class="spinner"></div></div>';
-    try {
-        const [catData, featData] = await Promise.all([
-            window.Core.fetch('/catalog'),
-            window.Core.fetch('/products?featured=1&limit=8')
-        ]);
-        
-        window.App._heroModels = catData.models;
-        
-        let sortedCats = window.App.sortCategories(catData.categories);
-        let catsHtml = sortedCats.slice(0, 8).map(c => `
-            <a href="${window.APP_BASE}catalog?category=${c.id}" class="category-card has-image">
-                <div class="category-img">
-                    ${c.image_url ? `<img src="${esc(c.image_url)}" alt="">` : `<div class="img-placeholder">${window.App.getCategoryIcon(c.slug)}</div>`}
-                </div>
-                <div class="category-info">
-                    <h3>${esc(c.name)}</h3>
-                    <span class="count text-muted">${c.count} producten</span>
-                </div>
-            </a>
-        `).join('');
-
-        let prodsHtml = featData.products.length ? featData.products.map(p => window.App.renderProductCard(p)).join('') : '<p class="text-muted">Geen uitgelichte producten momenteel.</p>';
-
-        root.innerHTML = `
-            <div class="landing-hero" style="padding: 3rem 2rem; margin-bottom: 2rem;">
-                <div class="landing-hero-content" style="max-width: 900px; margin: 0 auto;">
-                    <h1 style="font-size: 2.25rem; margin-bottom: 0.5rem; text-align: left;">Vind het exacte onderdeel.</h1>
-                    <p style="font-size: 1.125rem; color: rgba(255,255,255,0.9); margin-bottom: 2rem; text-align: left;">Direct zoeken in onze catalogus op merk, model en categorie.</p>
-                    
-                    <div class="hero-finder">
-                        <div class="hero-finder-field">
-                            <label>Merk</label>
-                            <select id="hero-brand" class="form-control" onchange="window.App.updateHeroFinder(this.value)">
-                                <option value="">Kies Merk...</option>
-                                ${catData.brands.map(b => `<option value="${b.id}" ${b.count===0?'disabled':''}>${esc(b.name)}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="hero-finder-field">
-                            <label>Model</label>
-                            <select id="hero-model" class="form-control" disabled>
-                                <option value="">Kies Model...</option>
-                            </select>
-                        </div>
-                        <div class="hero-finder-field">
-                            <label>Onderdeel</label>
-                            <select id="hero-cat" class="form-control">
-                                <option value="">Alle Categorieën...</option>
-                                ${sortedCats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
-                            </select>
-                        </div>
-                        <button onclick="window.App.submitHeroFinder()" class="btn btn-primary hero-finder-btn">Zoeken</button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="section-title">
-                <h2>Onderdelen</h2>
-            </div>
-            <div class="category-grid">
-                ${catsHtml}
-            </div>
-
-            <div class="section-title mt-5">
-                <h2>Uitgelicht</h2>
-                <a href="${window.APP_BASE}catalog" class="btn btn-link">Bekijk alles &rarr;</a>
-            </div>
-            <div class="product-container view-grid">
-                ${prodsHtml}
-            </div>
-        `;
-    } catch(e) {
-        root.innerHTML = `<div class="alert error">${esc(e.message)}</div>`;
-    }
-});
-
-
-window.Router.add(/^catalog$/, async (match, root, qs) => {
-    const searchParams = new URLSearchParams(qs);
-    const q = searchParams.get('q') || '';
-    const cat = searchParams.get('category') || '';
-    const brand = searchParams.get('brand') || '';
-    const model = searchParams.get('model') || '';
-    const quality = searchParams.get('quality') || '';
-    const stock = searchParams.get('stock') || '';
-    const sort = searchParams.get('sort') || '';
-    const page = searchParams.get('page') || '1';
-
-    const [catalogData, productsData] = await Promise.all([
-        window.Core.fetch('/catalog'),
-        window.Core.fetch(`/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&page=${page}`)
-    ]);
-
-    const buildUrl = (key, val) => {
-        const p = new URLSearchParams(searchParams);
-        if (val) p.set(key, val); else p.delete(key);
-        if (key !== 'page') p.delete('page');
-        return `${window.APP_BASE}catalog?${p.toString()}`;
-    };
-
-    let filters = [];
-    if (q) filters.push({k:'q', l:`Zoek: ${q}`});
-    if (cat) filters.push({k:'category', l:`Categorie: ${catalogData.categories.find(c=>c.id==cat)?.name || cat}`});
-    if (brand) filters.push({k:'brand', l:`Merk: ${catalogData.brands.find(b=>b.id==brand)?.name || brand}`});
-    if (model) filters.push({k:'model', l:`Model: ${catalogData.models.find(m=>m.id==model)?.name || model}`});
-    if (quality) filters.push({k:'quality', l:`Type: ${quality}`});
-    if (stock) filters.push({k:'stock', l:`Alleen op voorraad`});
-    
-    let activeFiltersHtml = filters.length ? `
-        <div class="active-filters">
-            ${filters.map(f => `
-                <a href="${buildUrl(f.k, '')}" class="filter-chip">
-                    ${esc(f.l)} <span class="remove">&times;</span>
-                </a>
-            `).join('')}
-            <a href="${window.APP_BASE}catalog" class="btn btn-link btn-sm ml-2">Wissen</a>
-        </div>
-    ` : '';
-
-    let sortedCats = window.App.sortCategories(catalogData.categories);
-    let catsHtml = sortedCats.map(c => `
-        <a href="${buildUrl('category', c.id)}" class="nav-item ${c.id == cat ? 'active' : ''}">
-            <span class="nav-label">${esc(c.name)}</span>
-            <span class="nav-count">${c.count}</span>
-        </a>
-    `).join('');
-
-    let brandsHtml = catalogData.brands.map(b => {
-        const countStr = b.count !== undefined ? ` (${b.count})` : '';
-        const dis = b.count === 0 ? 'disabled' : '';
-        return `<option value="${b.id}" ${b.id == brand ? 'selected' : ''} ${dis}>${esc(b.name)}${countStr}</option>`;
-    }).join('');
-
-    let filteredModels = brand ? catalogData.models.filter(m => m.brand_id == brand) : catalogData.models;
-    let modelsHtml = filteredModels.map(m => {
-        const countStr = m.count !== undefined ? ` (${m.count})` : '';
-        const dis = m.count === 0 ? 'disabled' : '';
-        return `<option value="${m.id}" ${m.id == model ? 'selected' : ''} ${dis}>${esc(m.name)}${countStr}</option>`;
-    }).join('');
-
-    let qualitiesHtml = catalogData.qualities.map(q_str => 
-        `<option value="${esc(q_str)}" ${q_str == quality ? 'selected' : ''}>${esc(q_str)}</option>`
-    ).join('');
-
-    let prodsHtml = productsData.products.length ? 
-        productsData.products.map(p => window.App.renderProductCard(p)).join('') : 
-        '<div class="empty-state"><h3>Geen producten gevonden</h3><p class="text-muted mt-2">Probeer uw filters aan te passen of een andere zoekopdracht te gebruiken.</p></div>';
-
-    const viewPref = localStorage.getItem('view_pref') || 'grid';
-    
-    root.innerHTML = `
-        <div class="catalog-layout">
-            <aside class="catalog-sidebar">
-                <div class="sidebar-block">
-                    <h3 class="sidebar-title">Categorieën</h3>
-                    <nav class="sidebar-nav">
-                        <a href="${buildUrl('category', '')}" class="nav-item ${!cat ? 'active' : ''}">
-                            <span class="nav-label">Alle producten</span>
-                        </a>
-                        ${catsHtml}
-                    </nav>
-                </div>
-                
-                <div class="sidebar-block">
-                    <h3 class="sidebar-title">Filters</h3>
-                    <form onsubmit="event.preventDefault();" id="filter-form" class="filter-form">
-                        <input type="hidden" name="q" value="${esc(q)}">
-                        <input type="hidden" name="category" value="${esc(cat)}">
-                        
-                        <div class="form-group">
-                            <label class="form-label">Merk</label>
-                            <select name="brand" class="form-control" onchange="this.form.submitFilter()">
-                                <option value="">Alle Merken</option>
-                                ${brandsHtml}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Model</label>
-                            <select name="model" class="form-control" onchange="this.form.submitFilter()" ${!brand ? 'disabled title="Kies eerst een merk"' : ''}>
-                                <option value="">Alle Modellen</option>
-                                ${modelsHtml}
-                            </select>
-                        </div>
-                        <details class="optional-section filter-extras" ${quality || stock ? 'open' : ''}>
-                        <summary>Meer filters <span class="text-muted small">(optioneel)</span></summary>
-                        <div class="form-group mt-3">
-                            <label class="form-label">Type / Kwaliteit</label>
-                            <select name="quality" class="form-control" onchange="this.form.submitFilter()">
-                                <option value="">Alles tonen</option>
-                                ${qualitiesHtml}
-                            </select>
-                        </div>
-                        <div class="form-group mt-3">
-                            <label class="check-label">
-                                <input type="checkbox" name="stock" value="in_stock" ${stock === 'in_stock' ? 'checked' : ''} onchange="this.form.submitFilter()">
-                                <span>Alleen op voorraad tonen</span>
-                            </label>
-                        </div>
-                        </details>
-                    </form>
-                </div>
-            </aside>
-            
-            <div class="catalog-main">
-                <div class="catalog-header">
-                    <div>
-                        <h1 class="page-title">${q ? `Zoekresultaten voor "${esc(q)}"` : (cat ? `Categorie: ${catalogData.categories.find(c=>c.id==cat)?.name}` : 'Compleet Assortiment')}</h1>
-                        <div class="results-count text-muted">${productsData.total} producten gevonden</div>
-                    </div>
-                    
-                    <button type="button" class="btn btn-outline filter-toggle-btn mobile-only" onclick="document.querySelector('.catalog-sidebar').classList.toggle('open')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                        Filters
-                    </button>
-                    
-                    <div class="catalog-controls hidden-mobile">
-                        <select class="form-control sort-select" aria-label="Sorteren" onchange="window.Router.navigate('${buildUrl('sort', '')}' + this.value)">
-                            <option value="">Sorteer: Relevantie</option>
-                            <option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Prijs: Laag naar Hoog</option>
-                            <option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Prijs: Hoog naar Laag</option>
-                            <option value="newest" ${sort === 'newest' ? 'selected' : ''}>Nieuwste eerst</option>
-                        </select>
-                        
-                        <div class="view-toggle">
-                            <button type="button" data-view="grid" onclick="window.App.toggleView('grid')" class="${viewPref === 'grid' ? 'active' : ''}" aria-label="Grid weergave">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                            </button>
-                            <button type="button" data-view="list" onclick="window.App.toggleView('list')" class="${viewPref === 'list' ? 'active' : ''}" aria-label="Lijst weergave">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                ${activeFiltersHtml}
-                
-                <div class="product-container view-${viewPref}">
-                    ${prodsHtml}
-                </div>
-                
-                <div class="pagination-container">
-                    ${window.Core.renderPagination(productsData.page, productsData.pages, searchParams, window.APP_BASE + 'catalog')}
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.getElementById('filter-form').submitFilter = function() {
-        const p = new URLSearchParams(searchParams);
-        const fd = new FormData(this);
-        p.delete('brand'); p.delete('model'); p.delete('quality'); p.delete('stock'); p.delete('page');
-        for (let [k,v] of fd.entries()) {
-            if (v && v !== 'undefined') p.set(k, v);
-        }
-        window.Router.navigate(window.APP_BASE + 'catalog?' + p.toString());
-    };
-});
 
 
 window.Router.add(/^products\/(\d+)$/, async (match, root) => {
@@ -329,15 +99,15 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
     }
 
     const thumbnailsHtml = allImages.map((img, idx) => `
-        <button type="button" class="gallery-thumb" onclick="document.getElementById('main-img').src='${esc(img.url)}'; window.App.currentImageIndex=${idx};">
-            <img src="${esc(img.url)}" alt="Thumbnail ${idx + 1}">
+        <button type="button" class="gallery-thumb" data-gallery-index="${idx}" aria-label="Foto ${idx + 1} van ${allImages.length} tonen">
+            <img src="${esc(img.url)}" alt="Miniatuur ${idx + 1} van ${esc(p.name)}">
         </button>
     `).join('');
 
     const modelsHtml = data.models && data.models.length ? `
-        <div class="product-section mt-4">
-            <h4>Compatibele Modellen</h4>
-            <div class="model-tags mt-2">
+        <div class="product-section mt-4 pt-4 border-top">
+            <h4 class="section-heading mb-3">Compatibele Modellen</h4>
+            <div class="model-tags">
                 ${data.models.map(m => `<span class="model-tag">${esc(m.name)}</span>`).join('')}
             </div>
         </div>
@@ -347,13 +117,13 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
         <div class="section-title mt-5">
             <h2>Gerelateerde Producten</h2>
         </div>
-        <div class="product-container view-grid">
+        <div class="product-container view-list">
             ${data.related.map(rp => window.App.renderProductCard(rp)).join('')}
         </div>
     ` : '';
 
     const isStaff = window.Core.user && window.Core.user.role === 'staff';
-    const canBuy = !isStaff && p.price_cents !== null && p.stock > 0;
+    const canBuy = window.App.canOrderProduct(p);
     
     window.App.currentImageIndex = 0;
 
@@ -365,50 +135,53 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
         <div class="product-detail-layout">
             <div class="product-gallery">
                 ${allImages.length ? `
-                    <div class="main-image-container" onclick="window.UI.showGallery(${JSON.stringify(allImages).replace(/"/g, '&quot;')}, window.App.currentImageIndex)" role="button" tabindex="0" title="Klik om te vergroten">
+                    <button type="button" class="main-image-container part-photo-preview" data-photo-images="${esc(JSON.stringify(allImages))}" data-photo-name="${esc(p.name)}" aria-label="Foto van ${esc(p.name)} vergroten" title="Klik om te vergroten">
                         <img id="main-img" src="${esc(allImages[0].url)}" alt="${esc(p.name)}">
                         <div class="zoom-hint"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></div>
-                    </div>
+                    </button>
                     ${allImages.length > 1 ? `<div class="gallery-thumbnails mt-3">${thumbnailsHtml}</div>` : ''}
                 ` : `
                     <div class="main-image-container no-image">
-                        <div class="img-placeholder">Geen afbeelding beschikbaar</div>
+                        <div class="img-placeholder"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>
                     </div>
                 `}
             </div>
             
             <div class="product-info">
-                <div class="product-meta mb-2">
-                    <span class="sku">SKU: ${esc(p.sku)}</span>
-                    ${p.quality ? `<span class="badge quality-badge ml-2">${esc(p.quality)}</span>` : ''}
+                <div class="product-meta mb-3">
+                    <span class="sku-large" title="SKU">${esc(p.sku)}</span>
+                    ${p.quality ? `<span class="part-quality ml-3">${esc(p.quality)}</span>` : ''}
+                    ${p.part_type?.name ? `<span class="part-type-badge ml-3">${esc(p.part_type.name)}</span>` : ''}
                 </div>
-                <h1 class="product-title-lg mb-4">${esc(p.name)}</h1>
                 
+                <h1 class="product-title-lg mb-2">${esc(p.name)}</h1>
+                
+                <div class="product-stock-status ${p.stock > 10 ? 'stock-ok' : (p.stock > 0 ? 'stock-low' : 'stock-out')} mb-4">
+                    <span class="status-dot"></span>
+                    ${p.stock > 10 ? 'Ruim op voorraad' : (p.stock > 0 ? `Laatste ${p.stock} stuks` : 'Niet op voorraad')}
+                </div>
+                
+                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<div class="alert warning mb-4">Minimale afname: ${p.minimum_quantity} stuks. Er zijn momenteel ${p.stock} beschikbaar; bestellen is daarom tijdelijk niet mogelijk.</div>` : ''}
                 <div class="product-price-lg mb-4">
                     ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">Log in voor uw prijs</a>`}
                 </div>
                 
-                <div class="stock-status ${p.stock > 10 ? 'stock-ok' : (p.stock > 0 ? 'stock-low' : 'stock-out')} mb-4">
-                    <span class="stock-dot"></span>
-                    ${p.stock > 10 ? 'Ruim op voorraad' : (p.stock > 0 ? `Beperkte voorraad: nog ${p.stock} stuks` : 'Niet op voorraad')}
-                </div>
-                
-                <div class="product-description mb-4">
-                    ${esc(p.description).replace(/\n/g, '<br>')}
-                </div>
-                
                 ${canBuy ? `
-                    <div class="purchase-box">
-                        <label for="pd-qty" class="form-label font-weight-bold">Aantal</label>
+                    <div class="purchase-box mb-4">
                         <div class="purchase-controls">
                             <input type="number" id="pd-qty" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="form-control qty-input">
                             <button type="button" class="btn btn-primary btn-lg flex-1" onclick="window.App.addToCartWithQty(${p.id}, parseInt(document.getElementById('pd-qty').value, 10))">
-                                Aan winkelwagen toevoegen
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                                In Winkelwagen
                             </button>
                         </div>
                         ${p.minimum_quantity > 1 ? `<div class="qty-hint mt-2 text-muted small">Minimale afname: ${p.minimum_quantity} stuks</div>` : ''}
                     </div>
-                ` : (isStaff ? '<div class="alert warning mt-4">Als beheerder kunt u geen bestellingen plaatsen.</div>' : (!window.Core.user ? '<div class="alert mt-4"><a href="'+window.APP_BASE+'login">Log in</a> om dit product te bestellen.</div>' : ''))}
+                ` : (isStaff ? '<div class="alert warning mb-4">Als beheerder kunt u geen bestellingen plaatsen.</div>' : (!window.Core.user ? '<div class="alert warning mb-4"><a href="'+window.APP_BASE+'login">Log in</a> om dit product te bestellen.</div>' : ''))}
+                
+                <div class="product-description text-muted">
+                    ${esc(p.description).replace(/\n/g, '<br>')}
+                </div>
                 
                 ${modelsHtml}
             </div>
@@ -416,6 +189,47 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
         
         ${relatedHtml}
     `;
+});
+
+document.addEventListener('click', (event) => {
+    const thumbnail = event.target.closest('.gallery-thumb[data-gallery-index]');
+    if (thumbnail) {
+        const gallery = thumbnail.closest('.product-gallery');
+        const opener = gallery?.querySelector('.part-photo-preview[data-photo-images]');
+        const mainImage = gallery?.querySelector('#main-img');
+        if (!opener || !mainImage) return;
+        try {
+            const images = JSON.parse(opener.dataset.photoImages);
+            const index = Number.parseInt(thumbnail.dataset.galleryIndex, 10);
+            if (!Number.isInteger(index) || !images[index]?.url) return;
+            mainImage.src = images[index].url;
+            opener.dataset.photoIndex = String(index);
+            window.App.currentImageIndex = index;
+        } catch (_) {
+            return;
+        }
+        return;
+    }
+
+    const opener = event.target.closest('.part-photo-preview');
+    if (!opener) return;
+
+    let images = [];
+    if (opener.dataset.photoImages) {
+        try {
+            images = JSON.parse(opener.dataset.photoImages);
+        } catch (_) {
+            return;
+        }
+    } else if (opener.dataset.photoUrl) {
+        images = [{url: opener.dataset.photoUrl}];
+    }
+
+    const initialIndex = Number.parseInt(opener.dataset.photoIndex || '0', 10);
+    window.UI.showGallery(images, Number.isInteger(initialIndex) ? initialIndex : 0, {
+        title: opener.dataset.photoName || '',
+        opener
+    });
 });
 
 
@@ -444,7 +258,7 @@ window.Router.add(/^cart$/, async (match, root) => {
     const itemsHtml = cart.items.map(item => `
         <div class="cart-item">
             <div class="cart-item-img">
-                ${item.image_url ? `<img src="${esc(item.image_url)}" alt="">` : `<div class="img-placeholder"></div>`}
+                ${item.image_url ? `<img src="${esc(item.image_url)}" alt="">` : `<div class="img-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg></div>`}
             </div>
             <div class="cart-item-details">
                 <a href="${window.APP_BASE}products/${item.product_id}" class="cart-item-title">${esc(item.name)}</a>
@@ -552,110 +366,104 @@ window.Router.add(/^checkout$/, async (match, root) => {
             addrHtml = addresses.map((a, i) => `
                 <label class="address-card ${a.is_default || i === 0 ? 'selected' : ''}">
                     <input type="radio" name="address_id" value="${a.id}" ${a.is_default || i === 0 ? 'checked' : ''} onchange="document.querySelectorAll('.address-card').forEach(c=>c.classList.remove('selected')); this.closest('.address-card').classList.add('selected');">
-                    <div class="address-details">
-                        <div class="address-header">
-                            <strong>${esc(a.label)}</strong>
-                            <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </div>
-                        <div class="address-body mt-2 text-sm text-muted">
-                            ${a.company ? `<div>${esc(a.company)}</div>` : ''}
-                            <div>${esc(a.name)}</div>
-                            <div>${esc(a.line1)} ${esc(a.line2)}</div>
-                            <div>${esc(a.postal_code)} ${esc(a.city)}</div>
-                            <div>${esc(a.country)}</div>
-                        </div>
+                    <div class="address-header mb-2">
+                        <strong>${esc(a.label || 'Adres')}</strong>
+                        <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <div class="text-sm">
+                        ${a.company ? `<div>${esc(a.company)}</div>` : ''}
+                        <div>${esc(a.name)}</div>
+                        <div>${esc(a.line1)}</div>
+                        ${a.line2 ? `<div>${esc(a.line2)}</div>` : ''}
+                        <div>${esc(a.postal_code)} ${esc(a.city)}</div>
+                        <div class="text-muted mt-1">${esc(a.country)}</div>
                     </div>
                 </label>
             `).join('');
         }
 
-        const stockWarning = cartRes.items.some(i => i.stock < i.quantity) 
-            ? `<div class="alert danger mb-4">Let op: Voor sommige items is de voorraad gewijzigd. Verlaag het aantal in de <a href="${window.APP_BASE}cart">winkelwagen</a>.</div>` 
-            : '';
-
-        let currentIdempotencyKey = crypto.randomUUID();
+        const idem = Math.random().toString(36).substring(2);
 
         root.innerHTML = `
             <div class="page-header mb-4">
                 <h1>Afrekenen</h1>
-                <a href="${window.APP_BASE}cart" class="btn btn-link pl-0 text-muted">&larr; Terug naar winkelwagen</a>
             </div>
-            ${stockWarning}
+            
             <div class="commerce-layout">
                 <div class="checkout-main">
-                    <form id="checkout-form">
-                        <div class="checkout-step card mb-4">
-                            <div class="step-header">
-                                <span class="step-number">1</span>
-                                <h3>Kies Verzendadres</h3>
-                            </div>
-                            <div class="step-content">
+                    <form id="checkout-form" onsubmit="event.preventDefault(); window.App.submitCheckout(this);">
+                        <input type="hidden" name="idempotency_key" value="${idem}">
+                        
+                        <div class="card p-0 mb-4">
+                            <div class="checkout-step">
+                                <div class="step-header">
+                                    <div class="step-number">1</div>
+                                    <h3>Verzendadres</h3>
+                                </div>
                                 <div class="address-grid">
                                     ${addrHtml}
                                 </div>
-                                ${addresses.length > 0 ? `<div class="mt-3"><a href="${window.APP_BASE}account/addresses" target="_blank" class="btn btn-outline btn-sm">Beheer adressen</a></div>` : ''}
+                                <div class="mt-3">
+                                    <a href="${window.APP_BASE}account/addresses" class="btn btn-outline btn-sm">Nieuw adres toevoegen</a>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="checkout-step card mb-4">
-                            <div class="step-header">
-                                <span class="step-number">2</span>
-                                <h3>Betaalmethode</h3>
-                            </div>
-                            <div class="step-content">
+
+                        <div class="card p-0 mb-4">
+                            <div class="checkout-step">
+                                <div class="step-header">
+                                    <div class="step-number">2</div>
+                                    <h3>Betaalmethode</h3>
+                                </div>
                                 <div class="payment-grid">
                                     <label class="payment-card selected">
                                         <input type="radio" name="payment_method" value="test_invoice" checked onchange="document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected')); this.closest('.payment-card').classList.add('selected');">
-                                        <div class="payment-details">
-                                            <strong>Op rekening (Test)</strong>
-                                            <p class="text-muted small mt-1">Betaal achteraf na ontvangst van factuur.</p>
+                                        <div class="address-header">
+                                            <strong>Op Rekening (Test)</strong>
+                                            <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         </div>
+                                        <div class="text-muted text-sm mt-1">Betaal achteraf via factuur (alleen voor goedgekeurde accounts).</div>
                                     </label>
                                     <label class="payment-card">
                                         <input type="radio" name="payment_method" value="test_card" onchange="document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected')); this.closest('.payment-card').classList.add('selected');">
-                                        <div class="payment-details">
+                                        <div class="address-header">
                                             <strong>Creditcard (Test)</strong>
-                                            <p class="text-muted small mt-1">Direct betalen via beveiligde test-omgeving.</p>
+                                            <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         </div>
+                                        <div class="text-muted text-sm mt-1">Direct betalen via veilige testomgeving.</div>
                                     </label>
                                 </div>
                             </div>
                         </div>
-                        
-                        <details class="checkout-step card mb-4 optional-section">
-                            <summary class="step-header">
-                                <h3>Opmerkingen <span class="text-muted font-weight-normal">(Optioneel)</span></h3>
-                            </summary>
-                            <div class="step-content">
-                                <textarea name="notes" class="form-control" rows="3" placeholder="Interne referentie, pakbon instructie, etc..."></textarea>
+
+                        <div class="card p-0 mb-4">
+                            <div class="checkout-step">
+                                <div class="step-header">
+                                    <div class="step-number">3</div>
+                                    <h3>Opmerkingen</h3>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <textarea name="notes" class="form-control" rows="3" placeholder="Referentie of opmerking voor deze bestelling..."></textarea>
+                                </div>
                             </div>
-                        </details>
-                        
-                        <div class="checkout-actions mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg btn-block" ${addresses.length === 0 || stockWarning ? 'disabled' : ''}>
-                                Bestelling Definitief Plaatsen
-                            </button>
                         </div>
                     </form>
                 </div>
-                
-                <div class="cart-sidebar">
+
+                <div class="checkout-sidebar">
                     <div class="summary-card card sticky-card">
-                        <h3 class="mb-4">Uw Bestelling</h3>
+                        <h3 class="mb-4">Besteloverzicht</h3>
                         <div class="summary-items mb-4 pb-4" style="border-bottom:1px solid var(--border-light)">
-                            ${cartRes.items.map(i => `
-                                <div class="summary-item mb-2" style="display:flex; justify-content:space-between; font-size:0.875rem;">
-                                    <div class="summary-item-name pr-2">
-                                        <span class="text-muted font-weight-bold mr-1">${i.quantity}x</span> ${esc(i.name)}
-                                    </div>
-                                    <div class="font-weight-bold">${window.Core.formatMoney(i.total_cents)}</div>
+                            ${cartRes.items.map(item => `
+                                <div class="summary-row" style="align-items:flex-start">
+                                    <span class="text-muted pr-2">${item.quantity}x ${esc(item.name)}</span>
+                                    <span>${window.Core.formatMoney(item.total_cents)}</span>
                                 </div>
                             `).join('')}
                         </div>
-                        
                         <div class="summary-row">
                             <span class="text-muted">Subtotaal</span>
-                            <span>${window.Core.formatMoney(cartRes.subtotal_cents)}</span>
+                            <span class="font-weight-bold">${window.Core.formatMoney(cartRes.subtotal_cents)}</span>
                         </div>
                         <div class="summary-row">
                             <span class="text-muted">Verzendkosten</span>
@@ -669,44 +477,36 @@ window.Router.add(/^checkout$/, async (match, root) => {
                             <span>Totaal</span>
                             <span class="text-primary">${window.Core.formatMoney(cartRes.total_cents)}</span>
                         </div>
+                        <button form="checkout-form" type="submit" class="btn btn-primary btn-block btn-lg mt-4" ${addresses.length===0?'disabled':''}>Bestelling Plaatsen &rarr;</button>
                     </div>
                 </div>
             </div>
         `;
 
-        document.getElementById('checkout-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
+        window.App.submitCheckout = async (form) => {
+            const fd = new FormData(form);
+            const data = Object.fromEntries(fd.entries());
+            if (!data.address_id) return alert('Selecteer een verzendadres');
+            
+            const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;margin-right:8px;display:inline-block;vertical-align:middle;"></span> Verwerken...';
-            const fd = new FormData(e.target);
+            btn.textContent = 'Bezig met plaatsen...';
+            
             try {
-                const res = await window.Core.fetch('/checkout', {
-                    method: 'POST',
-                    body: {
-                        address_id: parseInt(fd.get('address_id'), 10),
-                        payment_method: fd.get('payment_method'),
-                        notes: fd.get('notes') || '',
-                        idempotency_key: currentIdempotencyKey
-                    }
-                });
-                try {
-                    await window.Core.refreshCart();
-                } catch(e) {}
-                window.Router.navigate(window.APP_BASE + 'account/orders/' + res.order.id);
-            } catch(err) {
-                alert(err.message);
+                const res = await window.Core.fetch('/checkout', { method: 'POST', body: data });
+                await window.Core.refreshCart();
+                window.Router.navigate(window.APP_BASE + 'account/orders?success=' + res.order.id);
+            } catch(e) {
+                alert(e.message);
                 btn.disabled = false;
-                btn.innerHTML = 'Bestelling Definitief Plaatsen';
+                btn.textContent = 'Bestelling Plaatsen →';
             }
         };
 
-    } catch(err) {
-        root.innerHTML = `<div class="alert error">${esc(err.message)}</div>`;
+    } catch(e) {
+        root.innerHTML = `<div class="alert error">${esc(e.message)}</div>`;
     }
 });
-
-
 window.Router.add(/^login$/, async (match, root) => {
     root.innerHTML = `
         <div class="auth-wrapper">
@@ -746,7 +546,7 @@ window.Router.add(/^login$/, async (match, root) => {
             });
             window.Core.user = data.user;
             window.Core.csrf = data.csrf;
-            window.location.href = window.APP_BASE;
+            window.location.href = window.APP_BASE + (data.user?.role === 'staff' ? 'admin' : '');
         } catch(err) {
             const errDiv = document.getElementById('login-error');
             errDiv.textContent = err.message;

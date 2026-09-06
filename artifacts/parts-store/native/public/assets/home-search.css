@@ -1,0 +1,526 @@
+/* ==========================================================================
+   Home Search 2035 - Inline Product Discovery
+   ========================================================================== */
+
+/* Hide duplicated header search when the primary instant search is active */
+body:has(.instant-home) .app-header .search-bar {
+    display: none;
+}
+
+/* Base containment */
+.instant-home {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem 0 3rem;
+    width: 100%;
+}
+
+/* Strict hidden attribute respect */
+.instant-home [hidden],
+.instant-home[hidden] {
+    display: none !important;
+}
+
+.instant-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Typography & Layout */
+.instant-intro {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+}
+
+.instant-intro > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.instant-intro h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin: 0;
+    color: var(--text-main);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.instant-intro p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.instant-intro a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.instant-intro a:hover {
+    text-decoration: underline;
+    color: var(--primary-hover);
+}
+
+/* Search Field */
+.instant-search {
+    display: flex;
+    align-items: center;
+    background: var(--bg-surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg, 8px);
+    padding: 4px 12px;
+    min-height: 56px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.instant-search:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.instant-search svg {
+    color: var(--text-muted);
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.instant-search input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-main);
+    outline: none;
+    min-height: 44px; /* Strict touch target */
+    padding: 0;
+}
+
+.instant-search input::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.instant-search-note {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-left: 12px;
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .instant-search-note {
+        display: none;
+    }
+    .instant-search {
+        min-height: 52px;
+    }
+    .instant-search input {
+        font-size: 1rem;
+    }
+}
+
+/* Labels */
+.instant-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+}
+
+.instant-label small {
+    text-transform: none;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Categories */
+.instant-categories {
+    display: flex;
+    flex-direction: column;
+}
+
+.instant-category-options {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Hide scrollbar for a clean horizontal swipe */
+    min-width: 0;
+}
+.instant-category-options::-webkit-scrollbar {
+    display: none;
+}
+@media (min-width: 701px) {
+    .instant-category-options { flex-wrap: wrap; }
+}
+
+.instant-category-options button {
+    flex: 0 0 auto;
+    min-height: 44px; /* Strict touch target */
+    padding: 0 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 22px; /* Pill */
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.instant-category-options button:hover {
+    background: var(--bg-alt);
+    border-color: var(--border-focus, var(--primary));
+}
+
+.instant-category-options button[aria-pressed="true"] {
+    background: var(--text-main);
+    color: var(--text-inverse);
+    border-color: var(--text-main);
+}
+
+/* Models */
+.instant-models {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 8px);
+    overflow: hidden;
+}
+
+.instant-model-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 12px 16px;
+    background: var(--bg-alt);
+    border-bottom: 1px solid var(--border);
+}
+
+.instant-model-title .instant-label {
+    margin: 0;
+}
+
+.instant-model-title [data-home-model-count] {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.instant-model-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1px; /* Internal grid borders via background */
+    background: var(--border-light);
+    max-height: 105px; /* Keep the live products close to the controls. */
+    overflow-y: auto;
+    scrollbar-width: thin;
+    overscroll-behavior: contain;
+}
+
+@media (max-width: 600px) {
+    .instant-model-options {
+        /* Mobile: 2 column compact internal grid */
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.instant-model-options button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 44px; /* Strict touch target */
+    padding: 8px 12px;
+    background: var(--bg-surface);
+    border: none;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    text-align: left;
+    gap: 8px;
+}
+
+.instant-model-options button span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
+    flex: 1;
+}
+
+.instant-model-options button small {
+    background: var(--bg-body);
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.instant-model-options button:hover {
+    background: var(--primary-light);
+    color: var(--primary-active);
+}
+
+.instant-model-options button:hover small {
+    background: rgba(255,255,255,0.5);
+    color: var(--primary-active);
+}
+
+.instant-model-options button[aria-pressed="true"] {
+    background: var(--primary-light);
+    color: var(--primary-active);
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.instant-model-options button[aria-pressed="true"] small {
+    background: var(--primary);
+    color: white;
+}
+
+/* Selections */
+.instant-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.instant-selection:empty { display: none; }
+.instant-home button:focus-visible,
+.instant-home a:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+.instant-selection button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px; /* Strict touch target */
+    padding: 0 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 22px; /* Pill */
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.instant-selection button[data-home-remove-model]:hover {
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--danger);
+}
+
+.instant-selection button[data-home-remove-model] span {
+    font-size: 1.125rem;
+    line-height: 1;
+}
+
+.instant-selection button[data-home-reset] {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    text-decoration: underline;
+    padding: 0 8px;
+    border-radius: 0;
+}
+
+.instant-selection button[data-home-reset]:hover {
+    color: var(--text-main);
+    background: transparent;
+}
+
+
+/* Results Area */
+.instant-results {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 300px;
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Pending search state - subtle opacity without huge layout shift */
+.is-searching .instant-results {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.instant-results-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.instant-results-heading h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin: 0;
+    color: var(--text-main);
+    letter-spacing: -0.01em;
+}
+
+.instant-results-heading span {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.instant-all-results {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px; /* Strict touch target */
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 8px);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-decoration: none;
+    margin-top: 0.5rem;
+    transition: all var(--transition);
+}
+
+.instant-all-results:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+}
+
+
+/* States: Empty & Error */
+.instant-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    background: var(--bg-surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg, 8px);
+    text-align: center;
+}
+
+.instant-empty strong {
+    font-size: 1.125rem;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.instant-empty p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0 0 1rem 0;
+}
+
+.instant-empty button {
+    min-height: 44px; /* Strict touch target */
+    padding: 0 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius, 6px);
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background var(--transition);
+}
+
+.instant-empty button:hover {
+    background: var(--primary-hover);
+}
+
+[data-home-error] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-lg, 8px);
+    text-align: center;
+    color: var(--danger);
+}
+
+[data-home-error] p {
+    font-weight: 600;
+    margin: 0 0 1rem 0;
+    font-size: 0.9375rem;
+}
+
+[data-home-error] button {
+    min-height: 44px; /* Strict touch target */
+    padding: 0 16px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: var(--radius, 6px);
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background var(--transition);
+}
+
+[data-home-error] button:hover {
+    background: var(--danger-hover);
+}
+
+@media (max-width: 600px) {
+    .instant-home { gap: 12px; padding: 8px 0 24px; }
+    .instant-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; }
+    .instant-intro > div { display: contents; }
+    .instant-intro h1 { grid-column: 1; grid-row: 1; font-size: 24px; }
+    .instant-intro p { grid-column: 1 / -1; grid-row: 2; font-size: 13px; line-height: 1.45; }
+    .instant-intro a { grid-column: 2; grid-row: 1; max-width: 130px; min-height: 44px; font-size: 12px; line-height: 1.4; text-align: right; justify-content: flex-end; }
+    .instant-label { font-size: 11px; margin-bottom: 6px; }
+    .instant-model-title { padding: 9px 10px; }
+    .instant-model-title .instant-label small { display: none; }
+    .instant-model-options { max-height: 96px; }
+    .instant-model-options button { padding: 8px 10px; }
+    .instant-results { gap: 12px; }
+    .instant-results-heading { gap: 4px; padding-bottom: 8px; }
+    .instant-results-heading h2 { font-size: 18px; }
+    .instant-results-heading span { font-size: 12px; }
+}

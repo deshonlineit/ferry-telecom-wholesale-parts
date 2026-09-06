@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/admin-finance.php';
+
 /*
  * Staff operations, returns, buyback and CSV import for the isolated test shop.
  * Authentication and CSRF are enforced by the central router/bootstrap.
@@ -206,7 +208,11 @@ function opAdminProducts(string $method, string $path): bool
         $q = trim((string)($_GET['q'] ?? ''));
         $page = integer($_GET['page'] ?? 1, 1, 1000000);
         $limit = integer($_GET['limit'] ?? 25, 1, 100);
-        $where = ' WHERE p.active = 1';
+        $status = (string)($_GET['status'] ?? 'all');
+        if (!in_array($status, ['all', 'active', 'archived'], true)) {
+            throw new HttpError(422, 'Invalid product status.');
+        }
+        $where = ' WHERE 1=1';
         $params = [];
         if ($q !== '') {
             $where .= ' AND (p.name LIKE ? OR p.sku LIKE ?)';
@@ -238,6 +244,11 @@ function opAdminProducts(string $method, string $path): bool
         } elseif ($stock !== '') {
             throw new HttpError(422, 'Invalid stock filter.');
         }
+        $statusWhere = match ($status) {
+            'active' => ' AND p.active=1',
+            'archived' => ' AND p.active=0',
+            default => '',
+        };
         $sort = (string)($_GET['sort'] ?? '');
         $orderBy = match ($sort) {
             '', 'newest' => 'p.updated_at DESC,p.id DESC',
@@ -248,12 +259,21 @@ function opAdminProducts(string $method, string $path): bool
             'stock_desc' => 'p.stock DESC,p.id ASC',
             default => throw new HttpError(422, 'Invalid product sort.'),
         };
-        $count = db()->prepare('SELECT COUNT(*) FROM products p' . $where);
+        $countsStatement = db()->prepare(
+            'SELECT COUNT(*) `all`,COALESCE(SUM(p.active=1),0) active,COALESCE(SUM(p.active=0),0) archived'
+            . ' FROM products p' . $where
+        );
+        $countsStatement->execute($params);
+        $counts = $countsStatement->fetch(PDO::FETCH_ASSOC) ?: ['all' => 0, 'active' => 0, 'archived' => 0];
+        foreach ($counts as $key => $value) $counts[$key] = (int)$value;
+        $count = db()->prepare('SELECT COUNT(*) FROM products p' . $where . $statusWhere);
         $count->execute($params);
         $total = (int)$count->fetchColumn();
+        $pages = max(1, (int)ceil($total / $limit));
+        $page = min($page, $pages);
         $offset = ($page - 1) * $limit;
         $statement = db()->prepare(
-            'SELECT p.* FROM products p' . $where . " ORDER BY $orderBy LIMIT ? OFFSET ?"
+            'SELECT p.* FROM products p' . $where . $statusWhere . " ORDER BY $orderBy LIMIT ? OFFSET ?"
         );
         $index = 1;
         foreach ($params as $param) {
@@ -266,8 +286,22 @@ function opAdminProducts(string $method, string $path): bool
             'products' => array_map('opProduct', $statement->fetchAll(PDO::FETCH_ASSOC)),
             'total' => $total,
             'page' => $page,
-            'pages' => max(1, (int)ceil($total / $limit)),
+            'pages' => $pages,
+            'status' => $status,
+            'counts' => $counts,
+            'stock_threshold' => opSetting('low_stock_threshold', 5),
         ]);
+    }
+    if (preg_match('#^/admin/products/(\d+)/restore$#', $path, $match) && $method === 'POST') {
+        $staff = requireStaff();
+        $id = opId($match[1]);
+        $statement = db()->prepare('UPDATE products SET active=1 WHERE id=?');
+        $statement->execute([$id]);
+        if ($statement->rowCount() === 0 && opRow('SELECT id FROM products WHERE id=?', [$id]) === null) {
+            throw new HttpError(404, 'Product not found.');
+        }
+        audit('product.restored', 'product', $id, ['by' => (int)$staff['id']]);
+        respond(['product' => opProduct(opRow('SELECT * FROM products WHERE id=?', [$id]) ?? [])]);
     }
     if ($path === '/admin/products' && $method === 'POST') {
         $staff = requireStaff();
@@ -858,7 +892,11 @@ function opAdminGeneral(string $method, string $path): bool
         foreach ($recent as &$row) { $row['id'] = (int)$row['id']; $row['total_cents'] = (int)$row['total_cents']; }
         unset($row);
         $low = opRows('SELECT * FROM products WHERE active=1 AND stock<=? ORDER BY stock,id LIMIT 20', [$threshold]);
+        $allInvoices = financeLoadInvoices();
+        $finance = financeSummary($allInvoices);
+        $invoiceAttention = financeInvoiceAttention($allInvoices, 6);
         respond(['stats' => $stats, 'recent_orders' => $recent, 'low_stock' => array_map('opProduct', $low),
+            'finance' => $finance, 'invoice_attention' => $invoiceAttention,
             'safety' => ['test_mode' => true, 'live_connections' => 0]]);
     }
     if ($path === '/admin/customers' && $method === 'GET') {
@@ -970,7 +1008,8 @@ function opAdminGeneral(string $method, string $path): bool
 
 function handleOperations(string $method, string $path): bool
 {
-    return opAdminProducts($method, $path)
+    return handleAdminFinance($method, $path)
+        || opAdminProducts($method, $path)
         || opReturns($method, $path)
         || opBuyback($method, $path)
         || opImport($method, $path)

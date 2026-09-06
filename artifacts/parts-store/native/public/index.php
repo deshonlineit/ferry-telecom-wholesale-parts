@@ -36,8 +36,12 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
 }
     $v_css = @filemtime(__DIR__ . '/assets/styles.css') ?: 1;
     $v_ws = @filemtime(__DIR__ . '/assets/workspace.css') ?: 1;
+    $v_wb = @filemtime(__DIR__ . '/assets/workbench.css') ?: 1;
     $v_core = @filemtime(__DIR__ . '/assets/core.js') ?: 1;
+    $v_disc = @filemtime(__DIR__ . '/assets/discovery-controls.js') ?: 1;
+    $v_qf = @filemtime(__DIR__ . '/assets/quick-finder.js') ?: 1;
     $v_store = @filemtime(__DIR__ . '/assets/store.js') ?: 1;
+    $v_home = @filemtime(__DIR__ . '/assets/home.js') ?: 1;
     $v_acc = @filemtime(__DIR__ . '/assets/account.js') ?: 1;
     $v_admin = @filemtime(__DIR__ . '/assets/admin.js') ?: 1;
     $v_aprod = @filemtime(__DIR__ . '/assets/admin-products.js') ?: 1;
@@ -53,6 +57,10 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <link rel="icon" type="image/svg+xml" href="/test-shop/assets/logo.svg">
     <link rel="stylesheet" href="/test-shop/assets/styles.css?v=<?= $v_css ?>">
     <link rel="stylesheet" href="/test-shop/assets/workspace.css?v=<?= $v_ws ?>">
+    <link rel="stylesheet" href="/test-shop/assets/workbench.css?v=<?= $v_wb ?>">
+    <link rel="stylesheet" href="/test-shop/assets/backoffice.css?v=<?= @filemtime(__DIR__ . '/assets/backoffice.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/category-models.css?v=<?= @filemtime(__DIR__ . '/assets/category-models.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/home-search.css?v=<?= @filemtime(__DIR__ . '/assets/home-search.css') ?: 1 ?>">
     <script>window.APP_BASE = '/test-shop/';</script>
 </head>
 <body>
@@ -65,10 +73,10 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
             </a>
             
             <div class="search-bar">
-                <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate('/test-shop/catalog?q=' + encodeURIComponent(this.q.value)); window.UI.closeSuggestions();">
+                <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
                     <div class="search-input-wrapper">
                         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="search" name="q" id="search-input" placeholder="Zoek op naam, SKU, of model..." aria-label="Zoeken in assortiment" role="combobox" aria-autocomplete="list" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value)" onfocus="window.App.handleSearchFocus()" onkeydown="window.App.handleSearchKeydown(event)">
+                        <input type="search" name="q" id="search-input" placeholder="Wat zoekt u? (Naam, SKU, of model...)" aria-label="Zoeken in assortiment" role="combobox" aria-autocomplete="list" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput ? window.App.handleSearchInput(this.value, 'search-input') : window.App.handleSearchInput(this.value)" onfocus="window.App.handleSearchFocus ? window.App.handleSearchFocus('search-input') : window.App.handleSearchFocus()" onkeydown="window.App.handleSearchKeydown(event)">
                         <button type="submit" class="search-submit" aria-label="Zoeken">Zoeken</button>
                     </div>
                     <div id="search-suggestions" class="search-suggestions" role="listbox" aria-label="Zoeksuggesties" style="display:none;"></div>
@@ -124,11 +132,18 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     </footer>
 
     <script src="/test-shop/assets/core.js?v=<?= $v_core ?>"></script>
+    <script src="/test-shop/assets/discovery-controls.js?v=<?= $v_disc ?>"></script>
+    <script src="/test-shop/assets/quick-finder.js?v=<?= $v_qf ?>"></script>
+    <script src="/test-shop/assets/category-models.js?v=<?= @filemtime(__DIR__ . '/assets/category-models.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/store.js?v=<?= $v_store ?>"></script>
+    <script src="/test-shop/assets/home-search.js?v=<?= @filemtime(__DIR__ . '/assets/home-search.js') ?: 1 ?>"></script>
+    <script src="/test-shop/assets/home.js?v=<?= $v_home ?>"></script>
     <script src="/test-shop/assets/account.js?v=<?= $v_acc ?>"></script>
+    <script src="/test-shop/assets/admin-shell.js?v=<?= @filemtime(__DIR__ . '/assets/admin-shell.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/admin.js?v=<?= $v_admin ?>"></script>
     <script src="/test-shop/assets/admin-products.js?v=<?= $v_aprod ?>"></script>
     <script src="/test-shop/assets/admin-operations.js?v=<?= $v_aops ?>"></script>
+    <script src="/test-shop/assets/admin-invoices.js?v=<?= @filemtime(__DIR__ . '/assets/admin-invoices.js') ?: 1 ?>"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             window.App.init();

@@ -80,6 +80,7 @@ window.downloadPdf = async (url) => {
 
 window.Router.add(/^account$/, async (match, root) => {
     if (!window.Core.user) return window.Router.navigate(window.APP_BASE + 'login');
+    if (window.Core.user.role === 'staff') return window.Router.navigate(window.APP_BASE + 'admin');
     const data = await window.Core.fetch('/profile');
     const u = data.user;
     const esc = window.Core.escapeHtml;
