@@ -46,17 +46,18 @@
         },
         shell(params) {
             return `<section class="instant-home" aria-labelledby="instant-home-title">
-                <div class="instant-intro"><div><h1 id="instant-home-title">Wat zoekt u?</h1><p>Typ een onderdeel, model of SKU. De producten verschijnen meteen.</p></div><a href="${window.APP_BASE}catalog">Volledig assortiment →</a></div>
+                <div class="instant-intro"><div><h1 id="instant-home-title">Wat zoekt u?</h1><p>Het juiste onderdeel. Zonder omwegen.</p></div><a href="${window.APP_BASE}catalog">Alle onderdelen →</a></div>
                 <form class="instant-search" role="search">
                     <label for="home-search" class="instant-sr-only">Zoek direct in het assortiment</label>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
-                    <input type="search" id="home-search" name="q" value="${esc(params.get('q') || '')}" placeholder="Bijvoorbeeld iPhone 13 LCD…" autocomplete="off" aria-controls="home-live-results">
-                    <span class="instant-search-note">Zoekt terwijl u typt</span>
+                    <input type="search" id="home-search" name="q" value="${esc(params.get('q') || '')}" placeholder="Zoek iPhone 13 Pro, S23 of een onderdeel…" autocomplete="off" aria-controls="home-model-options home-live-results" aria-describedby="home-search-hint">
+                    <span class="instant-search-note" id="home-search-hint">Resultaat terwijl u typt</span>
                 </form>
                 <div class="instant-categories"><span class="instant-label">Of kies een onderdeel</span><div class="instant-category-options" role="group" aria-label="Onderdeel kiezen"></div></div>
                 <section class="instant-models" aria-label="Model kiezen" hidden>
-                    <div class="instant-model-title"><span class="instant-label">Welk model? <small>Alleen als u wilt verfijnen</small></span><span data-home-model-count></span></div>
-                    <div class="instant-model-options" role="group" aria-label="Beschikbare modellen"></div>
+                    <div class="instant-model-title"><span class="instant-label">Kies uw model</span><span data-home-model-count></span><button type="button" data-home-refine>Model zoeken</button></div>
+                    <p class="instant-model-help">Typ uw model in het zoekveld hierboven. Geen merkkeuze nodig.</p>
+                    <div class="instant-model-options" id="home-model-options" role="group" aria-label="Beschikbare modellen"></div>
                 </section>
                 <div class="instant-selection" aria-label="Gekozen filters"></div>
                 <section class="instant-results" id="home-live-results" aria-busy="true" aria-label="Producten">
@@ -72,19 +73,21 @@
             const categories = window.App.sortCategories(catalog.categories);
             const category = params.get('category') || '';
             const model = catalog.models.find(item => String(item.id) === params.get('model'));
-            const search = (params.get('q') || '').toLocaleLowerCase('nl').replace(/[^a-z0-9]/g, '');
-            const score = item => String(item.id) === params.get('model') ? 1000
-                : search.includes(item.name.toLocaleLowerCase('nl').replace(/[^a-z0-9]/g, '')) ? item.name.length : 0;
-            const choices = window.CategoryModels.options(catalog).sort((a, b) => score(b) - score(a));
+            const query = window.FastFinder.modelQuery(params.get('q'));
+            const {models: choices, total: modelTotal} = window.CategoryModels.shortlist(catalog, query, params.get('model'));
             const currentFocus = document.activeElement;
             const focusKey = currentFocus?.dataset?.homeCategory !== undefined ? ['homeCategory', currentFocus.dataset.homeCategory]
                 : currentFocus?.dataset?.homeModel !== undefined ? ['homeModel', currentFocus.dataset.homeModel] : null;
             root.querySelector('.instant-category-options').innerHTML = `<button type="button" data-home-category="" aria-pressed="${!category}">Alles</button>` + categories
                 .filter(item => Number(item.count) > 0 || String(item.id) === category)
                 .map(item => `<button type="button" data-home-category="${item.id}" aria-pressed="${String(item.id) === category}">${esc(labels[item.slug] || item.name)}</button>`).join('');
-            const showModels = Boolean(category || params.get('q') || model);
+            const showModels = Boolean((category || params.get('q') || model) && choices.length);
             root.querySelector('.instant-models').hidden = !showModels;
-            root.querySelector('[data-home-model-count]').textContent = choices.length ? `${choices.length} modellen` : 'Geen gekoppelde modellen in deze selectie';
+            root.querySelector('[data-home-model-count]').textContent = query ? `${choices.length < modelTotal ? choices.length + ' van ' : ''}${modelTotal} ${modelTotal === 1 ? 'model' : 'modellen'}` : '';
+            root.querySelector('.instant-model-help').textContent = query
+                ? choices.length < modelTotal ? 'Typ verder om uw exacte model te vinden.' : 'Kies uw uitvoering voor de juiste onderdelen.'
+                : 'Een korte selectie. Staat uw model er niet tussen? Typ het in het zoekveld hierboven.';
+            root.querySelector('[data-home-refine]').textContent = model ? 'Ander model' : 'Model zoeken';
             root.querySelector('.instant-model-options').innerHTML = choices.map(item => `<button type="button" data-home-model="${item.id}" aria-pressed="${String(item.id) === params.get('model')}"><span>${esc(item.name)}</span><small aria-label="${Number(item.count)} onderdelen">${Number(item.count)}</small></button>`).join('');
             root.querySelector('.instant-model-options').scrollTop = 0;
             root.querySelector('.instant-selection').innerHTML = `${model ? `<button type="button" data-home-remove-model aria-label="Model ${esc(model.name)} verwijderen">${esc(model.name)} <span aria-hidden="true">×</span></button>` : ''}${filtered ? '<button type="button" data-home-reset>Alles wissen</button>' : ''}`;
@@ -109,6 +112,7 @@
             root.innerHTML = H.shell(params);
             window.UI.closeSuggestions();
             const input = root.querySelector('#home-search');
+            let currentCatalog;
             const controller = H.controller(params, {
                 active: () => root.isConnected && version === window.Router.renderVersion,
                 load: (selection, signal) => Promise.all(H.requests(selection).map(url => window.Core.fetch(url, {signal}))),
@@ -125,6 +129,7 @@
                     root.querySelectorAll('[data-home-model]').forEach(button => { button.disabled = true; });
                 },
                 render(data, selection) {
+                    currentCatalog = data[0];
                     H.paint(root, data, selection);
                     root.querySelector('[data-home-products]').inert = false;
                     root.querySelector('[data-home-all]').inert = false;
@@ -142,12 +147,34 @@
                 }
             });
             input.addEventListener('input', () => controller.search(input.value));
+            input.addEventListener('keydown', event => {
+                if (event.key === 'ArrowDown') {
+                    const first = root.querySelector('[data-home-model]:not(:disabled)');
+                    if (first) { event.preventDefault(); first.focus(); }
+                }
+            });
+            root.addEventListener('keydown', event => {
+                if (!event.target.hasAttribute('data-home-model')) return;
+                const models = [...root.querySelectorAll('[data-home-model]:not(:disabled)')];
+                const index = models.indexOf(event.target);
+                if (['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft'].includes(event.key) && models.length) {
+                    event.preventDefault();
+                    const delta = ['ArrowDown', 'ArrowRight'].includes(event.key) ? 1 : -1;
+                    models[(index + delta + models.length) % models.length].focus();
+                }
+                if (event.key === 'Escape') { event.preventDefault(); input.focus(); }
+            });
             root.querySelector('.instant-search').addEventListener('submit', event => { event.preventDefault(); controller.change({q: input.value.trim(), model: '', brand: ''}); });
             root.addEventListener('click', event => {
                 const target = event.target.closest('button');
                 if (!target) return;
                 if (target.hasAttribute('data-home-category')) controller.change({category: target.dataset.homeCategory});
-                if (target.hasAttribute('data-home-model')) controller.change({model: target.dataset.homeModel});
+                if (target.hasAttribute('data-home-model')) {
+                    const model = currentCatalog?.models.find(item => String(item.id) === target.dataset.homeModel);
+                    if (model) window.FastFinder.remember(model);
+                    controller.change({model: target.dataset.homeModel});
+                }
+                if (target.hasAttribute('data-home-refine')) { input.focus(); input.select(); }
                 if (target.hasAttribute('data-home-remove-model')) controller.change({model: ''});
                 if (target.hasAttribute('data-home-reset')) { input.value = ''; controller.reset(); }
                 if (target.hasAttribute('data-home-retry')) controller.start();

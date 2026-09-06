@@ -42,14 +42,16 @@ assert.deepEqual(Array.from(C.options(catalog, 'IPHONE13'), model => model.id), 
 assert(C.options(catalog).some(model => model.id === 22), 'One-product models stay selectable');
 assert(!C.options(catalog).some(model => model.id === 24), 'Zero-count models are not invented as choices');
 const html = C.render(catalog, params, 'LCD & schermen');
-assert(html.includes('data-category-models open'));
-assert(html.includes('Kies uw model'));
+assert(html.includes('<section class="category-models"'));
+assert(!html.includes('<details'), 'No opening or dismissing a model panel');
+assert(!html.includes('category-model-brands'), 'No mandatory brand step');
+assert(html.includes('Voor welk model?'));
 assert(html.includes('data-category-model="132"'));
-assert(html.includes('&lt;unsafe &quot;name&quot;&gt;'));
+assert(C.links([catalog.models[3]], params).includes('&lt;unsafe &quot;name&quot;&gt;'));
 assert(!html.includes('<unsafe'));
 const selectedHtml = C.render(catalog, new URLSearchParams('category=1&model=132'), 'Schermen');
-assert(!selectedHtml.includes('data-category-models open'), 'Chosen model makes the next results compact');
-assert(selectedHtml.includes('Model wijzigen'));
+assert(!selectedHtml.includes('<details'), 'Model search remains directly available after choosing');
+assert(selectedHtml.includes('Een ander model?'));
 assert(selectedHtml.includes('aria-current="page"'));
 assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes('geen modellen gekoppeld'));
 console.log('PASS: visible category-first model choices, contextual URLs, query preservation, counts, small groups, escaping, selection and empty state.');
@@ -74,8 +76,12 @@ assert(list.innerHTML.includes('iPhone 13 Mini'));
 assert(!list.innerHTML.includes('Galaxy S22'));
 inputEvents.keydown({ key: 'Enter', preventDefault() {} });
 inputEvents.keydown({ key: 'ArrowDown', preventDefault() {} });
-assert.equal(clicks, 1);
-assert.equal(focus, 1);
+assert.equal(clicks, 0, 'An ambiguous Enter must not silently choose a device variant');
+assert.equal(focus, 2);
+input.value = 'iphone13mini';
+inputEvents.input();
+inputEvents.keydown({ key: 'Enter', preventDefault() {} });
+assert.equal(clicks, 1, 'A single unambiguous model can be chosen with Enter');
 input.value = 'no-such-model';
 inputEvents.input();
 assert.equal(empty.hidden, false);
@@ -84,6 +90,16 @@ inputEvents.keydown({ key: 'Escape', preventDefault() {} });
 assert.equal(input.value, '');
 assert.equal(empty.hidden, true);
 console.log('PASS: model search, live counts, keyboard choice, no-match handling and Escape reset.');
+
+const manyModels = {...catalog, models: Array.from({length: 20}, (_, index) => ({
+    id: 500 + index, brand_id: 1, name: `iPhone ${index + 20}`, count: 20 - index
+}))};
+assert.equal(C.shortlist(manyModels).models.length, 6, 'A short list replaces the hundreds-model panel');
+assert.equal(C.shortlist(manyModels).total, 20, 'Hidden matches are honestly counted');
+assert.equal(C.shortlist(manyModels, 'iphone39').models[0].id, 519, 'One-product models remain searchable');
+assert.equal(C.shortlist(manyModels, '', 519).models[0].id, 519, 'Selected sparse model remains visible');
+assert.equal((C.render(manyModels, new URLSearchParams(), 'Schermen').match(/data-category-model="/g) || []).length, 6);
+console.log('PASS: at most six model choices, exact searchable tail and visible selected model.');
 
 (async () => {
     const element = { value: '', addEventListener() {}, querySelector() { return element; }, close() {}, showModal() {} };

@@ -1,0 +1,262 @@
+/* ==========================================================================
+   Storefront Redesign - Apple-like Premium B2B
+   ========================================================================== */
+
+/* Safely redefine variables for the storefront layout without touching backoffice */
+body:not(:has(.admin-shell)) {
+    background: #f5f5f7;
+    color: #1d1d1f;
+}
+
+body:not(:has(.admin-shell)) .app-header, 
+.main-content:not(:has(.admin-shell)), 
+body:not(:has(.admin-shell)) .app-footer, 
+.instant-home, 
+.category-models {
+    --primary: #0071e3;
+    --primary-hover: #0077ed;
+    --primary-active: #0058b0;
+    --primary-light: #e8f2fc;
+    
+    --bg-body: #f5f5f7;
+    --bg-surface: #ffffff;
+    --bg-surface-hover: #fbfbfd;
+    
+    --text-main: #1d1d1f;
+    --text-muted: #515154; /* AA readable contrast */
+    
+    --border: #d2d2d7;
+    --border-light: #e5e5ea;
+    --border-focus: #0071e3;
+    
+    --radius-sm: 8px;
+    --radius: 12px;
+    --radius-lg: 18px;
+    
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.02);
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.08);
+    --shadow-float: 0 20px 40px rgba(0, 0, 0, 0.12);
+
+    --font: "SF Pro Display", "SF Pro Text", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    
+    font-family: var(--font);
+    letter-spacing: -0.01em;
+}
+
+/* Form controls global override */
+.main-content:not(:has(.admin-shell)) ::placeholder,
+.instant-home ::placeholder,
+.category-models ::placeholder {
+    color: #6e6e73; /* AA readable contrast */
+    opacity: 1;
+}
+
+/* App Header styling */
+body:not(:has(.admin-shell)) .app-header {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: none;
+}
+
+body:not(:has(.admin-shell)) .test-banner {
+    background: #1d1d1f;
+    color: #ffffff;
+    padding: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-bottom: none;
+}
+
+body:not(:has(.admin-shell)) .app-header .nav-link {
+    color: var(--text-main);
+    font-weight: 500;
+    font-size: 0.8125rem;
+}
+body:not(:has(.admin-shell)) .app-header .nav-link:hover {
+    color: var(--primary);
+}
+
+body:not(:has(.admin-shell)) .app-header .search-input-wrapper {
+    background: var(--bg-body);
+    border: none;
+    border-radius: 99px;
+    padding: 6px 16px;
+    box-shadow: 0 0 0 1px transparent inset;
+}
+body:not(:has(.admin-shell)) .app-header .search-input-wrapper:focus-within {
+    background: var(--bg-surface);
+    box-shadow: 0 0 0 2px var(--primary) inset;
+}
+
+/* Base structural blocks */
+.main-content:not(:has(.admin-shell)) .card, 
+.main-content:not(:has(.admin-shell)) .sidebar-block, 
+.main-content:not(:has(.admin-shell)) .product-detail-layout, 
+.main-content:not(:has(.admin-shell)) .summary-card, 
+.main-content:not(:has(.admin-shell)) .checkout-step {
+    background: var(--bg-surface);
+    border: none;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm), 0 0 0 1px var(--border-light) inset;
+}
+
+/* Buttons */
+.main-content:not(:has(.admin-shell)) .btn {
+    border-radius: 99px;
+    font-weight: 500;
+    letter-spacing: 0;
+    border: none;
+}
+.main-content:not(:has(.admin-shell)) .btn-primary {
+    background: var(--primary);
+}
+.main-content:not(:has(.admin-shell)) .btn-primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+.main-content:not(:has(.admin-shell)) .btn-outline {
+    background: var(--bg-surface);
+    box-shadow: 0 0 0 1px var(--border) inset;
+    color: var(--text-main);
+}
+
+/* Form Controls */
+.main-content:not(:has(.admin-shell)) .form-control {
+    border: none;
+    box-shadow: 0 0 0 1px var(--border) inset;
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    padding: 10px 12px;
+}
+.main-content:not(:has(.admin-shell)) .form-control:focus {
+    box-shadow: 0 0 0 2px var(--primary) inset;
+}
+
+/* Catalog Sidebar */
+.main-content:not(:has(.admin-shell)) .catalog-sidebar {
+    gap: 1.5rem;
+}
+.main-content:not(:has(.admin-shell)) .catalog-sidebar .sidebar-block {
+    padding: 1.5rem;
+}
+.main-content:not(:has(.admin-shell)) .catalog-sidebar .sidebar-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--text-main);
+}
+.main-content:not(:has(.admin-shell)) .catalog-sidebar .cat-nav-item {
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    border: none;
+}
+.main-content:not(:has(.admin-shell)) .catalog-sidebar .cat-nav-item:hover {
+    background: var(--bg-body);
+}
+.main-content:not(:has(.admin-shell)) .catalog-sidebar .cat-nav-item.active {
+    background: var(--primary);
+    color: var(--text-inverse);
+}
+.main-content:not(:has(.admin-shell)) .catalog-sidebar .cat-nav-item.active .nav-count {
+    background: rgba(255,255,255,0.2);
+    color: var(--text-inverse);
+}
+
+/* Product Cards */
+.main-content:not(:has(.admin-shell)) .part-card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02), 0 0 0 1px var(--border-light) inset;
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.main-content:not(:has(.admin-shell)) .part-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06), 0 0 0 1px var(--border) inset;
+    transform: translateY(-2px);
+}
+.main-content:not(:has(.admin-shell)) .part-img-link {
+    background: transparent;
+    border-right: 1px solid var(--border-light);
+    padding: 1rem;
+}
+.main-content:not(:has(.admin-shell)) .part-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+}
+.main-content:not(:has(.admin-shell)) .part-quality {
+    background: var(--bg-body);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 0.6875rem;
+}
+.main-content:not(:has(.admin-shell)) .part-buy-area {
+    background: transparent;
+    border-left: 1px solid var(--border-light);
+}
+.main-content:not(:has(.admin-shell)) .part-price {
+    font-size: 1.375rem;
+    font-weight: 600;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
+}
+
+/* Grid View specific overrides */
+.main-content:not(:has(.admin-shell)) .view-grid .part-card {
+    border-radius: var(--radius-lg);
+}
+.main-content:not(:has(.admin-shell)) .view-grid .part-img-link {
+    border-bottom: 1px solid var(--border-light);
+    border-right: none;
+    background: var(--bg-body);
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+}
+.main-content:not(:has(.admin-shell)) .view-grid .part-buy-area {
+    border-top: 1px solid var(--border-light);
+    border-left: none;
+}
+
+/* Product Detail Page */
+.main-content:not(:has(.admin-shell)) .main-image-container {
+    border: none;
+    background: var(--bg-body);
+    border-radius: var(--radius-lg);
+}
+.main-content:not(:has(.admin-shell)) .product-title-lg {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+.main-content:not(:has(.admin-shell)) .product-price-lg {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--text-main);
+    letter-spacing: -0.03em;
+}
+.main-content:not(:has(.admin-shell)) .purchase-box {
+    background: var(--bg-surface);
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04), 0 0 0 1px var(--border-light) inset;
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+}
+
+/* Pagination */
+.main-content:not(:has(.admin-shell)) .page-link {
+    border-radius: 50%;
+    border: none;
+    font-weight: 500;
+    width: 2.5rem;
+    height: 2.5rem;
+    box-shadow: 0 0 0 1px var(--border) inset;
+}
+.main-content:not(:has(.admin-shell)) .page-link.active {
+    background: var(--text-main);
+    color: var(--text-inverse);
+    box-shadow: none;
+}

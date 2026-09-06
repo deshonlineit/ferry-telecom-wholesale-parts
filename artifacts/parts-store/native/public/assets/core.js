@@ -421,7 +421,7 @@ window.App = {
         if (data.models && data.models.length) {
             html += `<div class="suggestion-group">
                 <div class="suggestion-group-title">Modellen</div>
-                ${data.models.map(m => `<a href="${window.APP_BASE}catalog?model=${m.id}&brand=${m.brand_id}" class="suggestion-item"><span class="suggestion-text">${esc(m.name)}</span><span class="suggestion-meta badge">${m.count}</span></a>`).join('')}
+                ${data.models.map(m => `<a href="${window.APP_BASE}catalog?model=${m.id}" class="suggestion-item"><span class="suggestion-text">${esc(m.name)}</span><span class="suggestion-meta badge">${m.count}</span></a>`).join('')}
             </div>`;
         }
         

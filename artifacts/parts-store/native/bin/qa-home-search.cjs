@@ -24,6 +24,8 @@ assert(shell.includes('value="iphone lcd"'));
 assert(!/<select|<dialog|type="submit"/.test(shell), 'No dropdown, popup or compulsory submit control');
 assert(!shell.includes('data-fast-finder'), 'No competing brand/model form');
 assert(shell.includes('id="home-search"'));
+assert(shell.includes('data-home-refine'));
+assert(shell.includes('home-model-options home-live-results'));
 assert(H.shell(new URLSearchParams('q=%22%3E%3Cscript%3E')).includes('&quot;&gt;&lt;script&gt;'));
 assert(!H.requests(new URLSearchParams())[1].includes('featured='), 'Alles includes the whole assortment, not only featured products');
 assert(!H.requests(params)[1].includes('featured='));
@@ -102,6 +104,17 @@ console.log('PASS: homepage has one live search field, no dropdown/modal/submit 
     assert(nodes.get('[data-home-products]').innerHTML.includes('iPhone 13 LCD'));
     assert.equal(nodes.get('.instant-results').attrs['aria-busy'], 'false');
     assert(nodes.get('[data-home-all]').href.includes('model=132'));
+    const many = {...catalog, models: [
+        {id: 301, name: 'iPhone 13 Pro Max', count: 40},
+        {id: 302, name: 'iPhone 13 Pro', count: 1},
+        ...Array.from({length: 12}, (_, index) => ({id: 400 + index, name: `Galaxy S${index + 20}`, count: 30}))
+    ]};
+    H.paint(root, [many, {total: 4, products: [{name: 'A matching part'}]}], new URLSearchParams('q=13+pro+lcd'));
+    assert(nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="302"') < nodes.get('.instant-model-options').innerHTML.indexOf('data-home-model="301"'));
+    assert(!nodes.get('.instant-model-options').innerHTML.includes('Galaxy'));
+    H.paint(root, [many, {total: 4, products: [{name: 'A matching part'}]}], new URLSearchParams('category=1'));
+    assert.equal((nodes.get('.instant-model-options').innerHTML.match(/data-home-model="/g) || []).length, 6);
+    assert(nodes.get('.instant-model-help').textContent.includes('zoekveld'));
     H.paint(root, [{...catalog, models: []}, {total: 0, products: []}], new URLSearchParams('q=unmatched'));
     assert(nodes.get('[data-home-products]').innerHTML.includes('Geen passende onderdelen'));
     assert.equal(nodes.get('[data-home-all]').hidden, true);

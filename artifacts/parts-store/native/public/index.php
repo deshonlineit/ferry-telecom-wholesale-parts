@@ -59,6 +59,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <link rel="stylesheet" href="/test-shop/assets/workspace.css?v=<?= $v_ws ?>">
     <link rel="stylesheet" href="/test-shop/assets/workbench.css?v=<?= $v_wb ?>">
     <link rel="stylesheet" href="/test-shop/assets/backoffice.css?v=<?= @filemtime(__DIR__ . '/assets/backoffice.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/storefront-redesign.css?v=<?= @filemtime(__DIR__ . '/assets/storefront-redesign.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/category-models.css?v=<?= @filemtime(__DIR__ . '/assets/category-models.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/home-search.css?v=<?= @filemtime(__DIR__ . '/assets/home-search.css') ?: 1 ?>">
     <script>window.APP_BASE = '/test-shop/';</script>

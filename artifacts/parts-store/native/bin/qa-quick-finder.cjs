@@ -39,6 +39,32 @@ check('brand selection excludes other manufacturers and zero-count models', () =
     assert.deepEqual(Array.from(finder.models(catalog, '2'), m => m.id), [30]);
 });
 check('unknown model query returns an explicit empty result', () => assert.equal(finder.models(catalog, '', 'unlisted-model').length, 0));
+check('short model queries rank exact executions before higher-count variants', () => {
+    const variants = {...catalog, models: [
+        {id: 1, name: 'iPhone 13 Pro Max', brand_id: 1, count: 50},
+        {id: 2, name: 'iPhone 13 Pro', brand_id: 1, count: 1},
+        {id: 3, name: 'Samsung Galaxy S23 Ultra', brand_id: 2, count: 50},
+        {id: 4, name: 'Samsung Galaxy S23', brand_id: 2, count: 1},
+        {id: 5, name: 'Apple Watch Series 2 - 38mm', brand_id: 1, count: 100},
+        {id: 6, name: 'MacBook Pro 13 inch', brand_id: 1, count: 100}
+    ]};
+    for (const query of ['13 Pro', '13pro', 'iPhone13Pro', 'Apple iPhone 13 Pro']) {
+        assert.equal(finder.models(variants, '', query)[0].id, 2, query);
+    }
+    for (const query of ['S23', 'Samsung S23', 'Galaxy S23']) {
+        assert.equal(finder.models(variants, '', query)[0].id, 4, query);
+    }
+    assert.equal(finder.models(variants, '', 'iPhone13ProMax')[0].id, 1);
+    assert.equal(finder.models(variants, '', 'S23 Ultra')[0].id, 3);
+    assert(!finder.models(variants, '', 'S23').some(model => model.id === 5), 'Do not match across unrelated word/number boundaries');
+    assert(!finder.models(variants, '', '13 Pro').some(model => model.id === 6), 'Device terms must remain in the requested order');
+});
+check('part terms do not hide model suggestions from the unified home search', () => {
+    assert.equal(finder.modelQuery('iPhone 13 Pro Max OLED'), 'iPhone 13 Pro Max');
+    assert.equal(finder.modelQuery('LCD voor iPhone 13'), 'iPhone 13');
+    assert.equal(finder.modelQuery('S23 batterij'), 'S23');
+    assert.equal(finder.modelQuery('lcd'), '');
+});
 check('model order changes immediately between part count and natural A–Z', () => {
     assert.deepEqual(Array.from(finder.models(catalog, '', '', 'name'), m => m.id), [30, 132, 133]);
     assert.deepEqual(Array.from(finder.models(catalog), m => m.id), [133, 132, 30]);

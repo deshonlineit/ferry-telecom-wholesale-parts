@@ -3,12 +3,46 @@
     const compact = value => String(value || '').toLocaleLowerCase('nl').replace(/[^a-z0-9]/g, '');
     const recentKey = 'parts_recent_models';
     const F = window.FastFinder = {
+        modelQuery(query) {
+            return String(query || '').replace(/\b(?:lcd|oled|incell|oem|scherm(?:en)?|display(?:s)?|screen(?:s)?|touchscreen|touch|batterij(?:en)?|batter(?:y|ies)|accu|laadpoort(?:en)?|charging|port|camera(?:s)?|flex(?:kabel)?|kabel(?:s)?|behuizing|housing|frame|glas|glass|backcover|speaker(?:s)?|audio|adhesive|connector|dock|onderdeel|onderdelen|parts?|voor|for)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+        },
         models(catalog, brand = '', query = '', order = 'count') {
             const term = compact(query);
+            const tokens = String(query || '').toLocaleLowerCase('nl').match(/[a-z]+|\d+/g) || [];
+            const rank = model => {
+                if (!term) return 0;
+                const name = compact(model.name);
+                const brandName = (catalog.brands || []).find(item => String(item.id) === String(model.brand_id))?.name || '';
+                const full = compact(brandName + ' ' + model.name);
+                const words = (brandName + ' ' + model.name).toLocaleLowerCase('nl').match(/[a-z]+|\d+/g) || [];
+                const brandTokens = brandName.toLocaleLowerCase('nl').match(/[a-z]+|\d+/g) || [];
+                const deviceTerm = compact(tokens.filter(token => !brandTokens.includes(token)).join(' ')) || term;
+                // Match ordered name segments, never "s23" across "Series 2 - 38mm".
+                let cursor = 0;
+                for (let index = 0; index < tokens.length; index++) {
+                    const token = tokens[index];
+                    let found = false;
+                    for (let start = cursor; start < words.length; start++) {
+                        let end = start, candidate = words[start];
+                        while (/^[a-z]+$/.test(token) && candidate.length < token.length && /^[a-z]+$/.test(words[end + 1] || '')) {
+                            candidate += words[++end];
+                        }
+                        if (candidate === token || (index === tokens.length - 1 && candidate.startsWith(token))) {
+                            cursor = end + 1;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) return -1;
+                }
+                if (name === deviceTerm || full === term) return 4;
+                if (name.endsWith(deviceTerm)) return 3;
+                return name.includes(deviceTerm) ? 2 : 1;
+            };
             return catalog.models
-                .filter(model => Number(model.count) > 0 && (!brand || String(model.brand_id) === String(brand)) && (!term || compact(model.name).includes(term)))
+                .filter(model => Number(model.count) > 0 && (!brand || String(model.brand_id) === String(brand)) && rank(model) >= 0)
                 .sort((a, b) => {
-                    const exact = Number(compact(b.name) === term) - Number(compact(a.name) === term);
+                    const exact = rank(b) - rank(a);
                     return exact || (order === 'name' ? 0 : Number(b.count) - Number(a.count)) || a.name.localeCompare(b.name, 'nl', {numeric: true});
                 });
         },

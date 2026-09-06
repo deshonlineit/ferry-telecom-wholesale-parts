@@ -6,6 +6,24 @@ De nieuwe versie staat afzonderlijk onder `/test-shop/`. De oude prototypebronco
 
 De native service is uitsluitend een ontwikkel-/testomgeving. De productie-build is bewust geblokkeerd; dit is geen publicatieklare webshop.
 
+## Rustigere winkel en korte modelselectie — 6 september 2026
+
+De winkelweergave heeft een neutralere achtergrond, heldere systeemtypografie, rustigere knoppen en vernieuwde product-/catalogusoppervlakken. De nieuwe algemene winkelstijlen sluiten de medewerkersomgeving expliciet uit. Er zijn geen externe fonts of andere runtime-afhankelijkheden toegevoegd.
+
+- Startpagina en categoriezoeker tonen maximaal zes modellen tegelijk. Verder typen verfijnt de selectie; ook modellen met één gekoppeld onderdeel blijven vindbaar.
+- Zoekvormen zoals `13 Pro`, `S23` en `iPhone13ProMax` worden ondersteund. Exacte uitvoeringen staan vóór varianten; woorden en cijfergroepen blijven gescheiden zodat `S23` niet als `Series 2 - 38mm` wordt gelezen.
+- Het modelpaneel blijft open. Op de startpagina blijft één live zoekveld; de knop “Ander model” brengt de focus terug naar datzelfde veld.
+- Modelkeuze behoudt onderdeel-/zoekfilters en legt geen productmerk op. Ambigue Enter-invoer in de categoriezoeker focust de keuzelijst in plaats van stilzwijgend een uitvoering te selecteren.
+- Geen wijzigingen aan backendregels, prijzen, valuta, voorraad of live diensten. De bestaande productzoekopdracht en productvolgorde zijn behouden.
+
+Gerichte codecontroles voor de homepage, categoriezoeker, 17 modelzoekscenario's, filter-URL's en gedeelde uitvoering van de 26 native routes zijn geslaagd. PHP-syntaxis en diffcontrole zijn eveneens geslaagd.
+
+Browsercontrole op desktop en mobiel is geslaagd, zowel als gast als met de geïsoleerde testklant. `13 Pro` gaf twee modelkeuzes in de juiste volgorde; model kiezen, product openen/teruggaan, LCD verfijnen en de open categoriezoeker behielden hun context. `S23` plus het gekozen Galaxy S23-model gaf 20 onderdelen met zichtbare klantprijzen. Er zijn geen winkelwagen-, voorraad-, bestel- of betaalacties uitgevoerd.
+
+Bij 390×844 px begon de eerste productrij op Y=787,48 px; de modelknoppen maten 144,5×76,5 px. Bij zowel 390 als 320 px was er geen horizontale pagina-overflow en bleven modelnamen leesbaar. Bij 320 px begon de eerste rij pas op Y=863,48 px, dus daar blijft een kleine verticale scroll nodig. Geen applicatiefouten aangetroffen. De eerste poging tot de extra klantcontrole gebruikte in de testinstructie het verkeerde globale object; met de bestaande correcte loginfunctie slaagde de controle zonder een authenticatiewijziging.
+
+De brede producttekstzoeker is bewust niet herzien: zonder modelkeuze kan `S23` nog een ruimer productresultaat bevatten. De vernieuwde modelkeuze zelf bevat deze onjuiste toestelmatch niet; expliciete Galaxy S23-selectie beperkt de resultaten tot de bestaande koppelingen van dat model.
+
 ## Startpagina: direct zoeken zonder formulierstappen — 6 september 2026
 
 De startpagina heeft één zoekveld. Tijdens het typen verschijnen de werkelijke producten direct op dezelfde pagina; er hoeft geen zoekknop te worden ingedrukt. Er is geen verplichte merkkeuze, reeks keuzelijsten of apart zoekvenster meer.
