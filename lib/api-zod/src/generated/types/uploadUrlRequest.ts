@@ -5,6 +5,7 @@
  * Wholesale mobile parts store API
  * OpenAPI spec version: 0.1.0
  */
+import type { UploadUrlRequestContentType } from './uploadUrlRequestContentType';
 
 export interface UploadUrlRequest {
   /**
@@ -15,11 +16,9 @@ export interface UploadUrlRequest {
   /**
      * File size in bytes.
      * @minimum 1
+     * @maximum 8388608
      */
   size: number;
-  /**
-     * MIME type of the file (e.g. `image/jpeg`).
-     * @minLength 1
-     */
-  contentType: string;
+  /** Supported product image MIME type. */
+  contentType: UploadUrlRequestContentType;
 }

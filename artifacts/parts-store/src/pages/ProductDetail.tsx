@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronLeft, Package, Plus, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ProductGallery } from '@/components/products/ProductGallery';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -109,17 +110,7 @@ export default function ProductDetail() {
 
         <div className="grid md:grid-cols-2 gap-8">
           {/* Image */}
-          <div className="aspect-square bg-muted rounded-lg border border-card-border flex items-center justify-center overflow-hidden">
-            {product.imageUrl ? (
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Package className="h-32 w-32 text-muted-foreground/30" />
-            )}
-          </div>
+          <ProductGallery key={product.id} name={product.name} images={product.images} imageUrl={product.imageUrl} />
 
           {/* Details */}
           <div className="space-y-6">

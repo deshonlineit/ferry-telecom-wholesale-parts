@@ -118,7 +118,7 @@ function mediaUpload(int $productId): never
                 $originalRelative,
             ]);
             $imageId = (int) $pdo->lastInsertId();
-            $pdo->prepare('UPDATE products SET image_url = ? WHERE id = ?')->execute([$mainUrl, $productId]);
+            $pdo->prepare("UPDATE products SET image_url = ? WHERE id = ? AND image_url = ''")->execute([$mainUrl, $productId]);
             audit('image.upload', 'image', $imageId, ['product_id' => $productId, 'width' => $width, 'height' => $height]);
             $pdo->commit();
         } catch (Throwable $exception) {
@@ -164,7 +164,8 @@ function mediaDelete(int $imageId): never
         $pdo->prepare('DELETE FROM images WHERE id = ?')->execute([$imageId]);
         $next = mediaFetchOne('SELECT url FROM images WHERE product_id = ? ORDER BY id LIMIT 1', [(int) $image['product_id']]);
         $nextUrl = $next === null ? '' : (string) $next['url'];
-        $pdo->prepare('UPDATE products SET image_url = ? WHERE id = ?')->execute([$nextUrl, (int) $image['product_id']]);
+        $pdo->prepare('UPDATE products SET image_url = ? WHERE id = ? AND image_url = ?')
+            ->execute([$nextUrl, (int) $image['product_id'], (string) $image['url']]);
         audit('image.delete', 'image', $imageId, ['product_id' => (int) $image['product_id']]);
         $pdo->commit();
     } catch (Throwable $exception) {

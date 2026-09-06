@@ -24,6 +24,8 @@ export interface AdminProduct {
   featured: boolean;
   /** @nullable */
   imageUrl: string | null;
+  /** @maxItems 12 */
+  images: string[];
   /** @nullable */
   description: string | null;
 }

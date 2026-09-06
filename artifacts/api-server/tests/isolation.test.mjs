@@ -14,6 +14,10 @@
  */
 import assert from "node:assert/strict";
 import pg from "pg";
+import {
+  createClerkTestClient,
+  createSessionTokenCache,
+} from "./clerk-test-helper.mjs";
 
 const CLERK_API = "https://api.clerk.com/v1";
 const API = process.env.ISOLATION_TEST_API_BASE ?? "http://localhost:80/api";
@@ -23,22 +27,8 @@ if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-async function clerk(method, path, body) {
-  const res = await fetch(`${CLERK_API}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${SECRET}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    throw new Error(
-      `Clerk ${method} ${path} -> ${res.status}: ${await res.text()}`,
-    );
-  }
-  return res.status === 204 ? null : res.json();
-}
+const clerk = createClerkTestClient({ secret: SECRET, apiBase: CLERK_API });
+const tokenFor = createSessionTokenCache({ clerk });
 
 async function createTestUser(tag) {
   const email = `isolation-test-${tag}-${Date.now()}@example.com`;
@@ -53,9 +43,8 @@ async function createTestUser(tag) {
   return { email, userId: user.id, sessionId: session.id };
 }
 
-// Session tokens expire after ~60s; mint a fresh one per API call.
 async function api(user, method, path, body) {
-  const { jwt } = await clerk("POST", `/sessions/${user.sessionId}/tokens`, {});
+  const jwt = await tokenFor(user.sessionId);
   const res = await fetch(`${API}${path}`, {
     method,
     headers: {

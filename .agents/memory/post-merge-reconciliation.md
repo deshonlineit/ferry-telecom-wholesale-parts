@@ -14,9 +14,9 @@ After task-agent merges land on main, typecheck/tests often break for reasons NO
 
 **Rule:** Audit automatically merged files as well as files explicitly reported as conflicted. Compare the staged change size and intent with the original task patch.
 
-**Why:** An automatic merge once replaced several unrelated native admin handlers with repeated fragments, although only a React file was reported as conflicted. The native script had no conflict markers but could not parse.
+**Why:** Automatic merges have replaced unrelated native admin handlers with repeated fragments and substituted product/category/customer API handlers with model/order code. Such corrupted files had no conflict markers.
 
-**How to apply:** Investigate disproportionate diffs before continuing a rebase, and run native syntax and shared-script regression checks. Preserve the verified content from both branches rather than repairing only the first syntax error in a corrupted merge.
+**How to apply:** Investigate disproportionate diffs before continuing a rebase, then run typechecking, native syntax and shared-script regression checks. Preserve verified route logic and authorization from both branches rather than repairing only the first error in a corrupted merge.
 
 **Rule:** A responding port does not prove that the latest managed workflow is running. Check for an obsolete process when a restarted service fails to build or reports an occupied port.
 

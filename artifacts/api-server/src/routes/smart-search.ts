@@ -13,6 +13,7 @@ import {
   getExplicitTierPrices,
   resolvePrice,
 } from "../lib/store";
+import { toRenderableImageUrl } from "../lib/productImages";
 import { normalize, matchModel, matchCategory } from "../lib/smart-search";
 import { requireCustomer } from "../middlewares/requireCustomer";
 
@@ -121,6 +122,7 @@ router.get("/search/smart", requireCustomer, async (req, res): Promise<void> => 
       },
       products: rows.map((r) => ({
         ...r,
+        imageUrl: toRenderableImageUrl(r.imageUrl),
         listPrice: Number(r.listPrice),
         yourPrice: resolvePrice(explicit, r.id, Number(r.listPrice), discount),
       })),

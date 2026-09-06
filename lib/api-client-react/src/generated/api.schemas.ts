@@ -28,6 +28,8 @@ export interface AdminProduct {
   featured: boolean;
   /** @nullable */
   imageUrl: string | null;
+  /** @maxItems 12 */
+  images: string[];
   /** @nullable */
   description: string | null;
 }
@@ -264,6 +266,8 @@ export interface ProductSpec {
 }
 
 export type ProductDetail = Product & {
+  /** @maxItems 12 */
+  images: string[];
   tierPrices: TierPrice[];
   specs: ProductSpec[];
 };
@@ -343,6 +347,10 @@ export interface CartItemUpdate {
   quantity: number;
 }
 
+/**
+ * Supported product image MIME type.
+ */
+export type UploadUrlRequestContentType = typeof UploadUrlRequestContentType[keyof typeof UploadUrlRequestContentType];
 export interface UploadUrlRequest {
   /**
      * Original file name.
@@ -352,13 +360,11 @@ export interface UploadUrlRequest {
   /**
      * File size in bytes.
      * @minimum 1
+     * @maximum 8388608
      */
   size: number;
-  /**
-     * MIME type of the file (e.g. `image/jpeg`).
-     * @minLength 1
-     */
-  contentType: string;
+  /** Supported product image MIME type. */
+  contentType: UploadUrlRequestContentType;
 }
 
 export interface UploadUrlResponse {
@@ -373,17 +379,19 @@ export interface ErrorEnvelope {
   error: string;
 }
 
-export interface ProductImageInput {
+export interface ProductCoverImageChange {
   /**
-     * Uploaded objectPath (`/objects/...`), a storage URL, or any absolute image URL.
+     * Set the cover image while retaining the other gallery images.
      * @minLength 1
      */
   imageUrl: string;
 }
-
 export interface ProductImageResult {
   id: number;
-  imageUrl: string;
+  /** @nullable */
+  imageUrl: string | null;
+  /** @maxItems 12 */
+  images: string[];
 }
 
 export interface OrderInput {
@@ -475,7 +483,6 @@ page?: number;
  */
 pageSize?: number;
 };
-
 export type ListProductsSort = typeof ListProductsSort[keyof typeof ListProductsSort];
 
 
@@ -537,3 +544,20 @@ export interface CustomerAddressUpdate {
   shippingAddress?: string;
   isDefault?: boolean;
 }
+
+export const UploadUrlRequestContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface ProductGalleryImagesChange {
+  /**
+     * Authoritative ordered gallery replacement; an empty array removes all images.
+     * @maxItems 12
+     * @items.minLength 1
+     */
+  imageUrls: string[];
+}
+
+export type ProductImageInput = ProductCoverImageChange | ProductGalleryImagesChange;

@@ -136,6 +136,7 @@ export const GetProductParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const getProductResponseTwoImagesMax = 12;
 export const GetProductResponse = zod.object({
   "id": zod.int(),
   "sku": zod.string(),
@@ -153,6 +154,7 @@ export const GetProductResponse = zod.object({
   "imageUrl": zod.string().nullable(),
   "description": zod.string().nullish()
 }).and(zod.object({
+  "images": zod.array(zod.string()).max(getProductResponseTwoImagesMax),
   "tierPrices": zod.array(zod.object({
   "tierId": zod.int(),
   "tierName": zod.string(),
@@ -173,16 +175,19 @@ export const SetProductImageParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const setProductImageBodyTwoImageUrlsMax = 12;
+export const SetProductImageBody = zod.union([zod.object({
+  "imageUrl": zod.string().min(1).describe('Set the cover image while retaining the other gallery images.')
+}),zod.object({
+  "imageUrls": zod.array(zod.string().min(1)).max(setProductImageBodyTwoImageUrlsMax).describe('Authoritative ordered gallery replacement; an empty array removes all images.')
+})])
 
-export const SetProductImageBody = zod.object({
-  "imageUrl": zod.string().min(1).describe('Uploaded objectPath (`\/objects\/...`), a storage URL, or any absolute image URL.')
-})
-
+export const setProductImageResponseImagesMax = 12;
 export const SetProductImageResponse = zod.object({
   "id": zod.int(),
-  "imageUrl": zod.string()
+  "imageUrl": zod.string().nullable(),
+  "images": zod.array(zod.string()).max(setProductImageResponseImagesMax)
 })
-
 
 /**
  * Returns a presigned GCS URL for direct upload. The client sends JSON
@@ -190,21 +195,21 @@ export const SetProductImageResponse = zod.object({
  * @summary Request a presigned URL for file upload
  */
 
-
+export const requestUploadUrlBodySizeMax = 8388608;
 export const RequestUploadUrlBody = zod.object({
   "name": zod.string().min(1).describe('Original file name.'),
-  "size": zod.int().min(1).describe('File size in bytes.'),
-  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+  "size": zod.int().min(1).max(requestUploadUrlBodySizeMax).describe('File size in bytes.'),
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']).describe('Supported product image MIME type.')
 })
 
-
+export const requestUploadUrlResponseMetadataSizeMax = 8388608;
 export const RequestUploadUrlResponse = zod.object({
   "uploadURL": zod.url().describe('Presigned GCS URL for PUT upload.'),
   "objectPath": zod.string().describe('Normalized object path (e.g. `\/objects\/uploads\/uuid`). Store this in your database.'),
   "metadata": zod.object({
   "name": zod.string().min(1).describe('Original file name.'),
-  "size": zod.int().min(1).describe('File size in bytes.'),
-  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+  "size": zod.int().min(1).max(requestUploadUrlResponseMetadataSizeMax).describe('File size in bytes.'),
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']).describe('Supported product image MIME type.')
 }).optional()
 })
 
@@ -620,6 +625,7 @@ export const AdminListProductsQueryParams = zod.object({
   "pageSize": zod.coerce.number().int().min(1).max(adminListProductsQueryPageSizeMax).optional()
 })
 
+export const adminListProductsResponseItemsItemImagesMax = 12;
 export const adminListProductsResponseLowStockThresholdMin = 0;
 export const AdminListProductsResponse = zod.object({
   "items": zod.array(zod.object({
@@ -637,6 +643,7 @@ export const AdminListProductsResponse = zod.object({
   "stock": zod.int(),
   "featured": zod.boolean(),
   "imageUrl": zod.string().nullable(),
+  "images": zod.array(zod.string()).max(adminListProductsResponseItemsItemImagesMax),
   "description": zod.string().nullable()
 })),
   "total": zod.int(),
@@ -671,6 +678,7 @@ export const AdminCreateProductBody = zod.object({
   "description": zod.string().nullish()
 })
 
+export const adminCreateProductResponseImagesMax = 12;
 export const AdminCreateProductResponse = zod.object({
   "id": zod.int(),
   "sku": zod.string(),
@@ -686,6 +694,7 @@ export const AdminCreateProductResponse = zod.object({
   "stock": zod.int(),
   "featured": zod.boolean(),
   "imageUrl": zod.string().nullable(),
+  "images": zod.array(zod.string()).max(adminCreateProductResponseImagesMax),
   "description": zod.string().nullable()
 })
 
@@ -717,6 +726,7 @@ export const AdminUpdateProductBody = zod.object({
   "description": zod.string().nullish()
 })
 
+export const adminUpdateProductResponseImagesMax = 12;
 export const AdminUpdateProductResponse = zod.object({
   "id": zod.int(),
   "sku": zod.string(),
@@ -732,6 +742,7 @@ export const AdminUpdateProductResponse = zod.object({
   "stock": zod.int(),
   "featured": zod.boolean(),
   "imageUrl": zod.string().nullable(),
+  "images": zod.array(zod.string()).max(adminUpdateProductResponseImagesMax),
   "description": zod.string().nullable()
 })
 

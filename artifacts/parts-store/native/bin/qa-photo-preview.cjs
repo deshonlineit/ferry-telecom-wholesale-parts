@@ -68,5 +68,28 @@ assert.match(coreSource, /dialog\.addEventListener\('cancel'/);
 assert.match(coreSource, /dialog\.addEventListener\('close', cleanup\)/);
 assert.match(coreSource, /opener\.focus\(\)/);
 assert.match(coreSource, /window\.UI\.closeGallery\(\)/);
+assert.match(coreSource, /photo-preview-zoom-in/);
+assert.match(coreSource, /photo-preview-zoom-out/);
+assert.match(coreSource, /photo-preview-zoom-reset/);
+assert.match(coreSource, /figure\.scrollLeft/);
+assert.match(coreSource, /resetZoom\(\);\s*image\.src/);
 
-console.log('PASS: photo thumbnails stay buttons, titles stay links, missing photos stay honest, and the native dialog has keyboard/navigation cleanup hooks.');
+assert.equal(window.App.thumbnailUrl({
+    url: '/media/example-1280w.webp',
+    variants: {'320': '/media/example-320w.webp'}
+}), '/media/example-320w.webp');
+assert.equal(window.App.thumbnailUrl({url: '/legacy/photo.jpg'}), '/legacy/photo.jpg');
+
+const adminSource = fs.readFileSync(path.join(__dirname, '../public/assets/admin-products.js'), 'utf8');
+assert.match(adminSource, /id="img-upload"[^>]+multiple/);
+assert.match(adminSource, /for \(const result of results\)/);
+assert.match(adminSource, /De geslaagde uploads blijven bewaard/);
+assert.match(adminSource, /Bestaande hoofdfoto/);
+assert.match(adminSource, /updateImageGallery\(response\.images \|\| images\)/);
+assert.doesNotMatch(adminSource, /afbeelding\$\{successes === 1 \? '' : 'en'\} geüpload`, 'success'\);\s*window\.Router\.route/);
+
+const mediaSource = fs.readFileSync(path.join(__dirname, '../src/media.php'), 'utf8');
+assert.match(mediaSource, /image_url = ''/);
+assert.match(mediaSource, /AND image_url = \?/);
+
+console.log('PASS: native gallery uses responsive thumbnails, zoom/pan controls and cleanup hooks; staff multi-upload is sequential with persistent partial-failure feedback.');

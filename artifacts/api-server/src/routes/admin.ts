@@ -40,6 +40,7 @@ import {
   AdminImportProductsResponse,
 } from "@workspace/api-zod";
 import { requireStaff } from "../middlewares/requireStaff";
+import { toRenderableImageUrl, toRenderableImageUrls } from "../lib/productImages";
 import { classifyProductNames, classifyToCategoryId } from "../lib/classifyProduct";
 import {
   CsvImportAbortedError,
@@ -49,7 +50,6 @@ import {
 } from "../lib/productCsvImport";
 
 const router: IRouter = Router();
-
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 const MAX_CONCURRENT_CSV_IMPORTS = 2;
 let activeCsvImports = 0;
@@ -74,6 +74,7 @@ function adminProductSelect() {
       stock: productsTable.stock,
       featured: productsTable.featured,
       imageUrl: productsTable.imageUrl,
+      images: productsTable.images,
       description: productsTable.description,
     })
     .from(productsTable)
@@ -87,13 +88,17 @@ type AdminProductRow = Awaited<ReturnType<ReturnType<typeof adminProductSelect>[
 function productToApi(row: AdminProductRow) {
   return {
     ...row,
+    imageUrl: toRenderableImageUrl(row.imageUrl),
     listPrice: Number(row.listPrice),
+    images: toRenderableImageUrls(
+      row.images.length > 0 ? row.images : row.imageUrl ? [row.imageUrl] : [],
+    ),
   };
 }
 
 router.get("/admin/products", async (req, res): Promise<void> => {
   const rawLowStockOnly = req.query.lowStockOnly;
-  const parsed = AdminListProductsQueryParams.safeParse(req.query);
+  const parsed = AdminCreateModelBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;

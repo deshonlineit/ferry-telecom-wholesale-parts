@@ -622,15 +622,21 @@ dialog.photo-preview-dialog::backdrop { background: rgba(17, 24, 39, 0.7); backd
     display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;
     border-bottom: 1px solid var(--border-light); background: var(--bg-surface); color: var(--text-main); flex-shrink: 0;
 }
-.photo-preview-heading { display: flex; align-items: baseline; gap: 8px; }
+.photo-preview-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1; }
 .photo-preview-title { margin: 0; font-size: 0.875rem; font-weight: 700; letter-spacing: -0.01em; }
 .photo-preview-counter { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
 .photo-preview-close { background: transparent; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-muted); border-radius: 3px; padding: 0 4px; line-height: 1; }
 .photo-preview-close:hover { color: var(--text-main); background: var(--bg-body); }
+.photo-preview-tools { display:flex; align-items:center; justify-content:center; gap:4px; flex-shrink:0; }
+.photo-preview-tools button { min-width:32px; height:32px; padding:0 8px; border:1px solid var(--border); border-radius:4px; background:var(--bg-surface); color:var(--text-main); cursor:pointer; font-weight:700; }
+.photo-preview-tools button:disabled { opacity:0.4; cursor:not-allowed; }
+.photo-preview-zoom-level { width:54px; text-align:center; font-size:0.75rem; font-variant-numeric:tabular-nums; color:var(--text-muted); }
 .photo-preview-content {
     position: relative; padding: 1rem; background: var(--bg-body); display: flex; align-items: center; justify-content: center; flex: 1; min-height: 250px; overflow: hidden;
 }
-.photo-preview-figure { margin: 0; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.photo-preview-figure { margin: 0; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; overflow:auto; overscroll-behavior:contain; touch-action:pan-x pan-y; scrollbar-gutter:stable; }
+.photo-preview-figure.is-zoomed { display:block; cursor:grab; }
+.photo-preview-figure.is-dragging { cursor:grabbing; user-select:none; }
 .photo-preview-image { max-width: 100%; max-height: 100%; object-fit: contain; }
 .photo-preview-nav {
     position: absolute; top: 50%; transform: translateY(-50%); background: var(--bg-surface); border: 1px solid var(--border);
@@ -640,6 +646,11 @@ dialog.photo-preview-dialog::backdrop { background: rgba(17, 24, 39, 0.7); backd
 .photo-preview-nav:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .photo-preview-nav:disabled { opacity: 0.3; cursor: not-allowed; }
 .photo-preview-nav.prev { left: 8px; } .photo-preview-nav.next { right: 8px; }
+.image-upload-result { display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid var(--wb-border-light); font-size:0.8125rem; overflow-wrap:anywhere; }
+.image-upload-result span { min-width:0; }
+.image-upload-result strong { flex-shrink:0; }
+.image-upload-result.success strong { color:var(--success); }
+.image-upload-result.error strong { color:var(--danger); max-width:55%; text-align:right; }
 button.part-img-link.part-photo-preview { cursor: zoom-in; }
 button.part-img-link.part-photo-preview:hover { border-color: var(--primary); }
 div.part-img-link.part-no-photo { opacity: 0.7; }
@@ -727,5 +738,14 @@ div.part-img-link.part-no-photo { opacity: 0.7; }
     .part-qty, .part-add-btn { height:40px; }
     .part-add-btn { min-width:44px; }
     .photo-preview-close { width:40px; height:40px; }
+    dialog.photo-preview-dialog { width:100vw; max-width:none; height:100dvh; max-height:none; border-radius:0; }
+    .photo-preview-shell { max-height:100dvh; }
+    .photo-preview-header { flex-wrap:wrap; padding:6px 8px; }
+    .photo-preview-heading { order:1; flex:1 1 calc(100% - 48px); }
+    .photo-preview-close { order:2; }
+    .photo-preview-tools { order:3; width:100%; }
+    .photo-preview-tools button { min-width:40px; height:40px; }
+    .photo-preview-content { padding:8px; max-height:none; }
+    .photo-preview-nav.prev { left:4px; } .photo-preview-nav.next { right:4px; }
     .filter-dialog-actions button { height:40px; }
 }

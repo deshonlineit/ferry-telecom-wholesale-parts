@@ -5,11 +5,7 @@
  * Wholesale mobile parts store API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductCoverImageChange } from './productCoverImageChange';
+import type { ProductGalleryImagesChange } from './productGalleryImagesChange';
 
-export interface ProductImageInput {
-  /**
-     * Uploaded objectPath (`/objects/...`), a storage URL, or any absolute image URL.
-     * @minLength 1
-     */
-  imageUrl: string;
-}
+export type ProductImageInput = ProductCoverImageChange | ProductGalleryImagesChange;

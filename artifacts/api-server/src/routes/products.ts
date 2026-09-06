@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { getAuth } from "@clerk/express";
 import { and, asc, desc, eq, gt, ilike, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
 import {
   db,
@@ -26,8 +27,16 @@ import {
 import { requireCustomer } from "../middlewares/requireCustomer";
 import { requireStaff } from "../middlewares/requireStaff";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { ObjectNotFoundError } from "../lib/objectStorage";
+import type { ObjectAclPolicy } from "../lib/objectAcl";
+import {
+  normalizeStoredImageUrl,
+  toRenderableImageUrl,
+  toRenderableImageUrls,
+} from "../lib/productImages";
 
 const router: IRouter = Router();
+const objectStorageService = new ObjectStorageService();
 
 router.use("/products", requireCustomer);
 
@@ -45,6 +54,7 @@ const productSelect = {
   listPrice: productsTable.listPrice,
   stock: productsTable.stock,
   imageUrl: productsTable.imageUrl,
+  images: productsTable.images,
   description: productsTable.description,
 };
 
@@ -65,9 +75,86 @@ function toApiProduct(
   const listPrice = Number(row.listPrice);
   return {
     ...row,
+    imageUrl: toRenderableImageUrl(row.imageUrl),
     listPrice,
     yourPrice: resolvePrice(explicit, row.id, listPrice, discountPercent),
   };
+}
+
+function galleryWithLegacyFallback(images: string[], imageUrl: string | null): string[] {
+  return images.length > 0
+    ? images.map(normalizeStoredImageUrl)
+    : imageUrl
+      ? [normalizeStoredImageUrl(imageUrl)]
+      : [];
+}
+
+async function readObjectHeader(
+  objectFile: Awaited<ReturnType<ObjectStorageService["getObjectEntityFile"]>>,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    objectFile
+      .createReadStream({ start: 0, end: 11 })
+      .on("data", (chunk: Buffer) => chunks.push(chunk))
+      .on("error", reject)
+      .on("end", () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+function hasValidImageSignature(contentType: string, header: Buffer): boolean {
+  if (contentType === "image/jpeg") {
+    return header.length >= 3 && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
+  }
+  if (contentType === "image/png") {
+    return header.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+  if (contentType === "image/webp") {
+    return header.subarray(0, 4).toString("ascii") === "RIFF"
+      && header.subarray(8, 12).toString("ascii") === "WEBP";
+  }
+  return false;
+}
+
+async function validateAndPublishImage(rawUrl: string, owner: string): Promise<string> {
+  let normalized = rawUrl.trim();
+  normalized = normalizeStoredImageUrl(normalized);
+  if (!normalized.startsWith("/objects/")) {
+    normalized = objectStorageService.normalizeObjectEntityPath(normalized);
+  }
+
+  if (normalized.startsWith("/objects/")) {
+    if (!normalized.startsWith("/objects/uploads/")) {
+      throw new Error("Only product-upload objects may be used as product images");
+    }
+    const objectFile = await objectStorageService.getObjectEntityFile(normalized);
+    const [metadata] = await objectFile.getMetadata();
+    const contentType = metadata.contentType;
+    const size = Number(metadata.size);
+    if (
+      typeof contentType !== "string"
+      || !["image/jpeg", "image/png", "image/webp"].includes(contentType)
+      || !Number.isFinite(size)
+      || size < 1
+      || size > 8 * 1024 * 1024
+      || !hasValidImageSignature(contentType, await readObjectHeader(objectFile))
+    ) {
+      throw new Error("Upload must be a valid JPEG, PNG, or WebP image up to 8 MB");
+    }
+    const policy: ObjectAclPolicy = { owner, visibility: "public" };
+    return objectStorageService.trySetObjectEntityAclPolicy(normalized, policy);
+  }
+
+  let url: URL;
+  try {
+    url = new URL(normalized);
+  } catch {
+    throw new Error("Image URL must be an uploaded object path or an absolute HTTP URL");
+  }
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
+    throw new Error("Image URL must be an uploaded object path or an absolute HTTP URL");
+  }
+  return url.toString();
 }
 
 router.get("/products", async (req, res): Promise<void> => {
@@ -220,8 +307,6 @@ router.get("/products/featured", async (req, res): Promise<void> => {
 
 router.get("/products/:id", async (req, res): Promise<void> => {
   const params = GetProductParams.safeParse(req.params);
-
-  const body = SetProductImageBody.safeParse(req.body);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
@@ -251,6 +336,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   res.json(
     GetProductResponse.parse({
       ...toApiProduct(row, Number(tier.discountPercent), explicitPrices),
+      images: toRenderableImageUrls(galleryWithLegacyFallback(row.images, row.imageUrl)),
       tierPrices: [
         {
           tierId: tier.id,
@@ -262,6 +348,75 @@ router.get("/products/:id", async (req, res): Promise<void> => {
       specs,
     }),
   );
+});
+
+router.put("/products/:id/image", requireStaff, async (req, res): Promise<void> => {
+  const params = GetProductParams.safeParse(req.params);
+  const body = SetProductImageBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: (params.success ? body : params).error?.message });
+    return;
+  }
+
+  const [existing] = await db
+    .select({
+      id: productsTable.id,
+      imageUrl: productsTable.imageUrl,
+      images: productsTable.images,
+    })
+    .from(productsTable)
+    .where(eq(productsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  const owner = getAuth(req).userId;
+  if (!owner) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    let images: string[];
+    if ("imageUrls" in body.data) {
+      const uniqueUrls = [...new Set(body.data.imageUrls.map((imageUrl) =>
+        normalizeStoredImageUrl(objectStorageService.normalizeObjectEntityPath(imageUrl.trim())),
+      ))];
+      const validated = await Promise.all(
+        uniqueUrls.map((imageUrl) => validateAndPublishImage(imageUrl, owner)),
+      );
+      images = [...new Set(validated.map(normalizeStoredImageUrl))];
+    } else {
+      const cover = await validateAndPublishImage(body.data.imageUrl, owner);
+      const current = galleryWithLegacyFallback(existing.images, existing.imageUrl);
+      images = [...new Set([cover, ...current])];
+      if (images.length > 12) {
+        throw new Error("A product can have up to 12 photos. Remove a photo before adding a new cover.");
+      }
+    }
+    const imageUrl = toRenderableImageUrl(images[0] ?? null);
+
+    await db
+      .update(productsTable)
+      .set({ imageUrl, images })
+      .where(eq(productsTable.id, existing.id));
+
+    res.json(SetProductImageResponse.parse({
+      id: existing.id,
+      imageUrl,
+      images: toRenderableImageUrls(images),
+    }));
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(400).json({ error: "Uploaded image was not found" });
+      return;
+    }
+    req.log.warn({ err: error }, "Product image rejected");
+    res.status(400).json({
+      error: error instanceof Error ? error.message : "Invalid product image",
+    });
+  }
 });
 
 export default router;

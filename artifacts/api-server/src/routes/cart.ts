@@ -17,6 +17,7 @@ import {
   getExplicitTierPrices,
   resolvePrice,
 } from "../lib/store";
+import { toRenderableImageUrl } from "../lib/productImages";
 import { requireCustomer } from "../middlewares/requireCustomer";
 
 const router: IRouter = Router();
@@ -57,7 +58,7 @@ export async function buildCart(customerId: number) {
       sku: r.sku,
       name: r.name,
       quality: r.quality,
-      imageUrl: r.imageUrl,
+      imageUrl: toRenderableImageUrl(r.imageUrl),
       quantity: r.quantity,
       unitPrice,
       lineTotal: round2(unitPrice * r.quantity),

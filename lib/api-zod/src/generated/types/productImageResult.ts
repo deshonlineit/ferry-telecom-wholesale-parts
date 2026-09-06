@@ -8,5 +8,8 @@
 
 export interface ProductImageResult {
   id: number;
-  imageUrl: string;
+  /** @nullable */
+  imageUrl: string | null;
+  /** @maxItems 12 */
+  images: string[];
 }

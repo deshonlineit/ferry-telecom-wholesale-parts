@@ -15,6 +15,8 @@ import {
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+const PRODUCT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
 
 /** Returns the signed-in Clerk user id, or undefined when unauthenticated. */
 function authenticatedUserId(req: Request): string | undefined {
@@ -45,6 +47,10 @@ router.post(
 
     try {
       const { name, size, contentType } = parsed.data;
+      if (!PRODUCT_IMAGE_TYPES.has(contentType) || size > MAX_PRODUCT_IMAGE_BYTES) {
+        res.status(400).json({ error: 'Upload must be a JPEG, PNG, or WebP image up to 8 MB' });
+        return;
+      }
 
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       const objectPath =

@@ -15,6 +15,7 @@ import {
   GetOrderParams,
   GetOrderResponse,
 } from "@workspace/api-zod";
+import { toRenderableImageUrl } from "../lib/productImages";
 import {
   getCustomerWithTier,
   applyTierUpgrade,
@@ -39,7 +40,7 @@ async function fetchOrderLines(orderId: number) {
     .from(orderLinesTable)
     .leftJoin(productsTable, eq(orderLinesTable.productId, productsTable.id))
     .where(eq(orderLinesTable.orderId, orderId));
-  return rows.map((r) => ({ ...r.line, imageUrl: r.imageUrl ?? null }));
+  return rows.map((r) => ({ ...r.line, imageUrl: toRenderableImageUrl(r.imageUrl) }));
 }
 function orderToApi(
   order: typeof ordersTable.$inferSelect,

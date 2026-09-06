@@ -940,7 +940,7 @@ components:
           description: True only for a server-approved staff account
     AdminProduct:
       type: object
-      required: [id, sku, name, categoryId, categoryName, brandId, brandName, quality, listPrice, stock, featured, imageUrl, description]
+      required: [id, sku, name, categoryId, categoryName, brandId, brandName, quality, listPrice, stock, featured, imageUrl, images, description]
       properties:
         id: { type: integer }
         sku: { type: string }
@@ -956,6 +956,10 @@ components:
         stock: { type: integer }
         featured: { type: boolean }
         imageUrl: { type: ["string", "null"] }
+        images:
+          type: array
+          maxItems: 12
+          items: { type: string }
         description: { type: ["string", "null"] }
     AdminProductPage:
       type: object
@@ -1178,8 +1182,12 @@ components:
       allOf:
         - $ref: "#/components/schemas/Product"
         - type: object
-          required: [tierPrices, specs]
+          required: [images, tierPrices, specs]
           properties:
+            images:
+              type: array
+              maxItems: 12
+              items: { type: string }
             tierPrices:
               type: array
               items:
@@ -1305,11 +1313,12 @@ components:
         size:
           type: integer
           minimum: 1
+          maximum: 8388608
           description: File size in bytes.
         contentType:
           type: string
-          minLength: 1
-          description: MIME type of the file (e.g. `image/jpeg`).
+          enum: [image/jpeg, image/png, image/webp]
+          description: Supported product image MIME type.
     UploadUrlResponse:
       type: object
       required: [uploadURL, objectPath]
@@ -1330,19 +1339,40 @@ components:
         error:
           type: string
     ProductImageInput:
+      oneOf:
+        - $ref: "#/components/schemas/ProductCoverImageChange"
+        - $ref: "#/components/schemas/ProductGalleryImagesChange"
+    ProductCoverImageChange:
       type: object
+      additionalProperties: false
       required: [imageUrl]
       properties:
         imageUrl:
           type: string
           minLength: 1
-          description: Uploaded objectPath (`/objects/...`), a storage URL, or any absolute image URL.
+          description: Set the cover image while retaining the other gallery images.
+    ProductGalleryImagesChange:
+      type: object
+      additionalProperties: false
+      required: [imageUrls]
+      properties:
+        imageUrls:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+            minLength: 1
+          description: Authoritative ordered gallery replacement; an empty array removes all images.
     ProductImageResult:
       type: object
-      required: [id, imageUrl]
+      required: [id, imageUrl, images]
       properties:
         id: { type: integer }
-        imageUrl: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        images:
+          type: array
+          maxItems: 12
+          items: { type: string }
     OrderInput:
       type: object
       required: [shippingAddress]

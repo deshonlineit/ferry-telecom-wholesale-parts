@@ -15,3 +15,5 @@
 - [Native media isolation](native-media-isolation.md) — bulk PHP imports can exhaust a sibling preview's filesystem watchers; generated media is not JavaScript source.
 - [Account metadata updates](account-metadata-updates.md) — identity-provider metadata updates require the dedicated metadata endpoint; empty merges do not revoke roles.
 - [Authentication test rate limits](auth-test-rate-limits.md) — reuse short-lived tokens in API suites so shared provider limits do not block assertions or fixture cleanup.
+- [Catalog photo lifecycle](catalog-photo-lifecycle.md) — prototype gallery removal unlinks public photos; permanent erasure must account for order and shared references.
+- [Identity test rate limits](identity-test-rate-limits.md) — concurrent task checks share one development tenant; reuse session tokens and retry throttled cleanup.

@@ -10,6 +10,10 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import pg from "pg";
+import {
+  createClerkTestClient,
+  createSessionTokenCache,
+} from "./clerk-test-helper.mjs";
 
 const API = (process.env.PROFILE_TEST_API_BASE ?? "http://localhost:80/api")
   .replace(/\/$/, "");
@@ -47,26 +51,16 @@ test("customer profile API persistence", { timeout: 180_000 }, async (t) => {
   let sessionId;
   let initial;
 
-  async function clerk(method, path, body) {
-    const res = await fetch(`${CLERK_API}${path}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
-    });
-    // Do not include provider bodies: they may contain authentication data.
-    assert.ok(res.ok, `test identity API ${method} failed (${res.status})`);
-    return res.status === 204 ? null : res.json();
-  }
+  const clerk = createClerkTestClient({
+    secret: process.env.CLERK_SECRET_KEY,
+    apiBase: CLERK_API,
+  });
+  const tokenFor = createSessionTokenCache({ clerk });
 
   async function api(method, body, authenticated = true) {
     const headers = { "Content-Type": "application/json" };
     if (authenticated) {
-      const { jwt } = await clerk("POST", `/sessions/${sessionId}/tokens`, {});
-      assert.ok(jwt, "test session must return an access token");
+      const jwt = await tokenFor(sessionId);
       headers.Authorization = `Bearer ${jwt}`;
     }
     const res = await fetch(`${API}/me`, {

@@ -25,6 +25,13 @@ window.App.canOrderProduct = function(p) {
     return Boolean(window.Core.user) && window.Core.user.role !== 'staff' && p.price_cents !== null && p.stock >= p.minimum_quantity;
 };
 
+window.App.thumbnailUrl = function(image) {
+    if (image?.variants) {
+        return image.variants['320'] || image.variants[320] || image.url;
+    }
+    return image?.url || '';
+};
+
 window.App.renderProductCard = function(p) {
     const isStaff = window.Core.user && window.Core.user.role === 'staff';
     const canBuy = window.App.canOrderProduct(p);
@@ -95,18 +102,20 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
     const data = await window.Core.fetch(`/products/${id}`);
     const p = data.product;
     
-    const allImages = p.image_url ? [{url: p.image_url}] : [];
-    if (data.images) {
-        data.images.forEach(img => {
+    const responseImages = Array.isArray(data.images) ? data.images : [];
+    const coverImage = responseImages.find(img => img.url === p.image_url);
+    const allImages = p.image_url ? [coverImage || {url: p.image_url}] : [];
+    if (responseImages.length) {
+        responseImages.forEach(img => {
             if (!allImages.find(i => i.url === img.url)) {
-                allImages.push({url: img.url, id: img.id});
+                allImages.push(img);
             }
         });
     }
 
     const thumbnailsHtml = allImages.map((img, idx) => `
         <button type="button" class="gallery-thumb" data-gallery-index="${idx}" aria-label="Foto ${idx + 1} van ${allImages.length} tonen">
-            <img src="${esc(img.url)}" alt="Miniatuur ${idx + 1} van ${esc(p.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            <img src="${esc(window.App.thumbnailUrl(img))}" alt="Miniatuur ${idx + 1} van ${esc(p.name)}" loading="lazy">
         </button>
     `).join('');
 

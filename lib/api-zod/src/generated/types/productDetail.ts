@@ -10,6 +10,8 @@ import type { ProductSpec } from './productSpec';
 import type { TierPrice } from './tierPrice';
 
 export type ProductDetail = Product & {
+  /** @maxItems 12 */
+  images: string[];
   tierPrices: TierPrice[];
   specs: ProductSpec[];
 };

@@ -52,12 +52,20 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         </label>
     `).join('');
 
-    const imgsHtml = images.map(img => `
-        <div style="position:relative; display:inline-block; border:1px solid var(--wb-border-light); padding:0.25rem; border-radius:var(--wb-radius); margin-right:0.5rem; margin-bottom:0.5rem; background:var(--wb-bg);">
-            <img src="${esc(img.url)}" style="height:100px; width:100px; object-fit:contain; display:block;">
-            <button type="button" class="btn btn-sm btn-danger action-del-img" data-id="${img.id}" style="position:absolute; top:-5px; right:-5px; padding:0; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:var(--wb-shadow-sm)">&times;</button>
-        </div>
-    `).join('');
+    let coverUrl = p.image_url || '';
+    const renderImages = currentImages => {
+        const displayImages = coverUrl && !currentImages.some(img => img.url === coverUrl)
+            ? [{id: null, url: coverUrl, legacy: true}, ...currentImages]
+            : currentImages;
+        return displayImages.map(img => `
+            <div style="position:relative; display:inline-block; border:1px solid var(--wb-border-light); padding:0.25rem; border-radius:var(--wb-radius); margin-right:0.5rem; margin-bottom:0.5rem; background:var(--wb-bg);">
+                <img src="${esc(img.url)}" style="height:100px; width:100px; object-fit:contain; display:block;">
+                ${img.legacy
+                    ? '<span class="text-muted" style="display:block; max-width:100px; font-size:0.6875rem; text-align:center;">Bestaande hoofdfoto</span>'
+                    : `<button type="button" class="btn btn-sm btn-danger action-del-img" data-id="${img.id}" data-url="${esc(img.url)}" aria-label="Afbeelding verwijderen" style="position:absolute; top:-5px; right:-5px; padding:0; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:var(--wb-shadow-sm)">&times;</button>`}
+            </div>
+        `).join('') || '<p class="text-muted" style="font-size:0.875rem;">Nog geen afbeeldingen.</p>';
+    };
 
     const content = `
         <div class="page-header">
@@ -156,13 +164,14 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                 ${!isNew ? `
                 <div class="card" style="margin-bottom:1.5rem">
                     <h3 class="form-section-title">Afbeeldingen</h3>
-                    <div>${imgsHtml || '<p class="text-muted" style="font-size:0.875rem;">Nog geen afbeeldingen.</p>'}</div>
+                    <div class="admin-product-images">${renderImages(images)}</div>
                     <div class="form-section" style="border-top:1px solid var(--wb-border-light); margin-top:1.5rem; padding-top:1.5rem; padding-bottom:0; margin-bottom:0; border-bottom:none;">
-                        <label>Nieuwe Afbeelding Uploaden</label>
-                        <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
-                            <input type="file" id="img-upload" accept="image/*" class="form-control" style="flex:1">
+                        <label>Nieuwe Afbeeldingen Uploaden</label>
+                        <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem; flex-wrap:wrap;">
+                            <input type="file" id="img-upload" accept="image/jpeg,image/png,image/webp" multiple class="form-control" style="flex:1; min-width:220px">
                             <button type="button" class="btn btn-outline action-upload-img">Uploaden</button>
                         </div>
+                        <div class="image-upload-progress" role="status" aria-live="polite" style="margin-top:0.75rem;"></div>
                     </div>
                 </div>
                 ` : '<div class="alert warning" style="margin-bottom:1.5rem;">Sla het product eerst op om afbeeldingen te kunnen toevoegen.</div>'}
@@ -177,6 +186,31 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     const fullHtml = window.Admin.layout(content, 'products');
 
     root.innerHTML = fullHtml;
+
+    const updateImageGallery = currentImages => {
+        images = currentImages;
+        const container = root.querySelector('.admin-product-images');
+        if (!container) return;
+        container.innerHTML = renderImages(images);
+        bindImageDeleteHandlers();
+    };
+
+    const bindImageDeleteHandlers = () => {
+        root.querySelectorAll('.action-del-img').forEach(deleteButton => deleteButton.addEventListener('click', async event => {
+            if (!confirm('Afbeelding definitief verwijderen?')) return;
+            const target = event.currentTarget;
+            try {
+                const response = await window.Core.fetch(`/admin/images/${target.dataset.id}`, { method: 'DELETE' });
+                if (target.dataset.url === coverUrl) {
+                    coverUrl = response.images?.[0]?.url || '';
+                }
+                updateImageGallery(response.images || []);
+                window.Workbench.toast('Afbeelding verwijderd', 'success');
+            } catch (error) {
+                window.Workbench.toast(error.message, 'error');
+            }
+        }));
+    };
 
     document.getElementById('admin-product-form').onsubmit = async (e) => {
         e.preventDefault();
@@ -228,23 +262,48 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         const upBtn = root.querySelector('.action-upload-img');
         if (upBtn) upBtn.addEventListener('click', async () => {
             const input = document.getElementById('img-upload');
-            if (!input.files[0]) return window.Workbench.toast('Kies eerst een bestand', 'warning');
-            const fd = new FormData();
-            fd.append('file', input.files[0]);
-            try {
-                await window.Core.fetch(`/admin/products/${id}/images`, { method: 'POST', body: fd });
-                window.Workbench.toast('Afbeelding geüpload', 'success');
-                window.Router.route();
-            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
+            const files = [...input.files];
+            if (!files.length) return window.Workbench.toast('Kies eerst één of meer bestanden', 'warning');
+            const progress = root.querySelector('.image-upload-progress');
+            const results = files.map(file => ({file, state: 'waiting', error: ''}));
+            const renderProgress = () => {
+                progress.innerHTML = results.map((result, index) => `
+                    <div class="image-upload-result ${result.state}" data-upload-index="${index}">
+                        <span>${esc(result.file.name)}</span>
+                        <strong>${result.state === 'waiting' ? 'Wacht' : result.state === 'uploading' ? 'Bezig…' : result.state === 'success' ? 'Opgeslagen' : esc(result.error)}</strong>
+                    </div>
+                `).join('');
+            };
+            upBtn.disabled = true;
+            input.disabled = true;
+            renderProgress();
+            for (const result of results) {
+                result.state = 'uploading';
+                renderProgress();
+                const fd = new FormData();
+                fd.append('file', result.file);
+                try {
+                    const response = await window.Core.fetch(`/admin/products/${id}/images`, { method: 'POST', body: fd });
+                    updateImageGallery(response.images || images);
+                    result.state = 'success';
+                } catch (error) {
+                    result.state = 'error';
+                    result.error = error.message || 'Upload mislukt';
+                }
+                renderProgress();
+            }
+            const successes = results.filter(result => result.state === 'success').length;
+            const failures = results.length - successes;
+            upBtn.disabled = false;
+            input.disabled = false;
+            input.value = '';
+            if (failures) {
+                window.Workbench.toast(`${successes} opgeslagen, ${failures} mislukt. De geslaagde uploads blijven bewaard.`, 'error');
+            } else {
+                window.Workbench.toast(`${successes} afbeelding${successes === 1 ? '' : 'en'} geüpload`, 'success');
+            }
         });
 
-        root.querySelectorAll('.action-del-img').forEach(btn => btn.addEventListener('click', async (e) => {
-            if (!confirm('Afbeelding definitief verwijderen?')) return;
-            try {
-                await window.Core.fetch(`/admin/images/${e.currentTarget.dataset.id}`, { method: 'DELETE' });
-                window.Workbench.toast('Afbeelding verwijderd', 'success');
-                window.Router.route();
-            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
-        }));
+        bindImageDeleteHandlers();
     }
 });

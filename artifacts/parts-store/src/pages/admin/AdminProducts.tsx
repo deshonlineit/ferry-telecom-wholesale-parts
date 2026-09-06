@@ -12,6 +12,7 @@ import {
 } from '@workspace/api-client-react';
 import type { AdminProduct, ProductInput, ProductPatch } from '@workspace/api-client-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ProductImagesManager } from '@/components/admin/ProductImagesManager';
 import { ProductCsvImport } from '@/components/admin/ProductCsvImport';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +73,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [photosBusy, setPhotosBusy] = useState(false);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -146,9 +148,11 @@ export default function AdminProducts() {
     createProduct.mutate(
       { data },
       {
-        onSuccess: () => {
+        onSuccess: (created) => {
           setIsCreateOpen(false);
-          toast({ title: 'Product created', description: `${data.name} added to catalog.` });
+          setEditingProduct(created);
+          setIsEditOpen(true);
+          toast({ title: 'Product created', description: `${data.name} added to catalog. You can now add product photos.` });
         },
         onError: (error: any) => {
           toast({
@@ -163,7 +167,7 @@ export default function AdminProducts() {
 
   const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingProduct) return;
+    if (!editingProduct || photosBusy) return;
 
     const formData = new FormData(e.currentTarget);
 
@@ -177,7 +181,6 @@ export default function AdminProducts() {
       listPrice: Number(formData.get('listPrice')),
       stock: Number(formData.get('stock')),
       featured: formData.get('featured') === 'on',
-      imageUrl: (formData.get('imageUrl') as string) || null,
       description: (formData.get('description') as string) || null,
     };
 
@@ -489,17 +492,21 @@ export default function AdminProducts() {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+      <Dialog open={isEditOpen} onOpenChange={(open) => { if (!photosBusy) setIsEditOpen(open); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>Update product details and inventory.</DialogDescription>
           </DialogHeader>
           {editingProduct && (
-            <form onSubmit={handleUpdate} className="space-y-4">
+            <form key={editingProduct.id} onSubmit={handleUpdate} className="space-y-4">
               <ProductForm categories={categories} brands={brands} product={editingProduct} />
+              <ProductImagesManager productId={editingProduct.id} name={editingProduct.name}
+                images={editingProduct.images} imageUrl={editingProduct.imageUrl}
+                onBusyChange={setPhotosBusy}
+                onChange={(value) => setEditingProduct((current) => current ? { ...current, ...value } : current)} />
               <DialogFooter>
-                <Button type="submit" disabled={updateProduct.isPending} data-testid="button-submit-update">
+                <Button type="submit" disabled={updateProduct.isPending || photosBusy} data-testid="button-submit-update">
                   {updateProduct.isPending ? 'Saving...' : 'Save Changes'}
                 </Button>
               </DialogFooter>
@@ -649,16 +656,17 @@ function ProductForm({ categories, brands, product }: ProductFormProps) {
         />
       </div>
 
-      <div className="col-span-2">
+      {!product && <div className="col-span-2">
         <Label htmlFor="imageUrl">Image URL</Label>
         <Input
           id="imageUrl"
           name="imageUrl"
           type="url"
-          defaultValue={product?.imageUrl || ''}
+          defaultValue=""
           data-testid="input-imageUrl"
         />
-      </div>
+        <p className="mt-1 text-xs text-muted-foreground">Optional cover URL. After creating the product you can upload multiple photos.</p>
+      </div>}
 
       <div className="col-span-2">
         <Label htmlFor="description">Description</Label>

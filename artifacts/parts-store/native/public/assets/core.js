@@ -577,6 +577,12 @@ window.UI = {
                         <h2 class="photo-preview-title" id="${titleId}"></h2>
                         <span class="photo-preview-counter gallery-counter" aria-live="polite"></span>
                     </div>
+                    <div class="photo-preview-tools" aria-label="Zoom bedienen">
+                        <button type="button" class="photo-preview-zoom-out" aria-label="Uitzoomen">&minus;</button>
+                        <output class="photo-preview-zoom-level" aria-live="polite">Passend</output>
+                        <button type="button" class="photo-preview-zoom-in" aria-label="Inzoomen">&plus;</button>
+                        <button type="button" class="photo-preview-zoom-reset">Passend</button>
+                    </div>
                     <button type="button" class="photo-preview-close gallery-close" aria-label="Fotovoorbeeld sluiten">&times;</button>
                 </header>
                 <div class="photo-preview-content gallery-content">
@@ -592,12 +598,59 @@ window.UI = {
         const title = dialog.querySelector('.photo-preview-title');
         const counter = dialog.querySelector('.photo-preview-counter');
         const image = dialog.querySelector('.photo-preview-image');
+        const figure = dialog.querySelector('.photo-preview-figure');
         const prevButton = dialog.querySelector('.photo-preview-nav.prev');
         const nextButton = dialog.querySelector('.photo-preview-nav.next');
+        const zoomOutButton = dialog.querySelector('.photo-preview-zoom-out');
+        const zoomInButton = dialog.querySelector('.photo-preview-zoom-in');
+        const zoomResetButton = dialog.querySelector('.photo-preview-zoom-reset');
+        const zoomLevel = dialog.querySelector('.photo-preview-zoom-level');
         const productName = options.title || 'Productfoto';
+        const zoomSteps = [1, 1.5, 2, 3, 4];
+        let zoomIndex = 0;
+        let dragging = false;
+        let dragX = 0;
+        let dragY = 0;
+        let scrollLeft = 0;
+        let scrollTop = 0;
         title.textContent = productName;
 
+        const applyZoom = (keepCenter = true) => {
+            const oldWidth = Math.max(1, figure.scrollWidth);
+            const oldHeight = Math.max(1, figure.scrollHeight);
+            const centerX = figure.scrollLeft + figure.clientWidth / 2;
+            const centerY = figure.scrollTop + figure.clientHeight / 2;
+            const zoom = zoomSteps[zoomIndex];
+            image.style.width = zoom === 1 ? '' : `${zoom * 100}%`;
+            image.style.height = zoom === 1 ? '' : 'auto';
+            image.style.maxWidth = zoom === 1 ? '100%' : 'none';
+            image.style.maxHeight = zoom === 1 ? '100%' : 'none';
+            figure.classList.toggle('is-zoomed', zoom > 1);
+            zoomOutButton.disabled = zoomIndex === 0;
+            zoomInButton.disabled = zoomIndex === zoomSteps.length - 1;
+            zoomResetButton.disabled = zoomIndex === 0;
+            zoomLevel.value = zoom === 1 ? 'Passend' : `${Math.round(zoom * 100)}%`;
+            if (!keepCenter || zoom === 1) {
+                figure.scrollTo(0, 0);
+                return;
+            }
+            requestAnimationFrame(() => {
+                figure.scrollLeft = centerX * (figure.scrollWidth / oldWidth) - figure.clientWidth / 2;
+                figure.scrollTop = centerY * (figure.scrollHeight / oldHeight) - figure.clientHeight / 2;
+            });
+        };
+        const resetZoom = () => {
+            zoomIndex = 0;
+            applyZoom(false);
+        };
+        const changeZoom = delta => {
+            const nextZoom = Math.max(0, Math.min(zoomSteps.length - 1, zoomIndex + delta));
+            if (nextZoom === zoomIndex) return;
+            zoomIndex = nextZoom;
+            applyZoom();
+        };
         const render = () => {
+            resetZoom();
             image.src = images[currentIndex].url;
             image.alt = images.length > 1
                 ? `${productName}, foto ${currentIndex + 1} van ${images.length}`
@@ -627,6 +680,7 @@ window.UI = {
             dialog.remove();
             if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus();
         };
+        dialog._cleanup = cleanup;
         const close = () => {
             if (dialog.open) dialog.close();
             else cleanup();
@@ -638,12 +692,47 @@ window.UI = {
             } else if (e.key === 'ArrowLeft') {
                 e.preventDefault();
                 prev();
+            } else if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                changeZoom(1);
+            } else if (e.key === '-') {
+                e.preventDefault();
+                changeZoom(-1);
+            } else if (e.key === '0') {
+                e.preventDefault();
+                resetZoom();
             }
         };
 
         dialog.querySelector('.photo-preview-close').addEventListener('click', close);
         prevButton.addEventListener('click', prev);
         nextButton.addEventListener('click', next);
+        zoomOutButton.addEventListener('click', () => changeZoom(-1));
+        zoomInButton.addEventListener('click', () => changeZoom(1));
+        zoomResetButton.addEventListener('click', resetZoom);
+        figure.addEventListener('pointerdown', event => {
+            if (zoomIndex === 0 || event.button !== 0) return;
+            dragging = true;
+            dragX = event.clientX;
+            dragY = event.clientY;
+            scrollLeft = figure.scrollLeft;
+            scrollTop = figure.scrollTop;
+            figure.classList.add('is-dragging');
+            figure.setPointerCapture(event.pointerId);
+        });
+        figure.addEventListener('pointermove', event => {
+            if (!dragging) return;
+            figure.scrollLeft = scrollLeft - (event.clientX - dragX);
+            figure.scrollTop = scrollTop - (event.clientY - dragY);
+        });
+        const stopDragging = event => {
+            if (!dragging) return;
+            dragging = false;
+            figure.classList.remove('is-dragging');
+            if (figure.hasPointerCapture(event.pointerId)) figure.releasePointerCapture(event.pointerId);
+        };
+        figure.addEventListener('pointerup', stopDragging);
+        figure.addEventListener('pointercancel', stopDragging);
         dialog.addEventListener('cancel', event => {
             event.preventDefault();
             close();
@@ -669,6 +758,7 @@ window.UI = {
         const dialogs = dialog ? [dialog] : [...document.querySelectorAll('.photo-preview-dialog')];
         dialogs.forEach(item => {
             if (item.open && typeof item.close === 'function') item.close();
+            else if (item._cleanup) item._cleanup();
             else item.remove();
         });
     }

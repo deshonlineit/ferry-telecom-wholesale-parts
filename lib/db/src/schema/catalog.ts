@@ -5,6 +5,7 @@ import {
   integer,
   numeric,
   boolean,
+  jsonb,
   timestamp,
   index,
   uniqueIndex,
@@ -49,6 +50,7 @@ export const productsTable = pgTable("products", {
   listPrice: numeric("list_price", { precision: 10, scale: 2 }).notNull(),
   stock: integer("stock").notNull().default(0),
   imageUrl: text("image_url"),
+  images: jsonb("images").$type<string[]>().notNull().default([]),
   description: text("description"),
   featured: boolean("featured").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
