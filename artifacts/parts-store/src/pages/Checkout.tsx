@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { ShoppingCart, CheckCircle, Package } from 'lucide-react';
+import { ShoppingCart, CheckCircle, Package, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { useGetCart, useGetCurrentCustomer, useCreateOrder, getGetCartQueryKey, getListOrdersQueryKey, getGetDashboardSummaryQueryKey } from '@workspace/api-client-react';
@@ -24,11 +24,20 @@ export default function Checkout() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: cart, isLoading: cartLoading } = useGetCart();
+  const { data: cart, isLoading: cartLoading } = useGetCart({
+    query: {
+      queryKey: getGetCartQueryKey(),
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchInterval: 30000,
+    },
+  });
   const { data: customer } = useGetCurrentCustomer();
   const createOrder = useCreateOrder();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState('');
+  const hasStockIssues = cart?.items.some((item) => item.quantity > item.stock) ?? false;
 
   const form = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
@@ -48,6 +57,8 @@ export default function Checkout() {
   }, [customer?.defaultShippingAddress]);
 
   const onSubmit = (data: CheckoutForm) => {
+    if (hasStockIssues || createOrder.isPending) return;
+
     createOrder.mutate(
       {
         data: {
@@ -168,6 +179,34 @@ export default function Checkout() {
       <main className="container mx-auto px-4 py-6">
         <h1 className="text-3xl font-bold text-foreground mb-6">Checkout</h1>
 
+        {hasStockIssues && (
+          <Card
+            className="mb-6 border-destructive/50 bg-destructive/5"
+            role="alert"
+            id="checkout-stock-warning"
+            data-testid="banner-stock-warning"
+          >
+            <CardContent className="p-4 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" aria-hidden="true" />
+              <div className="text-sm">
+                <p className="font-semibold text-foreground">
+                  Some items exceed available stock
+                </p>
+                <p className="text-muted-foreground">
+                  Stock has changed. Adjust quantities or remove sold-out items before placing your order.
+                </p>
+                <Link
+                  href="/cart"
+                  className="mt-2 inline-block font-medium text-destructive underline underline-offset-4"
+                  data-testid="link-fix-cart-stock"
+                >
+                  Back to Cart to fix stock issues
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Card>
@@ -228,7 +267,8 @@ export default function Checkout() {
                       </Link>
                       <Button
                         type="submit"
-                        disabled={createOrder.isPending}
+                        disabled={createOrder.isPending || hasStockIssues}
+                        aria-describedby={hasStockIssues ? 'checkout-stock-warning' : undefined}
                         className="flex-1"
                         data-testid="button-place-order"
                       >
@@ -263,11 +303,22 @@ export default function Checkout() {
 
                 <div className="border-t border-border pt-4 space-y-2">
                   {cart?.items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {item.name} × {item.quantity}
-                      </span>
-                      <span className="font-medium">${item.lineTotal.toFixed(2)}</span>
+                    <div key={item.id} className="text-sm">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          {item.name} × {item.quantity}
+                        </span>
+                        <span className="font-medium">${item.lineTotal.toFixed(2)}</span>
+                      </div>
+                      {item.quantity > item.stock && (
+                        <p
+                          className="mt-1 text-xs font-medium text-destructive flex items-center gap-1"
+                          data-testid={`warning-stock-${item.id}`}
+                        >
+                          <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          {item.stock <= 0 ? 'Sold out' : `Only ${item.stock} left`}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
