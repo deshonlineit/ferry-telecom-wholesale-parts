@@ -11,3 +11,4 @@
 - [Compatibility provenance](catalog-source-provenance.md) — model tags are evidence, not proof; a compatible device does not imply a product-brand filter.
 - [Native script verification](native-script-verification.md) — per-file syntax checks can miss shared-scope collisions that leave the storefront working but break staff routes.
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.
+- [Publishing preflight visibility](publishing-preflight-visibility.md) — a pending database-validation screen may have no new build record; do not attribute it to an old failed build.
