@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
-import { Route, Switch, Redirect, useLocation, Router as WouterRouter } from 'wouter';
+import { Link, Route, Switch, Redirect, useLocation, Router as WouterRouter } from 'wouter';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -20,6 +20,8 @@ import AdminProducts from '@/pages/admin/AdminProducts';
 import AdminCatalog from '@/pages/admin/AdminCatalog';
 import AdminCustomers from '@/pages/admin/AdminCustomers';
 import AdminOrders from '@/pages/admin/AdminOrders';
+import { Button } from '@/components/ui/button';
+import { useStaffAccess } from '@/hooks/use-staff-access';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -130,6 +132,68 @@ function Protected({ component: Component }: { component: React.ComponentType })
   );
 }
 
+function AdminAccessGate({ children }: { children: React.ReactNode }) {
+  const { isLoaded, isSignedIn, isStaff, isChecking, isError, refetch } = useStaffAccess();
+
+  if (isLoaded && !isSignedIn) {
+    return <Redirect to="/sign-in" />;
+  }
+
+  if (isChecking) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+        <p className="text-sm text-muted-foreground">Checking staff access…</p>
+      </div>
+    );
+  }
+
+  if (!isStaff) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+        <div className="max-w-md space-y-4 text-center">
+          <h1 className="text-2xl font-semibold text-foreground">
+            {isError ? 'Unable to verify staff access' : 'Staff access required'}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isError
+              ? 'We could not confirm your access. Try again or return to the storefront.'
+              : 'This area is only available to Ferry Telecom staff.'}
+          </p>
+          <div className="flex justify-center gap-2">
+            {isError && (
+              <Button variant="outline" onClick={() => void refetch()}>
+                Try again
+              </Button>
+            )}
+            <Link href="/">
+              <Button>Return to storefront</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+}
+
+function AdminRoutes() {
+  return (
+    <AdminAccessGate>
+      <Switch>
+        <Route path="/admin">
+          <Redirect to="/admin/products" />
+        </Route>
+        <Route path="/admin/products" component={AdminProducts} />
+        <Route path="/admin/catalog" component={AdminCatalog} />
+        <Route path="/admin/customers" component={AdminCustomers} />
+        <Route path="/admin/orders" component={AdminOrders} />
+        <Route component={NotFound} />
+      </Switch>
+    </AdminAccessGate>
+  );
+}
+
 // Invalidate the query cache when the signed-in user changes.
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
@@ -205,20 +269,8 @@ function ClerkProviderWithRoutes() {
             <Route path="/account">
               <Protected component={Account} />
             </Route>
-            <Route path="/admin">
-              <Protected component={() => <Redirect to="/admin/products" />} />
-            </Route>
-            <Route path="/admin/products">
-              <Protected component={AdminProducts} />
-            </Route>
-            <Route path="/admin/catalog">
-              <Protected component={AdminCatalog} />
-            </Route>
-            <Route path="/admin/customers">
-              <Protected component={AdminCustomers} />
-            </Route>
-            <Route path="/admin/orders">
-              <Protected component={AdminOrders} />
+            <Route path="/admin/*?">
+              <AdminRoutes />
             </Route>
             <Route component={NotFound} />
           </Switch>

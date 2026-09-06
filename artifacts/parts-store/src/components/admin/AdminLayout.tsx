@@ -3,6 +3,7 @@ import { Package, FolderTree, Users, ShoppingBag, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import ferryLogo from '@/assets/ferry-logo.png';
+import { useStaffAccess } from '@/hooks/use-staff-access';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,10 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [location] = useLocation();
+  // The route-level guard owns mount-time revalidation. A second "always"
+  // observer here would immediately restart that check each time the guarded
+  // page mounts.
+  const { isStaff } = useStaffAccess({ refetchOnMount: false });
 
   const navItems = [
     { label: 'Products', path: '/admin/products', icon: Package },
@@ -17,6 +22,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { label: 'Customers', path: '/admin/customers', icon: Users },
     { label: 'Orders', path: '/admin/orders', icon: ShoppingBag },
   ];
+
+  // App guards the complete /admin route before page hooks mount. Keep this
+  // second fail-closed check so the shell is not exposed if this layout is
+  // accidentally reused outside that route boundary.
+  if (!isStaff) return null;
 
   return (
     <div className="flex h-screen bg-background">

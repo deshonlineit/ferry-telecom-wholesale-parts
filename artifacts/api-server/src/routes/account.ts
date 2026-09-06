@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { getAuth } from "@clerk/express";
 import { desc, eq, sql } from "drizzle-orm";
 import {
   db,
@@ -7,6 +8,7 @@ import {
   orderLinesTable,
 } from "@workspace/db";
 import {
+  GetAccountAccessResponse,
   GetCurrentCustomerResponse,
   UpdateCustomerProfileBody,
   UpdateCustomerProfileResponse,
@@ -21,8 +23,26 @@ import {
   round2,
 } from "../lib/store";
 import { requireCustomer } from "../middlewares/requireCustomer";
+import { isStaffAccount } from "../lib/staffAccess";
 
 const router: IRouter = Router();
+
+router.get("/me/access", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "private, no-store");
+  const userId = getAuth(req)?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    res.json(GetAccountAccessResponse.parse({
+      isStaff: await isStaffAccount(userId),
+    }));
+  } catch (error) {
+    req.log?.error?.({ err: error }, "Account access check failed");
+    res.status(503).json({ error: "Unable to verify account access" });
+  }
+});
 
 router.get("/me", requireCustomer, async (req, res): Promise<void> => {
   const { customer, tier } = await getCustomerWithTier(req.customer!.id);

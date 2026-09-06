@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { getAuth, clerkClient } from "@clerk/express";
+import { getAuth } from "@clerk/express";
+import { isStaffAccount } from "../lib/staffAccess";
 
 /**
  * Staff-only guard for catalog management endpoints.
@@ -14,6 +15,7 @@ export async function requireStaff(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  res.setHeader("Cache-Control", "private, no-store");
   try {
     const auth = getAuth(req);
     const userId = auth?.userId;
@@ -22,18 +24,7 @@ export async function requireStaff(
       return;
     }
 
-    const allowList = (process.env.STAFF_USER_IDS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (allowList.includes(userId)) {
-      next();
-      return;
-    }
-
-    const user = await clerkClient.users.getUser(userId);
-    const role = user.publicMetadata?.role;
-    if (role === "admin" || role === "staff") {
+    if (await isStaffAccount(userId)) {
       next();
       return;
     }

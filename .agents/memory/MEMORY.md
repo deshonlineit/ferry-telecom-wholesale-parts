@@ -13,3 +13,4 @@
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.
 - [Publishing preflight visibility](publishing-preflight-visibility.md) — a pending database-validation screen may have no new build record; do not attribute it to an old failed build.
 - [Native media isolation](native-media-isolation.md) — bulk PHP imports can exhaust a sibling preview's filesystem watchers; generated media is not JavaScript source.
+- [Account metadata updates](account-metadata-updates.md) — identity-provider metadata updates require the dedicated metadata endpoint; empty merges do not revoke roles.

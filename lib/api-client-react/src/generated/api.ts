@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccountAccess,
   AdminCustomer,
   AdminListProductsParams,
   AdminOrder,
@@ -1002,6 +1003,83 @@ export function useGetStorageObject<TData = Awaited<ReturnType<typeof getStorage
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStorageObjectQueryOptions(objectPath,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAccountAccessUrl = () => {
+
+
+
+
+  return `/api/me/access`
+}
+
+/**
+ * @summary Read the current account's server-managed staff access
+ */
+export const getAccountAccess = async ( options?: Parameters<typeof customFetch>[1]): Promise<AccountAccess> => {
+
+  return customFetch<AccountAccess>(getGetAccountAccessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAccountAccessQueryKey = () => {
+    return [
+    `/api/me/access`
+    ] as const;
+    }
+
+
+export const getGetAccountAccessQueryOptions = <TData = Awaited<ReturnType<typeof getAccountAccess>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccountAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAccountAccessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccountAccess>>> = ({ signal }) => getAccountAccess({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAccountAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAccountAccessQueryResult = NonNullable<Awaited<ReturnType<typeof getAccountAccess>>>
+export type GetAccountAccessQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Read the current account's server-managed staff access
+ */
+
+export function useGetAccountAccess<TData = Awaited<ReturnType<typeof getAccountAccess>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccountAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAccountAccessQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2027,7 +2105,7 @@ export const getAdminListProductsQueryKey = (params?: AdminListProductsParams,) 
     }
 
 
-export const getAdminListProductsQueryOptions = <TData = Awaited<ReturnType<typeof adminListProducts>>, TError = ErrorType<unknown>>(params?: AdminListProductsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getAdminListProductsQueryOptions = <TData = Awaited<ReturnType<typeof adminListProducts>>, TError = ErrorType<void>>(params?: AdminListProductsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2046,14 +2124,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type AdminListProductsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListProducts>>>
-export type AdminListProductsQueryError = ErrorType<unknown>
+export type AdminListProductsQueryError = ErrorType<void>
 
 
 /**
  * @summary Admin product list with raw list prices and stock
  */
 
-export function useAdminListProducts<TData = Awaited<ReturnType<typeof adminListProducts>>, TError = ErrorType<unknown>>(
+export function useAdminListProducts<TData = Awaited<ReturnType<typeof adminListProducts>>, TError = ErrorType<void>>(
  params?: AdminListProductsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2532,7 +2610,7 @@ export const getAdminListCustomersQueryKey = () => {
     }
 
 
-export const getAdminListCustomersQueryOptions = <TData = Awaited<ReturnType<typeof adminListCustomers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListCustomers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getAdminListCustomersQueryOptions = <TData = Awaited<ReturnType<typeof adminListCustomers>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListCustomers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2551,14 +2629,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type AdminListCustomersQueryResult = NonNullable<Awaited<ReturnType<typeof adminListCustomers>>>
-export type AdminListCustomersQueryError = ErrorType<unknown>
+export type AdminListCustomersQueryError = ErrorType<void>
 
 
 /**
  * @summary All customers with their price tier
  */
 
-export function useAdminListCustomers<TData = Awaited<ReturnType<typeof adminListCustomers>>, TError = ErrorType<unknown>>(
+export function useAdminListCustomers<TData = Awaited<ReturnType<typeof adminListCustomers>>, TError = ErrorType<void>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListCustomers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2681,7 +2759,7 @@ export const getAdminListOrdersQueryKey = () => {
     }
 
 
-export const getAdminListOrdersQueryOptions = <TData = Awaited<ReturnType<typeof adminListOrders>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getAdminListOrdersQueryOptions = <TData = Awaited<ReturnType<typeof adminListOrders>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2700,14 +2778,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type AdminListOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof adminListOrders>>>
-export type AdminListOrdersQueryError = ErrorType<unknown>
+export type AdminListOrdersQueryError = ErrorType<void>
 
 
 /**
  * @summary All orders across customers
  */
 
-export function useAdminListOrders<TData = Awaited<ReturnType<typeof adminListOrders>>, TError = ErrorType<unknown>>(
+export function useAdminListOrders<TData = Awaited<ReturnType<typeof adminListOrders>>, TError = ErrorType<void>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

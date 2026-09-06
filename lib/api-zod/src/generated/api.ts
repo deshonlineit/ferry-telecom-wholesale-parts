@@ -244,6 +244,14 @@ export const GetStorageObjectResponse = zod.unknown()
 
 
 /**
+ * @summary Read the current account's server-managed staff access
+ */
+export const GetAccountAccessResponse = zod.object({
+  "isStaff": zod.boolean().describe('True only for a server-approved staff account')
+})
+
+
+/**
  * @summary Current customer profile with price tier and progress to next tier
  */
 export const GetCurrentCustomerResponse = zod.object({

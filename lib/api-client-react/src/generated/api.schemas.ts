@@ -5,6 +5,11 @@
  * Wholesale mobile parts store API
  * OpenAPI spec version: 0.1.0
  */
+export interface AccountAccess {
+  /** True only for a server-approved staff account */
+  readonly isStaff: boolean;
+}
+
 export interface AdminProduct {
   id: number;
   sku: string;

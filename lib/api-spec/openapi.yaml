@@ -16,6 +16,7 @@ tags:
   - name: orders
   - name: storage
   - name: admin
+    description: Staff-only endpoints; signed-out callers receive 401 and non-staff accounts receive 403.
 paths:
   /healthz:
     get:
@@ -295,6 +296,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /me/access:
+    get:
+      operationId: getAccountAccess
+      tags: [account]
+      summary: Read the current account's server-managed staff access
+      responses:
+        "200":
+          description: Account access (not editable through the customer profile)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountAccess"
+        "401":
+          description: Sign-in required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "503":
+          description: Account access could not be verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /me:
     get:
       operationId: getCurrentCustomer
@@ -529,6 +554,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminProductPage"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
     post:
       operationId: adminCreateProduct
       tags: [admin]
@@ -546,6 +575,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminProduct"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "400":
           description: Invalid input or duplicate SKU
   /admin/products/{id}:
@@ -571,6 +604,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminProduct"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "404":
           description: Not found
         "400":
@@ -593,6 +630,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "400":
           description: Invalid input or duplicate slug
   /admin/categories/{id}:
@@ -618,6 +659,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "404":
           description: Not found
   /admin/brands:
@@ -638,6 +683,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Brand"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "400":
           description: Invalid input or duplicate name
   /admin/models:
@@ -658,6 +707,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeviceModel"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "400":
           description: Invalid input
   /admin/customers:
@@ -674,6 +727,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AdminCustomer"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
   /admin/customers/{id}:
     patch:
       operationId: adminUpdateCustomerTier
@@ -697,6 +754,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminCustomer"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "404":
           description: Not found
         "400":
@@ -715,6 +776,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AdminOrder"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
   /admin/orders/{id}:
     patch:
       operationId: adminUpdateOrderStatus
@@ -738,12 +803,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminOrder"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
         "404":
           description: Not found
         "400":
           description: Invalid status
 components:
   schemas:
+    AccountAccess:
+      type: object
+      required: [isStaff]
+      properties:
+        isStaff:
+          type: boolean
+          readOnly: true
+          description: True only for a server-approved staff account
     AdminProduct:
       type: object
       required: [id, sku, name, categoryId, categoryName, brandId, brandName, quality, listPrice, stock, featured, imageUrl, description]

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { ShoppingCart, User, Package, ChevronDown } from 'lucide-react';
+import { ShoppingCart, User, Package, ShieldCheck } from 'lucide-react';
 import { useGetCart, useListCategories } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,11 +12,13 @@ import {
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
 import ferryLogo from '@/assets/ferry-logo.png';
+import { useStaffAccess } from '@/hooks/use-staff-access';
 
 export function Header() {
   const [location] = useLocation();
   const { data: cart } = useGetCart();
   const { data: categories } = useListCategories();
+  const { isStaff } = useStaffAccess();
 
   const navItems = [
     { label: 'Home', path: '/' },
@@ -93,6 +95,15 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          {isStaff && (
+            <Link href="/admin">
+              <Button variant="outline" size="sm" className="gap-2" data-testid="button-admin">
+                <ShieldCheck className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Button>
+            </Link>
+          )}
+
           <Link href="/cart">
             <Button
               variant="outline"

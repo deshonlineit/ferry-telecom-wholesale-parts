@@ -37,14 +37,13 @@ import {
   AdminUpdateOrderStatusBody,
   AdminUpdateOrderStatusResponse,
 } from "@workspace/api-zod";
-import { requireCustomer } from "../middlewares/requireCustomer";
+import { requireStaff } from "../middlewares/requireStaff";
 import { classifyToCategoryId } from "../lib/classifyProduct";
 
 const router: IRouter = Router();
 
-// Interim protection until staff roles land (task #6): all admin endpoints
-// require a signed-in customer identity.
-router.use("/admin", requireCustomer);
+// Guard the entire namespace, including future admin endpoints.
+router.use("/admin", requireStaff);
 
 function adminProductSelect() {
   return db
