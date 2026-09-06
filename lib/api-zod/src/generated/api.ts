@@ -69,7 +69,6 @@ export const GetCatalogSummaryResponse = zod.object({
 export const listProductsQueryPageSizeMax = 100;
 
 
-
 export const ListProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
@@ -175,8 +174,6 @@ export const SetProductImageParams = zod.object({
 })
 
 
-
-
 export const SetProductImageBody = zod.object({
   "imageUrl": zod.string().min(1).describe('Uploaded objectPath (`\/objects\/...`), a storage URL, or any absolute image URL.')
 })
@@ -194,18 +191,11 @@ export const SetProductImageResponse = zod.object({
  */
 
 
-
-
-
 export const RequestUploadUrlBody = zod.object({
   "name": zod.string().min(1).describe('Original file name.'),
   "size": zod.int().min(1).describe('File size in bytes.'),
   "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
 })
-
-
-
-
 
 
 export const RequestUploadUrlResponse = zod.object({
@@ -285,8 +275,6 @@ export const GetCurrentCustomerResponse = zod.object({
 /**
  * @summary Update the current customer's profile (company, contact, default shipping address)
  */
-
-
 
 
 export const UpdateCustomerProfileBody = zod.object({
@@ -371,7 +359,6 @@ export const ClearCartResponse = zod.void()
  */
 
 
-
 export const AddCartItemBody = zod.object({
   "productId": zod.int(),
   "quantity": zod.int().min(1)
@@ -404,8 +391,6 @@ export const AddCartItemResponse = zod.object({
 export const UpdateCartItemParams = zod.object({
   "id": zod.coerce.number().int()
 })
-
-
 
 
 export const UpdateCartItemBody = zod.object({
@@ -478,7 +463,6 @@ export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
 /**
  * @summary One-step checkout from current cart
  */
-
 
 
 export const CreateOrderBody = zod.object({
@@ -618,15 +602,16 @@ export const GetDashboardSummaryResponse = zod.object({
 export const adminListProductsQueryPageSizeMax = 100;
 
 
-
 export const AdminListProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
   "featured": zod.coerce.boolean().optional(),
+  "lowStockOnly": zod.coerce.boolean().optional().describe('When true, only products with 5 units or fewer are returned, including out-of-stock products. False or omitted leaves stock unfiltered.'),
   "page": zod.coerce.number().int().min(1).optional(),
   "pageSize": zod.coerce.number().int().min(1).max(adminListProductsQueryPageSizeMax).optional()
 })
 
+export const adminListProductsResponseLowStockThresholdMin = 0;
 export const AdminListProductsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.int(),
@@ -648,7 +633,8 @@ export const AdminListProductsResponse = zod.object({
   "total": zod.int(),
   "page": zod.int(),
   "pageSize": zod.int(),
-  "totalPages": zod.int()
+  "totalPages": zod.int(),
+  "lowStockThreshold": zod.int().min(adminListProductsResponseLowStockThresholdMin).describe('Inclusive stock warning threshold used by this list and its lowStockOnly filter. Defaults to 5 units.')
 })
 
 
@@ -657,11 +643,9 @@ export const AdminListProductsResponse = zod.object({
  */
 
 
-
 export const adminCreateProductBodyListPriceMin = 0;
 
 export const adminCreateProductBodyStockMin = 0;
-
 
 
 export const AdminCreateProductBody = zod.object({
@@ -705,12 +689,9 @@ export const AdminUpdateProductParams = zod.object({
 })
 
 
-
-
 export const adminUpdateProductBodyListPriceMin = 0;
 
 export const adminUpdateProductBodyStockMin = 0;
-
 
 
 export const AdminUpdateProductBody = zod.object({
@@ -781,8 +762,6 @@ export const AdminImportProductsResponse = zod.object({
  */
 
 
-
-
 export const AdminCreateCategoryBody = zod.object({
   "name": zod.string().min(1),
   "slug": zod.string().min(1),
@@ -806,9 +785,6 @@ export const AdminUpdateCategoryParams = zod.object({
 })
 
 
-
-
-
 export const AdminUpdateCategoryBody = zod.object({
   "name": zod.string().min(1).optional(),
   "slug": zod.string().min(1).optional(),
@@ -829,7 +805,6 @@ export const AdminUpdateCategoryResponse = zod.object({
  */
 
 
-
 export const AdminCreateBrandBody = zod.object({
   "name": zod.string().min(1)
 })
@@ -848,7 +823,6 @@ export const AdminCreateBrandResponse = zod.object({
 /**
  * @summary Create a device model under a brand
  */
-
 
 
 export const AdminCreateModelBody = zod.object({
@@ -937,5 +911,3 @@ export const AdminUpdateOrderStatusResponse = zod.object({
   "total": zod.number(),
   "createdAt": zod.string()
 })
-
-

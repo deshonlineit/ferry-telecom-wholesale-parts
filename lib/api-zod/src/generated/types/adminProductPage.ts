@@ -13,4 +13,9 @@ export interface AdminProductPage {
   page: number;
   pageSize: number;
   totalPages: number;
+  /**
+     * Inclusive stock warning threshold used by this list and its lowStockOnly filter. Defaults to 5 units.
+     * @minimum 0
+     */
+  lowStockThreshold: number;
 }

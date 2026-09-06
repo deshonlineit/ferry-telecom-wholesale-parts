@@ -11,3 +11,9 @@ After task-agent merges land on main, typecheck/tests often break for reasons NO
 4. Restart affected workflows; one-shot test workflows that hit the API 502 if run while the API server is rebuilding — rerun them after the server is up.
 
 **Why:** generated client/zod code and the dev DB are not part of the merge; stale codegen caused a production deploy build failure once. Merges have also silently dropped middleware lines (e.g. a `router.use(requireCustomer)`) — spot-check auth guards after merges.
+
+**Rule:** Audit automatically merged files as well as files explicitly reported as conflicted. Compare the staged change size and intent with the original task patch.
+
+**Why:** An automatic merge once replaced several unrelated native admin handlers with repeated fragments, although only a React file was reported as conflicted. The native script had no conflict markers but could not parse.
+
+**How to apply:** Investigate disproportionate diffs before continuing a rebase, and run native syntax and shared-script regression checks. Preserve the verified content from both branches rather than repairing only the first syntax error in a corrupted merge.

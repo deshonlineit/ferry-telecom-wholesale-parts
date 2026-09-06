@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useAdminListProducts,
@@ -45,7 +45,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit, Package, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 
 const QUALITY_OPTIONS = [
   'Original',
@@ -67,6 +67,7 @@ export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [lowStockOnly, setLowStockOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -79,12 +80,17 @@ export default function AdminProducts() {
     search: search || undefined,
     categoryId: categoryFilter !== 'all' ? Number(categoryFilter) : undefined,
     featured: featuredOnly ? true : undefined,
+    lowStockOnly: lowStockOnly ? true : undefined,
     page,
     pageSize: 20,
   };
 
-  const { data: productPage, isLoading } = useAdminListProducts(params, {
-    query: { queryKey: getAdminListProductsQueryKey(params) },
+  const { data: productPage, isLoading, isError, refetch } = useAdminListProducts(params, {
+    query: {
+      queryKey: getAdminListProductsQueryKey(params),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+    },
   });
 
   const {
@@ -98,6 +104,12 @@ export default function AdminProducts() {
       refetchOnWindowFocus: true,
     },
   });
+
+  useEffect(() => {
+    if (productPage && page > productPage.totalPages) {
+      setPage(productPage.totalPages);
+    }
+  }, [productPage, page]);
 
   const { data: categories } = useListCategories();
   const { data: brands } = useListBrands();
@@ -216,7 +228,7 @@ export default function AdminProducts() {
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -255,7 +267,7 @@ export default function AdminProducts() {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -315,7 +327,36 @@ export default function AdminProducts() {
               Featured total: {isFeaturedCountFetching ? '…' : isFeaturedCountError ? 'unavailable' : featuredPage?.total ?? '…'}
             </Badge>
           </div>
+
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <Switch
+              id="low-stock-only"
+              checked={lowStockOnly}
+              onCheckedChange={(checked) => {
+                setLowStockOnly(checked);
+                setPage(1);
+              }}
+              data-testid="switch-low-stock-filter"
+            />
+            <Label htmlFor="low-stock-only" className="text-sm cursor-pointer">
+              Low stock only
+            </Label>
+          </div>
         </div>
+
+        {productPage && (
+          <p className="text-sm text-muted-foreground" data-testid="low-stock-threshold">
+            Low stock: {productPage.lowStockThreshold} units or fewer, including out-of-stock products.
+            {' '}Stock refreshes every minute.
+          </p>
+        )}
+
+        {isError && (
+          <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">
+            Could not refresh inventory. Any displayed stock may be outdated.
+            <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+          </div>
+        )}
 
         {/* Table */}
         <div className="border border-border rounded-lg overflow-hidden bg-card">
@@ -340,11 +381,19 @@ export default function AdminProducts() {
                     Loading products...
                   </TableCell>
                 </TableRow>
+              ) : isError && !productPage ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                    Inventory unavailable. Retry to load current stock.
+                  </TableCell>
+                </TableRow>
               ) : !productPage || productPage.items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-12">
                     <Package className="h-12 w-12 mx-auto mb-3 text-muted-foreground/40" />
-                    <p className="text-sm font-medium text-muted-foreground">No products found</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {lowStockOnly ? 'No low-stock products match these filters' : 'No products found'}
+                    </p>
                     <p className="text-xs text-muted-foreground/70 mt-1">
                       Try adjusting your filters or create a new product
                     </p>
@@ -372,8 +421,14 @@ export default function AdminProducts() {
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">${product.listPrice.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
-                      <Badge variant={product.stock > 0 ? 'secondary' : 'destructive'} className="font-mono text-xs">
-                        {product.stock}
+                      <Badge
+                        variant={product.stock <= 0 ? 'destructive' : 'secondary'}
+                        className={`text-xs whitespace-nowrap gap-1 ${product.stock > 0 && product.stock <= productPage.lowStockThreshold ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700' : ''}`}
+                        data-testid={`stock-status-${product.id}`}
+                      >
+                        {product.stock <= productPage.lowStockThreshold && <AlertTriangle className="h-3 w-3" aria-hidden="true" />}
+                        <span className="font-mono">{product.stock}</span>
+                        {product.stock <= 0 ? ' · Out of stock' : product.stock <= productPage.lowStockThreshold ? ' · Low stock' : ''}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -402,8 +457,8 @@ export default function AdminProducts() {
         </div>
 
         {/* Pagination */}
-        {productPage && productPage.totalPages > 1 && (
-          <div className="flex items-center justify-between">
+        {productPage && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               Page {productPage.page} of {productPage.totalPages} · {productPage.total} total products
             </p>

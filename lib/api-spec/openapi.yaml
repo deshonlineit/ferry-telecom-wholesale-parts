@@ -541,6 +541,10 @@ paths:
         - name: featured
           in: query
           schema: { type: boolean }
+        - name: lowStockOnly
+          in: query
+          description: When true, only products with 5 units or fewer are returned, including out-of-stock products. False or omitted leaves stock unfiltered.
+          schema: { type: boolean }
         - name: page
           in: query
           schema: { type: integer, minimum: 1 }
@@ -879,7 +883,7 @@ components:
         description: { type: ["string", "null"] }
     AdminProductPage:
       type: object
-      required: [items, total, page, pageSize, totalPages]
+      required: [items, total, page, pageSize, totalPages, lowStockThreshold]
       properties:
         items:
           type: array
@@ -889,6 +893,10 @@ components:
         page: { type: integer }
         pageSize: { type: integer }
         totalPages: { type: integer }
+        lowStockThreshold:
+          type: integer
+          minimum: 0
+          description: Inclusive stock warning threshold used by this list and its lowStockOnly filter. Defaults to 5 units.
     ProductInput:
       type: object
       required: [sku, name, brandId, quality, listPrice, stock]

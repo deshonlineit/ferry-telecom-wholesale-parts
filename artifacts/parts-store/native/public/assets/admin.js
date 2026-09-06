@@ -102,7 +102,7 @@ window.Router.add(/^admin$/, async (match, root) => {
             <div class="card"><div class="data-label">Actieve producten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.products}</div></div>
             <div class="card"><div class="data-label">Klanten</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.customers}</div></div>
             <div class="card"><div class="data-label">Bestellingen totaal</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.orders}</div></div>
-            <div class="card"><div class="data-label">Lage voorraad</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0; color:var(--wb-danger)"><a href="${window.APP_BASE}admin/products?status=active&stock=low">${s.low_stock}</a></div></div>
+            <div class="card"><div class="data-label">Lage voorraad</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0; color:var(--wb-danger)"><a href="${window.APP_BASE}admin/products?status=active&stock=low_stock">${s.low_stock}</a></div></div>
         </div>
 
         <div class="admin-dashboard-panels" style="margin-bottom:2rem">
@@ -122,7 +122,7 @@ window.Router.add(/^admin$/, async (match, root) => {
                 <h3 class="form-section-title">Lage Voorraad</h3>
                 <div class="table-responsive">
                     <table class="data-table">
-                        ${data.low_stock && data.low_stock.length ? data.low_stock.map(p => `<tr><td><a href="${window.APP_BASE}admin/products/${p.id}" style="font-weight:600">${esc(p.sku)}</a></td><td><div style="max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${esc(p.name)}">${esc(p.name)}</div></td><td style="text-align:right;"><span style="color:var(--wb-danger);font-weight:700">${p.stock}</span> stuks</td></tr>`).join('') : '<tr><td colspan="3">Voorraad is op peil.</td></tr>'}
+                        ${data.low_stock && data.low_stock.length ? data.low_stock.map(p => `<tr><td><a href="${window.APP_BASE}admin/products/${p.id}" style="font-weight:600">${esc(p.sku)}</a></td><td><div style="max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${esc(p.name)}">${esc(p.name)}</div></td><td style="text-align:right;"><span style="color:var(--wb-danger);font-weight:700">${p.stock} stuks · ${p.stock === 0 ? 'Uitverkocht' : 'Lage voorraad'}</span></td></tr>`).join('') : '<tr><td colspan="3">Voorraad is op peil.</td></tr>'}
                     </table>
                 </div>
             </div>
@@ -157,13 +157,14 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         window.Core.fetch('/catalog'),
         window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`)
     ]);
+    const stockThreshold = Number(data.stock_threshold ?? 5);
     
     const rows = data.products.map(p => `
         <tr class="${!p.active ? 'archived-row' : ''}">
             <td><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(p.sku)}</span></td>
             <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong>${p.featured ? ' <span class="wb-badge wb-badge-warning" style="font-size:0.65rem">Uitgelicht</span>' : ''}</td>
             <td>${window.Core.formatMoney(p.list_price_cents)}</td>
-            <td><span class="${p.stock < 10 ? 'wb-badge wb-badge-warning' : 'wb-badge wb-badge-neutral'}" style="font-weight:700">${p.stock}</span></td>
+            <td><span class="wb-badge ${p.stock <= stockThreshold ? 'wb-badge-warning' : 'wb-badge-neutral'}" style="font-weight:700">${p.stock} stuks${p.stock === 0 ? ' · Uitverkocht' : (p.stock <= stockThreshold ? ' · Lage voorraad' : '')}</span></td>
             <td>${window.Workbench.badge(p.active ? 'active' : 'archived')}</td>
             <td>
                 <button type="button" class="btn btn-sm btn-outline action-quick-edit" data-id="${p.id}" data-stock="${p.stock}" data-price="${p.list_price_cents}" data-featured="${p.featured}">Snel Wijzigen</button>
@@ -200,8 +201,10 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                 <select name="stock" class="form-control" style="flex:1 1 150px;">
                     <option value="">Alle Voorraad</option>
                     <option value="in_stock" ${stock === 'in_stock' ? 'selected' : ''}>Op voorraad</option>
-                    <option value="low" ${stock === 'low' ? 'selected' : ''}>Lage voorraad</option>
+                    <option value="low_stock" ${stock === 'low_stock' ? 'selected' : ''}>Lage voorraad</option>
+                    <option value="out_of_stock" ${stock === 'out_of_stock' ? 'selected' : ''}>Uitverkocht</option>
                 </select>
+                <span style="align-self:center; color:var(--wb-text-muted); font-size:0.8125rem; white-space:nowrap;">Lage voorraad: ≤ ${stockThreshold} stuks</span>
                 <select name="status" class="form-control" style="flex:1 1 150px;">
                     <option value="all" ${status === 'all' ? 'selected' : ''}>Alle (Actief + Archief)</option>
                     <option value="active" ${status === 'active' ? 'selected' : ''}>Alleen Actief</option>
@@ -518,7 +521,7 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
                         </div>
                         <div class="form-group">
                             <label>Lage Voorraad Drempel (Aantal)</label>
-                            <input type="number" name="low_stock_threshold" value="${s.low_stock_threshold||''}" class="form-control" required>
+                            <input type="number" name="low_stock_threshold" value="${s.low_stock_threshold ?? ''}" class="form-control" required>
                         </div>
                     </div>
                 </div>

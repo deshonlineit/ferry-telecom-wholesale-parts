@@ -38,6 +38,11 @@ export interface AdminProductPage {
   page: number;
   pageSize: number;
   totalPages: number;
+  /**
+     * Inclusive stock warning threshold used by this list and its lowStockOnly filter. Defaults to 5 units.
+     * @minimum 0
+     */
+  lowStockThreshold: number;
 }
 
 export interface ProductInput {
@@ -486,6 +491,10 @@ search?: string;
 categoryId?: number;
 featured?: boolean;
 /**
+ * When true, only products with 5 units or fewer are returned, including out-of-stock products. False or omitted leaves stock unfiltered.
+ */
+lowStockOnly?: boolean;
+/**
  * @minimum 1
  */
 page?: number;
@@ -495,4 +504,3 @@ page?: number;
  */
 pageSize?: number;
 };
-

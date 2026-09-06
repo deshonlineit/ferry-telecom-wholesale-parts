@@ -11,6 +11,10 @@ search?: string;
 categoryId?: number;
 featured?: boolean;
 /**
+ * When true, only products with 5 units or fewer are returned, including out-of-stock products. False or omitted leaves stock unfiltered.
+ */
+lowStockOnly?: boolean;
+/**
  * @minimum 1
  */
 page?: number;

@@ -29,9 +29,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   if (!isStaff) return null;
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen flex-col md:flex-row bg-background">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
+      <aside className="w-full md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-border bg-sidebar flex flex-col">
         <div className="p-4 border-b border-sidebar-border">
           <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
             <img src={ferryLogo} alt="Ferry Telecom" className="h-8 w-auto" />
@@ -42,7 +42,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </Link>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="grid grid-cols-2 gap-1 p-3 md:block md:flex-1 md:space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.path || location.startsWith(item.path + '/');
@@ -82,7 +82,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 min-h-0 min-w-0 overflow-auto">
         {children}
       </main>
     </div>

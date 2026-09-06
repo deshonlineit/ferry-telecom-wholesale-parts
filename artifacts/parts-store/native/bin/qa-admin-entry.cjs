@@ -48,7 +48,7 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/store.js'
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/admin.js'), 'utf8'), context);
     const dashboardRoot = { innerHTML: '' };
     await routes.find(route => route.pattern.test('admin')).handler([], dashboardRoot);
-    assert(dashboardRoot.innerHTML.includes('stock=low">123</a>'));
+    assert(dashboardRoot.innerHTML.includes('stock=low_stock">123</a>'));
     assert(dashboardRoot.innerHTML.includes('Bestellingen totaal'));
     assert(!dashboardRoot.innerHTML.includes('Open Bestellingen'));
     assert(context.window.Workbench.badge('archived').includes('Gearchiveerd'));
