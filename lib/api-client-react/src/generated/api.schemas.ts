@@ -303,6 +303,12 @@ export interface CustomerProfileUpdate {
   defaultShippingAddress?: string | null;
 }
 
+export interface CustomerAddress {
+  id: number;
+  label: string;
+  shippingAddress: string;
+  isDefault: boolean;
+}
 export interface CartItem {
   id: number;
   productId: number;
@@ -504,3 +510,30 @@ page?: number;
  */
 pageSize?: number;
 };
+export interface CustomerAddressInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  shippingAddress: string;
+  isDefault?: boolean;
+}
+
+export interface CustomerAddressUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label?: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  shippingAddress?: string;
+  isDefault?: boolean;
+}

@@ -1,11 +1,12 @@
 import { Link } from 'wouter';
 import { Header } from '@/components/layout/Header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AddressBook } from '@/components/account/AddressBook';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Award, TrendingUp, Package, DollarSign, ShoppingBag, ChevronRight, Mail, Building2 } from 'lucide-react';
+import { Award, Package, DollarSign, ShoppingBag, ChevronRight, Mail, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useEffect } from 'react';
 import {
@@ -19,7 +20,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 
@@ -91,6 +91,7 @@ export default function Account() {
 
             {/* Editable Profile */}
             {customer && <ProfileCard customer={customer} />}
+            {customer && <AddressBook />}
 
             {/* Stats */}
             {dashboard && (
@@ -243,9 +244,8 @@ export default function Account() {
 }
 
 const profileSchema = z.object({
-  companyName: z.string().min(1, 'Company name is required'),
-  contactName: z.string().min(1, 'Contact name is required'),
-  defaultShippingAddress: z.string().optional(),
+  companyName: z.string().trim().min(1, 'Company name is required'),
+  contactName: z.string().trim().min(1, 'Contact name is required'),
 });
 
 type ProfileForm = z.infer<typeof profileSchema>;
@@ -264,7 +264,6 @@ function ProfileCard({
     defaultValues: {
       companyName: customer.companyName,
       contactName: customer.contactName,
-      defaultShippingAddress: customer.defaultShippingAddress ?? '',
     },
   });
 
@@ -272,10 +271,9 @@ function ProfileCard({
     form.reset({
       companyName: customer.companyName,
       contactName: customer.contactName,
-      defaultShippingAddress: customer.defaultShippingAddress ?? '',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer.companyName, customer.contactName, customer.defaultShippingAddress]);
+  }, [customer.companyName, customer.contactName]);
 
   const onSubmit = (data: ProfileForm) => {
     updateProfile.mutate(
@@ -283,7 +281,6 @@ function ProfileCard({
         data: {
           companyName: data.companyName,
           contactName: data.contactName,
-          defaultShippingAddress: data.defaultShippingAddress?.trim() ? data.defaultShippingAddress : null,
         },
       },
       {
@@ -310,7 +307,7 @@ function ProfileCard({
           <div>
             <CardTitle>Company Profile</CardTitle>
             <CardDescription>
-              Your company details and default shipping address for faster checkout
+              Your company and contact details. Manage delivery locations in your address book below.
             </CardDescription>
           </div>
         </div>
@@ -346,24 +343,6 @@ function ProfileCard({
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="defaultShippingAddress"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Default Shipping Address</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Street, city, postal code, country — pre-filled at checkout"
-                      className="min-h-24"
-                      data-testid="input-default-shipping-address"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <div className="flex justify-end">
               <Button type="submit" disabled={updateProfile.isPending} data-testid="button-save-profile">
                 {updateProfile.isPending ? 'Saving...' : 'Save Profile'}

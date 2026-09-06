@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 pnpm install --frozen-lockfile
+node scripts/migrate-customer-addresses.mjs
 pnpm --filter db push
 node scripts/normalize-qualities.mjs
 node scripts/split-photo-video.mjs

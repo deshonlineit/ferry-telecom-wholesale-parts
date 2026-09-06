@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import {
   db,
+  customerAddressesTable,
   customersTable,
   ordersTable,
   orderLinesTable,
@@ -14,6 +15,13 @@ import {
   UpdateCustomerProfileResponse,
   ListPriceTiersResponse,
   GetDashboardSummaryResponse,
+  ListCustomerAddressesResponse,
+  CreateCustomerAddressBody,
+  CreateCustomerAddressResponse,
+  UpdateCustomerAddressParams,
+  UpdateCustomerAddressBody,
+  UpdateCustomerAddressResponse,
+  DeleteCustomerAddressParams,
 } from "@workspace/api-zod";
 import {
   getCustomerWithTier,
@@ -44,6 +52,15 @@ router.get("/me/access", async (req, res): Promise<void> => {
   }
 });
 
+function addressResponse(address: typeof customerAddressesTable.$inferSelect) {
+  return {
+    id: address.id,
+    label: address.label,
+    shippingAddress: address.shippingAddress,
+    isDefault: address.isDefault,
+  };
+}
+
 router.get("/me", requireCustomer, async (req, res): Promise<void> => {
   const { customer, tier } = await getCustomerWithTier(req.customer!.id);
   const tiers = await getAllTiers();
@@ -69,23 +86,73 @@ router.patch("/me", requireCustomer, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid input" });
     return;
   }
-  const { companyName, contactName, defaultShippingAddress } = parsed.data;
+  const { companyName, contactName } = parsed.data;
   if (!companyName.trim() || !contactName.trim()) {
     res.status(400).json({ error: "Invalid input" });
     return;
   }
+  const hasLegacyAddress = Object.prototype.hasOwnProperty.call(
+    parsed.data,
+    "defaultShippingAddress",
+  );
 
-  await db
-    .update(customersTable)
-    .set({
-      companyName: companyName.trim(),
-      contactName: contactName.trim(),
-      defaultShippingAddress:
-        defaultShippingAddress && defaultShippingAddress.trim()
-          ? defaultShippingAddress.trim()
-          : null,
-    })
-    .where(eq(customersTable.id, req.customer!.id));
+  await db.transaction(async (tx) => {
+    const customerId = req.customer!.id;
+    await tx.execute(
+      sql`select id from ${customersTable} where id = ${customerId} for update`,
+    );
+
+    await tx
+      .update(customersTable)
+      .set({
+        companyName: companyName.trim(),
+        contactName: contactName.trim(),
+      })
+      .where(eq(customersTable.id, customerId));
+
+    if (!hasLegacyAddress) return;
+
+    const legacyAddress = parsed.data.defaultShippingAddress?.trim() || null;
+    if (legacyAddress === null) {
+      await tx
+        .update(customerAddressesTable)
+        .set({ isDefault: false })
+        .where(eq(customerAddressesTable.customerId, customerId));
+    } else {
+      const [currentDefault] = await tx
+        .select()
+        .from(customerAddressesTable)
+        .where(
+          and(
+            eq(customerAddressesTable.customerId, customerId),
+            eq(customerAddressesTable.isDefault, true),
+          ),
+        )
+        .limit(1);
+      if (currentDefault) {
+        await tx
+          .update(customerAddressesTable)
+          .set({ shippingAddress: legacyAddress })
+          .where(eq(customerAddressesTable.id, currentDefault.id));
+      } else {
+        await tx
+          .update(customerAddressesTable)
+          .set({ isDefault: false })
+          .where(eq(customerAddressesTable.customerId, customerId));
+        await tx.insert(customerAddressesTable).values({
+          customerId,
+          label: "Default address",
+          shippingAddress: legacyAddress,
+          isDefault: true,
+        });
+      }
+    }
+
+    await tx
+      .update(customersTable)
+      .set({ defaultShippingAddress: legacyAddress })
+      .where(eq(customersTable.id, customerId));
+  });
 
   const { customer, tier } = await getCustomerWithTier(req.customer!.id);
   const tiers = await getAllTiers();
@@ -104,6 +171,249 @@ router.patch("/me", requireCustomer, async (req, res): Promise<void> => {
     }),
   );
 });
+
+router.get(
+  "/me/addresses",
+  requireCustomer,
+  async (req, res): Promise<void> => {
+    const addresses = await db
+      .select()
+      .from(customerAddressesTable)
+      .where(eq(customerAddressesTable.customerId, req.customer!.id))
+      .orderBy(asc(customerAddressesTable.createdAt), asc(customerAddressesTable.id));
+    res.json(ListCustomerAddressesResponse.parse(addresses.map(addressResponse)));
+  },
+);
+
+router.post(
+  "/me/addresses",
+  requireCustomer,
+  async (req, res): Promise<void> => {
+    const body =
+      req.body && typeof req.body === "object" && !Array.isArray(req.body)
+        ? {
+            ...req.body,
+            label:
+              typeof req.body.label === "string"
+                ? req.body.label.trim()
+                : req.body.label,
+            shippingAddress:
+              typeof req.body.shippingAddress === "string"
+                ? req.body.shippingAddress.trim()
+                : req.body.shippingAddress,
+          }
+        : req.body;
+    const parsed = CreateCustomerAddressBody.safeParse(body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+    const { label, shippingAddress } = parsed.data;
+
+    const created = await db.transaction(async (tx) => {
+      const customerId = req.customer!.id;
+      await tx.execute(
+        sql`select id from ${customersTable} where id = ${customerId} for update`,
+      );
+      const [first] = await tx
+        .select({ id: customerAddressesTable.id })
+        .from(customerAddressesTable)
+        .where(eq(customerAddressesTable.customerId, customerId))
+        .limit(1);
+      const isDefault = !first || parsed.data.isDefault === true;
+      if (isDefault) {
+        await tx
+          .update(customerAddressesTable)
+          .set({ isDefault: false })
+          .where(eq(customerAddressesTable.customerId, customerId));
+      }
+      const [address] = await tx
+        .insert(customerAddressesTable)
+        .values({ customerId, label, shippingAddress, isDefault })
+        .returning();
+      if (isDefault) {
+        await tx
+          .update(customersTable)
+          .set({ defaultShippingAddress: shippingAddress })
+          .where(eq(customersTable.id, customerId));
+      }
+      return address;
+    });
+
+    res.status(201).json(CreateCustomerAddressResponse.parse(addressResponse(created)));
+  },
+);
+
+router.patch(
+  "/me/addresses/:id",
+  requireCustomer,
+  async (req, res): Promise<void> => {
+    const params = UpdateCustomerAddressParams.safeParse(req.params);
+    const body =
+      req.body && typeof req.body === "object" && !Array.isArray(req.body)
+        ? {
+            ...req.body,
+            ...(typeof req.body.label === "string"
+              ? { label: req.body.label.trim() }
+              : {}),
+            ...(typeof req.body.shippingAddress === "string"
+              ? { shippingAddress: req.body.shippingAddress.trim() }
+              : {}),
+          }
+        : req.body;
+    const parsed = UpdateCustomerAddressBody.safeParse(body);
+    if (!params.success || !parsed.success || Object.keys(parsed.data).length === 0) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+    const { label, shippingAddress } = parsed.data;
+
+    const updated = await db.transaction(async (tx) => {
+      const customerId = req.customer!.id;
+      await tx.execute(
+        sql`select id from ${customersTable} where id = ${customerId} for update`,
+      );
+      const [existing] = await tx
+        .select()
+        .from(customerAddressesTable)
+        .where(
+          and(
+            eq(customerAddressesTable.id, params.data.id),
+            eq(customerAddressesTable.customerId, customerId),
+          ),
+        )
+        .limit(1);
+      if (!existing) return null;
+
+      if (parsed.data.isDefault === true) {
+        await tx
+          .update(customerAddressesTable)
+          .set({ isDefault: false })
+          .where(eq(customerAddressesTable.customerId, customerId));
+      } else if (parsed.data.isDefault === false && existing.isDefault) {
+        const [replacement] = await tx
+          .select()
+          .from(customerAddressesTable)
+          .where(
+            and(
+              eq(customerAddressesTable.customerId, customerId),
+              ne(customerAddressesTable.id, existing.id),
+            ),
+          )
+          .orderBy(asc(customerAddressesTable.createdAt), asc(customerAddressesTable.id))
+          .limit(1);
+        if (replacement) {
+          await tx
+            .update(customerAddressesTable)
+            .set({ isDefault: false })
+            .where(eq(customerAddressesTable.id, existing.id));
+          await tx
+            .update(customerAddressesTable)
+            .set({ isDefault: true })
+            .where(eq(customerAddressesTable.id, replacement.id));
+        }
+      }
+
+      await tx
+        .update(customerAddressesTable)
+        .set({
+          ...(label !== undefined ? { label } : {}),
+          ...(shippingAddress !== undefined ? { shippingAddress } : {}),
+          ...(parsed.data.isDefault === true ? { isDefault: true } : {}),
+        })
+        .where(eq(customerAddressesTable.id, existing.id));
+
+      const [address] = await tx
+        .select()
+        .from(customerAddressesTable)
+        .where(eq(customerAddressesTable.id, existing.id));
+      const [currentDefault] = await tx
+        .select()
+        .from(customerAddressesTable)
+        .where(
+          and(
+            eq(customerAddressesTable.customerId, customerId),
+            eq(customerAddressesTable.isDefault, true),
+          ),
+        )
+        .limit(1);
+      await tx
+        .update(customersTable)
+        .set({
+          defaultShippingAddress: currentDefault?.shippingAddress ?? null,
+        })
+        .where(eq(customersTable.id, customerId));
+      return address;
+    });
+
+    if (!updated) {
+      res.status(404).json({ error: "Address not found" });
+      return;
+    }
+    res.json(UpdateCustomerAddressResponse.parse(addressResponse(updated)));
+  },
+);
+
+router.delete(
+  "/me/addresses/:id",
+  requireCustomer,
+  async (req, res): Promise<void> => {
+    const params = DeleteCustomerAddressParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+
+    const deleted = await db.transaction(async (tx) => {
+      const customerId = req.customer!.id;
+      await tx.execute(
+        sql`select id from ${customersTable} where id = ${customerId} for update`,
+      );
+      const [address] = await tx
+        .select()
+        .from(customerAddressesTable)
+        .where(
+          and(
+            eq(customerAddressesTable.id, params.data.id),
+            eq(customerAddressesTable.customerId, customerId),
+          ),
+        )
+        .limit(1);
+      if (!address) return false;
+      await tx
+        .delete(customerAddressesTable)
+        .where(eq(customerAddressesTable.id, address.id));
+
+      if (address.isDefault) {
+        const [replacement] = await tx
+          .select()
+          .from(customerAddressesTable)
+          .where(eq(customerAddressesTable.customerId, customerId))
+          .orderBy(asc(customerAddressesTable.createdAt), asc(customerAddressesTable.id))
+          .limit(1);
+        if (replacement) {
+          await tx
+            .update(customerAddressesTable)
+            .set({ isDefault: true })
+            .where(eq(customerAddressesTable.id, replacement.id));
+        }
+        await tx
+          .update(customersTable)
+          .set({
+            defaultShippingAddress: replacement?.shippingAddress ?? null,
+          })
+          .where(eq(customersTable.id, customerId));
+      }
+      return true;
+    });
+
+    if (!deleted) {
+      res.status(404).json({ error: "Address not found" });
+      return;
+    }
+    res.status(204).send();
+  },
+);
 
 router.get("/price-tiers", async (_req, res): Promise<void> => {
   const tiers = await getAllTiers();

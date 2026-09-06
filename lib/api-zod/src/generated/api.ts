@@ -312,6 +312,15 @@ export const UpdateCustomerProfileResponse = zod.object({
 
 
 /**
+ * @summary List the current customer's saved shipping addresses
+ */
+export const ListCustomerAddressesResponseItem = zod.object({
+  "id": zod.int(),
+  "label": zod.string(),
+  "shippingAddress": zod.string(),
+  "isDefault": zod.boolean()
+})
+/**
  * @summary All price tiers and their discount rules
  */
 export const ListPriceTiersResponseItem = zod.object({
@@ -910,4 +919,47 @@ export const AdminUpdateOrderStatusResponse = zod.object({
   "itemCount": zod.int(),
   "total": zod.number(),
   "createdAt": zod.string()
+})
+/**
+ * @summary Save a shipping address for the current customer
+ */
+export const createCustomerAddressBodyLabelMax = 80;
+
+export const CreateCustomerAddressResponse = zod.object({
+  "id": zod.int(),
+  "label": zod.string(),
+  "shippingAddress": zod.string(),
+  "isDefault": zod.boolean()
+})
+
+export const ListCustomerAddressesResponse = zod.array(ListCustomerAddressesResponseItem)
+export const UpdateCustomerAddressResponse = zod.object({
+  "id": zod.int(),
+  "label": zod.string(),
+  "shippingAddress": zod.string(),
+  "isDefault": zod.boolean()
+})
+export const CreateCustomerAddressBody = zod.object({
+  "label": zod.string().min(1).max(createCustomerAddressBodyLabelMax),
+  "shippingAddress": zod.string().min(1).max(createCustomerAddressBodyShippingAddressMax),
+  "isDefault": zod.boolean().optional()
+})
+export const updateCustomerAddressBodyLabelMax = 80;
+
+export const updateCustomerAddressBodyShippingAddressMax = 2000;
+
+export const DeleteCustomerAddressParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const DeleteCustomerAddressResponse = zod.void()
+export const createCustomerAddressBodyShippingAddressMax = 2000;
+export const UpdateCustomerAddressBody = zod.object({
+  "label": zod.string().min(1).max(updateCustomerAddressBodyLabelMax).optional(),
+  "shippingAddress": zod.string().min(1).max(updateCustomerAddressBodyShippingAddressMax).optional(),
+  "isDefault": zod.boolean().optional()
+})
+
+export const UpdateCustomerAddressParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
 })

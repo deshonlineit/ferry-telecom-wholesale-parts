@@ -23,3 +23,9 @@ After task-agent merges land on main, typecheck/tests often break for reasons NO
 **Why:** A leftover API process continued serving older code while the current workflow failed after merges. A leftover preview process also made a second server silently choose another port, hiding the mismatch behind a “running” status.
 
 **How to apply:** Compare workflow state, configured/listening ports and process ownership before diagnosing browser-specific failures. Stop only the positively identified obsolete process, then restart the existing managed workflow; do not create a replacement service or treat an old HTTP response as validation of the merged code.
+
+**Rule:** Inspect the entire affected handler after a structural merge conflict, not only the marked sections. When unmarked code is inconsistent, reconstruct from the original index versions and combine their intended behavior.
+
+**Why:** Structural merge damage can extend outside conflict markers; a marker-free file is not necessarily a valid combination of both implementations.
+
+**How to apply:** Compare both original sides, retain access-control and validation changes, regenerate shared contracts, and use typechecks plus focused API regressions to confirm the combined result.

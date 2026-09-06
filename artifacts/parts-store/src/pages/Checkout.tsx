@@ -8,13 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { ShoppingCart, CheckCircle, Package, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
-import { useGetCart, useGetCurrentCustomer, useCreateOrder, getGetCartQueryKey, getListOrdersQueryKey, getGetDashboardSummaryQueryKey } from '@workspace/api-client-react';
+import { useEffect, useRef, useState } from 'react';
+import { useGetCart, useListCustomerAddresses, useCreateOrder, getListCustomerAddressesQueryKey, getGetCartQueryKey, getListOrdersQueryKey, getGetDashboardSummaryQueryKey } from '@workspace/api-client-react';
 
 const checkoutSchema = z.object({
-  shippingAddress: z.string().min(1, 'Shipping address is required'),
+  shippingAddress: z.string().trim().min(1, 'Shipping address is required').max(2000, 'Use at most 2,000 characters'),
   notes: z.string().optional(),
 });
 
@@ -33,7 +34,12 @@ export default function Checkout() {
       refetchInterval: 30000,
     },
   });
-  const { data: customer } = useGetCurrentCustomer();
+  const addressesQuery = useListCustomerAddresses({
+    query: { queryKey: getListCustomerAddressesQueryKey(), staleTime: 0, refetchOnWindowFocus: true },
+  });
+  const [selectedAddress, setSelectedAddress] = useState('new');
+  const addressInitialized = useRef(false);
+  const newAddressDraft = useRef('');
   const createOrder = useCreateOrder();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState('');
@@ -47,17 +53,40 @@ export default function Checkout() {
     },
   });
 
-  // Pre-fill the saved default shipping address once it loads,
-  // without clobbering anything the user has already typed.
   useEffect(() => {
-    if (customer?.defaultShippingAddress && !form.getValues('shippingAddress')) {
-      form.setValue('shippingAddress', customer.defaultShippingAddress);
+    if (addressInitialized.current || !addressesQuery.data) return;
+    addressInitialized.current = true;
+    const defaultAddress = addressesQuery.data.find((address) => address.isDefault);
+    if (defaultAddress) {
+      setSelectedAddress(String(defaultAddress.id));
+      form.setValue('shippingAddress', defaultAddress.shippingAddress);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer?.defaultShippingAddress]);
+  }, [addressesQuery.data, form]);
+
+  // Keep the submitted text identical to the displayed selection. A deleted
+  // selection becomes a one-time address; never discard a buyer's draft.
+  useEffect(() => {
+    if (selectedAddress === 'new' || !addressesQuery.data) return;
+    const address = addressesQuery.data.find((item) => String(item.id) === selectedAddress);
+    if (address) {
+      form.setValue('shippingAddress', address.shippingAddress);
+    } else {
+      newAddressDraft.current = form.getValues('shippingAddress');
+      setSelectedAddress('new');
+      toast({ title: 'Saved address removed', description: 'Review the address below. It will be used for this order only.' });
+    }
+  }, [addressesQuery.data, selectedAddress, form, toast]);
+
+  function selectAddress(value: string) {
+    addressInitialized.current = true;
+    if (selectedAddress === 'new') newAddressDraft.current = form.getValues('shippingAddress');
+    const address = addressesQuery.data?.find((item) => String(item.id) === value);
+    setSelectedAddress(value);
+    form.setValue('shippingAddress', address?.shippingAddress ?? newAddressDraft.current, { shouldValidate: true });
+  }
 
   const onSubmit = (data: CheckoutForm) => {
-    if (hasStockIssues || createOrder.isPending) return;
+    if (hasStockIssues || createOrder.isPending || addressesQuery.isPending) return;
 
     createOrder.mutate(
       {
@@ -216,6 +245,33 @@ export default function Checkout() {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="saved-shipping-address">Delivery Location</Label>
+                      <select
+                        id="saved-shipping-address"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={selectedAddress}
+                        onChange={(event) => selectAddress(event.target.value)}
+                        disabled={addressesQuery.isPending || createOrder.isPending}
+                        data-testid="select-shipping-address"
+                      >
+                        {addressesQuery.data?.map((address) => (
+                          <option key={address.id} value={String(address.id)}>{address.label}{address.isDefault ? ' (Default)' : ''}</option>
+                        ))}
+                        <option value="new">New address — for this order</option>
+                      </select>
+                      {addressesQuery.isPending && <p role="status" className="text-sm text-muted-foreground">Loading saved addresses...</p>}
+                      {addressesQuery.isError && (
+                        <div role="alert" className="text-sm text-destructive">
+                          Could not load saved addresses. Enter an address for this order or{' '}
+                          <button type="button" className="underline" disabled={addressesQuery.isFetching} onClick={() => addressesQuery.refetch()}>retry</button>.
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {selectedAddress === 'new' ? 'This address will only be used for this order. ' : 'To use a different one-time address, choose “New address”. '}
+                        <Link href="/account" className="text-primary underline">Manage saved addresses</Link>
+                      </p>
+                    </div>
                     <FormField
                       control={form.control}
                       name="shippingAddress"
@@ -228,6 +284,13 @@ export default function Checkout() {
                               className="min-h-32"
                               data-testid="input-shipping-address"
                               {...field}
+                              maxLength={2000}
+                              readOnly={selectedAddress !== 'new'}
+                              disabled={addressesQuery.isPending || createOrder.isPending}
+                              onChange={(event) => {
+                                addressInitialized.current = true;
+                                field.onChange(event);
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -267,7 +330,7 @@ export default function Checkout() {
                       </Link>
                       <Button
                         type="submit"
-                        disabled={createOrder.isPending || hasStockIssues}
+                        disabled={createOrder.isPending || addressesQuery.isPending || hasStockIssues}
                         aria-describedby={hasStockIssues ? 'checkout-stock-warning' : undefined}
                         className="flex-1"
                         data-testid="button-place-order"

@@ -1,10 +1,15 @@
 import {
+  boolean,
+  index,
   pgTable,
   text,
   serial,
   integer,
   numeric,
+  timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const priceTiersTable = pgTable("price_tiers", {
   id: serial("id").primaryKey(),
@@ -36,6 +41,28 @@ export const customersTable = pgTable("customers", {
     .default("0"),
 });
 
+export const customerAddressesTable = pgTable(
+  "customer_addresses",
+  {
+    id: serial("id").primaryKey(),
+    customerId: integer("customer_id")
+      .notNull()
+      .references(() => customersTable.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    shippingAddress: text("shipping_address").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("customer_addresses_customer_id_idx").on(table.customerId),
+    uniqueIndex("customer_addresses_one_default_idx")
+      .on(table.customerId)
+      .where(sql`${table.isDefault} = true`),
+  ],
+);
+
 // Explicit per-product price for a tier (imported from the real price list).
 // When a row exists it takes precedence over listPrice * (1 - discount%).
 export const productTierPricesTable = pgTable("product_tier_prices", {
@@ -50,3 +77,4 @@ export const productTierPricesTable = pgTable("product_tier_prices", {
 export type ProductTierPrice = typeof productTierPricesTable.$inferSelect;
 export type PriceTier = typeof priceTiersTable.$inferSelect;
 export type Customer = typeof customersTable.$inferSelect;
+export type CustomerAddress = typeof customerAddressesTable.$inferSelect;

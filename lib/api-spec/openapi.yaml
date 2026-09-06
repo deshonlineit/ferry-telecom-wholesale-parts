@@ -351,6 +351,82 @@ paths:
                 $ref: "#/components/schemas/Customer"
         "400":
           description: Invalid input
+  /me/addresses:
+    get:
+      operationId: listCustomerAddresses
+      tags: [account]
+      summary: List the current customer's saved shipping addresses
+      responses:
+        "200":
+          description: Saved addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerAddress"
+    post:
+      operationId: createCustomerAddress
+      tags: [account]
+      summary: Save a shipping address for the current customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerAddressInput"
+      responses:
+        "201":
+          description: Created address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerAddress"
+        "400":
+          description: Invalid input
+  /me/addresses/{id}:
+    patch:
+      operationId: updateCustomerAddress
+      tags: [account]
+      summary: Update one of the current customer's saved shipping addresses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerAddressUpdate"
+      responses:
+        "200":
+          description: Updated address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerAddress"
+        "400":
+          description: Invalid input
+        "404":
+          description: Address not found
+    delete:
+      operationId: deleteCustomerAddress
+      tags: [account]
+      summary: Delete one of the current customer's saved shipping addresses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "204":
+          description: Address deleted
+        "400":
+          description: Invalid input
+        "404":
+          description: Address not found
   /price-tiers:
     get:
       operationId: listPriceTiers
@@ -1150,6 +1226,28 @@ components:
         companyName: { type: string, minLength: 1 }
         contactName: { type: string, minLength: 1 }
         defaultShippingAddress: { type: ["string", "null"] }
+    CustomerAddress:
+      type: object
+      required: [id, label, shippingAddress, isDefault]
+      properties:
+        id: { type: integer }
+        label: { type: string }
+        shippingAddress: { type: string }
+        isDefault: { type: boolean }
+    CustomerAddressInput:
+      type: object
+      required: [label, shippingAddress]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 80 }
+        shippingAddress: { type: string, minLength: 1, maxLength: 2000 }
+        isDefault: { type: boolean }
+    CustomerAddressUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        label: { type: string, minLength: 1, maxLength: 80 }
+        shippingAddress: { type: string, minLength: 1, maxLength: 2000 }
+        isDefault: { type: boolean }
     NextTierProgress:
       type: object
       required: [tier, remainingSpend, progressPercent]
