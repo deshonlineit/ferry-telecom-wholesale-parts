@@ -30,6 +30,26 @@ if (!basePath) {
 export default defineConfig({
   base: basePath,
   plugins: [
+    {
+      name: 'test-shop-entry',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          const url = new URL(req.url ?? '/', 'http://local.invalid');
+          if (
+            (req.method === 'GET' || req.method === 'HEAD') &&
+            url.pathname === '/' &&
+            url.searchParams.get('prototype') !== '1'
+          ) {
+            res.statusCode = 302;
+            res.setHeader('Location', `/test-shop/${url.search}`);
+            res.setHeader('Cache-Control', 'no-store');
+            res.end();
+            return;
+          }
+          next();
+        });
+      },
+    },
     react(),
     tailwindcss({ optimize: false }),
     runtimeErrorOverlay(),

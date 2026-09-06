@@ -17,3 +17,9 @@ After task-agent merges land on main, typecheck/tests often break for reasons NO
 **Why:** An automatic merge once replaced several unrelated native admin handlers with repeated fragments, although only a React file was reported as conflicted. The native script had no conflict markers but could not parse.
 
 **How to apply:** Investigate disproportionate diffs before continuing a rebase, and run native syntax and shared-script regression checks. Preserve the verified content from both branches rather than repairing only the first syntax error in a corrupted merge.
+
+**Rule:** A responding port does not prove that the latest managed workflow is running. Check for an obsolete process when a restarted service fails to build or reports an occupied port.
+
+**Why:** A leftover API process continued serving older code while the current workflow failed after merges. A leftover preview process also made a second server silently choose another port, hiding the mismatch behind a “running” status.
+
+**How to apply:** Compare workflow state, configured/listening ports and process ownership before diagnosing browser-specific failures. Stop only the positively identified obsolete process, then restart the existing managed workflow; do not create a replacement service or treat an old HTTP response as validation of the merged code.

@@ -91,8 +91,9 @@ function productToApi(row: AdminProductRow) {
   };
 }
 
+router.get("/admin/products", async (req, res): Promise<void> => {
   const rawLowStockOnly = req.query.lowStockOnly;
-  const parsed = AdminCreateModelBody.safeParse(req.body);
+  const parsed = AdminListProductsQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;

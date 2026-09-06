@@ -6,6 +6,15 @@ De nieuwe versie staat afzonderlijk onder `/test-shop/`. De oude prototypebronco
 
 De native service is uitsluitend een ontwikkel-/testomgeving. De productie-build is bewust geblokkeerd; dit is geen publicatieklare webshop.
 
+## Directe toegang tot de testwinkel — 6 september 2026
+
+- De gewone ontwikkelstartpagina verwijst nu met een niet-gecachete tijdelijke redirect naar `/test-shop/`. Ook HEAD-verzoeken en meegegeven categorie-/familiefilters blijven correct.
+- De React-prototypehomepage blijft bewust beschikbaar via `/?prototype=1`; de bestaande overige prototypepaden zijn niet gewijzigd. Deze wijziging geldt alleen voor de ontwikkelserver, niet voor de live hosting.
+- De exacte externe testwinkel-URL is in verse Chromium- en echte WebKit-contexten gecontroleerd: HTTP 200, zichtbare categorieën en acht productkaarten met afbeeldingen, zonder paginafouten of mislukte verzoeken. De gemelde witte pagina is in die controles niet gereproduceerd; er is geen browserblokkade vastgesteld.
+- `native/bin/qa-preview-entry.cjs` controleert de startredirect, filterbehoud, prototypebereikbaarheid, native HTML en productrespons. Alle controles slagen. `screenshots/direct-shop-entry.jpg` toont de winkel na openen van de hoofdroute.
+- Een concrete syntaxisfout uit een samengevoegde API-route is minimaal hersteld en een achtergebleven oud API-proces is gestopt. De beheerde API bouwt en start weer; de afzonderlijke API-typecheck meldt nog 47 fouten in andere samengevoegde schema-/routeonderdelen. Dat oudere prototype is hiermee niet volledig gevalideerd.
+- Geen live bestanden, hostinginstellingen, prijzen, valuta, bestellingen of voorraad gewijzigd.
+
 ## Compacte weergave zonder jaarblokken — 6 september 2026
 
 De eigenaar heeft de te grote koppen, ronde categorieblokken, hoge familiekaarten en jaargroepen afgewezen. De actuele weergave vervangt daarom de ruim opgezette presentatie hieronder:
