@@ -62,14 +62,22 @@ body:not(:has(.admin-shell)) .app-header {
 }
 
 body:not(:has(.admin-shell)) .test-banner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
     background: #1d1d1f;
     color: #f5f5f7;
-    text-align: center;
+    text-align: right;
     font-size: 0.75rem;
-    padding: 0.5rem;
+    padding: 0.35rem max(12px, calc((100% - 1240px) / 2));
     letter-spacing: 0.05em;
     border-bottom: none;
     font-weight: 600;
+}
+
+body:not(:has(.admin-shell)) .test-banner > span {
+    justify-self: end;
 }
 
 body:not(:has(.admin-shell)) .app-header .header-inner {

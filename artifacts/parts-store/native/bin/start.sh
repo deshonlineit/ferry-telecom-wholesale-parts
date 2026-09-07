@@ -63,6 +63,7 @@ for migration in "$ROOT"/database/migrations/*.sql; do
   mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test < "$migration"
 done
 php "$ROOT/bin/seed.php"
+php "$ROOT/bin/reconcile-catalog-taxonomy.php"
 if [[ "$(mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test -Nse "SELECT COUNT(*) FROM settings WHERE name='source_compatibility_imported'")" == "0" ]]; then
   php "$ROOT/bin/import-compatibility.php"
   mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test -e \

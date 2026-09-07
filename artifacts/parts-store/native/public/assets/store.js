@@ -2,8 +2,8 @@ const esc = window.Core.escapeHtml;
 const t = (key, values) => window.I18n.t(key, values);
 
 const categoryGroups = [
-    { title: "Parts", keywords: ['screen', 'batter', 'charg', 'camera', 'hous', 'flex', 'audio', 'adhes'] },
-    { title: "Tools & Accessories", keywords: ['tool', 'protect', 'accessor', 'other'] }
+    { title: "Parts", keywords: ['screen', 'batter', 'charg', 'camera', 'hous', 'flex', 'audio', 'adhes', 'other'] },
+    { title: "Tools & Accessories", keywords: ['tool', 'protect', 'accessor'] }
 ];
 
 window.App.groupCategories = function(cats) {

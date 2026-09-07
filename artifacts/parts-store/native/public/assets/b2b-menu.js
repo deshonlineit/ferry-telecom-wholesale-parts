@@ -11,7 +11,7 @@
     // every pick starts a fresh scope, so a part type or facet chosen earlier can never
     // travel along and leave the visitor on an empty combination. Only how the results
     // are presented (sort, page size) survives.
-    const SCOPE_RESET = ['brand', 'device_brand', 'q', 'page', 'category', 'part', 'quality', 'stock', 'featured'];
+    const SCOPE_RESET = ['department', 'brand', 'device_brand', 'q', 'page', 'category', 'part', 'quality', 'stock', 'featured'];
     const compatibilityUrl = changes => {
         const params = currentParams();
         SCOPE_RESET.forEach(key => params.delete(key));
@@ -169,8 +169,8 @@
                 [t('all'), 'catalog'],
                 ['Apple', 'catalog'],
                 ['Samsung', 'catalog'],
-                [t('partsMenu'), 'catalog'],
-                [t('supplies'), 'catalog'],
+                [t('partsMenu'), 'catalog?department=parts'],
+                [t('supplies'), 'catalog?department=supplies'],
                 [t('otherBrands'), 'catalog']
             ];
             const mobile = document.createElement('button');
@@ -288,6 +288,7 @@
         refreshDestination(link) {
             if (!link?.classList) return;
             if (link.dataset?.deviceBrand) link.href = brandUrl(link.dataset.deviceBrand);
+            else if (link.dataset?.department) link.href = compatibilityUrl({department: link.dataset.department, family: '', model: ''});
             else if (link.classList.contains('b2b-family-link') || link.classList.contains('b2b-family-all')) link.href = familyUrl(link.dataset?.familyId);
             else if (link.classList.contains('b2b-model-link') && link.dataset?.modelId) {
                 link.href = compatibilityUrl({family: new URL(link.href, window.location.href).searchParams.get('family'), model: link.dataset.modelId});
@@ -305,7 +306,7 @@
                 } else if (link.classList.contains('b2b-family-all') || link.classList.contains('b2b-family-link')) {
                     link.href = familyUrl(link.dataset?.familyId || target.searchParams.get('family'));
                 } else if (link.classList.contains('b2b-acc-link')) {
-                    link.href = compatibilityUrl({category: target.searchParams.get('category'), part: '', family: '', model: ''});
+                    link.href = compatibilityUrl({department: target.searchParams.get('department'), category: target.searchParams.get('category'), part: '', family: '', model: ''});
                 }
             });
         },
@@ -334,7 +335,8 @@
                 const anchor = document.createElement('a');
                 anchor.className = 'b2b-nav-link is-linked';
                 anchor.href = destination.href;
-                anchor.dataset.deviceBrand = String(destination.brandId);
+                if (destination.brandId) anchor.dataset.deviceBrand = String(destination.brandId);
+                if (destination.department) anchor.dataset.department = destination.department;
                 anchor.textContent = label;
                 item._b2bLink = anchor;
                 item.appendChild(anchor);
@@ -586,11 +588,14 @@
             });
         },
 
-        categoryItem(label, categories, id) {
+        categoryItem(label, categories, id, department) {
             const links = categories.map(category =>
-                `<div class="b2b-acc-group"><a href="${esc(compatibilityUrl({category: category.id, part: '', family: '', model: ''}))}" class="b2b-acc-link fw-bold">${esc(category.name)}</a></div>`
+                `<div class="b2b-acc-group"><a href="${esc(compatibilityUrl({department, category: category.id, part: '', family: '', model: ''}))}" class="b2b-acc-link fw-bold">${esc(category.name)}</a></div>`
             ).join('');
-            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">${t('close')}</button></div>`);
+            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">${t('close')}</button></div>`, {
+                href: compatibilityUrl({department, family: '', model: ''}),
+                department,
+            });
         },
 
         renderMegaMenu(container, catalog) {
@@ -632,12 +637,12 @@
                 {href: brandUrl(group.brand.id), brandId: group.brand.id}));
             const grouped = window.App.groupCategories ? window.App.groupCategories(catalog.categories || []) : {parts: catalog.categories || [], supplies: []};
             if (grouped.parts.length) {
-                const item = Menu.categoryItem(t('partsMenu'), grouped.parts, 'b2b-parts-menu');
+                const item = Menu.categoryItem(t('partsMenu'), grouped.parts, 'b2b-parts-menu', 'parts');
                 Menu.bindDropdown(item);
                 list.appendChild(item);
             }
             if (grouped.supplies.length) {
-                const item = Menu.categoryItem(t('supplies'), grouped.supplies, 'b2b-supplies-menu');
+                const item = Menu.categoryItem(t('supplies'), grouped.supplies, 'b2b-supplies-menu', 'supplies');
                 Menu.bindDropdown(item);
                 list.appendChild(item);
             }

@@ -225,32 +225,30 @@ body:not(:has(.admin-shell)) .app-header .user-nav {
     flex-shrink: 0;
 }
 
-/* Language belongs to the header action family, not to native form chrome. */
-body:not(:has(.admin-shell)) .app-header .language-control {
+/* Language is a quiet utility in the top environment bar. */
+body:not(:has(.admin-shell)) .test-banner .language-control {
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 4px;
     flex: 0 0 auto;
-    height: 40px;
+    height: 24px;
     margin: 0;
-    padding: 0 11px;
-    border: 1px solid #dfe5ed;
-    border-radius: 999px;
-    background: #fff;
-    color: #526174;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    padding: 0 3px 0 5px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #f5f5f7;
+    box-shadow: none;
     transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
 }
-body:not(:has(.admin-shell)) .app-header .language-control:hover {
-    border-color: #c5d2e1;
-    background: #f8fbff;
+body:not(:has(.admin-shell)) .test-banner .language-control:hover {
+    background: rgba(255,255,255,.1);
 }
-body:not(:has(.admin-shell)) .app-header .language-control:focus-within {
-    border-color: #80aef0;
-    box-shadow: 0 0 0 3px rgba(40, 120, 237, .12);
+body:not(:has(.admin-shell)) .test-banner .language-control:focus-within {
+    box-shadow: 0 0 0 2px rgba(255,255,255,.35);
 }
-body:not(:has(.admin-shell)) .app-header .language-control > label.sr-only {
+body:not(:has(.admin-shell)) .test-banner .language-control > label.sr-only {
     position: absolute !important;
     width: 1px !important;
     height: 1px !important;
@@ -261,14 +259,17 @@ body:not(:has(.admin-shell)) .app-header .language-control > label.sr-only {
     white-space: nowrap !important;
     border: 0 !important;
 }
-body:not(:has(.admin-shell)) .app-header .language-control__icon {
+body:not(:has(.admin-shell)) .test-banner .language-control__icon {
+    width: 14px;
+    height: 14px;
     flex: 0 0 auto;
-    color: #2878ed;
+    color: currentColor;
 }
-body:not(:has(.admin-shell)) .app-header .language-control select {
+body:not(:has(.admin-shell)) .test-banner .language-control select {
     width: 24px;
     min-width: 24px;
-    height: 38px;
+    height: 24px;
+    min-height: 24px;
     margin: 0;
     padding: 0;
     border: 0;
@@ -276,19 +277,37 @@ body:not(:has(.admin-shell)) .app-header .language-control select {
     appearance: none;
     -webkit-appearance: none;
     background: transparent;
-    color: #263449;
+    color: #f5f5f7;
     font: inherit;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 750;
     letter-spacing: .04em;
-    line-height: 38px;
+    line-height: 24px;
     cursor: pointer;
     outline: none;
 }
-body:not(:has(.admin-shell)) .app-header .language-control__chevron {
+body:not(:has(.admin-shell)) .test-banner .language-control select option {
+    color: #1d1d1f;
+}
+body:not(:has(.admin-shell)) .test-banner .language-control__chevron {
+    width: 10px;
+    height: 10px;
     flex: 0 0 auto;
-    color: #8794a6;
+    color: currentColor;
     pointer-events: none;
+}
+
+@media (max-width: 640px) {
+    body:not(:has(.admin-shell)) .test-banner {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding: 5px 8px 5px 12px;
+        font-size: 10px;
+        line-height: 1.25;
+        text-align: center;
+    }
+    body:not(:has(.admin-shell)) .test-banner > span {
+        justify-self: center;
+    }
 }
 body:not(:has(.admin-shell)) .app-header .user-nav .nav-link {
     display: inline-flex;
@@ -1280,7 +1299,7 @@ body:not(:has(.admin-shell)) .stock-shortcut:hover:not(.active) {
     background: #e8e8ed;
 }
 
-/* Toolbar & Active Filters */
+/* Active Filters */
 body:not(:has(.admin-shell)) .active-filters {
     display: flex;
     gap: 0.35rem;
@@ -1317,13 +1336,6 @@ body:not(:has(.admin-shell)) .clear-filters {
     padding: 0.15rem 0.4rem;
 }
 
-body:not(:has(.admin-shell)) .catalog-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    font-size: 0.75rem;
-}
 body:not(:has(.admin-shell)) .catalog-sort {
     display: flex;
     align-items: center;
@@ -1544,12 +1556,6 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
     body:not(:has(.admin-shell)) .catalog-main > .active-filters {
         display: none;
     }
-    body:not(:has(.admin-shell)) .catalog-toolbar {
-        min-height: 42px;
-        margin-bottom: 10px;
-        padding: 0 2px;
-        border-bottom: 1px solid #e4e9f0;
-    }
     body:not(:has(.admin-shell)) .catalog-price-notice {
         margin-bottom: 10px;
     }
@@ -1596,10 +1602,6 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
     }
     body:not(:has(.admin-shell)) :is(.catalog-tool-field select, .stock-shortcut, #open-catalog-filters, #catalog-sort) {
         min-height: 38px;
-    }
-    body:not(:has(.admin-shell)) .catalog-toolbar {
-        flex-wrap: wrap;
-        gap: 8px;
     }
     body:not(:has(.admin-shell)) .catalog-sort {
         min-width: 0;

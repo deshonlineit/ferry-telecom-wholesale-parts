@@ -14,6 +14,7 @@
         },
         searchInput(value, owner = 'search-input') {
             const app = window.App;
+            window.StoreMenu?.closeAll?.();
             if (owner !== (app.searchOwner || 'search-input')) window.UI.closeSuggestions();
             app.searchOwner = owner;
             clearTimeout(app.searchTimer);
@@ -28,8 +29,7 @@
             app.searchTimer = setTimeout(async () => {
                 app.searchAbort = new AbortController();
                 try {
-                    const expanded = owner === 'home-search' || owner === 'catalog-smart-search';
-                    const data = await window.Core.fetch(`/search/products?q=${encodeURIComponent(query)}&limit=${expanded ? 12 : 8}`, {signal: app.searchAbort.signal});
+                    const data = await window.Core.fetch(`/search/products?q=${encodeURIComponent(query)}&limit=12`, {signal: app.searchAbort.signal});
                     if (sequence === app.searchSequence) O.renderSuggestions(data, query);
                 } catch (error) {
                     if (sequence === app.searchSequence && error.name !== 'AbortError') {
@@ -209,10 +209,10 @@
                 target.classList.remove('cart-receiving');
                 void target.offsetWidth;
                 target.classList.add('cart-receiving');
-                window.setTimeout(() => target.classList.remove('cart-receiving'), 650);
+                window.setTimeout(() => target.classList.remove('cart-receiving'), 1100);
             };
+            pulse();
             if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-                pulse();
                 return;
             }
             const source = row?.querySelector('img') || button;
@@ -233,7 +233,7 @@
             } else {
                 flyer.innerHTML = '<span>+</span>';
             }
-            const size = Math.max(38, Math.min(64, sourceRect.width));
+            const size = Math.max(42, Math.min(68, sourceRect.width));
             const startX = sourceRect.left + sourceRect.width / 2 - size / 2;
             const startY = sourceRect.top + sourceRect.height / 2 - size / 2;
             const endX = targetRect.left + targetRect.width / 2 - size / 2;
@@ -242,32 +242,33 @@
             document.body.appendChild(flyer);
             const animation = flyer.animate([
                 {transform: 'translate3d(0,0,0) scale(1)', opacity: 1, offset: 0},
-                {transform: `translate3d(${(endX - startX) * .52}px,${(endY - startY) * .35 - 42}px,0) scale(.72)`, opacity: .96, offset: .52},
+                {transform: `translate3d(${(endX - startX) * .48}px,${(endY - startY) * .3 - 58}px,0) scale(.78)`, opacity: .98, offset: .48},
                 {transform: `translate3d(${endX - startX}px,${endY - startY}px,0) scale(.18)`, opacity: .25, offset: 1}
-            ], {duration: 620, easing: 'cubic-bezier(.2,.75,.25,1)', fill: 'forwards'});
+            ], {duration: 900, easing: 'cubic-bezier(.18,.72,.22,1)', fill: 'forwards'});
             animation.finished.then(() => {
                 flyer.remove();
-                pulse();
             }).catch(() => flyer.remove());
         },
         async quickAdd(id, quantity, button) {
             if (button?.dataset.pending === 'true') return null;
             const row = button?.closest('[data-product-row], .b2b-suggestion, .product-card, .product-detail');
             const feedback = row?.querySelector('.b2b-row-feedback');
-            const tell = (message, failed = false) => {
+            const tell = (message, state = '') => {
                 if (feedback) {
                     feedback.textContent = message;
-                    feedback.classList.toggle('text-danger', failed);
+                    feedback.classList.toggle('success', state === 'success');
+                    feedback.classList.toggle('error', state === 'error');
+                    feedback.classList.toggle('is-adding', state === 'adding');
                 } else {
-                    window.Workbench.toast(message, failed ? 'error' : 'success');
+                    window.Workbench.toast(message, state === 'error' ? 'error' : 'success');
                 }
             };
             if (!O.canOrder()) {
-                tell(window.I18n.t('signInActive'), true);
+                tell(window.I18n.t('signInActive'), 'error');
                 return null;
             }
             if (!Number.isInteger(Number(id)) || !Number.isInteger(Number(quantity)) || Number(quantity) < 1) {
-                tell(window.I18n.t('validWholeQuantity'), true);
+                tell(window.I18n.t('validWholeQuantity'), 'error');
                 return null;
             }
             if (button) {
@@ -275,7 +276,7 @@
                 button.disabled = true;
                 button.setAttribute('aria-busy', 'true');
             }
-            tell(window.I18n.t('adding'));
+            tell(window.I18n.t('adding'), 'adding');
             const currencySequence = window.Core.countryChangeSequence;
             const request = O.queue.then(() => window.Core.fetch('/cart/quick-add', {
                 method: 'POST', body: {product_id: Number(id), quantity: Number(quantity)}
@@ -287,7 +288,13 @@
                 if (currencySequence === window.Core.countryChangeSequence) window.Core.updateCurrencyContext(cart);
                 window.Core.updateCartCount();
                 const item = cart.items.find(product => product.product_id === Number(id));
-                tell(window.I18n.t('addedCart', {count: item?.quantity ?? quantity}));
+                const inCartLabels = {en: 'In cart', nl: 'In winkelwagen', de: 'Im Warenkorb', fr: 'Dans le panier', it: 'Nel carrello'};
+                const inCart = inCartLabels[window.I18n.locale] || inCartLabels.en;
+                tell(`${inCart} · ${window.I18n.number(item?.quantity ?? quantity)}`, 'success');
+                if (button) {
+                    button.classList.add('success');
+                    window.setTimeout(() => button.classList.remove('success'), 1100);
+                }
                 O.animateToCart(row, button);
                 if ((window.App.searchOwner || '') === 'home-search') {
                     O.track('smart_search_added_to_cart', {
@@ -300,7 +307,7 @@
                 if (location.pathname === window.APP_BASE + 'cart') window.Router.route();
                 return cart;
             } catch (error) {
-                tell(error.message, true);
+                tell(error.message, 'error');
                 return null;
             } finally {
                 if (button) {

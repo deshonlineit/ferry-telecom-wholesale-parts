@@ -2,7 +2,7 @@
 (function () {
     const escape = window.Core.escapeHtml;
     const t = (key, values) => window.I18n.t(key, values);
-    const allowed = ['q', 'category', 'part', 'brand', 'device_brand', 'family', 'model', 'quality', 'stock', 'featured', 'sort', 'page', 'limit'];
+    const allowed = ['q', 'department', 'category', 'part', 'brand', 'device_brand', 'family', 'model', 'quality', 'stock', 'featured', 'sort', 'page', 'limit'];
     const getParams = value => new URLSearchParams(value instanceof URLSearchParams ? value.toString() : value || '');
     const D = window.Discovery = {
         buildUrl(params, changes = {}) {
@@ -300,7 +300,7 @@
                     ${[1,2,3,4,5,6].map(() => '<div class="catalog-skeleton-side-row"><i></i><span><i></i></span></div>').join('')}
                 </aside>
                 <section class="catalog-main" aria-hidden="true">
-                    <div class="catalog-skeleton-toolbar"><i></i><i></i></div>
+                    <div class="catalog-skeleton-toolbar"><i></i></div>
                     <div class="b2b-products">${rows}</div>
                 </section>
             </div>
@@ -373,9 +373,10 @@
             if (model) window.FastFinder.remember(model);
             const query = params.get('q') || '';
             const categoryName = cat?.slug === 'housing' ? 'Housing & parts' : cat?.name;
-            const subject = part?.name || categoryName || t('partsMenu');
+            const department = ['parts', 'supplies'].includes(params.get('department')) ? params.get('department') : '';
+            const subject = part?.name || categoryName || (department === 'supplies' ? t('supplies') : t('partsMenu'));
             const device = model?.name || family?.label || deviceBrand?.name || '';
-            const title = device ? `${subject} ${t('for')} ${device}` : (part?.name || categoryName || (query ? t('searchResults') : t('allParts')));
+            const title = device ? `${subject} ${t('for')} ${device}` : (part?.name || categoryName || (query ? t('searchResults') : (department === 'supplies' ? t('supplies') : t('allParts'))));
             const showCategoryModels = true;
             const chips = [
                 query && ['q', `“${query}”`], cat && ['category', categoryName], part && ['part', part.name],
@@ -399,12 +400,20 @@
             try { view = localStorage.getItem('view_pref') || 'list'; } catch (_) {}
             if (!['grid', 'list'].includes(view)) view = 'list';
             const sort = params.get('sort') || (query ? 'relevance' : 'featured');
+            const sortControl = `<div class="catalog-sort"><label for="catalog-sort">${t('sortBy')}</label><select id="catalog-sort" class="form-control">
+                <option value="${query ? 'relevance' : 'featured'}" ${['featured','relevance'].includes(sort) ? 'selected' : ''}>${t(query ? 'bestMatch' : 'featuredFirst')}</option>
+                <option value="name" ${sort === 'name' ? 'selected' : ''}>${t('nameAZ')}</option><option value="newest" ${sort === 'newest' ? 'selected' : ''}>${t('recentlyAdded')}</option>
+                <option value="stock" ${sort === 'stock' ? 'selected' : ''}>${t('mostStock')}</option>
+                ${window.Core.user ? `<option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>${t('priceLowHigh')}</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>${t('priceHighLow')}</option>` : ''}
+            </select></div>`;
             const pages = result.pages;
             const page = result.page;
             const numbered = [...new Set([1, Math.max(1, page - 1), page, Math.min(pages, page + 1), pages])].sort((a, b) => a - b);
             const pagination = pages > 1 ? `<nav class="catalog-pagination" aria-label="${t('pages')}">${page > 1 ? `<a class="btn btn-outline" href="${D.buildUrl(params, {page: page - 1})}">${t('previous')}</a>` : ''}${numbered.map((n, i) => `${i && n > numbered[i - 1] + 1 ? '<span>…</span>' : ''}<a class="btn ${n === page ? 'btn-primary' : 'btn-outline'}" ${n === page ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {page: n})}">${window.I18n.number(n)}</a>`).join('')}${page < pages ? `<a class="btn btn-outline" href="${D.buildUrl(params, {page: page + 1})}">${t('next')}</a>` : ''}</nav>` : '';
             const quickNames = {screens: 'LCDs & screens', batteries: 'Batteries', charging: 'Charging ports', cameras: 'Cameras', housing: 'Housing & parts', flex: 'Flex cables', audio: 'Audio', adhesive: 'Adhesive'};
-            const quickCategories = window.App.sortCategories(catalog.categories).filter(c => c.count > 0 || String(c.id) === params.get('category'));
+            const groupedCategories = window.App.groupCategories(catalog.categories);
+            const departmentCategories = department ? groupedCategories[department] : catalog.categories;
+            const quickCategories = window.App.sortCategories(departmentCategories).filter(c => c.count > 0 || String(c.id) === params.get('category'));
             const partTypes = cat?.slug === 'housing' ? (catalog.part_types || []).filter(type => String(type.category_id) === String(cat.id)) : [];
             const typePicker = partTypes.length ? `<section class="part-type-picker" aria-label="Which part do you need?"><div class="part-type-intro"><span>Which part?</span><small>Not every item is a complete housing.</small></div><nav class="part-type-options" aria-label="Housing part type"><a class="part-type-option ${!part ? 'active' : ''}" ${!part ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {part: ''})}"><strong>All</strong><small>All variants</small></a>${partTypes.map(type => `<a class="part-type-option ${type.id === part?.id ? 'active' : ''} ${type.count === 0 ? 'is-empty' : ''}" ${type.id === part?.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: cat.id, part: type.id})}" title="${escape(type.description)}"><span><strong>${escape(type.name)}</strong><b>${type.count}</b></span><small>${escape(type.description)}</small></a>`).join('')}</nav></section>` : '';
             root.innerHTML = `<div data-catalog-shell><div class="catalog-breadcrumb"><a href="${window.APP_BASE}">${t('home')}</a><span>/</span><a href="${D.buildUrl('')}">${t('catalogue')}</a>${cat ? `<span>/</span><span>${escape(cat.name)}</span>` : ''}</div>
@@ -423,7 +432,7 @@
                 <div class="catalog-layout">
                     <aside class="catalog-sidebar" aria-label="${t('browseFilterCatalogue')}">
                         <div class="catalog-sidebar-heading"><span>${t('catalogue')}</span><h2>${t('findRightPart')}</h2></div>
-                        <nav class="quick-categories" aria-label="${t('choosePartCategory')}"><a class="quick-category ${!cat ? 'active' : ''}" ${!cat ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: ''})}">${D.railGlyph()}<span>${t('allParts')}</span></a>${quickCategories.map(c => `<a class="quick-category ${c.id === cat?.id ? 'active' : ''}" ${cat?.id === c.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: c.id, part: ''})}">${D.categoryThumb(c)}<span>${escape(window.I18n.dictionaries.en[c.slug] ? t(c.slug) : quickNames[c.slug] || c.name)}</span></a>`).join('')}</nav>
+                        <nav class="quick-categories" aria-label="${t('choosePartCategory')}"><a class="quick-category ${!cat ? 'active' : ''}" ${!cat ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: ''})}">${D.railGlyph()}<span>${department === 'supplies' ? t('supplies') : t('allParts')}</span></a>${quickCategories.map(c => `<a class="quick-category ${c.id === cat?.id ? 'active' : ''}" ${cat?.id === c.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: c.id, part: ''})}">${D.categoryThumb(c)}<span>${escape(window.I18n.dictionaries.en[c.slug] ? t(c.slug) : quickNames[c.slug] || c.name)}</span></a>`).join('')}</nav>
                         ${typePicker}
                         ${showCategoryModels ? window.CategoryModels.render(catalog, params, part?.name || categoryName || 'Your search') : ''}
                         <div class="catalog-desktop-filters">
@@ -438,16 +447,8 @@
                         <button type="button" class="stock-shortcut ${params.get('stock') === 'in_stock' ? 'active' : ''}" data-stock-toggle aria-pressed="${params.get('stock') === 'in_stock'}">${t('inStock')}</button>
                         <button type="button" class="btn btn-outline" id="open-catalog-filters">${t('allFilters')}${chips.length ? ` (${window.I18n.number(chips.length)})` : ''}</button></div>
                         ${chips.length ? `<div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">${t('clear')}</a></div>` : ''}
-                        <div class="catalog-toolbar"><span class="result-range">${result.total ? t('resultRange', {from: window.I18n.number((page - 1) * (Number(params.get('limit')) || 50) + 1), to: window.I18n.number(Math.min(page * (Number(params.get('limit')) || 50), result.total)), total: window.I18n.number(result.total)}) : t('noResults')}</span>
-                            <div class="catalog-sort"><label for="catalog-sort">${t('sortBy')}</label><select id="catalog-sort" class="form-control">
-                                <option value="${query ? 'relevance' : 'featured'}" ${['featured','relevance'].includes(sort) ? 'selected' : ''}>${t(query ? 'bestMatch' : 'featuredFirst')}</option>
-                                <option value="name" ${sort === 'name' ? 'selected' : ''}>${t('nameAZ')}</option><option value="newest" ${sort === 'newest' ? 'selected' : ''}>${t('recentlyAdded')}</option>
-                                <option value="stock" ${sort === 'stock' ? 'selected' : ''}>${t('mostStock')}</option>
-                                ${window.Core.user ? `<option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>${t('priceLowHigh')}</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>${t('priceHighLow')}</option>` : ''}
-                            </select></div>
-                        </div>
                         ${!window.Core.user ? `<div class="catalog-price-notice"><span>${t('wantPrices')}</span><a href="${window.APP_BASE}login">${t('signIn')} →</a></div>` : ''}
-                        ${result.products.length ? window.App.renderProductTable(result.products) : `<div class="empty-state"><h2>${part ? t('noPartSelection', {part: part.name}) : t('noPartsCombination')}</h2><p>${part ? `${escape(part.description)} ${t('changeModelHint')}` : t('removeFilterHint')}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${t(part ? 'viewOtherVariants' : 'viewAllParts')}</a></div>`}${pagination}
+                        ${result.products.length ? window.App.renderProductTable(result.products, {headerHtml: sortControl}) : `<div class="catalog-empty-surface"><div class="b2b-products-toolbar">${sortControl}</div><div class="empty-state"><h2>${part ? t('noPartSelection', {part: part.name}) : t('noPartsCombination')}</h2><p>${part ? `${escape(part.description)} ${t('changeModelHint')}` : t('removeFilterHint')}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${t(part ? 'viewOtherVariants' : 'viewAllParts')}</a></div></div>`}${pagination}
                     </section>
                 </div>
                 <dialog id="catalog-filter-dialog" class="filter-dialog"><div class="filter-dialog-heading"><h2>${t('refineSelection')}</h2><button type="button" class="btn-close" aria-label="${t('closeFilters')}">×</button></div>${filterForm('mobile', true)}</dialog>

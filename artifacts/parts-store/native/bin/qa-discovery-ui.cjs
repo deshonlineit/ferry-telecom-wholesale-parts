@@ -16,7 +16,8 @@ const context = vm.createContext({
     },
     document: {addEventListener() {}}, URLSearchParams, console
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/discovery-controls.js'), 'utf8'), context);
+const discoverySource = fs.readFileSync(path.join(__dirname, '../public/assets/discovery-controls.js'), 'utf8');
+vm.runInContext(discoverySource, context);
 const discovery = context.window.Discovery;
 const parse = (source, changes) => new URL(discovery.buildUrl(source, changes), 'https://example.test').searchParams;
 let passed = 0;
@@ -49,6 +50,12 @@ check('pagination keeps sort and all filters', () => {
     assert.equal(result.get('sort'), 'name');
     assert.equal(result.get('stock'), 'in_stock');
 });
+check('catalogue embeds sorting in the product surface without a visible result range', () => {
+    assert.doesNotMatch(discoverySource, /class="result-range"/);
+    assert.doesNotMatch(discoverySource, /class="catalog-toolbar"/);
+    assert.match(discoverySource, /renderProductTable\(result\.products, \{headerHtml: sortControl\}\)/);
+    assert.match(discoverySource, /class="b2b-products-toolbar"/);
+});
 check('facet metadata cache key is shared by sort and pagination changes', () => {
     const base = discovery.catalogCacheKey('category=5&model=132&sort=name&page=3');
     assert.equal(base, discovery.catalogCacheKey('model=132&category=5&sort=stock&page=9'));
@@ -61,9 +68,17 @@ check('first catalogue load has a shaped shell and table-row skeletons', () => {
     assert.match(html, /data-catalog-shell/);
     assert.match(html, /catalog-sidebar/);
     assert.match(html, /catalog-skeleton-row/);
+    assert.equal((html.match(/catalog-skeleton-toolbar"><i><\/i><\/div>/g) || []).length, 1);
     assert.match(html, /Onderdelen laden… voor iPhone/);
     assert.match(html, /role="status"/);
     assert.match(html, /catalog-skeleton-photo/);
+});
+check('department scope survives catalogue navigation and limits the category rail', () => {
+    const result = parse('department=supplies&sort=name', {page: 2});
+    assert.equal(result.get('department'), 'supplies');
+    assert.equal(result.get('sort'), 'name');
+    assert.match(discoverySource, /const departmentCategories = department \? groupedCategories\[department\] : catalog\.categories/);
+    assert.match(discoverySource, /department === 'supplies' \? t\('supplies'\) : t\('allParts'\)/);
 });
 check('filter changes reset pagination', () => assert.equal(parse('page=9&sort=name', {quality: 'OLED'}).has('page'), false));
 check('changing category removes a stale housing subtype', () => {

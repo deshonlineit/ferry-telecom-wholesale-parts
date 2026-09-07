@@ -4,7 +4,7 @@
 
     window.App = window.App || {};
 
-    window.App.renderProductTable = function(products) {
+    window.App.renderProductTable = function(products, options = {}) {
         if (!products || !products.length) {
             return `<div class="b2b-empty">${t('noResults')}</div>`;
         }
@@ -70,6 +70,7 @@
 
         return `
             <div class="b2b-products">
+                ${options.headerHtml ? `<div class="b2b-products-toolbar">${options.headerHtml}</div>` : ''}
                 <table class="b2b-table">
                     <thead>
                         <tr>

@@ -66,6 +66,16 @@ function catalogUnfilteredFacets(): array
  *
  * @return array{condition:string,parameters:array,search:string,compact_name:string}
  */
+function catalogDepartmentCondition(string $department): string
+{
+    $partSlugs = "'screens','batteries','charging','cameras','housing','flex','audio','adhesive','other'";
+    return match ($department) {
+        'parts' => "EXISTS(SELECT 1 FROM categories department_category WHERE department_category.id=p.category_id AND department_category.slug IN ($partSlugs))",
+        'supplies' => "EXISTS(SELECT 1 FROM categories department_category WHERE department_category.id=p.category_id AND department_category.slug NOT IN ($partSlugs))",
+        default => throw new HttpError(400, 'Unknown catalogue department.'),
+    };
+}
+
 function catalogProductCondition(array $input, array $exclude = []): array
 {
     $where = ['p.active=1'];
@@ -75,6 +85,9 @@ function catalogProductCondition(array $input, array $exclude = []): array
     $searchPart = catalogPartTypeFromSearch($search);
     $ignoredSubtypeTokens = catalogPartTypeSearchTokensToIgnore($search, $searchPart);
     $compactName = "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(p.name,' ',''),'-',''),'/',''),'.',''))";
+    if (!in_array('department', $exclude, true) && !empty($input['department'])) {
+        $where[] = catalogDepartmentCondition(text($input['department'], 20));
+    }
     if ($search !== '' && !in_array('q', $exclude, true)) {
         // Search aliases must always come from the complete dictionaries, never contextual counts.
         $facets = catalogUnfilteredFacets();
@@ -213,7 +226,7 @@ function catalogFacets(array $input = []): array
 {
     $base = catalogUnfilteredFacets();
     $partTypes = catalogPartTypeFacets($input);
-    $contextKeys = ['category', 'brand', 'device_brand', 'model', 'family', 'q', 'quality', 'stock', 'featured', 'part'];
+    $contextKeys = ['department', 'category', 'brand', 'device_brand', 'model', 'family', 'q', 'quality', 'stock', 'featured', 'part'];
     $contextual = false;
     foreach ($contextKeys as $key) {
         if (isset($input[$key]) && $input[$key] !== '') {
