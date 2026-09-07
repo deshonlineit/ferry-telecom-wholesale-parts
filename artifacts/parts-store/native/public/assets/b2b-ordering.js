@@ -98,9 +98,12 @@
                     const orderable = O.canOrder() && available;
                     const inputId = `${owner}-quantity-${product.id}`;
                     const info = [product.sku, product.quality, product.brand_name].filter(Boolean).join(' · ');
+                    const productThumb = product.image_url && window.App.thumbnailUrl
+                        ? window.App.thumbnailUrl({url: product.image_url})
+                        : product.image_url;
                     return `<div class="b2b-suggestion" data-product-row="${product.id}">
                         <a id="${owner}-option-${index}" class="b2b-suggestion-link" data-search-option data-smart-product="${product.id}" href="${window.APP_BASE}products/${product.id}">
-                            ${product.image_url ? `<img src="${esc(product.image_url)}" alt="" loading="lazy" width="44" height="44">` : '<span class="img-placeholder" aria-label="No product photo"></span>'}
+                            ${productThumb ? `<img src="${esc(productThumb)}" alt="" loading="${index < 6 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 6 ? 'high' : 'low'}" width="44" height="44">` : '<span class="img-placeholder" aria-label="No product photo"></span>'}
                             <span class="b2b-suggestion-info"><strong>${esc(product.name)}</strong><small>${esc(info)}</small><small>${Number(product.stock) > 0 ? `${Number(product.stock)} in stock` : 'Out of stock'}</small></span>
                         </a>
                         <div class="b2b-suggestion-price">${product.price_cents === null ? 'Sign in for prices' : esc(window.Core.formatMoney(product.price_cents, product.currency))}</div>

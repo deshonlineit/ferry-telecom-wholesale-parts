@@ -20,6 +20,7 @@
 - [Account metadata updates](account-metadata-updates.md) — identity-provider metadata updates require the dedicated metadata endpoint; empty merges do not revoke roles.
 - [Authentication test rate limits](auth-test-rate-limits.md) — reuse short-lived tokens in API suites so shared provider limits do not block assertions or fixture cleanup.
 - [Catalog photo lifecycle](catalog-photo-lifecycle.md) — prototype gallery removal unlinks public photos; permanent erasure must account for order and shared references.
+- [Catalogue thumbnail performance](catalogue-thumbnail-performance.md) — list views use eager 320px thumbnails and immutable hashed-media caching; lazy rows visibly lag while scrolling.
 - [Identity test rate limits](identity-test-rate-limits.md) — concurrent task checks share one development tenant; reuse session tokens and retry throttled cleanup.
 - [Device scope navigation](device-scope-navigation.md) — brand/family/model are one scope axis: a narrower pick must clear the wider one, and escape-hatch facets must exclude the whole axis.
 - [Brand asset rendering](brand-asset-rendering.md) — a logo re-coloured by a CSS invert filter must cut its letter out with a mask; a white fill vanishes.

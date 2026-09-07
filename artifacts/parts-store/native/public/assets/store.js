@@ -29,7 +29,8 @@ window.App.thumbnailUrl = function(image) {
     if (image?.variants) {
         return image.variants['320'] || image.variants[320] || image.url;
     }
-    return image?.url || '';
+    const url = image?.url || '';
+    return url.includes('-1280w.webp') ? url.replace('-1280w.webp', '-320w.webp') : url;
 };
 
 window.App.renderProductCard = function(p) {
@@ -49,7 +50,7 @@ window.App.renderProductCard = function(p) {
         <div class="part-card">
             ${p.image_url ? `
                 <button type="button" class="part-img-link part-photo-preview" data-photo-url="${esc(p.image_url)}" data-photo-name="${esc(p.name)}" aria-label="Enlarge photo of ${esc(p.name)}">
-                    <img src="${esc(p.image_url)}" ${srcSetAttr} alt="${esc(p.name)}" loading="lazy">
+                    <img src="${esc(window.App.thumbnailUrl({url: p.image_url}))}" ${srcSetAttr} alt="${esc(p.name)}" loading="lazy" decoding="async">
                 </button>
             ` : `
                 <div class="part-img-link part-no-photo" aria-label="No photo available">

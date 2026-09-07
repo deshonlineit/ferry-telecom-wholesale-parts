@@ -19,6 +19,7 @@ const window = {
         formatMoney: cents => `${cents / 100} CHF`
     },
     App: {},
+    B2BOrdering: {canOrder() { return false; }},
     Router: {add() {}},
     UI: {showGallery() {}}
 };
@@ -78,13 +79,17 @@ assert.equal(window.App.thumbnailUrl({
     url: '/media/example-1280w.webp',
     variants: {'320': '/media/example-320w.webp'}
 }), '/media/example-320w.webp');
+assert.equal(
+    window.App.thumbnailUrl({url: '/test-shop/media/products/1/hash-1280w.webp'}),
+    '/test-shop/media/products/1/hash-320w.webp'
+);
 assert.equal(window.App.thumbnailUrl({url: '/legacy/photo.jpg'}), '/legacy/photo.jpg');
 
 const adminSource = fs.readFileSync(path.join(__dirname, '../public/assets/admin-products.js'), 'utf8');
 assert.match(adminSource, /id="img-upload"[^>]+multiple/);
 assert.match(adminSource, /for \(const result of results\)/);
-assert.match(adminSource, /De geslaagde uploads blijven bewaard/);
-assert.match(adminSource, /Bestaande hoofdfoto/);
+assert.match(adminSource, /Successful uploads have been retained/);
+assert.match(adminSource, /Existing main image/);
 assert.match(adminSource, /updateImageGallery\(response\.images \|\| images\)/);
 assert.doesNotMatch(adminSource, /afbeelding\$\{successes === 1 \? '' : 'en'\} geüpload`, 'success'\);\s*window\.Router\.route/);
 

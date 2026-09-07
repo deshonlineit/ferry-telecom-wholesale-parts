@@ -8,7 +8,7 @@
             return `<div class="b2b-empty">No products found in this view.</div>`;
         }
 
-        const rows = products.map(p => {
+        const rows = products.map((p, index) => {
             const canBuy = window.App.canOrderProduct(p);
             const isStaff = window.Core.user && window.Core.user.role === 'staff';
             
@@ -30,7 +30,7 @@
                 <tr class="b2b-row" data-product-row data-product-id="${p.id}">
                     <td class="col-img">
                         ${p.image_url ? 
-                            `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap"><img src="${esc(thumb)}" alt="${esc(p.name)}" loading="lazy"></a>` :
+                            `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap"><img src="${esc(thumb)}" alt="${esc(p.name)}" loading="eager" decoding="async" fetchpriority="${index < 8 ? 'high' : 'low'}" width="64" height="64"></a>` :
                             `<div class="b2b-img-wrap no-img" aria-label="No image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg></div>`
                         }
                     </td>
