@@ -201,6 +201,25 @@ app.window.Core.fetch = async url => {
     assert.match(expanded, /All 20 models · newest to oldest/);
     assert.match(expanded, /Show newest 12/);
     assert.match(expanded, /data-model-id="105"/, 'Older models join the same at-a-glance panel after expansion');
+    const ipadEntry = {
+        family: {id: 'ipad', label: 'iPad', count: 455},
+        models: app.window.StoreMenu.orderedModels([
+            {id: 31, name: 'iPad 10 (2022)', family: 'ipad', sort_order: 2022, order_known: true},
+            {id: 32, name: 'iPad Air 13″ (6th Gen)', family: 'ipad', sort_order: 2024, order_known: true},
+            {id: 33, name: 'iPad Pro 13″ (7th Gen)', family: 'ipad', sort_order: 2024, order_known: true},
+            {id: 34, name: 'iPad mini 7', family: 'ipad', sort_order: 2024, order_known: true},
+            {id: 35, name: 'iPad Pro 12.9 (6th Gen)', family: 'ipad', sort_order: 2022, order_known: true}
+        ])
+    };
+    const groupedIpad = app.window.StoreMenu.modelsMarkup(ipadEntry, '', true);
+    assert.match(groupedIpad, /b2b-model-series/, 'Expanded iPad models use scan-friendly product-line groups');
+    assert(groupedIpad.indexOf('>iPad Pro <') < groupedIpad.indexOf('>iPad Air <'));
+    assert(groupedIpad.indexOf('>iPad Air <') < groupedIpad.indexOf('>iPad mini <'));
+    assert(groupedIpad.indexOf('>iPad mini <') < groupedIpad.indexOf('>iPad <'));
+    assert.equal((groupedIpad.match(/class="b2b-model-link"/g) || []).length, 5, 'Grouping retains every iPad model');
+    const searchedIpad = app.window.StoreMenu.modelsMarkup(ipadEntry, 'pro');
+    assert.doesNotMatch(searchedIpad, /b2b-model-series/, 'Search remains one relevance-ranked result list');
+    assert.equal((searchedIpad.match(/class="b2b-model-link"/g) || []).length, 2, 'Search still finds models across product-line groups');
     const searched = app.window.StoreMenu.modelsMarkup(bigEntry, 'iphone 5');
     assert.match(searched, /1 of 20 models|2 of 20 models/);
     assert(searched.indexOf('data-model-id="105"') >= 0, 'A typed model surfaces however old it is');

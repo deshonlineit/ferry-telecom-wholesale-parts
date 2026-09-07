@@ -45,6 +45,13 @@ spaced = query({"q": "iPhone 13"})["total"]
 check(compact > 0 and spaced == compact, "spaced and compact model phrases produce equivalent results")
 sku = query({"q": "priph01"})
 check(sku["products"][0]["sku"].upper() == "PRIPH01", "case-insensitive exact SKU ranked first")
+smart_model = read("/search/products?" + urllib.parse.urlencode({"q": "14 oled", "limit": 12}))
+check(smart_model["products"][0]["sku"].upper() == "PRIPH16", "smart search ranks the exact model and part type first")
+check(
+    all("a33" not in p["name"].lower() for p in smart_model["products"]),
+    "standalone model numbers never match digits buried in unrelated supplier codes",
+)
+check(smart_model["intent"]["kind"] == "model" and "14" in smart_model["intent"]["label"], "smart search explains the recognized model")
 check(query({"q": "qazzz-not-a-real-part-938277"})["total"] == 0, "honest empty results")
 check(query({"stock": "out_of_stock", "limit": 100})["products"][0]["stock"] == 0, "optional out-of-stock filter")
 check(all(p["featured"] for p in query({"featured": 1, "limit": 100})["products"]), "featured results actually featured")

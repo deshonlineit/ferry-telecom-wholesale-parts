@@ -34,8 +34,8 @@ function catalogPhotoProtectedSignature(PDO $pdo): array
 
 require_once dirname(__DIR__) . '/src/catalog-photo-source.php';
 
-$csvFiles = glob(WORKSPACE_ROOT . '/attached_assets/0_product_export_2026-07-30-06-25-56_1785436150044.csv');
-if (!$csvFiles || !is_file($csvFiles[0])) {
+$csvPath = $argv[1] ?? WORKSPACE_ROOT . '/attached_assets/0_product_export_2026-07-30-06-25-56_1785436150044.csv';
+if (!is_file($csvPath)) {
     throw new RuntimeException('The authorized product export is missing.');
 }
 
@@ -45,7 +45,7 @@ foreach ($pdo->query('SELECT id,sku FROM products ORDER BY id') as $product) {
     $nativeProducts[(string) $product['sku']] = (int) $product['id'];
 }
 
-$handle = fopen($csvFiles[0], 'rb');
+$handle = fopen($csvPath, 'rb');
 if ($handle === false) {
     throw new RuntimeException('The authorized product export cannot be read.');
 }
@@ -65,8 +65,11 @@ while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
     $sourceRows++;
     $values = array_slice(array_pad($values, count($headers), ''), 0, count($headers));
     $row = array_combine($headers, $values);
-    $sku = trim((string) ($row['sku'] ?? ''));
-    $images = trim((string) ($row['images'] ?? ''));
+    if (array_key_exists('Published', $row) && trim((string) $row['Published']) !== '1') {
+        continue;
+    }
+    $sku = trim((string) ($row['sku'] ?? $row['SKU'] ?? ''));
+    $images = trim((string) ($row['images'] ?? $row['Images'] ?? ''));
     if ($images !== '') {
         $sourceRowsWithImages++;
     }
@@ -101,7 +104,7 @@ if (!is_dir($storage) && !mkdir($storage, 0700, true) && !is_dir($storage)) {
 $withImages = (int) $pdo->query('SELECT COUNT(DISTINCT product_id) FROM images')->fetchColumn();
 $baseline = [
     'created_at_utc' => gmdate(DATE_ATOM),
-    'source_csv' => basename($csvFiles[0]),
+    'source_csv' => basename($csvPath),
     'mapping_provenance' => 'CSV sku matched byte-for-byte to current isolated native products.sku; WooCommerce ID was not used.',
     'native_product_count' => count($nativeProducts),
     'native_existing_image_count' => $withImages,

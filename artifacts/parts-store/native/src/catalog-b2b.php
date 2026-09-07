@@ -83,6 +83,20 @@ function catalogB2bSearch(array $input, ?array $user): array
     foreach ($terms as $term) {
         $like = catalogLike($term);
         $compact = catalogLike(catalogCompact($term));
+        if (preg_match('/^\d{1,4}$/', $term)) {
+            // A standalone number is normally a device model. Do not let it match
+            // digits buried inside a SKU or supplier code such as GH82-28143A.
+            $numericBoundary = '(^|[^0-9])' . preg_quote($term, '/') . '([^0-9]|$)';
+            $where[] = "(LOWER(p.sku)=?
+                OR LOWER(SUBSTRING_INDEX(p.name,' - ',1)) REGEXP ?
+                OR EXISTS(
+                    SELECT 1 FROM product_models numeric_pm
+                    JOIN device_models numeric_m ON numeric_m.id=numeric_pm.model_id
+                    WHERE numeric_pm.product_id=p.id AND LOWER(numeric_m.name) REGEXP ?
+                ))";
+            array_push($parameters, $term, $numericBoundary, $numericBoundary);
+            continue;
+        }
         $termCategorySlugs = array_keys(array_filter(
             $aliases,
             static fn(array $words): bool => in_array($term, $words, true)
@@ -138,6 +152,21 @@ function catalogB2bSearch(array $input, ?array $user): array
     $intent = ['kind' => 'product', 'label' => 'Product match'];
     if ($products && mb_strtolower((string) $products[0]['sku'], 'UTF-8') === $exact) {
         $intent = ['kind' => 'sku', 'label' => 'Exact SKU'];
+    } elseif ($products && array_filter($terms, static fn(string $term): bool => (bool) preg_match('/^\d{1,4}$/', $term))) {
+        $numericTerms = array_values(array_filter(
+            $terms,
+            static fn(string $term): bool => (bool) preg_match('/^\d{1,4}$/', $term)
+        ));
+        foreach ($products[0]['models'] as $model) {
+            $modelName = mb_strtolower((string) $model['name'], 'UTF-8');
+            $matches = array_filter($numericTerms, static fn(string $term): bool =>
+                (bool) preg_match('/(^|[^\d])' . preg_quote($term, '/') . '([^\d]|$)/u', $modelName)
+            );
+            if (count($matches) === count($numericTerms)) {
+                $intent = ['kind' => 'model', 'label' => $model['name'], 'model_id' => (int) $model['id']];
+                break;
+            }
+        }
     } elseif ($matchedCategorySlugs) {
         $slug = array_values(array_unique($matchedCategorySlugs))[0];
         $intent = [

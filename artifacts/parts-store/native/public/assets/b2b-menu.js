@@ -27,6 +27,28 @@
         || Number(b.sort_order || 0) - Number(a.sort_order || 0)
         || String(b.name).localeCompare(String(a.name), 'en', {numeric: true})
     );
+    const modelSeries = (entry, model) => {
+        const family = String(entry?.family?.label || '').toLowerCase();
+        const name = String(model?.name || '').toLowerCase();
+        if (family.includes('ipad')) {
+            if (/\bipad\s+pro\b/.test(name)) return {key: 'ipad-pro', label: 'iPad Pro', order: 1};
+            if (/\bipad\s+air\b/.test(name)) return {key: 'ipad-air', label: 'iPad Air', order: 2};
+            if (/\bipad\s+mini\b/.test(name)) return {key: 'ipad-mini', label: 'iPad mini', order: 3};
+            return {key: 'ipad', label: 'iPad', order: 4};
+        }
+        if (family.includes('macbook')) {
+            if (/\bmacbook\s+pro\b/.test(name)) return {key: 'macbook-pro', label: 'MacBook Pro', order: 1};
+            if (/\bmacbook\s+air\b/.test(name)) return {key: 'macbook-air', label: 'MacBook Air', order: 2};
+            return {key: 'macbook', label: 'MacBook', order: 3};
+        }
+        if (family.includes('apple watch')) {
+            if (/\bultra\b/.test(name)) return {key: 'watch-ultra', label: 'Apple Watch Ultra', order: 1};
+            if (/\bse\b/.test(name)) return {key: 'watch-se', label: 'Apple Watch SE', order: 2};
+            if (/\bseries\b/.test(name)) return {key: 'watch-series', label: 'Apple Watch Series', order: 3};
+            return {key: 'watch', label: 'Apple Watch', order: 4};
+        }
+        return null;
+    };
     const deviceData = catalog => {
         const familiesById = new Map((catalog.device_families || []).map(family => [String(family.id), family]));
         const brandsById = new Map((catalog.brands || []).map(brand => [String(brand.id), brand]));
@@ -74,6 +96,7 @@
 
         compatibilityUrl,
         orderedModels,
+        modelSeries,
         deviceData,
 
         init() {
@@ -268,6 +291,25 @@
             return `<a href="${esc(compatibilityUrl({family: model.family, model: model.id}))}" class="b2b-model-link" data-model-id="${esc(model.id)}" title="${esc(model.name)}">${esc(model.name)}</a>`;
         },
 
+        groupedModelLinks(entry, models) {
+            const groups = new Map();
+            models.forEach(model => {
+                const series = modelSeries(entry, model);
+                if (!series) return;
+                if (!groups.has(series.key)) groups.set(series.key, {...series, models: []});
+                groups.get(series.key).models.push(model);
+            });
+            if (groups.size < 2 || [...groups.values()].reduce((count, group) => count + group.models.length, 0) !== models.length) {
+                return `<div class="b2b-model-links">${models.map(Menu.modelLink).join('')}</div>`;
+            }
+            return `<div class="b2b-model-series">${[...groups.values()]
+                .sort((a, b) => a.order - b.order)
+                .map(group => `<section class="b2b-model-series-group" aria-labelledby="series-${esc(entry.family.id)}-${esc(group.key)}">
+                    <h4 id="series-${esc(entry.family.id)}-${esc(group.key)}">${esc(group.label)} <small>${group.models.length}</small></h4>
+                    <div class="b2b-model-links">${group.models.map(Menu.modelLink).join('')}</div>
+                </section>`).join('')}</div>`;
+        },
+
         /** Start concise, but let the visitor expand the complete newest-to-oldest overview in place. */
         modelsMarkup(entry, query = '', expanded = false) {
             const term = String(query || '').trim();
@@ -291,8 +333,11 @@
             const toggle = !term && total > MODEL_LIMIT
                 ? `<button type="button" class="b2b-model-expand" data-model-expand aria-expanded="${expanded}">${expanded ? `Show newest ${MODEL_LIMIT}` : `Show all ${total} models`}<span aria-hidden="true">${expanded ? '↑' : '↓'}</span></button>`
                 : '';
+            const modelLinks = expanded && !term
+                ? Menu.groupedModelLinks(entry, shown)
+                : `<div class="b2b-model-links">${shown.map(Menu.modelLink).join('')}</div>`;
             return `<p class="b2b-model-status" role="status" aria-live="polite">${esc(status)}</p>
-                <div class="b2b-model-links">${shown.map(Menu.modelLink).join('')}</div>
+                ${modelLinks}
                 ${toggle}
                 <a class="b2b-family-all" href="${esc(familyUrl(entry.family.id))}" data-family-id="${esc(entry.family.id)}">All parts for ${esc(label)}${parts ? ` <small>${parts.toLocaleString('en-GB')}</small>` : ''}</a>`;
         },

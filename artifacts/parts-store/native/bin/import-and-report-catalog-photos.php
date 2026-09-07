@@ -13,6 +13,7 @@ $nativeRoot = dirname(__DIR__);
 $manifest = json_decode((string) @file_get_contents($nativeRoot . '/storage/catalog-photo-import-manifest.json'), true, 64, JSON_THROW_ON_ERROR);
 $baseline = json_decode((string) @file_get_contents($nativeRoot . '/storage/catalog-photo-import-baseline.json'), true, 64, JSON_THROW_ON_ERROR);
 $downloadReport = json_decode((string) @file_get_contents($nativeRoot . '/storage/catalog-photo-download-report.json'), true, 64, JSON_THROW_ON_ERROR);
+$replaceExisting = in_array('--replace-existing', $argv, true);
 $items = $manifest['items'] ?? [];
 if (!is_array($items) || !is_array($baseline) || !is_array($downloadReport)) {
     throw new RuntimeException('Prepare and download reports are required.');
@@ -49,7 +50,7 @@ foreach ($items as $item) {
         continue;
     }
     try {
-        if (mediaImportCatalogImage($productId, $path)) {
+        if (mediaImportCatalogImage($productId, $path, $replaceExisting)) {
             $imported++;
         } else {
             $alreadyPresent++;
@@ -102,6 +103,7 @@ $report = [
     'download_failed_unique_url_count' => $downloadReport['failed_unique_url_count'] ?? null,
     'newly_imported_count' => $imported,
     'already_present_count' => $alreadyPresent,
+    'replace_existing' => $replaceExisting,
     'not_downloaded_count' => count($notDownloaded),
     'import_error_count' => count($importErrors),
     'products_with_image_count' => $imageCount,

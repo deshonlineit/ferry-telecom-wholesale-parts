@@ -182,7 +182,7 @@
                 const stockText = product.stock > 0 ? `${count(product.stock)} in stock` : 'Out of stock';
                 const thumb = window.App.thumbnailUrl ? window.App.thumbnailUrl({url: product.image_url}) : product.image_url;
                 const media = product.image_url
-                    ? `<img src="${esc(thumb)}" alt="" loading="lazy" decoding="async">`
+                    ? `<img src="${esc(thumb)}" alt="" loading="lazy" decoding="async" data-lp-normalize>`
                     : `<span class="lp-product-placeholder" aria-hidden="true">${L.icon('other')}</span>`;
                 const price = product.price_cents !== null && product.price_cents !== undefined
                     ? `<span class="lp-product-price">${esc(window.Core.formatMoney(product.price_cents, product.currency))}</span>`
@@ -205,6 +205,68 @@
                 </article>`;
             }).join('');
         },
+        normalizeProductImage(img) {
+            if (!img?.naturalWidth || !img?.naturalHeight || !img.parentElement) return;
+            const sampleSize = 112;
+            const canvas = document.createElement('canvas');
+            canvas.width = sampleSize;
+            canvas.height = sampleSize;
+            const context = canvas.getContext('2d', {willReadFrequently: true});
+            if (!context) return;
+            context.fillStyle = '#fff';
+            context.fillRect(0, 0, sampleSize, sampleSize);
+            context.drawImage(img, 0, 0, sampleSize, sampleSize);
+            const pixels = context.getImageData(0, 0, sampleSize, sampleSize).data;
+            const corners = [[2, 2], [sampleSize - 3, 2], [2, sampleSize - 3], [sampleSize - 3, sampleSize - 3]];
+            const background = corners.reduce((rgb, [x, y]) => {
+                const index = (y * sampleSize + x) * 4;
+                return [rgb[0] + pixels[index], rgb[1] + pixels[index + 1], rgb[2] + pixels[index + 2]];
+            }, [0, 0, 0]).map(value => value / corners.length);
+            let left = sampleSize;
+            let top = sampleSize;
+            let right = -1;
+            let bottom = -1;
+            for (let y = 0; y < sampleSize; y++) {
+                for (let x = 0; x < sampleSize; x++) {
+                    const index = (y * sampleSize + x) * 4;
+                    if (pixels[index + 3] < 32) continue;
+                    const distance = Math.abs(pixels[index] - background[0])
+                        + Math.abs(pixels[index + 1] - background[1])
+                        + Math.abs(pixels[index + 2] - background[2]);
+                    if (distance < 54) continue;
+                    left = Math.min(left, x);
+                    top = Math.min(top, y);
+                    right = Math.max(right, x);
+                    bottom = Math.max(bottom, y);
+                }
+            }
+            if (right <= left || bottom <= top) return;
+            const media = img.parentElement;
+            const width = media.clientWidth;
+            const height = media.clientHeight;
+            if (!width || !height) return;
+            const contain = Math.min(width / img.naturalWidth, height / img.naturalHeight);
+            const imageWidth = img.naturalWidth * contain;
+            const imageHeight = img.naturalHeight * contain;
+            const contentLeft = (width - imageWidth) / 2 + (left / sampleSize) * imageWidth;
+            const contentTop = (height - imageHeight) / 2 + (top / sampleSize) * imageHeight;
+            const contentWidth = ((right - left + 1) / sampleSize) * imageWidth;
+            const contentHeight = ((bottom - top + 1) / sampleSize) * imageHeight;
+            const scale = Math.max(0.85, Math.min(2.35, width * 0.52 / contentWidth, height * 0.66 / contentHeight));
+            const contentCenterX = contentLeft + contentWidth / 2;
+            const contentCenterY = contentTop + contentHeight / 2;
+            img.style.setProperty('--lp-image-scale', scale.toFixed(3));
+            img.style.setProperty('--lp-image-x', `${(-(contentCenterX - width / 2) * scale).toFixed(1)}px`);
+            img.style.setProperty('--lp-image-y', `${(-(contentCenterY - height / 2) * scale).toFixed(1)}px`);
+            img.dataset.lpNormalized = 'true';
+        },
+        bindProductImages(root) {
+            root.querySelectorAll('[data-lp-normalize]').forEach(img => {
+                const normalize = () => L.normalizeProductImage(img);
+                if (img.complete) normalize();
+                else img.addEventListener('load', normalize, {once: true});
+            });
+        },
         paint(root, catalog, featured) {
             const set = (selector, html) => {
                 const node = root.querySelector(selector);
@@ -218,6 +280,7 @@
             set('[data-lp-families]', L.renderFamilies(catalog));
             set('[data-lp-models]', L.renderModels(catalog));
             set('[data-lp-featured]', L.renderFeatured(featured));
+            L.bindProductImages(root);
             const lead = root.querySelector('[data-lp-lead]');
             if (lead) lead.textContent = `Find your model, choose the right variant and order in one step. ${total} parts for ${count(models)} models.`;
             const modelsAll = root.querySelector('[data-lp-models-all]');

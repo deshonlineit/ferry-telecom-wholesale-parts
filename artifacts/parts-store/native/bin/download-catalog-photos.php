@@ -13,6 +13,7 @@ $nativeRoot = dirname(__DIR__);
 require_once $nativeRoot . '/src/catalog-photo-source.php';
 $manifestPath = $nativeRoot . '/storage/catalog-photo-import-manifest.json';
 $manifest = json_decode((string) @file_get_contents($manifestPath), true, 64, JSON_THROW_ON_ERROR);
+$refreshFromCache = in_array('--refresh-from-cache', $argv, true);
 $items = $manifest['items'] ?? null;
 if (!is_array($items)) {
     throw new RuntimeException('Run prepare-catalog-photo-import.php first.');
@@ -116,6 +117,15 @@ $report = [
 ];
 $queue = [];
 foreach ($byUrl as $url => $urlItems) {
+    $cachePath = $cacheDir . '/' . hash('sha256', $url) . '.img';
+    if ($refreshFromCache && verifyCatalogDownload($cachePath) !== null) {
+        foreach ($urlItems as $item) {
+            installProductDownload($cachePath, $downloadDir . '/' . (int) $item['product_id'] . '.img');
+            $report['downloaded_product_files']++;
+        }
+        $report['reused_verified_cache_urls']++;
+        continue;
+    }
     $allReady = true;
     foreach ($urlItems as $item) {
         if (verifyCatalogDownload($downloadDir . '/' . (int) $item['product_id'] . '.img') === null) {
@@ -127,7 +137,6 @@ foreach ($byUrl as $url => $urlItems) {
     if ($allReady) {
         continue;
     }
-    $cachePath = $cacheDir . '/' . hash('sha256', $url) . '.img';
     if (verifyCatalogDownload($cachePath) !== null) {
         foreach ($urlItems as $item) {
             $destination = $downloadDir . '/' . (int) $item['product_id'] . '.img';

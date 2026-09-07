@@ -317,7 +317,7 @@ function mediaCreditDocument(int $returnId): never
  * Imports one already-downloaded catalog image. This deliberately accepts
  * files only from storage/catalog-downloads and performs no network access.
  */
-function mediaImportCatalogImage(int $productId, string $sourcePath): bool
+function mediaImportCatalogImage(int $productId, string $sourcePath, bool $replace = false): bool
 {
     $nativeRoot = dirname(__DIR__);
     $downloadRoot = realpath($nativeRoot . '/storage/catalog-downloads');
@@ -334,7 +334,7 @@ function mediaImportCatalogImage(int $productId, string $sourcePath): bool
     if (mediaFetchOne('SELECT id FROM products WHERE id = ? AND active = 1', [$productId]) === null) {
         throw new HttpError(404, 'Product not found.');
     }
-    if (mediaFetchOne('SELECT id FROM images WHERE product_id = ? LIMIT 1', [$productId]) !== null) {
+    if (!$replace && mediaFetchOne('SELECT id FROM images WHERE product_id = ? LIMIT 1', [$productId]) !== null) {
         return false;
     }
 
@@ -398,9 +398,10 @@ function mediaImportCatalogImage(int $productId, string $sourcePath): bool
             if ($lock->fetchColumn() === false) {
                 throw new HttpError(404, 'Product not found.');
             }
-            $existing = $pdo->prepare('SELECT id FROM images WHERE product_id = ? LIMIT 1');
+            $existing = $pdo->prepare('SELECT id FROM images WHERE product_id = ? ORDER BY id LIMIT 1 FOR UPDATE');
             $existing->execute([$productId]);
-            if ($existing->fetchColumn() !== false) {
+            $existingId = $existing->fetchColumn();
+            if ($existingId !== false && !$replace) {
                 $pdo->rollBack();
                 foreach ($written as $pathToRemove) {
                     @unlink($pathToRemove);
@@ -408,16 +409,20 @@ function mediaImportCatalogImage(int $productId, string $sourcePath): bool
                 return false;
             }
             $url = $variants['1280'];
-            $statement = $pdo->prepare('INSERT INTO images(product_id,url,variants,original_path) VALUES(?,?,?,?)');
-            $statement->execute([
-                $productId,
-                $url,
-                json_encode($variants, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-                $originalRelative,
-            ]);
-            $imageId = (int) $pdo->lastInsertId();
+            $variantJson = json_encode($variants, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            if ($existingId !== false) {
+                $statement = $pdo->prepare('UPDATE images SET url=?,variants=?,original_path=? WHERE id=?');
+                $statement->execute([$url, $variantJson, $originalRelative, (int) $existingId]);
+                $imageId = (int) $existingId;
+            } else {
+                $statement = $pdo->prepare('INSERT INTO images(product_id,url,variants,original_path) VALUES(?,?,?,?)');
+                $statement->execute([$productId, $url, $variantJson, $originalRelative]);
+                $imageId = (int) $pdo->lastInsertId();
+            }
             $pdo->prepare('UPDATE products SET image_url = ? WHERE id = ?')->execute([$url, $productId]);
-            audit('image.catalog_import', 'image', $imageId, ['product_id' => $productId, 'width' => $width, 'height' => $height]);
+            audit($existingId !== false ? 'image.catalog_refreshed' : 'image.catalog_import', 'image', $imageId, [
+                'product_id' => $productId, 'width' => $width, 'height' => $height,
+            ]);
             $pdo->commit();
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) {

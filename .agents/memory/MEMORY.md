@@ -31,3 +31,5 @@
 - [Catalogue visual language](catalogue-visual-language.md) — image-led categories, collapsed model families, quiet blue surface, larger product images, and no title underlines.
 - [Client policy enforcement](client-policy-enforcement.md) — a shortened UI list is not a rule until PHP rejects the excluded values, with a QA check keeping both lists identical.
 - [Smart-search privacy boundary](smart-search-privacy.md) — learn from intent and outcomes, never send customers’ raw search text to analytics.
+- [Smart-search model numbers](smart-search-model-numbers.md) — standalone numbers are device intent, not digit fragments inside SKUs or supplier codes.
+- [WooCommerce review imports](woocommerce-review-imports.md) — reconcile published products by exact SKU; refresh media from URL-keyed cache instead of trusting old product files.
