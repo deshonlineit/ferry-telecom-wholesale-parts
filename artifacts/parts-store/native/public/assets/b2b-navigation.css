@@ -453,6 +453,10 @@ body:not(:has(.admin-shell)) .b2b-top-nav {
     gap: 0 4px;
 }
 
+body:not(:has(.admin-shell)) .b2b-top-nav-immediate {
+    opacity: .92;
+}
+
 body:not(:has(.admin-shell)) .b2b-nav-link {
     display: flex;
     align-items: center;

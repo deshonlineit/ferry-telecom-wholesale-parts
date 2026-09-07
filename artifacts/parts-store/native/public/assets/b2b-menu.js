@@ -4,6 +4,7 @@
     const MOBILE_WIDTH = 768;
 
     const MODEL_LIMIT = 12;
+    const MENU_CACHE_KEY = 'ft_store_menu_catalog_v1';
 
     const currentParams = () => new URLSearchParams(window.location?.search || '');
     // The top menu is a destination picker, not a refinement of the page you are on:
@@ -150,9 +151,53 @@
             container.style.padding = '0';
             Menu._container = container;
             nav.replaceChildren(container);
-            Menu.renderLoading();
             Menu.bindGlobalListeners();
+            Menu.renderImmediate();
             Menu.load();
+        },
+
+        renderImmediate() {
+            try {
+                const cached = JSON.parse(localStorage.getItem(MENU_CACHE_KEY) || 'null');
+                if (cached?.catalog?.models?.length && cached?.catalog?.device_families?.length) {
+                    Menu.renderMegaMenu(Menu._container, cached.catalog);
+                    Menu._container.setAttribute('aria-busy', 'true');
+                    return;
+                }
+            } catch (_) {}
+            const destinations = [
+                [t('all'), 'catalog'],
+                ['Apple', 'catalog'],
+                ['Samsung', 'catalog'],
+                [t('partsMenu'), 'catalog'],
+                [t('supplies'), 'catalog'],
+                [t('otherBrands'), 'catalog']
+            ];
+            const mobile = document.createElement('button');
+            mobile.type = 'button';
+            mobile.className = 'b2b-mobile-toggle';
+            mobile.setAttribute('aria-expanded', 'false');
+            mobile.setAttribute('aria-controls', 'b2b-top-navigation');
+            mobile.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>${esc(t('catalogue'))}</span>`;
+            const list = document.createElement('ul');
+            list.id = 'b2b-top-navigation';
+            list.className = 'b2b-top-nav b2b-top-nav-immediate';
+            destinations.forEach(([label, path]) => {
+                const item = document.createElement('li');
+                item.className = 'b2b-nav-item';
+                item.innerHTML = `<a class="b2b-nav-link" href="${esc(window.APP_BASE + path)}">${esc(label)}</a>`;
+                list.appendChild(item);
+            });
+            mobile.addEventListener('click', event => {
+                event.stopPropagation();
+                const open = !list.classList.contains('mobile-open');
+                list.classList.toggle('mobile-open', open);
+                mobile.setAttribute('aria-expanded', String(open));
+            });
+            Menu._mobileToggle = mobile;
+            Menu._list = list;
+            Menu._container.replaceChildren(mobile, list);
+            Menu._container.setAttribute('aria-busy', 'true');
         },
 
         renderLoading() {
@@ -162,14 +207,19 @@
         load() {
             const request = ++Menu._request;
             return window.Core.fetch('/catalog').then(catalog => {
-                if (request === Menu._request) Menu.renderMegaMenu(Menu._container, catalog);
+                if (request === Menu._request) {
+                    try { localStorage.setItem(MENU_CACHE_KEY, JSON.stringify({at: Date.now(), catalog})); } catch (_) {}
+                    Menu.renderMegaMenu(Menu._container, catalog);
+                    Menu._container.removeAttribute('aria-busy');
+                }
             }).catch(() => {
                 if (request === Menu._request) Menu.renderError();
             });
         },
 
         renderError() {
-            Menu._container.replaceChildren();
+            Menu._container.removeAttribute('aria-busy');
+            Menu._container.querySelector('.b2b-menu-error')?.remove();
             const error = document.createElement('div');
             error.className = 'b2b-menu-error text-danger p-3';
             error.textContent = t('loadMenuFailed') + ' ';
@@ -178,7 +228,8 @@
             retry.className = 'b2b-menu-retry';
             retry.textContent = t('retry');
             retry.addEventListener('click', () => {
-                Menu.renderLoading();
+                error.remove?.();
+                Menu._container.setAttribute('aria-busy', 'true');
                 Menu.load();
             });
             error.appendChild(retry);

@@ -31,6 +31,14 @@ function deviceFamilyId(array $model, array $brandNames): ?string
 function deviceFamilyGroup(string $family, string $name): array
 {
     $name = mb_strtolower($name, 'UTF-8');
+    if ($family === 'iphone') {
+        if (preg_match('/^iphone\s+(\d+)(?:s|c)?\b/i', $name, $match)) return ["series-{$match[1]}", "{$match[1]} Series"];
+        if (preg_match('/^iphone\s+(se|x[rs]?)(?:\s|\(|$)/i', $name, $match)) {
+            $generation = strtoupper($match[1]);
+            return ["series-" . strtolower($generation), "$generation Series"];
+        }
+        return ['iphone-other', 'Other iPhone models'];
+    }
     if ($family === 'ipad') {
         foreach (['pro', 'air', 'mini'] as $group) if (str_contains($name, "ipad $group")) return [$group, "iPad " . ucfirst($group)];
         return ['ipad', 'iPad'];
@@ -44,7 +52,7 @@ function deviceFamilyGroup(string $family, string $name): array
         }
         return ['other', 'Other Galaxy models'];
     }
-    $labels = ['iphone' => 'iPhone', 'pixel' => 'Google Pixel', 'watch' => 'Apple Watch', 'macbook' => 'MacBook'];
+    $labels = ['pixel' => 'Google Pixel', 'watch' => 'Apple Watch', 'macbook' => 'MacBook'];
     return [$family, $labels[$family] ?? 'Other models'];
 }
 

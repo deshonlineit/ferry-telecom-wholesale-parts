@@ -461,8 +461,8 @@ function commerceCheckout(): never
     $input = body();
     $quoteToken = text($input['quote_token'] ?? '', 128);
     $paymentMethod = text($input['payment_method'] ?? '', 30);
-    if (!in_array($paymentMethod, ['test_invoice', 'test_card'], true)) {
-        throw new HttpError(422, 'Choose a supported test payment method.');
+    if (!in_array($paymentMethod, ['swiss_qr_invoice', 'pay_later'], true)) {
+        throw new HttpError(422, 'Choose a supported pay-later method.');
     }
     $notes = text($input['notes'] ?? '', 4000);
     $idempotencyKey = text($input['idempotency_key'] ?? '', 100);
@@ -523,6 +523,12 @@ function commerceCheckout(): never
         $address = commerceCheckoutAddress($input, (int) $user['id'], true);
         if ($address != $acceptedQuote['address']) {
             throw new HttpError(409, 'The delivery address changed. Request a new quote.');
+        }
+        $expectedPaymentMethod = strtoupper((string) $address['country']) === 'CH'
+            ? 'swiss_qr_invoice'
+            : 'pay_later';
+        if ($paymentMethod !== $expectedPaymentMethod) {
+            throw new HttpError(422, 'The payment method does not match the delivery country.');
         }
         $context = currencyContext((string) $address['country']);
 
@@ -599,7 +605,7 @@ function commerceCheckout(): never
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
         );
         $statement->execute([
-            $number, (int) $user['id'], 'processing',
+            $number, (int) $user['id'], 'on_hold',
             $totals['subtotal_cents'], $totals['tax_cents'], $totals['shipping_cents'],
             $totals['total_cents'], $settings['tax_bps'], $context['currency'],
             $context['currency'] === 'CHF' ? $context['exchange_rate']['rate_ppm'] : null,
@@ -632,7 +638,7 @@ function commerceCheckout(): never
         $statement = $pdo->prepare(
             'INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)'
         );
-        $statement->execute([$orderId, 'processing', 'Test order placed.']);
+        $statement->execute([$orderId, 'on_hold', 'Order received; awaiting payment and manual processing.']);
         $statement = $pdo->prepare('DELETE FROM cart_items WHERE user_id = ?');
         $statement->execute([(int) $user['id']]);
         enqueue('order.created', ['order_id' => $orderId, 'number' => $number, 'test_mode' => true]);
@@ -645,7 +651,7 @@ function commerceCheckout(): never
             'id' => $orderId,
             'number' => $number,
             'total_cents' => $totals['total_cents'],
-            'status' => 'processing',
+            'status' => 'on_hold',
             'currency' => $context['currency'],
         ]]);
     } catch (Throwable $error) {
@@ -901,7 +907,7 @@ function commerceAdminUpdateOrder(int $orderId): never
     $input = body();
     $newStatus = text($input['status'] ?? '', 30);
     $note = text($input['note'] ?? '', 4000);
-    if (!in_array($newStatus, ['processing', 'shipped', 'completed', 'cancelled'], true)) {
+    if (!in_array($newStatus, ['on_hold', 'processing', 'shipped', 'completed', 'cancelled'], true)) {
         throw new HttpError(422, 'Unsupported order status.');
     }
     $pdo = db();
@@ -918,6 +924,7 @@ function commerceAdminUpdateOrder(int $orderId): never
         }
         $oldStatus = $order['status'];
         $allowed = [
+            'on_hold' => ['on_hold', 'processing', 'cancelled'],
             'processing' => ['processing', 'shipped', 'cancelled'],
             'shipped' => ['shipped', 'completed'],
             'completed' => ['completed'],

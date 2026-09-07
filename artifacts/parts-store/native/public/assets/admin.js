@@ -22,6 +22,7 @@
         };
         
         window.Workbench.statusMap = {
+            'on_hold': { label: 'On hold — awaiting payment', badge: 'warning' },
             'processing': { label: 'Processing', badge: 'warning' },
             'shipped': { label: 'Shipped', badge: 'info' },
             'completed': { label: 'Completed', badge: 'success' },
@@ -59,6 +60,12 @@
 })();
 
 const adminLayout = (content, activeRoute) => window.Admin.layout(content, activeRoute);
+const adminPaymentMethodLabel = method => ({
+    swiss_qr_invoice: 'Swiss QR Invoice',
+    pay_later: 'Pay Later',
+    test_invoice: 'Legacy test invoice',
+    test_card: 'Legacy test card'
+}[method] || method);
 
 function renderTable(headers, rowsHtml, emptyMsg) {
     return `
@@ -384,12 +391,14 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
             <td>${esc(o.customer_name)}</td>
             <td>
                 <select class="form-control action-status-select" data-id="${o.id}" data-current="${o.status}" style="padding:0.25rem 0.5rem; font-size:0.8125rem; height:auto;">
+                    <option value="on_hold" ${o.status==='on_hold'?'selected':''}>On hold — awaiting payment</option>
                     <option value="processing" ${o.status==='processing'?'selected':''}>Processing</option>
                     <option value="shipped" ${o.status==='shipped'?'selected':''}>Shipped</option>
                     <option value="completed" ${o.status==='completed'?'selected':''}>Completed</option>
                     <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Cancelled</option>
                 </select>
             </td>
+            <td>${esc(adminPaymentMethodLabel(o.payment_method))}</td>
             <td>${window.Core.formatMoney(o.total_cents, o.currency || 'CHF')}</td>
             <td><button type="button" class="btn btn-sm btn-outline action-track" data-id="${o.id}" data-tracking="${esc(o.tracking||'')}" data-status="${o.status}">T&T</button></td>
         </tr>
@@ -399,7 +408,7 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
         <div class="page-header">
             <h1>Order Management</h1>
         </div>
-        ${renderTable(['Order #', 'Date', 'Customer', 'Status', 'Total', 'Action'], rows, 'No orders found.')}
+        ${renderTable(['Order #', 'Date', 'Customer', 'Status', 'Payment method', 'Total', 'Action'], rows, 'No orders found.')}
     `;
     root.innerHTML = adminLayout(content, 'orders');
 

@@ -22,6 +22,7 @@
         };
         
         window.Workbench.statusMap = {
+            'on_hold': { label: 'onHold', badge: 'warning' },
             'processing': { label: 'processing', badge: 'warning' }, 'shipped': { label: 'shipped', badge: 'info' },
             'completed': { label: 'completed', badge: 'success' }, 'cancelled': { label: 'cancelled', badge: 'danger' },
             'submitted': { label: 'submitted', badge: 'warning' }, 'received': { label: 'received', badge: 'info' },
@@ -45,6 +46,12 @@ const accountDate = value => window.I18n.date(value);
 const accountDateTime = value => window.I18n.date(value, {dateStyle: 'medium', timeStyle: 'short'});
 const accountMoney = (cents, currency) => window.I18n.formatMoney(cents, currency);
 const accountStatus = status => window.I18n.t(window.Workbench.statusMap[status]?.label || status);
+const accountPaymentMethod = method => window.I18n.t({
+    swiss_qr_invoice: 'swissQrInvoice',
+    pay_later: 'payLater',
+    test_invoice: 'legacyTestInvoice',
+    test_card: 'legacyTestCard'
+}[method] || method);
 
 const accountLayout = (content, activeRoute) => `
     <div class="layout-sidebar">
@@ -320,7 +327,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                         <tr><td style="color:var(--wb-text-muted); width:120px;">${accountT('date')}:</td><td><strong>${accountDate(o.created_at)}</strong></td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('status')}:</td><td>${window.Workbench.badge(o.status)}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('tracking')}:</td><td>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" style="font-weight:500;">${accountT('trackParcel')}</a>` : '-'}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('paymentMethod')}:</td><td>${esc(o.payment_method)}</td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">${accountT('paymentMethod')}:</td><td>${esc(accountPaymentMethod(o.payment_method))}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('currency')}:</td><td><strong>${esc(orderCurrency)}</strong></td></tr>
                     </table>
                 </div>

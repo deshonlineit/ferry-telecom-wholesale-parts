@@ -395,7 +395,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
             const preselected = addresses.find(a => a.is_default) || addresses[0];
             addrHtml = addresses.map((a) => `
                 <label class="address-card ${a.id === preselected.id ? 'selected' : ''}">
-                    <input type="radio" name="address_choice" value="${a.id}" ${a.id === preselected.id ? 'checked' : ''}>
+                    <input type="radio" name="address_choice" value="${a.id}" data-country="${esc(a.country)}" ${a.id === preselected.id ? 'checked' : ''}>
                     <div class="address-header mb-2">
                         <strong>${esc(a.label || t('address'))}</strong>
                         <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -471,24 +471,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
                                     <div class="step-number">2</div>
                                     <h3>${t('paymentMethod')}</h3>
                                 </div>
-                                <div class="payment-grid">
-                                    <label class="payment-card selected">
-                                        <input type="radio" name="payment_method" value="test_invoice" checked onchange="document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected')); this.closest('.payment-card').classList.add('selected');">
-                                        <div class="address-header">
-                                            <strong>${t('onAccountTest')}</strong>
-                                            <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        </div>
-                                        <div class="text-muted text-sm mt-1">${t('payInvoice')}</div>
-                                    </label>
-                                    <label class="payment-card">
-                                        <input type="radio" name="payment_method" value="test_card" onchange="document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected')); this.closest('.payment-card').classList.add('selected');">
-                                        <div class="address-header">
-                                            <strong>${t('creditCardTest')}</strong>
-                                            <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        </div>
-                                        <div class="text-muted text-sm mt-1">${t('payCard')}</div>
-                                    </label>
-                                </div>
+                                <div id="checkout-payment-methods" class="payment-grid"></div>
                             </div>
 
                             <div class="checkout-step">
@@ -542,6 +525,25 @@ window.Router.add(/^checkout$/, async (match, root) => {
         const addressFields = root.querySelector('#checkout-address-fields');
         const quoteGate = window.BuyerCurrency.createQuoteGate(submitButton, form.quote_token);
         let quoteTimer = null;
+
+        const selectedDeliveryCountry = () => {
+            const selected = form.querySelector('[name="address_choice"]:checked');
+            return selected?.value === 'new'
+                ? form.address_country.value
+                : selected?.dataset.country || window.Core.country;
+        };
+        const renderPaymentMethod = () => {
+            const swiss = String(selectedDeliveryCountry() || '').toUpperCase() === 'CH';
+            root.querySelector('#checkout-payment-methods').innerHTML = `
+                <label class="payment-card selected">
+                    <input type="radio" name="payment_method" value="${swiss ? 'swiss_qr_invoice' : 'pay_later'}" checked>
+                    <div class="address-header">
+                        <strong>${t(swiss ? 'swissQrInvoice' : 'payLater')}</strong>
+                        <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <div class="text-muted text-sm mt-1">${t(swiss ? 'swissQrInvoiceHelp' : 'payLaterHelp')}</div>
+                </label>`;
+        };
 
         const checkoutAddressPayload = () => {
             const choice = form.querySelector('[name="address_choice"]:checked')?.value;
@@ -622,9 +624,14 @@ window.Router.add(/^checkout$/, async (match, root) => {
             root.querySelectorAll('.address-card').forEach(card => card.classList.remove('selected'));
             input.closest('.address-card')?.classList.add('selected');
             addressFields.hidden = input.value !== 'new';
+            renderPaymentMethod();
             scheduleQuote();
         }));
-        addressFields.querySelectorAll('input, select').forEach(input => input.addEventListener('input', scheduleQuote));
+        addressFields.querySelectorAll('input, select').forEach(input => input.addEventListener('input', () => {
+            if (input.name === 'address_country') renderPaymentMethod();
+            scheduleQuote();
+        }));
+        renderPaymentMethod();
         requestQuote();
 
         window.App.submitCheckout = async (form) => {

@@ -28,6 +28,42 @@
             return catalog.models.filter(model => (!brand || String(model.brand_id) === String(brand)) && (model.count > 0 || String(model.id) === String(selected)))
                 .sort((a, b) => a.name.localeCompare(b.name, 'en', {numeric: true}));
         },
+        modelResults(catalog, brand, selected = '', query = '', expanded = false) {
+            const all = D.modelOptions(catalog, brand, selected);
+            const ranked = query.trim()
+                ? window.ModelSearch.rank(all, query)
+                : [...all].sort((a, b) => Number(Boolean(b.order_known)) - Number(Boolean(a.order_known))
+                    || Number(b.sort_order || 0) - Number(a.sort_order || 0)
+                    || a.name.localeCompare(b.name, 'en', {numeric: true}));
+            if (query.trim() || expanded || ranked.length <= 8) return {models: ranked, total: ranked.length};
+            const models = ranked.slice(0, 8);
+            const current = ranked.find(model => String(model.id) === String(selected));
+            if (current && !models.some(model => String(model.id) === String(current.id))) models.unshift(current);
+            return {models, total: ranked.length};
+        },
+        modelGroups(catalog, models) {
+            const families = new Map((catalog.device_families || []).map((family, index) => [family.id, {...family, index}]));
+            const groups = new Map();
+            models.forEach(model => {
+                const familyId = model.family || `brand-${model.brand_id || 'other'}`;
+                const family = families.get(familyId);
+                const id = `${familyId}:${model.family_group || familyId}`;
+                const brand = (catalog.brands || []).find(item => String(item.id) === String(model.brand_id));
+                if (!groups.has(id)) groups.set(id, {
+                    id,
+                    label: model.family_group_label || family?.label || brand?.name || t('other'),
+                    order: family?.index ?? 999,
+                    sortOrder: 0,
+                    models: []
+                });
+                const group = groups.get(id);
+                group.models.push(model);
+                group.sortOrder = Math.max(group.sortOrder, Number(model.sort_order || 0));
+            });
+            return Array.from(groups.values()).sort((a, b) =>
+                a.order - b.order || b.sortOrder - a.sortOrder || a.label.localeCompare(b.label, 'en', {numeric: true})
+            );
+        },
         renderDeviceFields(catalog, params, prefix) {
             params = getParams(params);
             const brand = params.get('brand') || '';
@@ -39,7 +75,11 @@
                     <details class="model-picker">
                         <summary class="form-control" aria-labelledby="${prefix}-model-label ${prefix}-model-caption"><span id="${prefix}-model-caption" class="model-caption">${escape(model?.name || t('allModels'))}</span><span aria-hidden="true">⌄</span></summary>
                         <div class="model-picker-popover">
-                            <input class="form-control model-search" type="search" placeholder="${t('searchModelsExample')}" aria-label="${t('searchModels')}" autocomplete="off">
+                            <label class="model-search-wrap">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+                                <input class="form-control model-search" type="search" placeholder="${t('searchModelExample')}" aria-label="${t('searchModels')}" autocomplete="off">
+                            </label>
+                            <p class="model-search-help">${t('searchModelHint')}</p>
                             <div class="model-options">${D.renderModelOptions(catalog, brand, model?.id || '')}</div>
                             <p class="model-empty" hidden>${t('noMatchingModel')}</p>
                         </div>
@@ -68,13 +108,28 @@
             if (!image.endsWith('-1280w.webp')) return D.railGlyph();
             return `<span class="quick-category-thumb" aria-hidden="true"><img src="${escape(image.replace('-1280w.webp', '-320w.webp'))}" alt="" width="48" height="48" loading="lazy" decoding="async"></span>`;
         },
-        renderModelOptions(catalog, brand, selected) {
-            return `<button type="button" class="model-option" data-model="" data-name="${t('allModels')}">${t('allModels')}</button>` +
-                D.modelOptions(catalog, brand, selected).map(model => `<button type="button" class="model-option ${String(model.id) === String(selected) ? 'selected' : ''}" data-model="${model.id}" data-brand="${model.brand_id}" data-name="${escape(model.name)}"><span>${escape(model.name)}</span><small>${model.count}</small></button>`).join('');
+        renderModelOptions(catalog, brand, selected, query = '', expanded = false) {
+            const result = D.modelResults(catalog, brand, selected, query, expanded);
+            const groups = D.modelGroups(catalog, result.models);
+            const headings = groups.length > 1 || expanded;
+            const choices = groups.map(group => `<section class="model-option-group" data-model-group="${escape(group.id)}">
+                ${headings ? `<h4>${escape(group.label)}</h4>` : ''}
+                ${group.models.map(model => `<button type="button" class="model-option ${String(model.id) === String(selected) ? 'selected' : ''}" data-model="${model.id}" data-brand="${model.brand_id}" data-name="${escape(model.name)}"><span>${escape(model.name)}</span><small>${model.count}</small></button>`).join('')}
+            </section>`).join('');
+            const more = !query.trim() && result.total > result.models.length
+                ? `<button type="button" class="model-show-all" data-model-show-all>${escape(t('showAllModels', {count: String(result.total)}))}</button>`
+                : '';
+            const caption = query.trim()
+                ? t('modelsOfTotal', {shown: result.models.length, total: result.total})
+                : (result.total > result.models.length ? t('modelSearch') : t('modelsWithParts', {count: String(result.total), models: t(result.total === 1 ? 'model' : 'models')}));
+            return `<button type="button" class="model-option model-option-all" data-model="" data-name="${t('allModels')}">${t('allModels')}</button>
+                <p class="model-result-count">${escape(caption)}</p>
+                <div class="model-options-scroll">${choices}</div>${more}`;
         },
         bindDeviceFields(form, initialCatalog, {onChange, refreshFacets = true} = {}) {
             let catalog = initialCatalog;
             let sequence = 0;
+            let modelsExpanded = false;
             const brand = form.elements.namedItem('brand');
             const model = form.elements.namedItem('model');
             const category = form.elements.namedItem('category');
@@ -91,25 +146,35 @@
                 });
             };
             const filterModels = () => {
-                const term = search.value.toLocaleLowerCase().replace(/\s/g, '');
-                let visible = 0;
-                options.querySelectorAll('[data-model]').forEach(button => {
-                    const match = !term || button.dataset.name.toLocaleLowerCase().replace(/\s/g, '').includes(term);
-                    button.hidden = !match;
-                    if (match) visible++;
-                });
-                form.querySelector('.model-empty').hidden = visible > 0;
+                const result = D.modelResults(catalog, brand.value, model.value, search.value, modelsExpanded);
+                options.innerHTML = D.renderModelOptions(catalog, brand.value, model.value, search.value, modelsExpanded);
+                form.querySelector('.model-empty').hidden = result.models.length > 0;
             };
             search.addEventListener('input', filterModels);
             search.addEventListener('keydown', event => {
-                if (event.key === 'Enter') { event.preventDefault(); options.querySelector('button:not([hidden])')?.click(); }
-                if (event.key === 'ArrowDown') { event.preventDefault(); options.querySelector('button:not([hidden])')?.focus(); }
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const matches = D.modelResults(catalog, brand.value, model.value, search.value, true).models;
+                    if (matches.length === 1) options.querySelector('[data-model]:not([data-model=""])')?.click();
+                    else options.querySelector('[data-model]:not([data-model=""])')?.focus();
+                }
+                if (event.key === 'ArrowDown') { event.preventDefault(); options.querySelector('[data-model]:not([data-model=""])')?.focus(); }
             });
-            picker.addEventListener('toggle', () => { if (picker.open) { search.value = ''; filterModels(); search.focus(); } });
+            picker.addEventListener('toggle', () => { if (picker.open) { search.value = ''; modelsExpanded = false; filterModels(); search.focus(); } });
             picker.addEventListener('keydown', event => {
                 if (event.key === 'Escape') { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); }
             });
             form.addEventListener('click', event => {
+                const showAll = event.target.closest('[data-model-show-all]');
+                if (showAll) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    modelsExpanded = true;
+                    filterModels();
+                    picker.open = true;
+                    options.querySelector('[data-model]:not([data-model=""])')?.focus();
+                    return;
+                }
                 const choice = event.target.closest('[data-model]');
                 if (!choice) return;
                 model.value = choice.dataset.model;
@@ -125,6 +190,7 @@
                 if (event.target === brand) {
                     model.value = '';
                     caption.textContent = t('allModels');
+                    modelsExpanded = false;
                     options.innerHTML = D.renderModelOptions(catalog, brand.value, '');
                 }
                 syncFieldStates();
@@ -142,7 +208,7 @@
                     const next = await window.Core.fetch('/catalog?' + context.toString());
                     if (version !== sequence || !form.isConnected) return;
                     catalog = next;
-                    options.innerHTML = D.renderModelOptions(catalog, brand.value, model.value);
+                    options.innerHTML = D.renderModelOptions(catalog, brand.value, model.value, search.value, modelsExpanded);
                     filterModels();
                     const selectedCategory = category.value;
                     category.innerHTML = `<option value="">${t('allParts')}</option>` + window.App.sortCategories(next.categories)

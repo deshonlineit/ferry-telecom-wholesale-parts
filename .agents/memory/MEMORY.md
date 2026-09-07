@@ -14,6 +14,7 @@
 - [Inline ordering accessibility](inline-ordering-accessibility.md) — quantity/add controls need an interactive search dialog with real keyboard focus, not just highlighted listbox links.
 - [Native test fixtures](native-test-fixtures.md) — synthetic carts can reference retained SKUs; clean owned customer dependencies, not every QA-labelled catalog record.
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.
+- [Deferred-payment order lifecycle](deferred-payment-orders.md) — new invoice orders start on hold; payment records and manual fulfillment status remain separate.
 - [Nullable currency initialization](currency-initialization-semantics.md) — recurring initialization must not resurrect deliberately cleared group prices from retained CHF sources.
 - [Commerce pricing readiness](commerce-pricing-readiness.md) — an unpriced catalogue item must block only itself, never correctly priced products or empty carts.
 - [Commercial catalogue hierarchy](commercial-catalogue-hierarchy.md) — default browse order is product-type-led; real screens first and customer-priced, protectors never masquerade as screens.
@@ -43,3 +44,5 @@
 - [Smart-search typo tolerance](smart-search-typo-tolerance.md) — correct clear word misspellings centrally, but never alter model numbers, SKU-like codes, or ambiguous words.
 - [WooCommerce review imports](woocommerce-review-imports.md) — reconcile published products by exact SKU; refresh media from URL-keyed cache instead of trusting old product files.
 - [Catalogue filter hierarchy](catalogue-filter-hierarchy.md) — primary flow is model → part → subtype; brand, quality, and stock stay under optional filters.
+- [Immediate catalogue navigation](immediate-catalogue-navigation.md) — never block the top menu on cold catalogue metadata; render links or cached dropdowns first.
+- [Compact model filter](compact-model-filter.md) — model pickers open with 8 recent choices; search is primary and the full grouped list requires an explicit action.

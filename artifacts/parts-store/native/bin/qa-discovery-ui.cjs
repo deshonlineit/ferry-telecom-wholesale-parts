@@ -3,7 +3,17 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const context = vm.createContext({
-    window: {APP_BASE: '/test-shop/', Core: {escapeHtml: String}, Router: {add() {}}},
+    window: {
+        APP_BASE: '/test-shop/', Core: {escapeHtml: String}, Router: {add() {}},
+        I18n: {
+            number: String,
+            t(key, values = {}) {
+                const labels = {allModels: 'All models', modelSearch: 'Search models', modelsWithParts: '{count} {models}', model: 'model', models: 'models', showAllModels: 'Show all {count} models', other: 'Other'};
+                return (labels[key] || key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? '');
+            }
+        },
+        ModelSearch: {rank(models, query) { const q = String(query).toLowerCase().replace(/\s/g, ''); return models.filter(model => model.name.toLowerCase().replace(/\s/g, '').includes(q)); }}
+    },
     document: {addEventListener() {}}, URLSearchParams, console
 });
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/discovery-controls.js'), 'utf8'), context);
@@ -45,7 +55,8 @@ check('facet metadata cache key is shared by sort and pagination changes', () =>
     assert.notEqual(base, discovery.catalogCacheKey('category=5&model=133'));
 });
 check('first catalogue load has a shaped shell and table-row skeletons', () => {
-    context.window.I18n = {t: key => ({loadingParts: 'Onderdelen laden…', for: 'voor', catalogue: 'Catalogus', selectionApplied: 'Uw selectie wordt toegepast.'})[key] || key};
+    const previousT = context.window.I18n.t;
+    context.window.I18n.t = (key, values) => ({loadingParts: 'Onderdelen laden…', for: 'voor', catalogue: 'Catalogus', selectionApplied: 'Uw selectie wordt toegepast.'})[key] || previousT(key, values);
     const html = discovery.catalogSkeleton('family=iphone');
     assert.match(html, /data-catalog-shell/);
     assert.match(html, /catalog-sidebar/);
@@ -81,6 +92,26 @@ check('small model groups remain selectable and wrong-brand models do not', () =
         {id: 4, name: 'iPhone 11', brand_id: 1, count: 0}
     ]}, '1');
     assert.deepEqual(Array.from(models, model => model.id), [1, 2]);
+});
+check('model picker starts compact and makes the full list deliberate', () => {
+    const models = Array.from({length: 14}, (_, index) => ({
+        id: index + 1, name: `iPhone ${index + 5}`, brand_id: 1, count: 1,
+        family: 'iphone', family_group: `series-${index + 5}`, family_group_label: `${index + 5} Series`,
+        sort_order: 202600000 - index, order_known: true
+    }));
+    const catalog = {models, brands: [{id: 1, name: 'Apple'}], device_families: [{id: 'iphone', label: 'iPhone'}]};
+    const html = discovery.renderModelOptions(catalog, '', '');
+    assert.equal((html.match(/data-model="\d+"/g) || []).length, 8);
+    assert.match(html, /data-model-show-all/);
+    assert.match(html, /Show all 14 models/);
+    const expandedHtml = discovery.renderModelOptions(catalog, '', '', '', true);
+    assert.equal((expandedHtml.match(/data-model="\d+"/g) || []).length, 14);
+    assert.match(expandedHtml, />5 Series</);
+    assert.match(expandedHtml, />6 Series</);
+    assert.doesNotMatch(expandedHtml, /data-model-show-all/);
+    const searchHtml = discovery.renderModelOptions(catalog, '', '', 'iphone18');
+    assert.equal((searchHtml.match(/data-model="\d+"/g) || []).length, 1);
+    assert.doesNotMatch(searchHtml, /data-model-show-all/);
 });
 check('the category rail asks for the thumbnail variant, not the full-size photo', () => {
     const html = discovery.categoryThumb({image_url: '/test-shop/media/products/7811/054abc-1280w.webp'});

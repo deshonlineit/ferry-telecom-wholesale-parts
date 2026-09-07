@@ -12,7 +12,7 @@ const context = vm.createContext({
     },
     document: { addEventListener() {} },
     localStorage: { getItem() { return null; }, setItem() {} },
-    URLSearchParams, Event: class Event { constructor(type) { this.type = type; } }, console
+    URLSearchParams, AbortController, Event: class Event { constructor(type) { this.type = type; } }, console
 });
 for (const file of ['i18n.js', 'model-search.js', 'discovery-controls.js', 'quick-finder.js', 'category-models.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets', file), 'utf8'), context, { filename: file });
@@ -27,8 +27,8 @@ const catalog = {
         {id: 'samsung', label: 'Samsung Galaxy', count: 2, groups: [{id: 's', label: 'Galaxy S'}]}
     ],
     models: [
-        { id: 132, name: 'iPhone 13', brand_id: 1, count: 6, family: 'iphone', family_group: 'iphone', family_group_label: 'iPhone', sort_order: 202109132, order_known: true },
-        { id: 133, name: 'iPhone 13 Mini', brand_id: 1, count: 2, family: 'iphone', family_group: 'iphone', family_group_label: 'iPhone', sort_order: 202109130, order_known: true },
+        { id: 132, name: 'iPhone 13', brand_id: 1, count: 6, family: 'iphone', family_group: 'series-13', family_group_label: '13 Series', sort_order: 202109132, order_known: true },
+        { id: 133, name: 'iPhone 13 Mini', brand_id: 1, count: 2, family: 'iphone', family_group: 'series-13', family_group_label: '13 Series', sort_order: 202109130, order_known: true },
         { id: 22, name: 'Galaxy S22', brand_id: 2, count: 1, family: 'samsung', family_group: 's', family_group_label: 'Galaxy S', sort_order: 202209223, order_known: true },
         { id: 23, name: '<unsafe "name">', brand_id: 2, count: 1 },
         { id: 24, name: 'No mapped products', brand_id: 1, count: 0 }
@@ -129,13 +129,14 @@ console.log('PASS: model families stay collapsed until opened; search, keyboard 
 
 const manyModels = {...catalog, models: Array.from({length: 20}, (_, index) => ({
     id: 500 + index, brand_id: 1, name: `iPhone ${index + 20}`, count: 20 - index,
-    family: 'iphone', family_group: 'iphone', family_group_label: 'iPhone', sort_order: index + 20, order_known: true
+    family: 'iphone', family_group: `series-${20 - index}`, family_group_label: `${20 - index} Series`, sort_order: index + 20, order_known: true
 }))};
 assert.equal(C.shortlist(manyModels).models.length, 6, 'A short list replaces the hundreds-model panel');
 assert.equal(C.shortlist(manyModels).total, 20, 'Hidden matches are honestly counted');
 assert.equal(C.shortlist(manyModels, 'iphone39').models[0].id, 519, 'One-product models remain searchable');
 assert.equal(C.shortlist(manyModels, '', 519).models[0].id, 519, 'Selected sparse model remains visible');
-assert.equal((C.render(manyModels, new URLSearchParams('family=iphone'), 'Schermen').match(/data-category-model="/g) || []).length, 20);
+assert.equal((C.render(manyModels, new URLSearchParams('family=iphone'), 'Schermen').match(/data-category-model="/g) || []).length, 8);
+assert(C.render(manyModels, new URLSearchParams('family=iphone'), 'Schermen').includes('data-category-model-show-all="iphone"'));
 assert(C.familyModels(manyModels, 'iphone')[0].name.includes('39'));
 assert.equal(new URL(C.familyUrl(manyModels, new URLSearchParams('category=1&q=iphone+lcd&model=132&quality=OLED'), 'samsung'), 'http://native.test').searchParams.get('q'), 'lcd');
 console.log('PASS: autocomplete stays concise while family browsing exposes every positive-count model newest to oldest.');
@@ -153,9 +154,9 @@ assert.deepEqual(Array.from(C.familyModels(mixedIPad, 'ipad'), model => model.id
 const orderedModels = C.orderedModels(mixedIPad, new URLSearchParams('family=ipad'), 'ipad');
 assert(orderedModels.indexOf('data-category-model="602"') < orderedModels.indexOf('data-category-model="601"'));
 assert(orderedModels.indexOf('data-category-model="601"') < orderedModels.indexOf('data-category-model="603"'));
-assert(!/<h3|data-device-model-group|Jaar onbekend|year-2025|year-2015/.test(orderedModels), 'The complete model list has no year headings or grouped layout');
-assert.equal((orderedModels.match(/class="category-model-options"/g) || []).length, 1, 'Every model belongs to one flat compact grid');
-console.log('PASS: full-family rendering preserves newest-to-oldest order without displaying year sections.');
+assert(orderedModels.includes('data-device-model-group="ipad"'), 'Model results expose their device-line group');
+assert.equal((orderedModels.match(/class="category-model-options"/g) || []).length, 1);
+console.log('PASS: model rendering preserves newest-to-oldest order inside a compact device-line group.');
 
 const familyParams = new URLSearchParams('category=1&family=iphone');
 const familyHtml = C.render(catalog, familyParams, 'LCD & schermen');
@@ -167,7 +168,12 @@ assert(!/<details[^>]*open/.test(familyHtml), 'Even the active family waits for 
 console.log('PASS: a family page keeps every concrete model inside its closed, searchable disclosure.');
 
 (async () => {
-    const element = { value: '', addEventListener() {}, querySelector() { return element; }, close() {}, showModal() {} };
+    const element = {
+        value: '', classList: {toggle() {}},
+        addEventListener() {}, setAttribute() {}, toggleAttribute() {},
+        querySelector() { return element; }, querySelectorAll() { return []; },
+        close() {}, showModal() {}
+    };
     context.document.getElementById = id => id === 'catalog-brand' ? null : element;
     context.window.Core.fetch = async url => url.startsWith('/catalog') ? catalog : { total: 1, pages: 1, page: 1, products: [{ id: 1 }] };
     context.window.App = {

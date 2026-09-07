@@ -230,9 +230,18 @@ function mediaOrderDocument(int $orderId, string $kind): never
         $pdf->line(sprintf('Tax (snapshot %.2f%%): %s', ((int) $order['tax_bps']) / 100, mediaMoney((int) $order['tax_cents'], (string) $order['currency'])));
         $pdf->line('Shipping: ' . mediaMoney((int) $order['shipping_cents'], (string) $order['currency']));
         $pdf->heading('Total: ' . mediaMoney((int) $order['total_cents'], (string) $order['currency']), 13);
-        $pdf->line('Payment method: ' . (string) $order['payment_method']);
+        $paymentLabels = [
+            'swiss_qr_invoice' => 'Swiss QR Invoice (payment due)',
+            'pay_later' => 'Pay Later (payment due)',
+            'test_invoice' => 'Legacy test invoice',
+            'test_card' => 'Legacy test card',
+        ];
+        $pdf->line('Order status: ' . ((string) $order['status'] === 'on_hold' ? 'On hold - awaiting payment' : (string) $order['status']));
+        $pdf->line('Payment method: ' . ($paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method']));
         $pdf->line('No bank account, payment link, or live payment instructions are included in this isolated test document.');
-        $pdf->line('Swiss QR-bill payment is unavailable; no non-compliant QR code has been generated.');
+        if ((string) $order['payment_method'] === 'swiss_qr_invoice') {
+            $pdf->line('Swiss QR payment details are not yet included; no non-compliant QR code has been generated.');
+        }
     } else {
         $pdf->spacer();
         $pdf->line('Test fulfillment only. This slip does not authorize a real shipment.');

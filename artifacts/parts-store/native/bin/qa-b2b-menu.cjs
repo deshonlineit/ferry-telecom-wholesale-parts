@@ -98,6 +98,9 @@ app.window.Core.fetch = async url => {
 
 (async () => {
     app.window.StoreMenu.init();
+    const immediateList = created.find(node => node.className.includes('b2b-top-nav-immediate'));
+    assert.ok(immediateList, 'A usable navigation is rendered before the catalogue request settles');
+    assert.equal(immediateList.children.length, 6, 'The immediate navigation exposes all primary destinations without skeleton placeholders');
     await new Promise(resolve => setImmediate(resolve));
     const error = created.find(node => node.className.includes('b2b-menu-error'));
     const retry = created.find(node => node.className === 'b2b-menu-retry');
@@ -106,7 +109,7 @@ app.window.Core.fetch = async url => {
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(requests, 2, 'Retry performs a fresh request');
 
-    const mobile = created.find(node => node.className === 'b2b-mobile-toggle');
+    const mobile = created.filter(node => node.className === 'b2b-mobile-toggle').at(-1);
     const list = created.find(node => node.className === 'b2b-top-nav');
     const deviceItem = created.find(node => node.className.includes('has-dropdown'));
     const brandLink = deviceItem.children[0];

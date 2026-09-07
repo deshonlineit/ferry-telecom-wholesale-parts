@@ -92,12 +92,129 @@ body:not(:has(.admin-shell)) .discovery-filters .filter-step .model-caption {
     line-height: 1.35;
 }
 
+body:not(:has(.admin-shell)) .discovery-filters .model-picker-popover {
+    right: auto;
+    width: min(300px, calc(100vw - 32px));
+    max-height: min(68vh, 540px);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-search-wrap {
+    position: relative;
+    display: block;
+    margin: 12px 12px 0;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-search-wrap svg {
+    position: absolute;
+    z-index: 1;
+    left: 11px;
+    top: 50%;
+    width: 17px;
+    height: 17px;
+    color: #718096;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
 body:not(:has(.admin-shell)) .discovery-filters .model-picker-popover .model-search {
+    width: 100%;
     min-height: 42px;
-    padding-inline: 10px;
-    background: #fff;
+    padding: 8px 34px;
+    background: #f8fafc;
     border-color: #dce4ee;
-    font-size: 0.8125rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-search-help {
+    margin: 7px 14px 10px;
+    color: #738095;
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-options {
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-options-scroll {
+    max-height: min(42vh, 330px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding: 0 8px 8px;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-option {
+    min-height: 39px;
+    margin: 2px 0;
+    padding: 7px 9px;
+    border-radius: 8px;
+    background: #f7f9fc;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-option span {
+    min-width: 0;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-option-all {
+    min-height: 36px;
+    margin: 0 12px 7px;
+    width: auto;
+    color: #526176;
+    background: #fff;
+    border: 1px solid #e7edf5;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-result-count {
+    margin: 0 12px 7px;
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-option-group + .model-option-group {
+    margin-top: 12px;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-option-group h4 {
+    margin: 0 3px 5px;
+    color: #526176;
+    font-size: 0.66rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-show-all {
+    flex: none;
+    min-height: 40px;
+    border: 0;
+    border-top: 1px solid #e7edf5;
+    background: #fff;
+    color: #1768c5;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-show-all:hover {
+    background: #f5f9ff;
+}
+
+@media (max-width: 760px) {
+    body:not(:has(.admin-shell)) .discovery-filters .model-picker-popover {
+        right: 0;
+        width: 100%;
+    }
 }
 
 body:not(:has(.admin-shell)) .discovery-filters .filter-step:focus-within,
