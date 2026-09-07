@@ -15,6 +15,12 @@ function deviceFamilyDefinitions(): array
     return deviceFamilyMetadataData()['families'];
 }
 
+/** Remove supplier packaging suffixes that describe a product bundle, not a device model. */
+function deviceCanonicalModelName(string $name): string
+{
+    return trim((string) preg_replace('/\s*\(\s*\d+\s*pack\s*\)\s*$/iu', '', $name));
+}
+
 function deviceFamilyId(array $model, array $brandNames): ?string
 {
     $brand = mb_strtolower((string) ($brandNames[$model['brand_id']] ?? ''), 'UTF-8');
@@ -33,10 +39,8 @@ function deviceFamilyGroup(string $family, string $name): array
     $name = mb_strtolower($name, 'UTF-8');
     if ($family === 'iphone') {
         if (preg_match('/^iphone\s+(\d+)(?:s|c)?\b/i', $name, $match)) return ["series-{$match[1]}", "{$match[1]} Series"];
-        if (preg_match('/^iphone\s+(se|x[rs]?)(?:\s|\(|$)/i', $name, $match)) {
-            $generation = strtoupper($match[1]);
-            return ["series-" . strtolower($generation), "$generation Series"];
-        }
+        if (preg_match('/^iphone\s+x[rs]?(?:\s|\(|$)/i', $name)) return ['series-x', 'X · XR · XS Series'];
+        if (preg_match('/^iphone\s+se(?:\s|\(|$)/i', $name)) return ['series-se', 'SE Series'];
         return ['iphone-other', 'Other iPhone models'];
     }
     if ($family === 'ipad') {

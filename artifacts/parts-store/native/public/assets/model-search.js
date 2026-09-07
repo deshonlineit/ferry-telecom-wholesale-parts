@@ -35,6 +35,8 @@
         rank(models, query, name = model => model?.name) {
             const term = String(query || '').trim();
             if (!term) return [...models];
+            const exact = models.filter(model => compact(name(model)) === compact(term));
+            if (exact.length) return exact;
             return models.map((model, index) => ({model, index, score: M.score(name(model), term)}))
                 .filter(entry => entry.score >= 0)
                 .sort((a, b) => b.score - a.score || a.index - b.index)

@@ -18,6 +18,10 @@ for (const file of ['i18n.js', 'model-search.js', 'discovery-controls.js', 'quic
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets', file), 'utf8'), context, { filename: file });
 }
 const C = context.window.CategoryModels;
+const exactModelMatches = context.window.ModelSearch.rank([
+    {name: 'iPhone 16 Plus'}, {name: 'iPhone 6S Plus'}, {name: 'iPhone 6 Plus'}
+], 'iPhone 6S Plus');
+assert.deepEqual(Array.from(exactModelMatches, model => model.name), ['iPhone 6S Plus'], 'A full exact model name must suppress broader token matches');
 const catalog = {
     categories: [{ id: 1, name: 'LCD & schermen', slug: 'screens', count: 9 }],
     brands: [{ id: 1, name: 'Apple', count: 8 }, { id: 2, name: 'Samsung', count: 1 }],
@@ -109,16 +113,22 @@ C.bind(panel, catalog, params);
 iphoneDetail.open = true;
 detailEvents.get('toggle')();
 assert.equal(otherDetail.open, false, 'Opening a family closes the other model list');
-input.value = 'iphone13';
+input.value = 'iphone';
 inputEvents.input();
 assert(familyHost.innerHTML.includes('iPhone 13 Mini'));
 assert(!familyHost.innerHTML.includes('Galaxy S22'));
 inputEvents.keydown({ key: 'Enter', preventDefault() {} });
 assert.equal(clicks, 0, 'An ambiguous Enter must not silently choose a device variant');
+input.value = 'iphone13';
+inputEvents.input();
+assert(familyHost.innerHTML.includes('iPhone 13'));
+assert(!familyHost.innerHTML.includes('iPhone 13 Mini'), 'An exact full model name suppresses broader variants');
+inputEvents.keydown({ key: 'Enter', preventDefault() {} });
+assert.equal(clicks, 1, 'An exact full model name can be chosen with Enter');
 input.value = 'iphone13mini';
 inputEvents.input();
 inputEvents.keydown({ key: 'Enter', preventDefault() {} });
-assert.equal(clicks, 1, 'A single unambiguous model can be chosen with Enter');
+assert.equal(clicks, 2, 'A single unambiguous model can be chosen with Enter');
 input.value = 'no-such-model';
 inputEvents.input();
 assert.equal(familyHost.innerHTML.includes('data-category-model='), false);

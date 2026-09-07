@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/device-family-metadata.php';
 
 if (PHP_SAPI !== 'cli') {
     throw new RuntimeException('This test-only importer must be run from the CLI.');
@@ -224,6 +225,7 @@ while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
             continue;
         }
         [$brand, $name] = $candidate;
+        $name = deviceCanonicalModelName($name);
         $key = mb_strtolower($brand . "\0" . $name);
         $candidates[$productId][$key] ??= ['brand' => $brand, 'name' => $name, 'tag' => false, 'category' => false];
         $candidates[$productId][$key]['category'] = true;
@@ -241,6 +243,7 @@ while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
             $stats['conflicting_tag_values_skipped']++;
             continue;
         }
+        $tag = deviceCanonicalModelName($tag);
         $key = mb_strtolower($brand . "\0" . $tag);
         $candidates[$productId][$key] ??= ['brand' => $brand, 'name' => $tag, 'tag' => false, 'category' => false];
         $candidates[$productId][$key]['tag'] = true;

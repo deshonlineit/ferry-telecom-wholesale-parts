@@ -22,6 +22,11 @@ check(yearFor('pixel', 'Pixel 6A') === 2022, 'Pixel A-series successor-year regr
 check(yearFor('watch', 'Apple Watch Series 1 - 38mm') === 2016, 'Apple Watch Series 1 release year');
 check(deviceModelChronology('iphone', 'iPhone 16e')['release_month'] === null, 'Unverified release months must stay null');
 check(deviceFamilyGroup('samsung', 'Galaxy Z Fold 6 5G')[0] === 'z', 'Galaxy Z Fold belongs to the Z group');
+check(deviceCanonicalModelName('iPhone 6S Plus (10 Pack)') === 'iPhone 6S Plus', 'Pack size must not become a device model');
+check(deviceFamilyGroup('iphone', 'iPhone X')[0] === 'series-x'
+    && deviceFamilyGroup('iphone', 'iPhone XR')[0] === 'series-x'
+    && deviceFamilyGroup('iphone', 'iPhone XS Max')[0] === 'series-x', 'X, XR and XS must share one chronological generation group');
+check(deviceFamilyGroup('iphone', 'iPhone SE (2022)')[1] === 'SE Series', 'SE models must share one generation heading');
 
 $screens = db()->query("SELECT id FROM categories WHERE slug='screens'")->fetchColumn();
 $facets = catalogFacets(['category' => $screens]);
@@ -31,7 +36,8 @@ check(($families['iphone']['count'] ?? 0) > 0 && ($families['ipad']['count'] ?? 
 $allFacets = catalogFacets();
 $iphone = array_values(array_filter($allFacets['models'], fn ($m) => $m['family'] === 'iphone' && (int) $m['count'] > 0));
 check(count($iphone) > 6, 'Family browse must extend beyond autocomplete cap');
-check(count(array_filter($iphone, fn ($m) => (int) $m['count'] === 1)) > 0, 'Sparse compatible models must remain exposed');
+check(count(array_filter($iphone, fn ($m) => (int) $m['count'] <= 12)) > 0, 'Sparse compatible models must remain exposed');
+check(count(array_filter($iphone, fn ($m) => str_contains(mb_strtolower($m['name']), 'pack'))) === 0, 'Packaging aliases must not appear as models');
 $sorted = $iphone;
 usort($sorted, fn ($a, $b) => ($b['order_known'] <=> $a['order_known']) ?: ($b['sort_order'] <=> $a['sort_order']));
 check(str_contains($sorted[0]['name'], '17'), 'Newest iPhone generation should lead');

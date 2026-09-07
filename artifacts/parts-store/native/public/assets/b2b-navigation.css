@@ -1404,20 +1404,20 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
 @media (min-width: 1024px) {
     body:not(:has(.admin-shell)) .catalog-layout {
         display: grid !important;
-        grid-template-columns: 288px minmax(0, 1fr);
-        gap: 24px;
+        grid-template-columns: 256px minmax(0, 1fr);
+        gap: 18px;
         align-items: start;
         margin-top: 12px !important;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar {
-        width: 288px;
-        min-width: 288px;
+        width: 256px;
+        min-width: 256px;
         position: sticky;
         top: 126px;
         max-height: calc(100dvh - 142px);
         overflow-y: auto;
         overscroll-behavior: contain;
-        padding: 16px;
+        padding: 14px;
         background: #fff;
         border: 1px solid var(--border-light);
         border-radius: 10px;
@@ -1453,11 +1453,11 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
     }
     body:not(:has(.admin-shell)) .catalog-sidebar .quick-category {
         display: grid;
-        grid-template-columns: 36px minmax(0, 1fr) auto;
+        grid-template-columns: 46px minmax(0, 1fr);
         align-items: center;
         width: 100%;
-        min-height: 46px;
-        padding: 5px 8px;
+        min-height: 52px;
+        padding: 4px 7px;
         gap: 9px;
         border-color: transparent;
         border-radius: 7px;
@@ -1474,17 +1474,19 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
         border-color: #c8dcf8;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar .quick-category-thumb {
-        width: 34px;
-        height: 34px;
+        width: 44px;
+        height: 44px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-category-thumb.is-glyph svg {
+        width: 28px;
+        height: 28px;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar .quick-category span {
         text-align: left;
         -webkit-line-clamp: 2;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar .quick-category small {
-        display: inline;
-        color: #78879a;
-        font-size: 11px;
+        display: none;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar .category-models {
         display: none;

@@ -199,6 +199,57 @@
             options[app.searchIndex].focus({preventScroll: true});
             options[app.searchIndex].scrollIntoView({block: 'nearest'});
         },
+        animateToCart(row, button) {
+            const target = [...document.querySelectorAll('.nav-cart')].find(element => {
+                const rect = element.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0;
+            });
+            if (!target) return;
+            const pulse = () => {
+                target.classList.remove('cart-receiving');
+                void target.offsetWidth;
+                target.classList.add('cart-receiving');
+                window.setTimeout(() => target.classList.remove('cart-receiving'), 650);
+            };
+            if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+                pulse();
+                return;
+            }
+            const source = row?.querySelector('img') || button;
+            const sourceRect = source?.getBoundingClientRect();
+            const targetRect = target.querySelector('.cart-icon-wrapper')?.getBoundingClientRect() || target.getBoundingClientRect();
+            if (!sourceRect?.width || !targetRect.width) {
+                pulse();
+                return;
+            }
+            const flyer = document.createElement('span');
+            flyer.className = 'cart-flyer';
+            flyer.setAttribute('aria-hidden', 'true');
+            if (source?.tagName === 'IMG') {
+                const image = source.cloneNode();
+                image.removeAttribute('id');
+                image.removeAttribute('alt');
+                flyer.appendChild(image);
+            } else {
+                flyer.innerHTML = '<span>+</span>';
+            }
+            const size = Math.max(38, Math.min(64, sourceRect.width));
+            const startX = sourceRect.left + sourceRect.width / 2 - size / 2;
+            const startY = sourceRect.top + sourceRect.height / 2 - size / 2;
+            const endX = targetRect.left + targetRect.width / 2 - size / 2;
+            const endY = targetRect.top + targetRect.height / 2 - size / 2;
+            flyer.style.cssText = `left:${startX}px;top:${startY}px;width:${size}px;height:${size}px`;
+            document.body.appendChild(flyer);
+            const animation = flyer.animate([
+                {transform: 'translate3d(0,0,0) scale(1)', opacity: 1, offset: 0},
+                {transform: `translate3d(${(endX - startX) * .52}px,${(endY - startY) * .35 - 42}px,0) scale(.72)`, opacity: .96, offset: .52},
+                {transform: `translate3d(${endX - startX}px,${endY - startY}px,0) scale(.18)`, opacity: .25, offset: 1}
+            ], {duration: 620, easing: 'cubic-bezier(.2,.75,.25,1)', fill: 'forwards'});
+            animation.finished.then(() => {
+                flyer.remove();
+                pulse();
+            }).catch(() => flyer.remove());
+        },
         async quickAdd(id, quantity, button) {
             if (button?.dataset.pending === 'true') return null;
             const row = button?.closest('[data-product-row], .b2b-suggestion, .product-card, .product-detail');
@@ -237,6 +288,7 @@
                 window.Core.updateCartCount();
                 const item = cart.items.find(product => product.product_id === Number(id));
                 tell(window.I18n.t('addedCart', {count: item?.quantity ?? quantity}));
+                O.animateToCart(row, button);
                 if ((window.App.searchOwner || '') === 'home-search') {
                     O.track('smart_search_added_to_cart', {
                         source: 'homepage',

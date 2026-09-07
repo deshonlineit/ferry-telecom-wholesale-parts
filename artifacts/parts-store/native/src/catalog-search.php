@@ -533,7 +533,7 @@ function catalogMatchedFacets(array $facets, string $search): array
 function catalogProductList(array $input, ?array $user, ?array $facets = null): array
 {
     $page = integer($input['page'] ?? 1, 1, 100000);
-    $limit = integer($input['limit'] ?? 24, 1, 100);
+    $limit = integer($input['limit'] ?? 50, 1, 100);
     $predicate = catalogProductCondition($input);
     $condition = $predicate['condition'];
     $parameters = $predicate['parameters'];
