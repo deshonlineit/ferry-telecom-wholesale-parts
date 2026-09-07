@@ -291,7 +291,7 @@ window.Router.add(/^cart$/, async (match, root) => {
             <div class="line-item-qty">
                 <div class="stepper">
                     <button type="button" class="stepper-btn" aria-label="${t('oneFewer')}" ${item.quantity <= minQty ? 'disabled' : ''} onclick="window.App.updateCartItem(${item.product_id}, ${Math.max(minQty, item.quantity - 1)})">&minus;</button>
-                    <input type="number" value="${item.quantity}" min="${minQty}" max="${item.stock}" class="stepper-input" aria-label="${esc(t('quantityFor', {name: item.name}))}" onchange="window.App.updateCartItem(${item.product_id}, this.value)">
+                    <input type="number" value="${item.quantity}" min="${minQty}" max="${item.stock}" class="stepper-input" tabindex="0" aria-label="${esc(t('quantityFor', {name: item.name}))}" onchange="window.App.updateCartItem(${item.product_id}, this.value)">
                     <button type="button" class="stepper-btn" aria-label="${t('oneMore')}" ${item.quantity >= item.stock ? 'disabled' : ''} onclick="window.App.updateCartItem(${item.product_id}, ${item.quantity + 1})">+</button>
                 </div>
             </div>
@@ -309,8 +309,18 @@ window.Router.add(/^cart$/, async (match, root) => {
 
     root.innerHTML = `
         <section class="order-flow">
+            <nav class="order-progress" aria-label="${esc(t('checkoutProgress'))}">
+                <ol>
+                    <li class="active" aria-current="step"><span>1</span><strong>${t('cartStep')}</strong></li>
+                    <li><span>2</span><strong>${t('addressShippingStep')}</strong></li>
+                    <li><span>3</span><strong>${t('paymentStep')}</strong></li>
+                </ol>
+            </nav>
             <header class="order-flow-head">
-                <h1>${t('cart')}</h1>
+                <div>
+                    <h1>${t('cart')}</h1>
+                    <p class="order-flow-intro">${t('cartReview')}</p>
+                </div>
                 <p class="order-flow-sub">${t('cartContext', {count: window.I18n.number(cart.items.length), country: esc(cart.country || window.Core.country), currency: esc(cartCurrency)})}</p>
             </header>
             <div class="order-grid">
@@ -343,11 +353,11 @@ window.Router.add(/^cart$/, async (match, root) => {
                         <div class="summary-total"><span>${t('totalInclVat')}</span><strong>${money(cart.total_cents)}</strong></div>
                         <a href="${window.APP_BASE}checkout" class="summary-cta">${t('checkout')} &rarr;</a>
                         <p class="currency-context-note ${notice ? 'error' : ''}">${esc(notice || t('deliveryBilled', {country: cart.country || window.Core.country, currency: cartCurrency}))}</p>
+                        <ul class="rail-notes">
+                            <li>${noteIcon}<span>${t('shippingVatNote')}</span></li>
+                            <li>${noteIcon}<span>${t('testEnvironmentNote')}</span></li>
+                        </ul>
                     </div>
-                    <ul class="rail-notes">
-                        <li>${noteIcon}<span>${t('shippingVatNote')}</span></li>
-                        <li>${noteIcon}<span>${t('testEnvironmentNote')}</span></li>
-                    </ul>
                 </aside>
             </div>
         </section>
