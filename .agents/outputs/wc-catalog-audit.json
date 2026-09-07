@@ -1,0 +1,296 @@
+{
+    "source": {
+        "file": "wc-product-export-7-9-2026-1788776855452_1788777027030.csv",
+        "sha256": "ee80087eeb7e9b00e78f43b7996693ba8317f5507a0c0e27867f3e82330e2fea",
+        "bytes": 6090701,
+        "header_columns": 131,
+        "row_field_counts": {
+            "111": 50,
+            "121": 3300,
+            "122": 2250,
+            "126": 3700,
+            "127": 2400,
+            "131": 573
+        },
+        "rows": 12273,
+        "malformed_rows": 11700,
+        "types": {
+            "simple": 12273
+        },
+        "published_rows": 10777,
+        "rows_with_sku": 12233,
+        "unique_skus": 12233,
+        "duplicate_skus": 0,
+        "duplicate_sku_examples": [],
+        "rows_with_images": 11466,
+        "rows_with_numeric_stock": 7927,
+        "numeric_stock_sum": 204045
+    },
+    "native": {
+        "products": 7858,
+        "active_products": 7856,
+        "stock_sum": 204046,
+        "products_with_images": 7778
+    },
+    "reconciliation": {
+        "matched_unique_skus": 7851,
+        "source_only_skus": 4382,
+        "native_only_skus": 7,
+        "differences": {
+            "name": 131,
+            "stock": 1652,
+            "published": 0,
+            "source_has_image_native_missing": 0
+        },
+        "examples": {
+            "source_only": [
+                "IPH8003",
+                "IPH8004",
+                "IPHX002",
+                "IPHX004",
+                "IPHXS003",
+                "IPHXS004",
+                "IPHXSM01",
+                "IPHXSM09",
+                "IPHXR01",
+                "IMACA131102",
+                "IMACA131103",
+                "IMACA131105",
+                "IMACA131106",
+                "IMACA131107",
+                "IMACA131108",
+                "IMACA131201",
+                "IMACA131202",
+                "IMACA131204",
+                "IMACA131205",
+                "IMACA131206",
+                "IMACA131207",
+                "IMACA131208",
+                "IMACA131209",
+                "IMACA1312010",
+                "IMACA1312011"
+            ],
+            "native_only": [
+                "CSV-1df3a1f5e6",
+                "CSV-fad10a4832",
+                "QA-1df3a1f5e6",
+                "QA-2178d4342e",
+                "QA-CONTROL-541ddb98",
+                "QA-fad10a4832",
+                "QA-REDESIGN-51514858"
+            ],
+            "name": [
+                {
+                    "sku": "SSS20FE01",
+                    "source": "Galaxy S20 FE / Galaxy S20 FE 5G Cloud Navy OLED Touchscreen - SM-G780-NF / GH82-24219A / GH82-24220A / GH82-24214A / GH82-24215A  (Service Pack)",
+                    "native": "Galaxy S20 FE / Galaxy S20 FE 5G Cloud Navy OLED Touchscreen - SM-G780-NF / GH82-24219A / GH82-24220A / GH82-24214A / GH82-24215A (Service Pack)"
+                },
+                {
+                    "sku": "SSS20FE02",
+                    "source": "Galaxy S20 FE / Galaxy S20 FE 5G Cloud White OLED Touchscreen - SM-G780-NF / GH82-24219B / GH82-24220B / GH82-24214B / GH82-24215B  (Service Pack)",
+                    "native": "Galaxy S20 FE / Galaxy S20 FE 5G Cloud White OLED Touchscreen - SM-G780-NF / GH82-24219B / GH82-24220B / GH82-24214B / GH82-24215B (Service Pack)"
+                },
+                {
+                    "sku": "SSS9PL011",
+                    "source": "Galaxy S9 Plus Ice Blue  OLED Touchscreen – SM-G965F / GH97-21691G (Refurbished)",
+                    "native": "Galaxy S9 Plus Ice Blue OLED Touchscreen – SM-G965F / GH97-21691G (Refurbished)"
+                },
+                {
+                    "sku": "SAA51509",
+                    "source": "Galaxy A51 5G Black OLED Touchscreen - SM-A515F / GH82-23100A  / GH82-23124A\n(Service Pack)",
+                    "native": "Galaxy A51 5G Black OLED Touchscreen - SM-A515F / GH82-23100A / GH82-23124A (Service Pack)"
+                },
+                {
+                    "sku": "IPAM301",
+                    "source": "Digitizer With IC Chip For iPad Mini 3 (With Home Button Installed)  (White)",
+                    "native": "Digitizer With IC Chip For iPad Mini 3 (With Home Button Installed) (White)"
+                },
+                {
+                    "sku": "IPAM404",
+                    "source": "LCD Assembly With Digitizer For iPad Mini 4 (Sleep / Wake Sensor Flex Pre-Installed)  (Black) (Original)",
+                    "native": "LCD Assembly With Digitizer For iPad Mini 4 (Sleep / Wake Sensor Flex Pre-Installed) (Black) (Original)"
+                },
+                {
+                    "sku": "IPA04",
+                    "source": "Digitizer For iPad Air 1 / iPad 5 (2017) (No Home Button Installed)  (White)",
+                    "native": "Digitizer For iPad Air 1 / iPad 5 (2017) (No Home Button Installed) (White)"
+                },
+                {
+                    "sku": "IPA01",
+                    "source": "Digitizer For iPad Air 1 / iPad 5 (2017) (No Home Button Installed)  (Black)",
+                    "native": "Digitizer For iPad Air 1 / iPad 5 (2017) (No Home Button Installed) (Black)"
+                },
+                {
+                    "sku": "IP705",
+                    "source": "Home Button Flex Cable For iPad 7 (10.2\" / 2019) / iPad 8 (10.2\" / 2020) iPad 9 (10.2\" / 2021)  (Silver)",
+                    "native": "Home Button Flex Cable For iPad 7 (10.2\" / 2019) / iPad 8 (10.2\" / 2020) iPad 9 (10.2\" / 2021) (Silver)"
+                },
+                {
+                    "sku": "IPA9702",
+                    "source": "LCD Assembly With Digitizer For iPad Pro 9.7  (Refurbished) (White)",
+                    "native": "LCD Assembly With Digitizer For iPad Pro 9.7 (Refurbished) (White)"
+                },
+                {
+                    "sku": "IPA9701",
+                    "source": "LCD Assembly With Digitizer For iPad Pro 9.7  (Refurbished) (Black)",
+                    "native": "LCD Assembly With Digitizer For iPad Pro 9.7 (Refurbished) (Black)"
+                },
+                {
+                    "sku": "IPA105013",
+                    "source": "LCD Assembly With Digitizer For iPad Pro 10.5  (Original) (Black)",
+                    "native": "LCD Assembly With Digitizer For iPad Pro 10.5 (Original) (Black)"
+                },
+                {
+                    "sku": "IPA10501",
+                    "source": "LCD Assembly With Digitizer For iPad Pro 10.5  (Original) (White)",
+                    "native": "LCD Assembly With Digitizer For iPad Pro 10.5 (Original) (White)"
+                },
+                {
+                    "sku": "IPA12902",
+                    "source": "LCD Assembly With Digitizer & Daughter Board Flex Pre-Installed For iPad Pro 12.9\" (1st Gen / 2015)  (Black)",
+                    "native": "LCD Assembly With Digitizer & Daughter Board Flex Pre-Installed For iPad Pro 12.9\" (1st Gen / 2015) (Black)"
+                },
+                {
+                    "sku": "IPA12901",
+                    "source": "LCD Assembly With Digitizer & Daughter Board Flex Pre-Installed For iPad Pro 12.9\" (1st Gen / 2015)  (White)",
+                    "native": "LCD Assembly With Digitizer & Daughter Board Flex Pre-Installed For iPad Pro 12.9\" (1st Gen / 2015) (White)"
+                },
+                {
+                    "sku": "IPA129201",
+                    "source": "LCD Assembly With Digitizer & Daughter Board Flex Pre-Installed For iPad Pro 12.9\" (2nd Gen / 2017)  (Black)",
+                    "native": "LCD Assembly With Digitizer & Daughter Board Flex Pre-Installed For iPad Pro 12.9\" (2nd Gen / 2017) (Black)"
+                },
+                {
+                    "sku": "IPHSE206",
+                    "source": "Charging Port Flex Cable Compatible For iPhone 8 / SE (2020/2022)  (Premium) (Silver)",
+                    "native": "Charging Port Flex Cable Compatible For iPhone 8 / SE (2020/2022) (Premium) (Silver)"
+                },
+                {
+                    "sku": "IPHSE212",
+                    "source": "Home Button Solution Compatible For iPhone 7 / 7 Plus / 8 / 8 Plus / Se (2020/2022)  (Jet / Matte Black) (Version 8.1 / Jc / Individually Tested For Functionality)",
+                    "native": "Home Button Solution Compatible For iPhone 7 / 7 Plus / 8 / 8 Plus / Se (2020/2022) (Jet / Matte Black) (Version 8.1 / Jc / Individually Tested For Functionality)"
+                },
+                {
+                    "sku": "IPHSE221",
+                    "source": "SIM Tray Compatible For iPhone 8 / Se (2020/2022)  (Silver)",
+                    "native": "SIM Tray Compatible For iPhone 8 / Se (2020/2022) (Silver)"
+                },
+                {
+                    "sku": "IPH829",
+                    "source": "Back Glass Compatible For iPhone 8  (Large Camera Hole) (Space Grey)",
+                    "native": "Back Glass Compatible For iPhone 8 (Large Camera Hole) (Space Grey)"
+                }
+            ],
+            "stock": [
+                {
+                    "sku": "IPH5S002",
+                    "source": 1,
+                    "native": 3
+                },
+                {
+                    "sku": "IPH5S003",
+                    "source": 2,
+                    "native": 4
+                },
+                {
+                    "sku": "IPH6003",
+                    "source": 12,
+                    "native": 14
+                },
+                {
+                    "sku": "IPH6P004",
+                    "source": 12,
+                    "native": 13
+                },
+                {
+                    "sku": "IPH6S003",
+                    "source": 3,
+                    "native": 4
+                },
+                {
+                    "sku": "IPH6SP001",
+                    "source": 0,
+                    "native": 1
+                },
+                {
+                    "sku": "IPH8001",
+                    "source": 94,
+                    "native": 3
+                },
+                {
+                    "sku": "IPH8002",
+                    "source": 0,
+                    "native": 9
+                },
+                {
+                    "sku": "IPH8005",
+                    "source": 14,
+                    "native": 19
+                },
+                {
+                    "sku": "IPH8006",
+                    "source": 16,
+                    "native": 17
+                },
+                {
+                    "sku": "IPH8P003",
+                    "source": 1,
+                    "native": 2
+                },
+                {
+                    "sku": "IPH8P007",
+                    "source": 12,
+                    "native": 13
+                },
+                {
+                    "sku": "IPHX001",
+                    "source": 27,
+                    "native": 29
+                },
+                {
+                    "sku": "IPHX006",
+                    "source": 0,
+                    "native": 1
+                },
+                {
+                    "sku": "IPHXS001",
+                    "source": 7,
+                    "native": 0
+                },
+                {
+                    "sku": "IPHXR03",
+                    "source": 27,
+                    "native": 29
+                },
+                {
+                    "sku": "IPHXR02",
+                    "source": 4,
+                    "native": 6
+                },
+                {
+                    "sku": "IPH7019",
+                    "source": 0,
+                    "native": 3
+                },
+                {
+                    "sku": "IPH11PM0334",
+                    "source": 0,
+                    "native": 3
+                },
+                {
+                    "sku": "IPH11038",
+                    "source": 47,
+                    "native": 2
+                }
+            ],
+            "published": [],
+            "image_missing": []
+        }
+    },
+    "safe_to_import": false,
+    "notes": [
+        "All comparisons are read-only and keyed by exact SKU.",
+        "Blank WooCommerce stock values are not treated as zero.",
+        "The source is not safe to import until row/header alignment and duplicate SKUs are resolved."
+    ]
+}
