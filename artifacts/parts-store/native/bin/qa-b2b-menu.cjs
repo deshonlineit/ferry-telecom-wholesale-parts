@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const app = require('./qa-scripts.cjs');
+const menuSource = fs.readFileSync(new URL('../public/assets/b2b-menu.js', `file://${__filename}`), 'utf8');
 
 class ClassList {
     constructor(node) { this.node = node; }
@@ -206,6 +208,16 @@ app.window.Core.fetch = async url => {
     assert.match(expanded, /All 20 models · newest to oldest/);
     assert.match(expanded, /Show newest 12/);
     assert.match(expanded, /data-model-id="105"/, 'Older models join the same at-a-glance panel after expansion');
+    assert.match(
+        menuSource,
+        /addEventListener\('scroll'[\s\S]*b2b-mega-models[\s\S]*expandActiveModels\(false\)/,
+        'Scrolling the open model browser automatically reveals the complete family'
+    );
+    assert.match(
+        menuSource,
+        /addEventListener\('wheel', revealOnMobileBrowse[\s\S]*addEventListener\('touchmove', revealOnMobileBrowse/,
+        'Mobile wheel and touch browsing reveal all models even when the outer menu is already at its scroll limit'
+    );
     const ipadEntry = {
         family: {id: 'ipad', label: 'iPad', count: 455},
         models: app.window.StoreMenu.orderedModels([

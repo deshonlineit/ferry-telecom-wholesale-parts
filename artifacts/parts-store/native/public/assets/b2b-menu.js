@@ -405,6 +405,16 @@
 
         bindDropdown(item) {
             const overlay = item._b2bOverlay;
+            const expandActiveModels = focusToggle => {
+                const active = overlay.querySelector('.b2b-models-grid.active');
+                const entry = active && overlay._b2bFamilies?.get(String(active.dataset.familyGrid));
+                const input = overlay.querySelector('.b2b-model-search');
+                if (!active || !entry || input?.value || active.dataset.expanded === 'true') return false;
+                active.dataset.expanded = 'true';
+                active.innerHTML = Menu.modelsMarkup(entry, '', true);
+                if (focusToggle) active.querySelector('[data-model-expand]')?.focus({preventScroll: true});
+                return true;
+            };
             const activateFamily = button => {
                 if (!button) return;
                 overlay.querySelectorAll('.b2b-family-btn').forEach(candidate => {
@@ -468,6 +478,24 @@
                 }
                 if (event.target.closest?.('a')) Menu.closeAll();
             });
+            // Scrolling is an implicit request to browse further. Reveal the
+            // complete family immediately instead of making the visitor stop
+            // and press the "show all models" control first.
+            overlay.addEventListener('scroll', event => {
+                const scroller = event.target;
+                if (!scroller?.classList?.contains('b2b-mega-models') || scroller.scrollTop <= 2) return;
+                expandActiveModels(false);
+            }, true);
+            const revealOnMobileBrowse = event => {
+                if (window.innerWidth > MOBILE_WIDTH || Menu._openItem !== item) return;
+                if (event.type === 'wheel' && Number(event.deltaY || 0) <= 0) return;
+                expandActiveModels(false);
+            };
+            // On mobile the outer catalogue list is the actual scroll owner.
+            // Listen for the browse gesture itself as it may already be at its
+            // scroll limit, in which case no native `scroll` event is emitted.
+            Menu._list?.addEventListener('wheel', revealOnMobileBrowse, {passive: true});
+            Menu._list?.addEventListener('touchmove', revealOnMobileBrowse, {passive: true});
             overlay.addEventListener('keydown', event => {
                 const current = event.target.closest?.('.b2b-family-btn');
                 if (!current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
