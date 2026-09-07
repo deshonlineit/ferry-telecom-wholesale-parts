@@ -15,6 +15,7 @@
 - [Native test fixtures](native-test-fixtures.md) — synthetic carts can reference retained SKUs; clean owned customer dependencies, not every QA-labelled catalog record.
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.
 - [Nullable currency initialization](currency-initialization-semantics.md) — recurring initialization must not resurrect deliberately cleared group prices from retained CHF sources.
+- [Commerce pricing readiness](commerce-pricing-readiness.md) — an unpriced catalogue item must block only itself, never correctly priced products or empty carts.
 - [Publishing preflight visibility](publishing-preflight-visibility.md) — a pending database-validation screen may have no new build record; do not attribute it to an old failed build.
 - [Native media isolation](native-media-isolation.md) — bulk PHP imports can exhaust a sibling preview's filesystem watchers; generated media is not JavaScript source.
 - [Account metadata updates](account-metadata-updates.md) — identity-provider metadata updates require the dedicated metadata endpoint; empty merges do not revoke roles.

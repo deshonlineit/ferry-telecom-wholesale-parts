@@ -12,7 +12,7 @@ body:not(:has(.admin-shell)) .app-header .logo {
 }
 body:not(:has(.admin-shell)) .app-header .logo img {
     display: block;
-    height: 40px;
+    height: 46px;
     width: auto;
 }
 body:not(:has(.admin-shell)) .app-header .search-bar {
@@ -87,9 +87,49 @@ body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .search-bar 
     display: none;
 }
 
+body:not(:has(.admin-shell)) .app-header .page-search-jump {
+    display: none;
+}
+
+body:not(:has(.admin-shell)):has(.lp) .app-header .page-search-jump,
+body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .page-search-jump {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 112px;
+    height: 40px;
+    margin-left: auto;
+    padding: 0 18px;
+    border: 1px solid #d7e2ef;
+    border-radius: 999px;
+    background: #f7faff;
+    color: #1768c5;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(21, 58, 103, .04);
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+body:not(:has(.admin-shell)):has(.lp) .app-header .page-search-jump:hover,
+body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .page-search-jump:hover {
+    background: #edf5ff;
+    border-color: #b7cdea;
+}
+
+body:not(:has(.admin-shell)) .app-header .page-search-jump:active { transform: scale(.98); }
+body:not(:has(.admin-shell)) .app-header .page-search-jump:focus-visible { outline: 2px solid #2878ed; outline-offset: 2px; }
+
 body:not(:has(.admin-shell)):has(.lp) .app-header .header-inner,
 body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .header-inner {
-    justify-content: space-between;
+    justify-content: flex-start;
+}
+
+body:not(:has(.admin-shell)):has(.lp) .app-header .user-nav,
+body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .user-nav {
+    margin-left: 4px;
 }
 
 body:not(:has(.admin-shell)) .catalog-smart-search {
@@ -100,9 +140,16 @@ body:not(:has(.admin-shell)) .catalog-smart-search {
     gap: 18px;
     margin: 0 0 18px;
     padding: 14px;
-    border: 1px solid #dce7f5;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #f7fbff, #fff);
+    border: 1px solid transparent;
+    border-radius: 14px;
+    background:
+        linear-gradient(135deg, #f8fbff, #fff) padding-box,
+        linear-gradient(105deg, #78baf0 0%, #9a91e6 28%, #dea0cb 52%, #efb184 75%, #7ac9ce 100%) border-box;
+    box-shadow: 0 10px 28px rgba(48, 83, 130, .09);
+}
+
+body:not(:has(.admin-shell)) .catalog-smart-search[hidden] {
+    display: none;
 }
 
 body:not(:has(.admin-shell)) .catalog-smart-intro {
@@ -121,14 +168,17 @@ body:not(:has(.admin-shell)) .catalog-smart-field {
     gap: 10px;
     min-height: 50px;
     padding: 5px 5px 5px 15px;
-    border: 1px solid #b9cce5;
-    border-radius: 10px;
-    background: #fff;
-    box-shadow: 0 2px 8px rgba(31, 75, 128, .06);
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background:
+        linear-gradient(#fff, #fff) padding-box,
+        linear-gradient(105deg, #8bc5f0, #aca1eb 32%, #e4adcf 57%, #f0bb91 79%, #8bd3d3) border-box;
+    box-shadow: 0 4px 14px rgba(31, 75, 128, .08);
 }
 body:not(:has(.admin-shell)) .catalog-smart-field:focus-within {
-    border-color: #2878ed;
-    box-shadow: 0 0 0 4px rgba(40, 120, 237, .13);
+    box-shadow:
+        0 0 0 4px rgba(122, 145, 229, .12),
+        0 8px 24px rgba(45, 84, 140, .13);
 }
 body:not(:has(.admin-shell)) .catalog-smart-field > svg { width: 20px; color: #728197; }
 body:not(:has(.admin-shell)) .catalog-smart-field input {
@@ -154,6 +204,12 @@ body:not(:has(.admin-shell)) .catalog-smart-field button {
 body:not(:has(.admin-shell)) .catalog-smart-search .b2b-search-results[role="dialog"] { top: calc(100% + 5px); }
 
 @media (max-width: 720px) {
+    body:not(:has(.admin-shell)):has(.lp) .app-header .page-search-jump,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .page-search-jump {
+        min-width: 94px;
+        height: 38px;
+        padding: 0 13px;
+    }
     body:not(:has(.admin-shell)) .catalog-smart-search { grid-template-columns: 1fr; gap: 9px; padding: 11px; }
     body:not(:has(.admin-shell)) .catalog-smart-intro span { display: none; }
     body:not(:has(.admin-shell)) .catalog-smart-field { grid-template-columns: 20px minmax(0, 1fr); padding: 7px 10px; }
@@ -844,6 +900,104 @@ body:not(:has(.admin-shell)) .mobile-chevron {
     body:not(:has(.admin-shell)) .b2b-menu-back {
         display: block;
         margin-top: 14px;
+    }
+}
+
+/* One deliberate mobile header hierarchy, overriding older responsive layers. */
+@media (max-width: 768px) {
+    body:not(:has(.admin-shell)) .app-header .header-inner,
+    body:not(:has(.admin-shell)):has(.lp) .app-header .header-inner,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .header-inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: 46px auto;
+        align-items: center;
+        gap: 10px 12px;
+        min-height: 0;
+        height: auto;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .logo {
+        grid-column: 1;
+        grid-row: 1;
+        min-width: 0;
+        justify-self: start;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .logo img {
+        width: auto;
+        height: 42px;
+        max-width: min(100%, 190px);
+    }
+
+    body:not(:has(.admin-shell)) .app-header .user-nav,
+    body:not(:has(.admin-shell)):has(.lp) .app-header .user-nav,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .user-nav {
+        grid-column: 2;
+        grid-row: 1;
+        margin: 0;
+        min-width: 0;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        gap: 8px !important;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .page-search-jump,
+    body:not(:has(.admin-shell)) .app-header .search-bar {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+        max-width: none;
+        margin: 0 !important;
+    }
+
+    body:not(:has(.admin-shell)):has(.lp) .app-header .page-search-jump,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .page-search-jump {
+        width: 100%;
+        min-width: 0;
+        height: 42px;
+        justify-self: stretch;
+        border-color: transparent;
+        background:
+            linear-gradient(#f8fbff, #f8fbff) padding-box,
+            linear-gradient(105deg, #8bc5f0, #aca1eb 35%, #e4adcf 62%, #8bd3d3) border-box;
+        box-shadow: 0 3px 12px rgba(39, 83, 137, .07);
+    }
+}
+
+@media (max-width: 480px) {
+    body:not(:has(.admin-shell)) .app-header .header-inner {
+        grid-template-columns: minmax(130px, 1fr) auto;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .logo img {
+        height: 40px;
+        max-width: 170px;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .nav-signin {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        justify-content: center;
+        border: 1px solid #dfe6ef;
+        border-radius: 999px;
+        background: #fff;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .nav-signin span {
+        display: none;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .user-nav .btn-primary {
+        min-height: 38px;
+        padding: 0 13px;
+        font-size: 12px;
+        white-space: nowrap;
     }
 }
 

@@ -99,7 +99,10 @@ function currencyContext(?string $country = null): array
     $country = strtoupper(trim($country ?? 'CH'));
     $currency = currencyCountry($country);
     $rate = currencyExchangeRate();
-    $pricingReady = (int) db()->query('SELECT COUNT(*) FROM products WHERE active=1 AND list_price_eur_cents IS NULL')->fetchColumn() === 0;
+    // Catalogue completeness is not a commerce-wide readiness condition:
+    // individual products without an assigned EUR price remain unorderable,
+    // while correctly priced products and empty carts must keep working.
+    $pricingReady = true;
     return [
         'country' => $country,
         'currency' => $currency,

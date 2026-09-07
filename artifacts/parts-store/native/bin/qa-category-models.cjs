@@ -57,11 +57,11 @@ assert.deepEqual(Array.from(C.options(catalog, 'IPHONE13'), model => model.id), 
 assert(C.options(catalog).some(model => model.id === 22), 'One-product models stay selectable');
 assert(!C.options(catalog).some(model => model.id === 24), 'Zero-count models are not invented as choices');
 const html = C.render(catalog, params, 'LCD & schermen');
-assert(html.includes('<section class="category-models"'));
+assert(html.includes('<details class="category-models"'));
 assert(html.includes('<details class="device-family-group"'), 'Families are disclosures so concrete models stay hidden until requested');
 assert(!html.includes('<details class="device-family-group" name="device-family-accordion" open'), 'No model family opens by itself');
 assert(!html.includes('category-model-brands'), 'No mandatory brand step');
-assert(html.includes('Which device?'));
+assert(html.includes('Choose a device'));
 assert(html.includes('data-category-model-search="iphone"'));
 assert(html.includes('data-category-model="132"'));
 assert(C.links([catalog.models[3]], params).includes('&lt;unsafe &quot;name&quot;&gt;'));
@@ -69,9 +69,9 @@ assert(!html.includes('<unsafe'));
 const selectedHtml = C.render(catalog, new URLSearchParams('category=1&model=132'), 'Schermen');
 assert(selectedHtml.includes('<details class="device-family-group"'), 'Model families remain available after choosing');
 assert(!selectedHtml.includes('<details class="device-family-group" name="device-family-accordion" open'), 'Choosing a model does not expand the long model list');
-assert(selectedHtml.includes('Need another model?'));
+assert(selectedHtml.includes('Selected device · click to change'));
 assert(selectedHtml.includes('aria-current="page"'));
-assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes('No model with this name') || C.render({ ...catalog, models: [] }, new URLSearchParams(), 'LCD').includes('Choose a device family'));
+assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes('No model with this name') || C.render({ ...catalog, models: [] }, new URLSearchParams(), 'LCD').includes('Choose a device'));
 console.log('PASS: visible category-first model choices, contextual URLs, query preservation, counts, small groups, escaping, selection and empty state.');
 
 const detailEvents = new Map();

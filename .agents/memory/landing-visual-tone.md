@@ -7,4 +7,9 @@ The front page opens light: a paper-white wash with a hairline frame, ink-colour
 
 **Why:** the owner called the original opening (dark navy block, heavy headings, black search button) too aggressive and asked for a calmer style. Saturated dark surfaces plus black buttons read as shouting to him, on a page whose job is to get someone into the catalogue.
 
-**How to apply:** keep dark panels as small accents further down the page and in the order summary, never as the first thing a visitor meets. Give the hero its own light values for the shared on-dark text tokens instead of changing those tokens globally, or the dark panels elsewhere lose their contrast.
+**How to apply:** keep dark panels as small accents only where commerce context
+needs them, such as an order summary. The homepage catalogue CTA and footer must
+also stay light; stacking them as large dark slabs makes the whole page end feel
+dated and visually heavy. Use the SF Pro/system family with deliberate weight,
+tight display-heading tracking, readable body contrast, and one deeper blue for
+the primary action.

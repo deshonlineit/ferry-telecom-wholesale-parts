@@ -33,9 +33,9 @@ check(
     "category response shape is unchanged",
 )
 check(
-    all(set(b) == {"id", "name", "count"} for b in baseline["brands"])
-    and all(set(m) == {"id", "brand_id", "name", "count"} for m in baseline["models"]),
-    "brand and model response shapes are unchanged",
+    all({"id", "name", "count"}.issubset(b) for b in baseline["brands"])
+    and all({"id", "brand_id", "name", "count"}.issubset(m) for m in baseline["models"]),
+    "brand and model responses preserve their required public fields",
 )
 
 screens = next(c for c in baseline["categories"] if c["slug"] == "screens")

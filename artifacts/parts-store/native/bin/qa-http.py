@@ -106,8 +106,12 @@ try:
         "sku": "QA-" + unique, "name": "QA isolated stock fixture " + unique,
         "description": "Synthetic QA record", "category_id": catalog["categories"][0]["id"],
         "brand_id": catalog["brands"][0]["id"], "quality": "Test", "stock": 5,
-        "list_price_cents": 101, "minimum_quantity": 1, "featured": False,
-        "group_prices": [{"group_id": 1, "price_cents": 101}, {"group_id": 3, "price_cents": 71}],
+        "list_price_cents": 101, "list_price_eur_cents": 101,
+        "minimum_quantity": 1, "featured": False,
+        "group_prices": [
+            {"group_id": 1, "price_cents": 101, "price_eur_cents": 101},
+            {"group_id": 3, "price_cents": 71, "price_eur_cents": 71},
+        ],
     }
     product = staff.call("POST", "/admin/products", payload)["product"]
     pid = product["id"]
@@ -119,7 +123,11 @@ try:
     check(restored["page"] == restored["pages"] and restored["products"][0]["active"], "product restore and page clamp work")
     cp = customer.call("GET", f"/products/{pid}")["product"]
     pp = partner.call("GET", f"/products/{pid}")["product"]
-    check(cp["price_cents"] == 101 and pp["price_cents"] == 71, "server resolves assigned group prices")
+    check(
+        cp["currency"] == pp["currency"] == "CHF"
+        and cp["price_cents"] > pp["price_cents"] > 0,
+        "server resolves assigned group prices in the customer's current currency",
+    )
     check("group_prices" not in cp and "list_price_cents" not in cp, "other group pricing never returned")
     customer.call("DELETE", "/cart")
     customer.call("POST", "/cart", {"product_id": pid, "quantity": 3})
@@ -127,7 +135,12 @@ try:
     aid = addresses[0]["id"]
     partner.call("PATCH", f"/addresses/{aid}", {"label": "Not mine"}, expected=(403, 404))
     check(True, "address ownership enforced")
-    order_body = {"address_id": aid, "payment_method": "test_invoice", "notes": "QA only", "idempotency_key": "qa-" + unique}
+    quote = customer.call("POST", "/checkout/quote", {"address_id": aid})
+    order_body = {
+        "address_id": aid, "quote_token": quote["quote_token"],
+        "payment_method": "test_invoice", "notes": "QA only",
+        "idempotency_key": "qa-" + unique,
+    }
     order = customer.call("POST", "/checkout", order_body)["order"]
     repeated = customer.call("POST", "/checkout", order_body)["order"]
     check(order["id"] == repeated["id"], "checkout retry returns the same order")
@@ -160,9 +173,16 @@ try:
     })["invoice"]
     check(partial["payment_status"] == "partial", "partial invoice status is derived from received cents")
     invoice_page = staff.call("GET", f"/admin/invoices?q={fixtures[1]['email']}&status=unpaid&page=999&limit=1")
-    check(invoice_page["page"] == invoice_page["pages"] and "unverified_count" in invoice_page["summary"],
-          "invoice search filter pagination and global summary work")
-    check(detail["items"][0]["price_cents"] == 101 and detail["order"]["subtotal_cents"] == 303, "immutable own-price order snapshot")
+    check(
+        invoice_page["page"] == invoice_page["pages"]
+        and all("unverified_count" in summary for summary in invoice_page["summary"]),
+        "invoice search filter pagination and currency-separated global summaries work",
+    )
+    check(
+        detail["items"][0]["price_cents"] == cp["price_cents"]
+        and detail["order"]["subtotal_cents"] == cp["price_cents"] * 3,
+        "immutable own-price order snapshot",
+    )
     partner.call("GET", f"/orders/{oid}", expected=(403, 404))
     partner.call("GET", f"/documents/{oid}/invoice.pdf", expected=(403, 404))
     check(True, "order and PDF ownership enforced")
@@ -200,12 +220,20 @@ try:
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 2, "damaged returns never restock automatically")
 
     customer.call("POST", "/cart", {"product_id": pid, "quantity": 2})
+    stale_quote = customer.call("POST", "/checkout/quote", {"address_id": aid})
     staff.call("PATCH", f"/admin/products/{pid}", {"stock": 1})
-    customer.call("POST", "/checkout", {**order_body, "idempotency_key": "stale-" + unique}, expected=(409, 422))
+    customer.call("POST", "/checkout", {
+        **order_body, "quote_token": stale_quote["quote_token"],
+        "idempotency_key": "stale-" + unique,
+    }, expected=(409, 422))
     check(True, "checkout catches changed stock")
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 1, "rejected checkout leaves stock intact")
     customer.call("POST", "/cart", {"product_id": pid, "quantity": 1})
-    order2 = customer.call("POST", "/checkout", {**order_body, "idempotency_key": "cancel-" + unique})["order"]
+    cancellation_quote = customer.call("POST", "/checkout/quote", {"address_id": aid})
+    order2 = customer.call("POST", "/checkout", {
+        **order_body, "quote_token": cancellation_quote["quote_token"],
+        "idempotency_key": "cancel-" + unique,
+    })["order"]
     staff.call("PATCH", f"/admin/invoices/{order2['id']}", {
         "version": 0, "verified": True, "due_date": None, "paid_cents": 10, "note": "QA receipt before cancellation"
     })
@@ -228,7 +256,9 @@ try:
     csv = f"sku,name,category,brand,quality,stock,price\nCSV-{unique},CSV Fixture,{catalog['categories'][0]['name']},{catalog['brands'][0]['name']},Test,4,12.50\n".encode()
     preview = staff.upload("/admin/import", "file", "fixture.csv", csv, "text/csv", {"preview": "1"})
     check(preview["created"] == 1 and not customer.call("GET", f"/products?q=CSV-{unique}")["products"], "CSV dry-run writes nothing")
-    committed = staff.upload("/admin/import", "file", "fixture.csv", csv, "text/csv", {"preview": "0"})
+    committed = staff.upload("/admin/import", "file", "fixture.csv", csv, "text/csv", {
+        "preview": "0", "pricing_versions": json.dumps(preview["pricing_versions"]),
+    })
     check(committed["created"] == 1 and len(customer.call("GET", f"/products?q=CSV-{unique}")["products"]) == 1, "CSV commit persists validated rows")
     item = customer.call("GET", "/buyback")["items"][0]
     request = customer.call("POST", "/buyback/requests", {"items": [{"item_id": item["id"], "quantity": 2}], "notes": "QA screens"})["request"]

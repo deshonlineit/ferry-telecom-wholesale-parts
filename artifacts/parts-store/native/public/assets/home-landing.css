@@ -607,18 +607,25 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 1.5rem;
-    padding: clamp(1.75rem, 3.5vw, 2.75rem);
-    border-radius: 20px;
-    color: var(--lp-hero-text);
-    background:
-        radial-gradient(90% 140% at 92% 10%, rgba(56, 132, 255, 0.35), transparent 60%),
-        linear-gradient(150deg, #101b2f 0%, #0a1120 100%);
+    gap: 2rem;
+    padding: clamp(2.5rem, 5vw, 3.5rem) clamp(2rem, 4vw, 3.5rem);
+    border-radius: 24px;
+    color: var(--lp-ink);
+    background: #ffffff;
+    border: 1px solid var(--lp-line);
+    box-shadow: 0 12px 32px -16px rgba(15, 32, 66, 0.08);
 }
 
-.lp .lp-cta h2 { margin: 0 0 0.4375rem; color: var(--lp-hero-text); font-size: clamp(1.25rem, 2.4vw, 1.75rem); }
-.lp-cta p { margin: 0; max-width: 34rem; color: var(--lp-hero-muted); font-size: 0.9375rem; line-height: 1.55; }
-.lp-cta-actions { display: flex; flex-wrap: wrap; gap: 0.625rem; }
+.lp .lp-cta h2 {
+    margin: 0 0 0.5rem;
+    color: var(--lp-ink);
+    font-size: clamp(1.5rem, 2.8vw, 2rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+}
+.lp-cta p { margin: 0; max-width: 34rem; color: var(--lp-muted); font-size: 1rem; line-height: 1.55; }
+.lp-cta-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 
 .lp-btn {
     display: inline-flex;
@@ -631,15 +638,15 @@
     border: 1px solid transparent;
     cursor: pointer;
     font-family: inherit;
-    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .lp-btn svg { width: 17px; height: 17px; transition: transform 0.18s ease; }
 .lp-btn:hover svg { transform: translateX(3px); }
-.lp .lp-btn-primary { background: #ffffff; color: var(--lp-ink); }
-.lp .lp-btn-primary:hover { background: #8fc0ff; }
-.lp .lp-btn-ghost { border-color: rgba(255, 255, 255, 0.28); color: var(--lp-hero-text); }
-.lp .lp-btn-ghost:hover { border-color: #ffffff; background: rgba(255, 255, 255, 0.08); }
+.lp .lp-btn-primary { background: #1768d4; color: #ffffff; }
+.lp .lp-btn-primary:hover { background: #0f56b8; box-shadow: 0 4px 12px rgba(23, 104, 212, 0.22); }
+.lp .lp-btn-ghost { border-color: var(--lp-line-strong); background: #ffffff; color: var(--lp-ink); }
+.lp .lp-btn-ghost:hover { border-color: var(--lp-muted); background: #f8fafc; }
 
 /* ---------- Loading and error states -------------------------------------- */
 

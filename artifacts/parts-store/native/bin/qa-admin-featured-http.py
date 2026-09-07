@@ -62,6 +62,7 @@ try:
         "quality": "Test",
         "stock": 0,
         "list_price_cents": 1,
+        "list_price_eur_cents": 1,
         "minimum_quantity": 1,
         "featured": False,
     }

@@ -11,7 +11,13 @@ const core = {
     fetch: async () => ({product, related: [], models: [], images: []})
 };
 const context = vm.createContext({
-    window: {Core: core, App: {}, Router: {add(pattern, handler) { routes.push({pattern, handler}); }}, APP_BASE: '/test-shop/'},
+    window: {
+        Core: core,
+        App: {},
+        B2BOrdering: {canOrder() { return core.user?.role === 'customer'; }},
+        Router: {add(pattern, handler) { routes.push({pattern, handler}); }},
+        APP_BASE: '/test-shop/'
+    },
     document: {addEventListener() {}}, console
 });
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/store.js'), 'utf8'), context);
@@ -36,7 +42,7 @@ const detail = routes.find(route => route.pattern.test('products/1')).handler;
         const root = {innerHTML: ''};
         await detail(['products/1', '1'], root);
         assert.equal(root.innerHTML.includes('id="pd-qty"'), expected, 'detail purchase availability');
-        if (stock > 0 && stock < minimum) assert.ok(root.innerHTML.includes('bestellen is daarom tijdelijk niet mogelijk'));
+        if (stock > 0 && stock < minimum) assert.ok(root.innerHTML.includes('this part cannot be ordered at present'));
         checks++;
     }
     console.log(`PASS: ${checks} purchase-availability cases in both product cards and detail pages.`);

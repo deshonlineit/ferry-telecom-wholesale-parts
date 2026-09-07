@@ -963,3 +963,113 @@ body:not(:has(.admin-shell)) .alert.success {
         padding: 1.5rem;
     }
 }
+
+/* ==========================================================================
+   Footer Redesign
+   ========================================================================== */
+body:not(:has(.admin-shell)) .app-footer {
+    background-color: var(--apple-surface);
+    color: var(--apple-text);
+    border-top: 1px solid var(--border-light);
+    margin-top: 4rem;
+}
+
+body:not(:has(.admin-shell)):has(.lp) .app-footer {
+    margin-top: 2rem;
+}
+
+body:not(:has(.admin-shell)) .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 4rem;
+    padding: 3rem 0;
+}
+
+body:not(:has(.admin-shell)) .footer-logo {
+    height: 32px;
+    margin-bottom: 1.25rem;
+    filter: none;
+    opacity: 1;
+}
+
+body:not(:has(.admin-shell)) .footer-brand p {
+    color: #5b6779;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    max-width: 340px;
+}
+
+body:not(:has(.admin-shell)) .footer-links h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--apple-text);
+    margin-bottom: 1.25rem;
+    text-transform: none;
+    letter-spacing: -0.012em;
+}
+
+body:not(:has(.admin-shell)) .footer-links a {
+    display: block;
+    color: #5b6779;
+    font-size: 0.9375rem;
+    margin-bottom: 0.875rem;
+    transition: color 0.2s ease;
+}
+
+body:not(:has(.admin-shell)) .footer-links a:hover {
+    color: #1768d4;
+    text-decoration: none;
+}
+
+body:not(:has(.admin-shell)) .footer-links p.text-muted.small {
+    color: #5b6779;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+body:not(:has(.admin-shell)) .demo-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+body:not(:has(.admin-shell)) .demo-actions .btn {
+    padding: 0.4rem 0.875rem;
+    font-size: 0.8125rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    color: var(--apple-text);
+    background: #f5f5f7;
+    font-weight: 500;
+    box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body:not(:has(.admin-shell)) .demo-actions .btn:hover {
+    background: #e8e8ed;
+    color: var(--apple-text);
+    border-color: #d2d2d7;
+}
+
+body:not(:has(.admin-shell)) .footer-bottom {
+    background: transparent;
+    border-top: 1px solid var(--border-light);
+    padding: 1.5rem 0;
+    text-align: left;
+    color: #5b6779;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+@media (max-width: 900px) {
+    body:not(:has(.admin-shell)) .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+        padding: 2.5rem 0;
+    }
+}

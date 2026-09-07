@@ -141,7 +141,7 @@ window.Core = {
             
             html += `<a href="#" onclick="window.App.logout(); return false;" class="nav-link text-muted">Sign out</a>`;
         } else {
-            html += `<a href="${window.APP_BASE}login" class="nav-link nav-signin">
+            html += `<a href="${window.APP_BASE}login" class="nav-link nav-signin" aria-label="Sign in">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 <span>Sign in</span>
             </a>`;
