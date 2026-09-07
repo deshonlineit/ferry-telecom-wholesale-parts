@@ -7,8 +7,7 @@ function handleAuth(string $method, string $path): bool
         respond(currencyContext());
     }
     if ($path === '/currency' && $method === 'POST') {
-        $country = strtoupper(text(body()['country'] ?? '', 2));
-        currencyCountry($country);
+        $country = currencyDeliveryCountry(text(body()['country'] ?? '', 2));
         startSession();
         $_SESSION['currency_country'] = $country;
         respond(currencyContext($country));
@@ -28,18 +27,18 @@ function handleAuth(string $method, string $path): bool
     if ($path === '/auth/demo') {
         assertIsolated();
         if (($data['persona'] ?? '') === 'staff') {
-            throw new HttpError(403, 'Medewerkers moeten met hun eigen account inloggen.');
+            throw new HttpError(403, 'Staff must sign in with their own account.');
         }
         $accounts = ['customer' => 'customer@test.invalid', 'partner' => 'partner@test.invalid'];
         $email = $accounts[$data['persona'] ?? ''] ?? null;
         if (!$email) {
-            throw new HttpError(422, 'Kies een geldig testaccount.');
+            throw new HttpError(422, 'Choose a valid test account.');
         }
         $query = db()->prepare("SELECT * FROM users WHERE email=? AND status='active'");
         $query->execute([$email]);
         $user = $query->fetch();
         if (!$user) {
-            throw new HttpError(503, 'Testaccounts zijn nog niet beschikbaar.');
+            throw new HttpError(503, 'Test accounts are not yet available.');
         }
         signIn($user);
         audit('demo_login', 'user', (int) $user['id']);
@@ -59,7 +58,7 @@ function handleAuth(string $method, string $path): bool
         $attempt = $query->fetch();
         if ($attempt && (int) $attempt['attempts'] >= 8
             && strtotime($attempt['last_attempt'] . ' UTC') > time() - 900) {
-            throw new HttpError(429, 'Te veel pogingen. Probeer het over 15 minuten opnieuw.');
+            throw new HttpError(429, 'Too many attempts. Try again in 15 minutes.');
         }
         db()->prepare('INSERT INTO login_attempts(fingerprint,attempts,last_attempt) VALUES(?,1,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE attempts=IF(last_attempt < DATE_SUB(UTC_TIMESTAMP(),INTERVAL 15 MINUTE),1,attempts+1),last_attempt=UTC_TIMESTAMP()')->execute([$fingerprint]);
         $query = db()->prepare('SELECT * FROM users WHERE email=?');
@@ -68,7 +67,7 @@ function handleAuth(string $method, string $path): bool
         $password = text($data['password'] ?? '', 1024);
         $valid = password_verify($password, $user['password_hash'] ?? '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.');
         if (!$user || !$valid || $user['status'] !== 'active') {
-            throw new HttpError(401, 'Inloggen mislukt. Controleer je gegevens en accountgoedkeuring.');
+            throw new HttpError(401, 'Sign-in failed. Check your details and account approval status.');
         }
         db()->prepare('DELETE FROM login_attempts WHERE fingerprint=?')->execute([$fingerprint]);
         signIn($user);
@@ -81,7 +80,7 @@ function handleAuth(string $method, string $path): bool
         $email = mb_strtolower(text($data['email'] ?? '', 190));
         $password = text($data['password'] ?? '', 1024);
         if (!$name || !$company || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12) {
-            throw new HttpError(422, 'Vul naam, bedrijf, e-mail en een wachtwoord van minstens 12 tekens in.');
+            throw new HttpError(422, 'Enter your name, company, email address and a password of at least 12 characters.');
         }
         $query = db()->prepare('SELECT id FROM users WHERE email=?');
         $query->execute([$email]);
@@ -90,7 +89,7 @@ function handleAuth(string $method, string $path): bool
                 ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $company]);
             enqueue('registration_review', ['user_id' => (int) db()->lastInsertId()]);
         }
-        respond(['message' => 'Als dit adres nog niet bestaat, staat je aanvraag klaar voor goedkeuring. Er wordt in deze testomgeving geen e-mail verstuurd.'], 202);
+        respond(['message' => 'If this address is not already registered, your application is awaiting approval. No email is sent from this test environment.'], 202);
     }
     if ($path === '/auth/forgot') {
         $email = mb_strtolower(text($data['email'] ?? '', 190));
@@ -107,13 +106,13 @@ function handleAuth(string $method, string $path): bool
                 enqueue('password_reset', ['user_id' => (int) $id, 'reset_path' => basePath() . 'reset?token=' . $token]);
             }
         }
-        respond(['message' => 'Als het account bestaat, is een herstelbericht vastgelegd in de afgeschermde testmailbox. Er is geen echte e-mail verstuurd.']);
+        respond(['message' => 'If the account exists, a recovery message has been recorded in the secure test mailbox. No real email has been sent.']);
     }
     if ($path === '/auth/reset') {
         $token = text($data['token'] ?? '', 128);
         $password = text($data['password'] ?? '', 1024);
         if (strlen($password) < 12 || !preg_match('/^[a-f0-9]{64}$/', $token)) {
-            throw new HttpError(422, 'Ongeldige herstelcode of te kort wachtwoord (minimaal 12 tekens).');
+            throw new HttpError(422, 'Invalid recovery code or password is too short (minimum 12 characters).');
         }
         $pdo = db();
         $pdo->beginTransaction();
@@ -122,7 +121,7 @@ function handleAuth(string $method, string $path): bool
             $query->execute([hash('sha256', $token)]);
             $reset = $query->fetch();
             if (!$reset) {
-                throw new HttpError(422, 'Deze herstelcode is verlopen of al gebruikt.');
+                throw new HttpError(422, 'This recovery code has expired or has already been used.');
             }
             $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($password, PASSWORD_DEFAULT), $reset['user_id']]);
             $pdo->prepare('UPDATE reset_tokens SET used_at=UTC_TIMESTAMP() WHERE user_id=? AND used_at IS NULL')->execute([$reset['user_id']]);
@@ -133,7 +132,7 @@ function handleAuth(string $method, string $path): bool
             }
             throw $error;
         }
-        respond(['message' => 'Wachtwoord bijgewerkt. Je kunt opnieuw inloggen.']);
+        respond(['message' => 'Password updated. You can sign in again.']);
     }
     return false;
 }

@@ -95,12 +95,12 @@ function listing(featuredTotal, products = []) {
     assert(requests.some(url => url.includes('q=no-match') && url.includes('category=4') && url.includes('status=archived') && url.includes('page=9')));
     assert(filteredRoot.innerHTML.includes('data-testid="admin-featured-total"'));
     assert(filteredRoot.innerHTML.includes('aria-live="polite"'));
-    assert(filteredRoot.innerHTML.includes('Uitgelicht totaal: 7'));
+    assert(filteredRoot.innerHTML.includes('Total featured: 7'));
 
     response = listing(0);
     const zeroRoot = rootWithQuickButton();
     await handler([], zeroRoot, '');
-    assert(zeroRoot.innerHTML.includes('Uitgelicht totaal: 0'));
+    assert(zeroRoot.innerHTML.includes('Total featured: 0'));
 
     response = listing(1, [{
         id: 91, sku: 'QA-FEATURED', name: 'QA fixture', list_price_cents: 100,
@@ -108,14 +108,14 @@ function listing(featuredTotal, products = []) {
     }]);
     const listeners = {};
     const button = {
-        dataset: { id: '91', stock: '2', price: '100', featured: '1' },
+        dataset: { id: '91', stock: '2', priceEur: '100', version: '0', featured: '1' },
         addEventListener(type, listener) { listeners[type] = listener; },
     };
     quickForm = {};
     await handler([], rootWithQuickButton(button), '');
     listeners.click({ currentTarget: button });
     const submitButton = { disabled: false, textContent: '' };
-    quickForm.values = { stock: '2', list_price: '1.00' };
+    quickForm.values = { stock: '2', list_price_eur: '1.00', pricing_version: '0' };
     quickForm.querySelector = () => submitButton;
     context.window.Core.fetch = async (url, options) => {
         assert.equal(url, '/admin/products/91');
@@ -132,7 +132,7 @@ function listing(featuredTotal, products = []) {
         : response;
     const refreshedRoot = rootWithQuickButton();
     await handler([], refreshedRoot, '');
-    assert(refreshedRoot.innerHTML.includes('Uitgelicht totaal: 0'));
+    assert(refreshedRoot.innerHTML.includes('Total featured: 0'));
     console.log('PASS: global featured badge ignores listing context, renders zero, and quick-edit refreshes after toggling off.');
 })().catch(error => {
     console.error(error);

@@ -61,7 +61,8 @@ check(0 < len(suggestions["products"]) <= 6, "bounded actual product suggestions
 check(suggestions["models"] and all("13" in m["name"] for m in suggestions["models"]), "model suggestions respect all meaningful query tokens")
 check(suggestions["categories"] and suggestions["categories"][0]["slug"] == "screens", "category synonym suggestions")
 check(all(p["price_cents"] is None and "list_price_cents" not in p for p in suggestions["products"]), "suggestions preserve guest price privacy")
-check(read("/search/suggestions?q=a")["products"] == [], "short-query suggestions stay empty")
+check(len(read("/search/suggestions?q=a")["products"]) > 0, "a single character already returns suggestions")
+check(read("/search/suggestions?" + urllib.parse.urlencode({"q": "  "}))["products"] == [], "an empty search box returns no suggestions")
 check("products" in query({"q": "' OR 1=1 -- %_"}), "SQL-like input safely treated as search text")
 
 prices = []

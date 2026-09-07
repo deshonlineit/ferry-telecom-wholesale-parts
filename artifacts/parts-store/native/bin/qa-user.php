@@ -24,6 +24,6 @@ if (strlen($password) < 16 || !in_array($role, ['customer', 'staff'], true) || !
 db()->prepare("INSERT INTO users(name,email,password_hash,company,role,group_id,status) VALUES('QA fixture',?,?, 'QA isolated test',?,?,'active')")
     ->execute([$email, password_hash($password, PASSWORD_DEFAULT), $role, $group]);
 $id = (int) db()->lastInsertId();
-db()->prepare("INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,'QA adres','QA fixture','QA isolated test','Voorbeeldstraat 1','','8000','Zürich','CH',1)")
+db()->prepare("INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,'QA address','QA fixture','QA isolated test','Example Street 1','','8000','Zürich','CH',1)")
     ->execute([$id]);
 echo json_encode(['id' => $id]) . "\n";

@@ -56,7 +56,6 @@ function catalogEnrichProducts(array $products, ?array $user): array
         $public['brand_name'] = $extra['brand_name'];
         $public['category_name'] = $extra['category_name'];
         $public['models'] = $extra['models'];
-        $public['review_summary'] = null;
         return $public;
     }, $products);
 }
@@ -64,15 +63,17 @@ function catalogEnrichProducts(array $products, ?array $user): array
 function catalogB2bSearch(array $input, ?array $user): array
 {
     $search = text($input['q'] ?? '', 190);
-    if (mb_strlen($search, 'UTF-8') < 3) {
-        throw new HttpError(422, 'Gebruik minimaal 3 tekens om producten te zoeken.');
+    // A single character is a valid search: short SKU fragments and model numbers
+    // are exactly what buyers type. Only an empty box has nothing to look for.
+    if ($search === '') {
+        throw new HttpError(422, 'Enter a search term to look for products.');
     }
     $limit = integer($input['limit'] ?? 8, 1, 50);
     $normalized = mb_strtolower($search, 'UTF-8');
     $terms = preg_split('/[^\p{L}\p{N}]+/u', $normalized, -1, PREG_SPLIT_NO_EMPTY) ?: [];
     $terms = array_slice(array_values(array_unique($terms)), 0, 8);
     if (!$terms) {
-        throw new HttpError(422, 'Gebruik minimaal 3 tekens om producten te zoeken.');
+        throw new HttpError(422, 'Enter a search term to look for products.');
     }
 
     $where = ['p.active=1'];

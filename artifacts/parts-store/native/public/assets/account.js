@@ -22,20 +22,20 @@
         };
         
         window.Workbench.statusMap = {
-            'processing': { label: 'Verwerken', badge: 'warning' },
-            'shipped': { label: 'Verzonden', badge: 'info' },
-            'completed': { label: 'Voltooid', badge: 'success' },
-            'cancelled': { label: 'Geannuleerd', badge: 'danger' },
-            'submitted': { label: 'Ingediend', badge: 'warning' },
-            'received': { label: 'Ontvangen', badge: 'info' },
-            'assessed': { label: 'Beoordeeld', badge: 'info' },
-            'approved': { label: 'Goedgekeurd', badge: 'success' },
-            'rejected': { label: 'Afgewezen', badge: 'danger' },
-            'credited': { label: 'Gecrediteerd', badge: 'success' },
-            'active': { label: 'Actief', badge: 'success' },
-            'pending': { label: 'In afwachting', badge: 'warning' },
-            'blocked': { label: 'Geblokkeerd', badge: 'danger' },
-            'isolated': { label: 'Geïsoleerd', badge: 'success' }
+            'processing': { label: 'Processing', badge: 'warning' },
+            'shipped': { label: 'Shipped', badge: 'info' },
+            'completed': { label: 'Completed', badge: 'success' },
+            'cancelled': { label: 'Cancelled', badge: 'danger' },
+            'submitted': { label: 'Submitted', badge: 'warning' },
+            'received': { label: 'Received', badge: 'info' },
+            'assessed': { label: 'Assessed', badge: 'info' },
+            'approved': { label: 'Approved', badge: 'success' },
+            'rejected': { label: 'Rejected', badge: 'danger' },
+            'credited': { label: 'Credited', badge: 'success' },
+            'active': { label: 'Active', badge: 'success' },
+            'pending': { label: 'Pending', badge: 'warning' },
+            'blocked': { label: 'Blocked', badge: 'danger' },
+            'isolated': { label: 'Isolated', badge: 'success' }
         };
         
         window.Workbench.badge = (status, defaultLabel) => {
@@ -51,13 +51,13 @@ const accountLayout = (content, activeRoute) => `
     <div class="layout-sidebar">
         <aside>
             <div class="card">
-                <h3 class="form-section-title" style="margin-top:0.5rem; margin-bottom:1rem;">Mijn Account</h3>
+                <h3 class="form-section-title" style="margin-top:0.5rem; margin-bottom:1rem;">My account</h3>
                 <div class="sidebar-nav">
-                    <a href="${window.APP_BASE}account" class="${activeRoute === 'profile' ? 'active' : ''}">Profiel</a>
-                    <a href="${window.APP_BASE}account/addresses" class="${activeRoute === 'addresses' ? 'active' : ''}">Adressen</a>
-                    <a href="${window.APP_BASE}account/orders" class="${activeRoute === 'orders' ? 'active' : ''}">Bestellingen</a>
-                    <a href="${window.APP_BASE}account/returns" class="${activeRoute === 'returns' ? 'active' : ''}">Retouren</a>
-                    <a href="${window.APP_BASE}account/buyback" class="${activeRoute === 'buyback' ? 'active' : ''}">Schermen Inruilen</a>
+                    <a href="${window.APP_BASE}account" class="${activeRoute === 'profile' ? 'active' : ''}">Profile</a>
+                    <a href="${window.APP_BASE}account/addresses" class="${activeRoute === 'addresses' ? 'active' : ''}">Addresses</a>
+                    <a href="${window.APP_BASE}account/orders" class="${activeRoute === 'orders' ? 'active' : ''}">Orders</a>
+                    <a href="${window.APP_BASE}account/returns" class="${activeRoute === 'returns' ? 'active' : ''}">Returns</a>
+                    <a href="${window.APP_BASE}account/buyback" class="${activeRoute === 'buyback' ? 'active' : ''}">Screen buyback</a>
                 </div>
             </div>
         </aside>
@@ -75,7 +75,7 @@ window.downloadPdf = async (url) => {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-    } catch(e) { window.Workbench.toast("Kan PDF niet downloaden: " + e.message, 'error'); }
+    } catch(e) { window.Workbench.toast("Unable to download PDF: " + e.message, 'error'); }
 };
 
 window.Router.add(/^account$/, async (match, root) => {
@@ -87,29 +87,29 @@ window.Router.add(/^account$/, async (match, root) => {
 
     const content = `
         <div class="page-header">
-            <h1>Profiel</h1>
+            <h1>Profile</h1>
         </div>
         <div class="card">
             <form id="profile-form">
                 <div class="form-section">
-                    <h3 class="form-section-title">Persoonlijke Gegevens</h3>
+                    <h3 class="form-section-title">Personal details</h3>
                     <div class="form-group">
-                        <label>E-mailadres (Inlog)</label>
+                        <label>Email address (sign-in)</label>
                         <input type="email" class="form-control" value="${esc(u.email)}" disabled style="background: var(--wb-bg); color: var(--wb-text-muted);">
-                        <small class="text-muted" style="display:block; margin-top:0.25rem;">Neem contact op met support om uw e-mailadres te wijzigen.</small>
+                        <small class="text-muted" style="display:block; margin-top:0.25rem;">Contact support to change your email address.</small>
                     </div>
                     <div class="grid-cols-2">
                         <div class="form-group">
-                            <label>Volledige Naam</label>
+                            <label>Full name</label>
                             <input type="text" name="name" class="form-control" value="${esc(u.name)}" required>
                         </div>
                         <div class="form-group">
-                            <label>Bedrijfsnaam</label>
+                            <label>Company name</label>
                             <input type="text" name="company" class="form-control" value="${esc(u.company)}" required>
                         </div>
                     </div>
                 </div>
-                <button type="submit" class="btn">Wijzigingen Opslaan</button>
+                <button type="submit" class="btn">Save changes</button>
             </form>
         </div>
     `;
@@ -123,7 +123,7 @@ window.Router.add(/^account$/, async (match, root) => {
                 method: 'PATCH',
                 body: { name: e.target.name.value, company: e.target.company.value }
             });
-            window.Workbench.toast('Profiel succesvol opgeslagen!', 'success');
+            window.Workbench.toast('Profile saved successfully!', 'success');
         } catch(err) { window.Workbench.toast(err.message, 'error'); }
     };
 });
@@ -138,19 +138,19 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
             <div style="display:flex; justify-content:space-between; align-items:flex-start">
                 <div>
                     <div class="data-value" style="font-weight:600; font-size:1rem; margin-bottom:0.25rem; display:flex; align-items:center; gap:0.5rem;">
-                        ${esc(a.label)} ${a.is_default ? '<span class="wb-badge wb-badge-success">Standaard</span>' : ''}
+                        ${esc(a.label)} ${a.is_default ? '<span class="wb-badge wb-badge-success">Default</span>' : ''}
                     </div>
                     <div style="color:var(--wb-text-muted); font-size:0.875rem; line-height:1.5">
                         ${a.company ? '<strong>' + esc(a.company) + '</strong><br>' : ''}
-                        T.a.v. ${esc(a.name)}<br>
+                        For the attention of ${esc(a.name)}<br>
                         ${esc(a.line1)} ${a.line2 ? esc(a.line2) : ''}<br>
                         ${esc(a.postal_code)} ${esc(a.city)}<br>
                         ${esc(a.country)}
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem">
-                    <button type="button" class="btn btn-outline btn-sm action-edit-addr" data-id="${a.id}">Bewerken</button>
-                    <button type="button" class="btn btn-danger btn-sm action-del-addr" data-id="${a.id}">Verwijderen</button>
+                    <button type="button" class="btn btn-outline btn-sm action-edit-addr" data-id="${a.id}">Edit</button>
+                    <button type="button" class="btn btn-danger btn-sm action-del-addr" data-id="${a.id}">Remove</button>
                 </div>
             </div>
         </div>
@@ -158,20 +158,20 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
 
     const content = `
         <div class="page-header">
-            <h1>Adressen</h1>
-            <button type="button" class="btn action-new-addr">Nieuw Adres Toevoegen</button>
+            <h1>Addresses</h1>
+            <button type="button" class="btn action-new-addr">Add new address</button>
         </div>
-        ${data.addresses.length ? addrHtml : '<div class="alert">U heeft nog geen adressen toegevoegd.</div>'}
+        ${data.addresses.length ? addrHtml : '<div class="alert">You have not added any addresses yet.</div>'}
     `;
     
     root.innerHTML = accountLayout(content, 'addresses');
     
     const delBtns = root.querySelectorAll('.action-del-addr');
     delBtns.forEach(btn => btn.addEventListener('click', async (e) => {
-        if(!confirm('Weet u zeker dat u dit adres wilt verwijderen?')) return;
+        if(!confirm('Are you sure you want to remove this address?')) return;
         try {
             await window.Core.fetch(`/addresses/${e.currentTarget.dataset.id}`, { method: 'DELETE' });
-            window.Workbench.toast('Adres verwijderd', 'success');
+            window.Workbench.toast('Address removed', 'success');
             window.Router.route();
         } catch(err) { window.Workbench.toast(err.message, 'error'); }
     }));
@@ -183,38 +183,38 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
         const html = `
             <form id="addr-form">
                 <div class="form-section" style="border:none; padding:0;">
-                    <div class="form-group"><label>Label (bijv. Hoofdkantoor)</label><input type="text" name="label" value="${esc(addr.label)}" class="form-control" required></div>
-                    <div class="form-group"><label>T.a.v. (Contactpersoon)</label><input type="text" name="name" value="${esc(addr.name)}" class="form-control" required></div>
-                    <div class="form-group"><label>Straat + Huisnummer</label><input type="text" name="line1" value="${esc(addr.line1)}" class="form-control" required></div>
+                    <div class="form-group"><label>Label (e.g. Head office)</label><input type="text" name="label" value="${esc(addr.label)}" class="form-control" required></div>
+                    <div class="form-group"><label>For the attention of (contact person)</label><input type="text" name="name" value="${esc(addr.name)}" class="form-control" required></div>
+                    <div class="form-group"><label>Street and building number</label><input type="text" name="line1" value="${esc(addr.line1)}" class="form-control" required></div>
                     <div class="grid-cols-2">
                         <div class="form-group"><label>Postcode</label><input type="text" name="postal_code" value="${esc(addr.postal_code)}" class="form-control" required></div>
-                        <div class="form-group"><label>Woonplaats</label><input type="text" name="city" value="${esc(addr.city)}" class="form-control" required></div>
+                        <div class="form-group"><label>Town/city</label><input type="text" name="city" value="${esc(addr.city)}" class="form-control" required></div>
                     </div>
                     <div class="form-group">
-                        <label>Land van levering</label>
+                        <label>Delivery country</label>
                         <select name="country" class="form-control" required>${window.BuyerCurrency.options(addr.country)}</select>
-                        <small class="text-muted">Zwitserland wordt afgerekend in CHF; alle andere landen in EUR.</small>
+                        <small class="text-muted">Orders for Switzerland are charged in CHF; all other countries are charged in EUR.</small>
                     </div>
                     
                     <details class="wb-details" ${addr.company || addr.line2 ? 'open' : ''}>
-                        <summary>Optionele Velden (Bedrijf, Extra Adresregel)</summary>
+                        <summary>Optional fields (company, additional address line)</summary>
                         <div class="wb-details-content">
-                            <div class="form-group"><label>Bedrijfsnaam</label><input type="text" name="company" value="${esc(addr.company)}" class="form-control"></div>
-                            <div class="form-group" style="margin-bottom:0"><label>Adresregel 2</label><input type="text" name="line2" value="${esc(addr.line2)}" class="form-control"></div>
+                            <div class="form-group"><label>Company name</label><input type="text" name="company" value="${esc(addr.company)}" class="form-control"></div>
+                            <div class="form-group" style="margin-bottom:0"><label>Address line 2</label><input type="text" name="line2" value="${esc(addr.line2)}" class="form-control"></div>
                         </div>
                     </details>
                     
                     <div class="form-group" style="margin-top:1.5rem">
                         <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
                             <input type="checkbox" name="is_default" value="1" ${addr.is_default ? 'checked' : ''}>
-                            Instellen als standaardadres
+                            Set as default address
                         </label>
                     </div>
                 </div>
-                <button type="submit" class="btn" style="width:100%; margin-top:1rem;">${id ? 'Adres Bijwerken' : 'Adres Toevoegen'}</button>
+                <button type="submit" class="btn" style="width:100%; margin-top:1rem;">${id ? 'Update address' : 'Add address'}</button>
             </form>
         `;
-        const overlay = window.UI.showModal(id ? 'Adres Bewerken' : 'Nieuw Adres', html);
+        const overlay = window.UI.showModal(id ? 'Edit address' : 'New address', html);
         
         document.getElementById('addr-form').onsubmit = async (e) => {
             e.preventDefault();
@@ -228,7 +228,7 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
                     body: payload
                 });
                 window.UI.closeModal(overlay);
-                window.Workbench.toast('Adres opgeslagen', 'success');
+                window.Workbench.toast('Address saved', 'success');
                 window.Router.route();
             } catch(err) { window.Workbench.toast(err.message, 'error'); }
         };
@@ -257,12 +257,12 @@ window.Router.add(/^account\/orders$/, async (match, root) => {
 
     const content = `
         <div class="page-header">
-            <h1>Bestellingen</h1>
+            <h1>Orders</h1>
         </div>
         <div class="table-responsive">
             <table class="data-table">
-                <thead><tr><th>Order #</th><th>Datum</th><th>Status</th><th>Totaal</th><th>Actie</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="5" style="text-align:center; padding: 2rem;">Geen bestellingen gevonden.</td></tr>'}</tbody>
+                <thead><tr><th>Order #</th><th>Date</th><th>Status</th><th>Total</th><th>Action</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No orders found.</td></tr>'}</tbody>
             </table>
         </div>
     `;
@@ -286,7 +286,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                 <td>${i.quantity}</td>
                 <td style="text-align:right">${window.Core.formatMoney(i.total_cents, orderCurrency)}</td>
                 <td style="text-align:right">
-                    ${(o.status === 'shipped' || o.status === 'completed') ? `<button type="button" class="btn btn-sm btn-outline action-return" data-itemid="${i.id}" data-max="${i.quantity}" data-name="${esc(i.name)}">Retourneren</button>` : ''}
+                    ${(o.status === 'shipped' || o.status === 'completed') ? `<button type="button" class="btn btn-sm btn-outline action-return" data-itemid="${i.id}" data-max="${i.quantity}" data-name="${esc(i.name)}">Return</button>` : ''}
                 </td>
             </tr>
         `).join('');
@@ -294,19 +294,19 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
         const addr = o.address_json ? JSON.parse(o.address_json) : {};
 
         const content = `
-            <div style="margin-bottom:1.5rem"><a href="${window.APP_BASE}account/orders" class="btn btn-outline btn-sm">&larr; Terug naar overzicht</a></div>
+            <div style="margin-bottom:1.5rem"><a href="${window.APP_BASE}account/orders" class="btn btn-outline btn-sm">&larr; Back to overview</a></div>
             
             <div class="page-header">
-                <h1>Bestelling ${esc(o.number)}</h1>
+                <h1>Order ${esc(o.number)}</h1>
                 <div class="page-actions">
-                    <button class="btn btn-outline" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">Factuur (PDF)</button>
-                    <button class="btn btn-outline" onclick="downloadPdf('/documents/${o.id}/packing-slip.pdf')">Pakbon (PDF)</button>
+                    <button class="btn btn-outline" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">Invoice (PDF)</button>
+                    <button class="btn btn-outline" onclick="downloadPdf('/documents/${o.id}/packing-slip.pdf')">Packing slip (PDF)</button>
                 </div>
             </div>
             
             <div class="grid-cols-2" style="margin-bottom:1.5rem">
                 <div class="card">
-                    <h3 class="form-section-title">Verzendadres</h3>
+                    <h3 class="form-section-title">Delivery address</h3>
                     <div style="font-size:0.875rem; line-height:1.6; color:var(--wb-text);">
                         ${addr.company ? '<strong>'+esc(addr.company)+'</strong><br>' : ''}
                         ${esc(addr.name)}<br>
@@ -316,34 +316,34 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                     </div>
                 </div>
                 <div class="card">
-                    <h3 class="form-section-title">Bestelinformatie</h3>
+                    <h3 class="form-section-title">Order information</h3>
                     <table style="width:100%; font-size:0.875rem; line-height:2;">
-                        <tr><td style="color:var(--wb-text-muted); width:120px;">Datum:</td><td><strong>${new Date(o.created_at).toLocaleDateString()}</strong></td></tr>
+                        <tr><td style="color:var(--wb-text-muted); width:120px;">Date:</td><td><strong>${new Date(o.created_at).toLocaleDateString()}</strong></td></tr>
                         <tr><td style="color:var(--wb-text-muted)">Status:</td><td>${window.Workbench.badge(o.status)}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">Tracking:</td><td>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" style="font-weight:500;">Volg Pakket</a>` : '-'}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">Betaalmethode:</td><td>${esc(o.payment_method)}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">Valuta:</td><td><strong>${esc(orderCurrency)}</strong></td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">Tracking:</td><td>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" style="font-weight:500;">Track parcel</a>` : '-'}</td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">Payment method:</td><td>${esc(o.payment_method)}</td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">Currency:</td><td><strong>${esc(orderCurrency)}</strong></td></tr>
                     </table>
                 </div>
             </div>
             
             <div class="table-responsive">
                 <table class="data-table">
-                    <thead><tr><th>Product</th><th>Prijs</th><th>Aantal</th><th style="text-align:right">Totaal</th><th style="text-align:right">Actie</th></tr></thead>
+                    <thead><tr><th>Product</th><th>Price</th><th>Quantity</th><th style="text-align:right">Total</th><th style="text-align:right">Action</th></tr></thead>
                     <tbody>${itemsHtml}</tbody>
                 </table>
                 <div style="padding:1.5rem; background:var(--wb-bg); text-align:right; border-top:1px solid var(--wb-border-light)">
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Subtotaal: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.subtotal_cents, orderCurrency)}</span></div>
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Verzendkosten: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.shipping_cents, orderCurrency)}</span></div>
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">BTW: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.tax_cents, orderCurrency)}</span></div>
-                    <div style="font-size:1.125rem; font-weight:700; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--wb-border);">Totaal (${esc(orderCurrency)}): <span style="display:inline-block; width:100px;">${window.Core.formatMoney(o.total_cents, orderCurrency)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Subtotal: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.subtotal_cents, orderCurrency)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">Shipping: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.shipping_cents, orderCurrency)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">VAT: <span style="display:inline-block; width:100px; color:var(--wb-text)">${window.Core.formatMoney(o.tax_cents, orderCurrency)}</span></div>
+                    <div style="font-size:1.125rem; font-weight:700; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--wb-border);">Total (${esc(orderCurrency)}): <span style="display:inline-block; width:100px;">${window.Core.formatMoney(o.total_cents, orderCurrency)}</span></div>
                 </div>
             </div>
             
             <div class="card" style="margin-top:2rem">
-                <h3 class="form-section-title">Bestelgeschiedenis</h3>
+                <h3 class="form-section-title">Order history</h3>
                 <ul style="padding-left:1.5rem; font-size:0.875rem; margin-bottom:0;">
-                    ${data.events.map(e => `<li style="margin-bottom:0.5rem"><strong>${new Date(e.created_at).toLocaleString()}</strong> - Status gewijzigd naar: <strong>${window.Workbench.statusMap[e.status]?.label || e.status}</strong>. ${e.note ? `<br><span style="color:var(--wb-text-muted)">${esc(e.note)}</span>` : ''}</li>`).join('')}
+                    ${data.events.map(e => `<li style="margin-bottom:0.5rem"><strong>${new Date(e.created_at).toLocaleString()}</strong> - Status changed to: <strong>${window.Workbench.statusMap[e.status]?.label || e.status}</strong>. ${e.note ? `<br><span style="color:var(--wb-text-muted)">${esc(e.note)}</span>` : ''}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -353,20 +353,20 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
             const html = `
                 <form id="return-form">
                     <p style="margin-bottom:1.5rem; padding:1rem; background:var(--wb-bg); border-radius:var(--wb-radius); font-size:0.875rem;">
-                        Retour voor:<br><strong style="font-size:1rem">${itemName}</strong>
+                        Return for:<br><strong style="font-size:1rem">${itemName}</strong>
                     </p>
                     <div class="form-group">
-                        <label>Aantal te retourneren (max ${maxQty})</label>
+                        <label>Quantity to return (max. ${maxQty})</label>
                         <input type="number" name="quantity" min="1" max="${maxQty}" value="${maxQty}" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Reden voor retour</label>
+                        <label>Reason for return</label>
                         <textarea name="reason" class="form-control" rows="3" required></textarea>
                     </div>
-                    <button type="submit" class="btn" style="width:100%; margin-top:1rem;">Retour Aanmelden</button>
+                    <button type="submit" class="btn" style="width:100%; margin-top:1rem;">Submit return</button>
                 </form>
             `;
-            const overlay = window.UI.showModal('Artikel Retourneren', html);
+            const overlay = window.UI.showModal('Return item', html);
             
             document.getElementById('return-form').onsubmit = async (e) => {
                 e.preventDefault();
@@ -378,7 +378,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                         body: { order_id: orderId, reason: reason, items: [{ order_item_id: itemId, quantity: qty }] }
                     });
                     window.UI.closeModal(overlay);
-                    window.Workbench.toast('Retour succesvol aangemeld', 'success');
+                    window.Workbench.toast('Return submitted successfully', 'success');
                     window.Router.navigate(window.APP_BASE + 'account/returns/' + res.return.id);
                 } catch(err) { window.Workbench.toast(err.message, 'error'); }
             };
@@ -415,15 +415,15 @@ window.Router.add(/^account\/returns$/, async (match, root) => {
 
     const content = `
         <div class="page-header">
-            <h1>Retouren (RMA)</h1>
+            <h1>Returns (RMA)</h1>
         </div>
         <div class="table-responsive">
             <table class="data-table">
-                <thead><tr><th>RMA #</th><th>Datum</th><th>Order</th><th>Status</th><th>Gecrediteerd</th><th>Actie</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; padding:2rem;">Geen retouren gevonden.</td></tr>'}</tbody>
+                <thead><tr><th>RMA #</th><th>Date</th><th>Order</th><th>Status</th><th>Credited</th><th>Action</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; padding:2rem;">No returns found.</td></tr>'}</tbody>
             </table>
         </div>
-        <p class="text-muted" style="margin-top:1rem; font-size:0.875rem;">Om een retour aan te melden, gaat u naar de besteldetails van de betreffende order.</p>
+        <p class="text-muted" style="margin-top:1rem; font-size:0.875rem;">To submit a return, open the details of the relevant order.</p>
     `;
     root.innerHTML = accountLayout(content, 'returns');
 });
@@ -445,13 +445,13 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
         `).join('');
 
         const content = `
-            <div style="margin-bottom:1.5rem"><a href="${window.APP_BASE}account/returns" class="btn btn-outline btn-sm">&larr; Terug naar overzicht</a></div>
+            <div style="margin-bottom:1.5rem"><a href="${window.APP_BASE}account/returns" class="btn btn-outline btn-sm">&larr; Back to overview</a></div>
             
             <div class="page-header">
-                <h1>Retour ${esc(r.number)}</h1>
+                <h1>Return ${esc(r.number)}</h1>
                 ${r.status === 'credited' ? `
                     <div class="page-actions">
-                        <button class="btn btn-outline" onclick="downloadPdf('/documents/returns/${r.id}/credit-note.pdf')">Creditnota (PDF)</button>
+                        <button class="btn btn-outline" onclick="downloadPdf('/documents/returns/${r.id}/credit-note.pdf')">Credit note (PDF)</button>
                     </div>
                 ` : ''}
             </div>
@@ -459,27 +459,27 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
             <div class="card" style="margin-bottom:1.5rem">
                 <div class="grid-cols-2" style="margin-bottom:1rem;">
                     <div><div class="data-label">Status</div><div class="data-value">${window.Workbench.badge(r.status)}</div></div>
-                    <div><div class="data-label">Aanvraagdatum</div><div class="data-value">${new Date(r.created_at).toLocaleDateString()}</div></div>
+                    <div><div class="data-label">Application date</div><div class="data-value">${new Date(r.created_at).toLocaleDateString()}</div></div>
                 </div>
                 <div style="border-top:1px solid var(--wb-border-light); padding-top:1rem;">
-                    <div class="data-label">Opgegeven Reden</div>
+                    <div class="data-label">Reason provided</div>
                     <div class="data-value" style="margin-bottom:0;">${esc(r.reason)}</div>
-                    ${r.note ? `<div class="data-label" style="margin-top:1rem;">Opmerking Support</div><div class="data-value" style="margin-bottom:0;">${esc(r.note)}</div>` : ''}
+                    ${r.note ? `<div class="data-label" style="margin-top:1rem;">Support note</div><div class="data-value" style="margin-bottom:0;">${esc(r.note)}</div>` : ''}
                 </div>
             </div>
             
             <div class="table-responsive">
                 <table class="data-table">
-                    <thead><tr><th>Product</th><th>Prijs</th><th>Aantal</th></tr></thead>
+                    <thead><tr><th>Product</th><th>Price</th><th>Quantity</th></tr></thead>
                     <tbody>${itemsHtml}</tbody>
                 </table>
                 <div style="padding:1.5rem; background:var(--wb-bg); text-align:right; border-top:1px solid var(--wb-border-light);">
-                    <div style="font-size:1.125rem; font-weight:700; color:var(--wb-success)">Totaal Gecrediteerd (${esc(returnCurrency)}): ${window.Core.formatMoney(r.credit_cents, returnCurrency)}</div>
+                    <div style="font-size:1.125rem; font-weight:700; color:var(--wb-success)">Total credited (${esc(returnCurrency)}): ${window.Core.formatMoney(r.credit_cents, returnCurrency)}</div>
                 </div>
             </div>
             
             <div class="card" style="margin-top:2rem">
-                <h3 class="form-section-title">Geschiedenis</h3>
+                <h3 class="form-section-title">History</h3>
                 <ul style="padding-left:1.5rem; font-size:0.875rem; margin-bottom:0;">
                     ${data.events.map(e => `<li style="margin-bottom:0.5rem"><strong>${new Date(e.created_at).toLocaleString()}</strong> - Status: <strong>${window.Workbench.statusMap[e.status]?.label || e.status}</strong>. ${e.note ? `<br><span style="color:var(--wb-text-muted)">${esc(e.note)}</span>` : ''}</li>`).join('')}
                 </ul>
@@ -507,13 +507,13 @@ window.Router.add(/^account\/buyback$/, async (match, root) => {
 
     const content = `
         <div class="page-header">
-            <h1>Schermen Inruilen</h1>
-            <button type="button" class="btn action-new-bb">Nieuwe Inruil Aanmelden</button>
+            <h1>Screen buyback</h1>
+            <button type="button" class="btn action-new-bb">Submit new buyback</button>
         </div>
         <div class="table-responsive">
             <table class="data-table">
-                <thead><tr><th>Aanvraag #</th><th>Datum</th><th>Status</th><th>Geschatte Waarde</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="4" style="text-align:center; padding:2rem;">Geen inruilaanvragen gevonden.</td></tr>'}</tbody>
+                <thead><tr><th>Application #</th><th>Date</th><th>Status</th><th>Estimated value</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="4" style="text-align:center; padding:2rem;">No buyback applications found.</td></tr>'}</tbody>
             </table>
         </div>
     `;
@@ -535,23 +535,23 @@ window.Router.add(/^account\/buyback$/, async (match, root) => {
             
             const html = `
                 <form id="bb-form">
-                    <p style="margin-bottom:1rem; font-size:0.875rem;">Geef per model en kwaliteit aan hoeveel schermen u wilt opsturen.</p>
+                    <p style="margin-bottom:1rem; font-size:0.875rem;">Enter the number of screens you wish to send for each model and quality.</p>
                     <div style="max-height:350px; overflow-y:auto; border:1px solid var(--wb-border-light); border-radius:var(--wb-radius); margin-bottom:1.5rem;">
                         <table class="data-table" style="margin:0; border:none;">
-                            <thead style="position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);"><tr><th>Model</th><th>Grade</th><th>Stukprijs</th><th>Aantal</th></tr></thead>
+                            <thead style="position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);"><tr><th>Model</th><th>Grade</th><th>Unit price</th><th>Quantity</th></tr></thead>
                             <tbody>${tableRows}</tbody>
                         </table>
                     </div>
                     <details class="wb-details">
-                        <summary>Optionele Opmerking Toevoegen</summary>
+                        <summary>Add optional note</summary>
                         <div class="wb-details-content">
-                            <textarea name="notes" class="form-control" rows="2" placeholder="Bijzonderheden over deze inruil..."></textarea>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Details about this buyback..."></textarea>
                         </div>
                     </details>
-                    <button type="submit" class="btn" style="width:100%; margin-top:1rem;">Aanvraag Indienen</button>
+                    <button type="submit" class="btn" style="width:100%; margin-top:1rem;">Submit application</button>
                 </form>
             `;
-            const overlay = window.UI.showModal('Nieuwe Inruilaanvraag', html);
+            const overlay = window.UI.showModal('New buyback application', html);
             
             document.getElementById('bb-form').onsubmit = async (e) => {
                 e.preventDefault();
@@ -561,7 +561,7 @@ window.Router.add(/^account\/buyback$/, async (match, root) => {
                     const qty = parseInt(fd.get(`qty_${i.id}`), 10);
                     if (qty > 0) payloadItems.push({ item_id: i.id, quantity: qty });
                 });
-                if (payloadItems.length === 0) return window.Workbench.toast('Vul minimaal 1 aantal in.', 'warning');
+                if (payloadItems.length === 0) return window.Workbench.toast('Enter a quantity for at least one item.', 'warning');
                 
                 try {
                     await window.Core.fetch('/buyback/requests', {
@@ -569,7 +569,7 @@ window.Router.add(/^account\/buyback$/, async (match, root) => {
                         body: { items: payloadItems, notes: fd.get('notes') }
                     });
                     window.UI.closeModal(overlay);
-                    window.Workbench.toast('Inruilaanvraag ingediend', 'success');
+                    window.Workbench.toast('Buyback application submitted', 'success');
                     window.Router.route();
                 } catch(err) { window.Workbench.toast(err.message, 'error'); }
             };

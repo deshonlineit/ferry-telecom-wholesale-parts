@@ -19,7 +19,7 @@ function handleCatalog(string $method, string $path): bool
     }
     if ($path === '/search/suggestions') {
         $search = text($_GET['q'] ?? '', 190);
-        if (mb_strlen($search) < 2) {
+        if ($search === '') {
             respond(['products' => [], 'categories' => [], 'models' => [], 'total' => 0]);
         }
         $facets = catalogFacets();
@@ -36,7 +36,7 @@ function handleCatalog(string $method, string $path): bool
         $query->execute([(int) $match[1]]);
         $product = $query->fetch();
         if (!$product) {
-            throw new HttpError(404, 'Dit product is niet gevonden.');
+            throw new HttpError(404, 'Product not found.');
         }
         $user = currentUser();
         $query = db()->prepare('SELECT id,url,variants FROM images WHERE product_id=? ORDER BY id');

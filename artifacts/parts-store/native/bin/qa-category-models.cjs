@@ -12,9 +12,9 @@ const context = vm.createContext({
     },
     document: { addEventListener() {} },
     localStorage: { getItem() { return null; }, setItem() {} },
-    URLSearchParams, console
+    URLSearchParams, Event: class Event { constructor(type) { this.type = type; } }, console
 });
-for (const file of ['discovery-controls.js', 'quick-finder.js', 'category-models.js']) {
+for (const file of ['model-search.js', 'discovery-controls.js', 'quick-finder.js', 'category-models.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets', file), 'utf8'), context, { filename: file });
 }
 const C = context.window.CategoryModels;
@@ -43,59 +43,89 @@ assert.equal(chosen.searchParams.has('page'), false);
 assert.equal(params.get('page'), '8', 'URL input is not mutated');
 assert.equal(new URL(C.modelUrl(new URLSearchParams('category=1&family=samsung'), catalog.models[0]), 'http://native.test').searchParams.has('family'), false, 'Direct cross-family model search releases the stale family');
 assert.equal(new URL(C.modelUrl(new URLSearchParams('category=5&part=frame&brand=1'), catalog.models[0]), 'http://native.test').searchParams.get('part'), 'frame');
+const scoped = new URLSearchParams('category=1&device_brand=1&family=iphone');
+const foreignPick = new URL(C.modelUrl(scoped, catalog.models[2]), 'http://native.test');
+assert.equal(foreignPick.searchParams.get('model'), '22');
+assert.equal(foreignPick.searchParams.has('device_brand'), false, 'A model from another brand releases the old device brand');
+assert.equal(foreignPick.searchParams.has('family'), false, 'A model from another family releases the old family');
+assert.equal(new URL(C.modelUrl(scoped, catalog.models[0]), 'http://native.test').searchParams.has('device_brand'), false, 'A chosen model already names its device, so the wider brand scope goes');
+const switchedFamily = new URL(C.familyUrl(catalog, scoped, 'samsung'), 'http://native.test');
+assert.equal(switchedFamily.searchParams.get('family'), 'samsung');
+assert.equal(switchedFamily.searchParams.has('device_brand'), false, 'Switching family never keeps a contradicting device brand');
+assert.equal(new URL(C.familyUrl(catalog, scoped, 'iphone'), 'http://native.test').searchParams.has('device_brand'), false, 'Even the matching family drops the redundant brand scope');
 assert.deepEqual(Array.from(C.options(catalog, 'IPHONE13'), model => model.id), [132, 133]);
 assert(C.options(catalog).some(model => model.id === 22), 'One-product models stay selectable');
 assert(!C.options(catalog).some(model => model.id === 24), 'Zero-count models are not invented as choices');
 const html = C.render(catalog, params, 'LCD & schermen');
 assert(html.includes('<section class="category-models"'));
-assert(!html.includes('<details'), 'No opening or dismissing a model panel');
+assert(html.includes('<details class="device-family-group"'), 'Families are disclosures so concrete models stay hidden until requested');
+assert(!html.includes('<details class="device-family-group" name="device-family-accordion" open'), 'No model family opens by itself');
 assert(!html.includes('category-model-brands'), 'No mandatory brand step');
-assert(html.includes('Voor welk toestel?'));
-assert(html.includes('data-device-family="iphone"'));
+assert(html.includes('Which device?'));
+assert(html.includes('data-category-model-search="iphone"'));
 assert(html.includes('data-category-model="132"'));
 assert(C.links([catalog.models[3]], params).includes('&lt;unsafe &quot;name&quot;&gt;'));
 assert(!html.includes('<unsafe'));
 const selectedHtml = C.render(catalog, new URLSearchParams('category=1&model=132'), 'Schermen');
-assert(!selectedHtml.includes('<details'), 'Model search remains directly available after choosing');
-assert(selectedHtml.includes('Een ander model?'));
+assert(selectedHtml.includes('<details class="device-family-group"'), 'Model families remain available after choosing');
+assert(!selectedHtml.includes('<details class="device-family-group" name="device-family-accordion" open'), 'Choosing a model does not expand the long model list');
+assert(selectedHtml.includes('Need another model?'));
 assert(selectedHtml.includes('aria-current="page"'));
-assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes('Geen model met deze naam') || C.render({ ...catalog, models: [] }, new URLSearchParams(), 'LCD').includes('Kies een toestelfamilie'));
+assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes('No model with this name') || C.render({ ...catalog, models: [] }, new URLSearchParams(), 'LCD').includes('Choose a device family'));
 console.log('PASS: visible category-first model choices, contextual URLs, query preservation, counts, small groups, escaping, selection and empty state.');
 
+const detailEvents = new Map();
 const inputEvents = {};
-const input = { value: '', addEventListener(event, handler) { inputEvents[event] = handler; } };
 let clicks = 0, focus = 0;
-const list = { innerHTML: '', scrollTop: 0, querySelector: () => list.innerHTML.includes('<a ') ? { click() { clicks++; }, focus() { focus++; } } : null };
-const count = {};
-const empty = {};
+const familyHost = {
+    innerHTML: '',
+    querySelector: () => familyHost.innerHTML.includes('<a ') ? { click() { clicks++; }, focus() { focus++; } } : null
+};
+const input = {
+    value: '',
+    dataset: {categoryModelSearch: 'iphone'},
+    addEventListener(event, handler) { inputEvents[event] = handler; },
+    focus() { focus++; },
+    dispatchEvent() { inputEvents.input?.(); }
+};
+const iphoneDetail = {
+    open: false,
+    addEventListener(event, handler) { detailEvents.set(event, handler); },
+    querySelector(selector) { return selector === 'input[type="search"]' ? input : null; }
+};
+const otherDetail = {open: true, addEventListener() {}, querySelector() { return null; }};
 const panel = {
+    querySelectorAll(selector) {
+        if (selector === 'details[name="device-family-accordion"]') return [iphoneDetail, otherDetail];
+        if (selector === 'input[type="search"]') return [input];
+        return [];
+    },
     querySelector(selector) {
-        return { '[data-category-model-search]': input, '.category-model-search-results': list, '[data-category-model-count]': count, '.category-model-empty': empty }[selector];
+        return selector === '[data-family-models="iphone"]' ? familyHost : null;
     },
     addEventListener() {}
 };
 C.bind(panel, catalog, params);
+iphoneDetail.open = true;
+detailEvents.get('toggle')();
+assert.equal(otherDetail.open, false, 'Opening a family closes the other model list');
 input.value = 'iphone13';
 inputEvents.input();
-assert(count.textContent.startsWith('2 modellen'));
-assert(list.innerHTML.includes('iPhone 13 Mini'));
-assert(!list.innerHTML.includes('Galaxy S22'));
+assert(familyHost.innerHTML.includes('iPhone 13 Mini'));
+assert(!familyHost.innerHTML.includes('Galaxy S22'));
 inputEvents.keydown({ key: 'Enter', preventDefault() {} });
-inputEvents.keydown({ key: 'ArrowDown', preventDefault() {} });
 assert.equal(clicks, 0, 'An ambiguous Enter must not silently choose a device variant');
-assert.equal(focus, 2);
 input.value = 'iphone13mini';
 inputEvents.input();
 inputEvents.keydown({ key: 'Enter', preventDefault() {} });
 assert.equal(clicks, 1, 'A single unambiguous model can be chosen with Enter');
 input.value = 'no-such-model';
 inputEvents.input();
-assert.equal(empty.hidden, false);
-assert.equal(list.innerHTML, '');
+assert.equal(familyHost.innerHTML.includes('data-category-model='), false);
 inputEvents.keydown({ key: 'Escape', preventDefault() {} });
 assert.equal(input.value, '');
-assert.equal(empty.hidden, true);
-console.log('PASS: model search, live counts, keyboard choice, no-match handling and Escape reset.');
+assert(familyHost.innerHTML.includes('iPhone 13'));
+console.log('PASS: model families stay collapsed until opened; search, keyboard choice and Escape work inside the disclosure.');
 
 const manyModels = {...catalog, models: Array.from({length: 20}, (_, index) => ({
     id: 500 + index, brand_id: 1, name: `iPhone ${index + 20}`, count: 20 - index,
@@ -127,11 +157,24 @@ assert(!/<h3|data-device-model-group|Jaar onbekend|year-2025|year-2015/.test(ord
 assert.equal((orderedModels.match(/class="category-model-options"/g) || []).length, 1, 'Every model belongs to one flat compact grid');
 console.log('PASS: full-family rendering preserves newest-to-oldest order without displaying year sections.');
 
+const familyParams = new URLSearchParams('category=1&family=iphone');
+const familyHtml = C.render(catalog, familyParams, 'LCD & schermen');
+assert(familyHtml.includes('<strong>iPhone</strong>'), 'A family page names the family the visitor is in');
+assert(familyHtml.includes('Search iPhone models'), 'The collapsed iPhone disclosure contains its own model search');
+assert(familyHtml.includes('data-family-models="iphone"'));
+assert(familyHtml.includes('View all iPhone parts'));
+assert(!/<details[^>]*open/.test(familyHtml), 'Even the active family waits for a deliberate click before showing all models');
+console.log('PASS: a family page keeps every concrete model inside its closed, searchable disclosure.');
+
 (async () => {
     const element = { value: '', addEventListener() {}, querySelector() { return element; }, close() {}, showModal() {} };
     context.document.getElementById = id => id === 'catalog-brand' ? null : element;
     context.window.Core.fetch = async url => url.startsWith('/catalog') ? catalog : { total: 1, pages: 1, page: 1, products: [{ id: 1 }] };
-    context.window.App = { sortCategories: categories => categories, renderProductCard: () => '<article>Fixture product</article>' };
+    context.window.App = {
+        sortCategories: categories => categories,
+        renderProductCard: () => '<article>Fixture product</article>',
+        renderProductTable: () => '<div class="product-container">Fixture producttabel</div>'
+    };
     context.window.Discovery.bindDeviceFields = () => {};
     let bound = false;
     C.bind = node => { bound = Boolean(node); };
@@ -142,7 +185,7 @@ console.log('PASS: full-family rendering preserves newest-to-oldest order withou
         querySelectorAll() { return []; }
     };
     await routes.find(route => route.pattern.test('catalog')).handler([], root, params);
-    assert(!root.innerHTML.includes('Het assortiment kon niet worden geladen'));
+    assert(!root.innerHTML.includes('The catalogue could not be loaded'));
     assert(root.innerHTML.indexOf('data-category-models') < root.innerHTML.indexOf('class="product-container'));
     assert(root.innerHTML.includes('data-catalog-results tabindex="-1"'));
     assert(!root.innerHTML.includes('data-inline-model'));

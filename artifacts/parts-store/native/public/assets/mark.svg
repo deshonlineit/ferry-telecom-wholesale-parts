@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Ferry Telecom">
+  <title>Ferry Telecom</title>
+  <defs>
+    <linearGradient id="ftBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5c9bff"/>
+      <stop offset="1" stop-color="#2f6fe4"/>
+    </linearGradient>
+    <mask id="ftFCut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/>
+      <g fill="#000">
+        <rect x="23.5" y="19" width="6.5" height="26" rx="1.6"/>
+        <rect x="23.5" y="19" width="17" height="6.5" rx="1.6"/>
+        <rect x="23.5" y="29.5" width="13" height="6.5" rx="1.6"/>
+      </g>
+    </mask>
+  </defs>
+  <g mask="url(#ftFCut)">
+    <rect x="12" y="12" width="40" height="40" rx="10" transform="rotate(45 32 32)" fill="url(#ftBlue)"/>
+    <rect x="15.5" y="15.5" width="33" height="33" rx="8" transform="rotate(45 32 32)" fill="none" stroke="#fff" stroke-opacity="0.24" stroke-width="1.4"/>
+  </g>
+</svg>

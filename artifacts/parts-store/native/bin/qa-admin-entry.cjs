@@ -49,8 +49,8 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/store.js'
     const dashboardRoot = { innerHTML: '' };
     await routes.find(route => route.pattern.test('admin')).handler([], dashboardRoot);
     assert(dashboardRoot.innerHTML.includes('stock=low_stock">123</a>'));
-    assert(dashboardRoot.innerHTML.includes('Bestellingen totaal'));
-    assert(!dashboardRoot.innerHTML.includes('Open Bestellingen'));
-    assert(context.window.Workbench.badge('archived').includes('Gearchiveerd'));
+    assert(dashboardRoot.innerHTML.includes('Total Orders'));
+    assert(!dashboardRoot.innerHTML.includes('Open Orders'));
+    assert(context.window.Workbench.badge('archived').includes('Archived'));
     console.log('PASS: dashboard uses full low-stock count rather than sample length, truthful order labels, and distinct archived product status.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

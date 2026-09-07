@@ -16,12 +16,16 @@ const document = {
     getElementById: id => id === 'search-input' ? input : id === 'search-suggestions' ? results : null
 };
 const context = vm.createContext({window, document, console, setTimeout, clearTimeout, AbortController, URLSearchParams});
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/core.js'), 'utf8'), context);
+// The search behaviour itself lives in the ordering module; loading only core.js
+// leaves App.handleSearchInput pointing at nothing.
+for (const file of ['core.js', 'b2b-ordering.js']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/' + file), 'utf8'), context);
+}
 const app = window.App;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const pending = [], renders = [], navigations = [];
 window.Core.fetch = url => new Promise(resolve => pending.push({url, resolve}));
-app.renderSuggestions = (_, query) => renders.push(query);
+window.B2BOrdering.renderSuggestions = (_, query) => renders.push(query);
 window.Router.navigate = url => navigations.push(url);
 
 (async () => {
@@ -51,29 +55,33 @@ window.Router.navigate = url => navigations.push(url);
     assert.deepEqual(renders, ['samsung'], 'closing suggestions invalidates pending requests');
     app.handleSearchInput('a');
     await sleep(210);
-    assert.equal(pending.length, 4, 'one-character queries do not request suggestions');
+    assert.equal(pending.length, 5, 'a single character already asks for suggestions');
     app.handleSearchInput('ip');
     app.handleSearchInput('iph');
     app.handleSearchInput('iphone');
     await sleep(210);
-    assert.equal(pending.length, 5, 'rapid input is debounced to one request');
+    assert.equal(pending.length, 6, 'rapid input is debounced to one request');
     window.UI.closeSuggestions();
     pending[4].resolve({});
+    pending[5].resolve({});
     await sleep(0);
 
+    const focused = [];
     options = [0, 1, 2].map(i => ({
         id: 'search-option-' + i,
         href: '/test-shop/products/' + (i + 1),
-        classList: {toggle() {}}, setAttribute() {}, scrollIntoView() {}
+        classList: {toggle() {}}, setAttribute() {}, scrollIntoView() {},
+        focus() { focused.push(this.id); }
     }));
     results.style.display = 'block';
-    const key = name => app.handleSearchKeydown({key: name, preventDefault() {}, currentTarget: input});
+    const key = name => app.handleSearchKeydown({key: name, preventDefault() {}, stopPropagation() {}, currentTarget: input});
     key('ArrowUp');
     assert.equal(app.searchIndex, 2, 'first up arrow selects last option');
     key('ArrowDown');
     assert.equal(app.searchIndex, 0, 'down arrow wraps');
     key('ArrowDown');
-    assert.equal(attrs['aria-activedescendant'], 'search-option-1');
+    assert.deepEqual(focused, ['search-option-2', 'search-option-0', 'search-option-1'],
+        'the arrow keys move real focus into the results, they do not only point at it');
     key('Enter');
     assert.deepEqual(navigations, ['/test-shop/products/2']);
     assert.equal(attrs['aria-expanded'], 'false');
@@ -84,5 +92,5 @@ window.Router.navigate = url => navigations.push(url);
     assert.equal(escapePrevented, true, 'Escape prevents the native search-input clear action');
     assert.equal(input.value, 'iphone13');
     assert.equal(results.style.display, 'none');
-    console.log('PASS: search debounce, stale-response protection, dismissal, short queries, keyboard selection and ARIA state.');
+    console.log('PASS: search debounce, stale-response protection, dismissal, single-character queries, keyboard selection and ARIA state.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

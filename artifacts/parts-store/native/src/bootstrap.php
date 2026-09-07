@@ -86,7 +86,7 @@ function verifyCsrf(): void
 {
     $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     if (!is_string($token) || !hash_equals(csrf(), $token)) {
-        throw new HttpError(403, 'Je sessie is verlopen. Vernieuw de pagina en probeer opnieuw.');
+        throw new HttpError(403, 'Your session has expired. Refresh the page and try again.');
     }
 }
 
@@ -118,7 +118,7 @@ function requireUser(): array
 {
     $user = currentUser();
     if (!$user) {
-        throw new HttpError(401, 'Log in om verder te gaan.');
+        throw new HttpError(401, 'Sign in to continue.');
     }
     return $user;
 }
@@ -127,7 +127,7 @@ function requireStaff(): array
 {
     $user = requireUser();
     if ($user['role'] !== 'staff') {
-        throw new HttpError(403, 'Dit onderdeel is alleen voor medewerkers.');
+        throw new HttpError(403, 'This section is for staff only.');
     }
     return $user;
 }
@@ -151,20 +151,20 @@ function body(): array
         return $body = $_POST;
     }
     if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 2097152) {
-        throw new HttpError(413, 'Het verzoek is te groot.');
+        throw new HttpError(413, 'The request is too large.');
     }
     try {
         $raw = file_get_contents('php://input', false, null, 0, 2097153);
         if (strlen($raw) > 2097152) {
-            throw new HttpError(413, 'Het verzoek is te groot.');
+            throw new HttpError(413, 'The request is too large.');
         }
         $data = $raw === '' ? [] : json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
         if (!is_array($data)) {
-            throw new HttpError(400, 'Ongeldige gegevens.');
+            throw new HttpError(400, 'Invalid data.');
         }
         return $body = $data;
     } catch (JsonException) {
-        throw new HttpError(400, 'Ongeldig JSON-verzoek.');
+        throw new HttpError(400, 'Invalid JSON request.');
     }
 }
 
@@ -173,7 +173,7 @@ function integer(mixed $value, int $min = 0, int $max = 1000000): int
     if ((!is_int($value) && !is_string($value))
         || filter_var($value, FILTER_VALIDATE_INT) === false
         || (int) $value < $min || (int) $value > $max) {
-        throw new HttpError(422, "Vul een heel getal tussen {$min} en {$max} in.");
+        throw new HttpError(422, "Enter a whole number between {$min} and {$max}.");
     }
     return (int) $value;
 }
@@ -181,11 +181,11 @@ function integer(mixed $value, int $min = 0, int $max = 1000000): int
 function text(mixed $value, int $max = 255): string
 {
     if (!is_string($value) && !is_numeric($value)) {
-        throw new HttpError(422, 'Ongeldige tekst.');
+        throw new HttpError(422, 'Invalid text.');
     }
     $value = trim((string) $value);
     if (mb_strlen($value) > $max || str_contains($value, "\0")) {
-        throw new HttpError(422, "Tekst mag maximaal {$max} tekens bevatten.");
+        throw new HttpError(422, "Text may contain no more than {$max} characters.");
     }
     return $value;
 }

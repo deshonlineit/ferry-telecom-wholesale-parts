@@ -11,32 +11,32 @@ function catalogHousingPartTypes(): array
         [
             'id' => 'frame-chassis',
             'name' => 'Frame / chassis',
-            'description' => 'Middenframe, frame of chassis; geen achterglas.',
+            'description' => 'Midframe, frame or chassis; excludes rear glass.',
         ],
         [
             'id' => 'rear-glass',
-            'name' => 'Achterglas',
-            'description' => 'Achterglas, ook wanneer een cameralens is inbegrepen.',
+            'name' => 'Rear glass',
+            'description' => 'Rear glass, including products supplied with a camera lens.',
         ],
         [
             'id' => 'rear-cover',
-            'name' => 'Achter- / batterijcover',
-            'description' => 'Achtercover of batterijcover zonder expliciet achterglas.',
+            'name' => 'Rear / battery cover',
+            'description' => 'Rear cover or battery cover not explicitly described as rear glass.',
         ],
         [
             'id' => 'housing-with-parts',
-            'name' => 'Behuizing met onderdelen',
-            'description' => 'Met voorgemonteerde onderdelen.',
+            'name' => 'Housing with parts',
+            'description' => 'Includes pre-installed parts.',
         ],
         [
             'id' => 'complete-housing',
-            'name' => 'Complete behuizing',
-            'description' => 'Alleen titels die de behuizing expliciet als compleet benoemen.',
+            'name' => 'Complete housing',
+            'description' => 'Only titles that explicitly describe the housing as complete.',
         ],
         [
             'id' => 'other-housing',
-            'name' => 'Overige / ongespecificeerde behuizing',
-            'description' => 'Behuizing waarvan de titel geen preciezer subtype bewijst.',
+            'name' => 'Other / unspecified housing',
+            'description' => 'Housing whose title does not identify a more precise subtype.',
         ],
     ];
 }
@@ -54,7 +54,7 @@ function catalogHousingCategoryId(): int
         $query->execute(['housing']);
         $value = $query->fetchColumn();
         if ($value === false) {
-            throw new RuntimeException('De behuizingscategorie ontbreekt in de geïsoleerde catalogus.');
+            throw new RuntimeException('The housing category is missing from the isolated catalogue.');
         }
         $id = (int) $value;
     }
@@ -65,7 +65,7 @@ function catalogValidatePartType(mixed $value): string
 {
     $part = text($value, 60);
     if (!in_array($part, catalogHousingPartTypeIds(), true)) {
-        throw new HttpError(400, 'Ongeldig onderdeeltype.');
+        throw new HttpError(400, 'Invalid part type.');
     }
     return $part;
 }

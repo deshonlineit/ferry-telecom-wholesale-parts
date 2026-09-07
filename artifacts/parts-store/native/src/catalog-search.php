@@ -114,13 +114,19 @@ function catalogProductCondition(array $input, array $exclude = []): array
     if (!in_array('family', $exclude, true) && !empty($input['family'])) {
         $family = text($input['family'], 30);
         $allowed = array_column(deviceFamilyDefinitions(), 'id');
-        if (!in_array($family, $allowed, true)) throw new HttpError(400, 'Onbekende toestelfamilie.');
+        if (!in_array($family, $allowed, true)) throw new HttpError(400, 'Unknown device family.');
         $ids = array_map('intval', array_column(array_filter(catalogUnfilteredFacets()['models'], fn ($m) => ($m['family'] ?? null) === $family), 'id'));
         if (!$ids) $where[] = '1=0';
         else {
             $where[] = 'EXISTS(SELECT 1 FROM product_models family_pm WHERE family_pm.product_id=p.id AND family_pm.model_id IN (' . implode(',', array_fill(0, count($ids), '?')) . '))';
             array_push($parameters, ...$ids);
         }
+    }
+    // Device brand browsing ("alles voor Apple") is compatibility, never the manufacturer of the part itself.
+    if (!in_array('device_brand', $exclude, true) && !empty($input['device_brand'])) {
+        $where[] = 'EXISTS(SELECT 1 FROM product_models device_pm JOIN device_models device_dm ON device_dm.id=device_pm.model_id
+            WHERE device_pm.product_id=p.id AND device_dm.brand_id=?)';
+        $parameters[] = integer($input['device_brand'], 1);
     }
     if (!in_array('model', $exclude, true) && !empty($input['model'])) {
         $where[] = 'EXISTS(SELECT 1 FROM product_models pm WHERE pm.product_id=p.id AND pm.model_id=?)';
@@ -172,7 +178,7 @@ function catalogFacets(array $input = []): array
 {
     $base = catalogUnfilteredFacets();
     $partTypes = catalogPartTypeFacets($input);
-    $contextKeys = ['category', 'brand', 'model', 'family', 'q', 'quality', 'stock', 'featured', 'part'];
+    $contextKeys = ['category', 'brand', 'device_brand', 'model', 'family', 'q', 'quality', 'stock', 'featured', 'part'];
     $contextual = false;
     foreach ($contextKeys as $key) {
         if (isset($input[$key]) && $input[$key] !== '') {
@@ -188,8 +194,8 @@ function catalogFacets(array $input = []): array
 
     $categoryCounts = catalogFacetCounts('p.category_id', $input, ['category', 'part']);
     $brandCounts = catalogFacetCounts('p.brand_id', $input, ['brand', 'model']);
-    // Model search is the cross-family escape hatch; family browsing itself is rendered client-side.
-    $modelPredicate = catalogProductCondition($input, ['model', 'family']);
+    // Model search is the cross-family escape hatch, so no device scope may narrow it.
+    $modelPredicate = catalogProductCondition($input, ['model', 'family', 'device_brand']);
     $query = db()->prepare(
         "SELECT facet_pm.model_id AS id,COUNT(DISTINCT p.id) AS count
          FROM products p

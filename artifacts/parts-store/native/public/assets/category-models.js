@@ -3,8 +3,10 @@
     const C = window.CategoryModels = {
         modelUrl(params, model) {
             const currentFamily = params.get('family') || '';
+            // A concrete model is the narrowest device scope, so a wider device brand must never survive it.
             return window.Discovery.buildUrl(params, {
                 model: model.id,
+                device_brand: '',
                 family: currentFamily && currentFamily !== model.family ? '' : currentFamily
             });
         },
@@ -23,7 +25,7 @@
             return {models: models.slice(0, limit), total: models.length};
         },
         words(value) {
-            return String(value || '').toLocaleLowerCase('nl').match(/[a-z]+|\d+/g) || [];
+            return String(value || '').toLocaleLowerCase('en').match(/[a-z]+|\d+/g) || [];
         },
         cleanFamilyQuery(catalog, query) {
             const deviceWords = new Set();
@@ -36,73 +38,117 @@
             }).join(' ').trim();
         },
         familyUrl(catalog, params, family) {
-            return window.Discovery.buildUrl(params, {family, model: '', q: C.cleanFamilyQuery(catalog, params.get('q'))});
+            return window.Discovery.buildUrl(params, {family, model: '', device_brand: '', q: C.cleanFamilyQuery(catalog, params.get('q'))});
         },
         familyModels(catalog, family) {
             return (catalog.models || []).filter(model => model.family === family && Number(model.count) > 0)
                 .sort((a, b) => Number(Boolean(b.order_known)) - Number(Boolean(a.order_known))
                     || Number(b.sort_order || 0) - Number(a.sort_order || 0)
-                    || b.name.localeCompare(a.name, 'nl', {numeric: true}));
+                    || b.name.localeCompare(a.name, 'en', {numeric: true}));
         },
         caption(shown, total, query) {
-            if (total > shown) return query ? `${shown} van ${total} modellen · typ verder om te verfijnen` : 'Typ om uw model te vinden';
-            return `${total} ${total === 1 ? 'model' : 'modellen'} met onderdelen in deze selectie`;
+            if (total > shown) return query ? `${shown} of ${total} models · keep typing to refine` : 'Type to find your model';
+            return `${total} ${total === 1 ? 'model' : 'models'} with parts in this selection`;
+        },
+        activeFamily(catalog, params) {
+            const selected = (catalog.models || []).find(model => String(model.id) === params.get('model'));
+            return params.get('family') || selected?.family || '';
+        },
+        familyLabel(catalog, family) {
+            return (catalog.device_families || []).find(item => item.id === family)?.label || family;
+        },
+        familyCaption(label, shown, total, query, outside = 0) {
+            if (!String(query || '').trim()) return `${total} ${total === 1 ? 'model' : 'models'} in ${label} · type to filter`;
+            if (shown) return `${shown} of ${total} models in ${label}`;
+            return outside ? `No ${label} model with this name · ${outside} outside ${label}` : `No model with this name in ${label}`;
+        },
+        familyOptions(catalog, params, family, query = '') {
+            return window.ModelSearch.rank(C.familyModels(catalog, family), query);
         },
         links(models, params) {
             return models.map(model => `<a class="category-model-choice ${String(model.id) === params.get('model') ? 'active' : ''}" href="${esc(C.modelUrl(params, model))}" data-category-model="${model.id}" ${String(model.id) === params.get('model') ? 'aria-current="page"' : ''}>
-                <strong>${esc(model.name)}</strong><small aria-label="${Number(model.count)} onderdelen">${Number(model.count)}</small></a>`).join('');
+                <strong>${esc(model.name)}</strong><small aria-label="${Number(model.count)} parts">${Number(model.count)}</small></a>`).join('');
         },
         familyLinks(catalog, params) {
             const selected = params.get('family') || '';
             return (catalog.device_families || []).filter(family => Number(family.count) > 0 || family.id === selected)
-                .map(family => `<a class="device-family-choice ${family.id === selected ? 'active' : ''}" data-device-family="${esc(family.id)}" href="${esc(C.familyUrl(catalog, params, family.id))}" ${family.id === selected ? 'aria-current="step"' : ''}><strong>${esc(family.label)}</strong><small aria-label="${Number(family.count)} onderdelen" title="${Number(family.count)} onderdelen">${Number(family.count)}</small></a>`).join('');
+                .map(family => {
+                    const isSelected = family.id === selected || C.activeFamily(catalog, params) === family.id;
+                    return `<details class="device-family-group" name="device-family-accordion">
+                        <summary class="device-family-choice ${isSelected ? 'active' : ''}">
+                            <strong>${esc(family.label)}</strong>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </summary>
+                        <div class="device-family-dropdown">
+                            <div class="category-model-tools">
+                                <label class="category-model-search">
+                                    <input type="search" class="form-control" data-category-model-search="${esc(family.id)}" placeholder="Search ${esc(family.label)} models" autocomplete="off">
+                                </label>
+                            </div>
+                            <div class="device-family-models" data-family-models="${esc(family.id)}">
+                                ${C.orderedModels(catalog, params, family.id, '')}
+                            </div>
+                            <div class="device-family-all-link mt-2">
+                                <a href="${esc(C.familyUrl(catalog, params, family.id))}" class="btn btn-outline btn-sm">View all ${esc(family.label)} parts</a>
+                            </div>
+                        </div>
+                    </details>`;
+                }).join('');
         },
-        orderedModels(catalog, params, family) {
-            const models = C.familyModels(catalog, family);
-            return `<nav class="category-model-options" aria-label="Beschikbare modellen">${C.links(models, params)}</nav>`;
+        orderedModels(catalog, params, family, query = '') {
+            const models = C.familyOptions(catalog, params, family, query);
+            return `<nav class="category-model-options" aria-label="Available models">${C.links(models, params)}</nav>`;
         },
         render(catalog, params, subject) {
-            const query = window.FastFinder.modelQuery(params.get('q'));
-            const {models, total} = C.shortlist(catalog, query, params.get('model'));
             const selected = catalog.models.find(model => String(model.id) === params.get('model'));
-            const family = params.get('family') || selected?.family || '';
-            const familyName = (catalog.device_families || []).find(item => item.id === family)?.label;
-            return `<section class="category-models" data-category-models aria-label="Model zoeken">
-                <div class="category-model-heading"><strong>${selected ? esc(selected.name) : 'Voor welk toestel?'}</strong><small>${selected ? 'Een ander model? Kies een familie of zoek hieronder. Uw onderdeelkeuze blijft behouden.' : esc(subject) + ' · kies een toestelfamilie.'}</small></div>
+            const heading = selected
+                ? `<strong>${esc(selected.name)}</strong><small>Need another model? Choose a family or search below.</small>`
+                : `<strong>Which device?</strong><small>${esc(subject)} · choose a device family.</small>`;
+            return `<section class="category-models" data-category-models aria-label="Search models">
+                <div class="category-model-heading">${heading}</div>
                 <div class="category-model-body">
-                    <nav class="device-family-options" data-device-family-options aria-label="Kies een toestelfamilie">${C.familyLinks(catalog, params)}</nav>
-                    <div class="category-model-tools"><label class="category-model-search"><span>Model zoeken</span><input type="search" class="form-control" data-category-model-search value="${esc(query)}" placeholder="Bijv. iPhone 13 Pro of S23" autocomplete="off" aria-controls="category-model-search-options"></label></div>
-                    <div class="category-model-caption"><span data-category-model-count role="status" aria-live="polite">${family ? `${C.familyModels(catalog, family).length} modellen in ${esc(familyName || family)}` : C.caption(models.length, total, query)}</span>${selected ? `<a href="${esc(window.Discovery.buildUrl(params, {model: ''}))}">Modelkeuze wissen</a>` : ''}</div>
-                    <nav class="category-model-options category-model-search-results" id="category-model-search-options" aria-label="Gevonden modellen" ${query ? '' : 'hidden'}>${query ? C.links(models, params) : ''}</nav>
-                    <div class="device-family-models" data-device-family-models>${family ? C.orderedModels(catalog, params, family) : ''}</div>
-                    <p class="category-model-empty" ${family || models.length ? 'hidden' : ''}>Kies een toestelfamilie of typ een modelnaam.</p>
+                    <nav class="device-family-options" data-device-family-options aria-label="Choose a device family">${C.familyLinks(catalog, params)}</nav>
                 </div>
             </section>`;
         },
         bind(root, catalog, params) {
             if (!root) return;
-            const input = root.querySelector('[data-category-model-search]');
-            const list = root.querySelector('.category-model-search-results');
-            const count = root.querySelector('[data-category-model-count]');
-            const empty = root.querySelector('.category-model-empty');
-            const refresh = () => {
-                const {models, total} = C.shortlist(catalog, input.value);
-                list.innerHTML = C.links(models, params);
-                list.hidden = !input.value.trim();
-                count.textContent = C.caption(models.length, total, input.value);
-                empty.hidden = models.length > 0 || !input.value.trim();
-                empty.textContent = 'Geen model met deze naam in uw selectie. Probeer een andere modelnaam of pas uw filters aan.';
-            };
-            input.addEventListener('input', refresh);
-            input.addEventListener('keydown', event => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    if (C.options(catalog, input.value).length === 1) list.querySelector('a')?.click();
-                    else list.querySelector('a')?.focus();
-                }
-                if (event.key === 'ArrowDown') { event.preventDefault(); list.querySelector('a')?.focus(); }
-                if (event.key === 'Escape' && input.value) { event.preventDefault(); input.value = ''; refresh(); }
+            // Accordion logic: only one details open at a time (if browser doesn't support 'name' attribute natively)
+            const details = root.querySelectorAll('details[name="device-family-accordion"]');
+            details.forEach(d => {
+                d.addEventListener('toggle', (e) => {
+                    if (d.open) {
+                        details.forEach(other => { if (other !== d) other.open = false; });
+                        const input = d.querySelector('input[type="search"]');
+                        if (input) input.focus();
+                    }
+                });
             });
+
+            root.querySelectorAll('input[type="search"]').forEach(input => {
+                input.addEventListener('input', () => {
+                    const familyId = input.dataset.categoryModelSearch;
+                    const host = root.querySelector(`[data-family-models="${familyId}"]`);
+                    if (host) {
+                        const matches = C.familyOptions(catalog, params, familyId, input.value);
+                        host.innerHTML = `<nav class="category-model-options" aria-label="Available models">${C.links(matches, params)}</nav>`;
+                    }
+                });
+                input.addEventListener('keydown', event => {
+                    const familyId = input.dataset.categoryModelSearch;
+                    const host = root.querySelector(`[data-family-models="${familyId}"]`);
+                    if (!host) return;
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        const matches = C.familyOptions(catalog, params, familyId, input.value);
+                        if (matches.length === 1) host.querySelector('a')?.click();
+                        else host.querySelector('a')?.focus();
+                    }
+                    if (event.key === 'ArrowDown') { event.preventDefault(); host.querySelector('a')?.focus(); }
+                    if (event.key === 'Escape' && input.value) { event.preventDefault(); input.value = ''; input.dispatchEvent(new Event('input')); }
+                });
+            });
+
             root.addEventListener('click', event => {
                 const link = event.target.closest('[data-category-model]');
                 if (!link) return;

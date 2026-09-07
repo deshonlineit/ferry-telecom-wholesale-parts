@@ -88,7 +88,7 @@ try {
   $q=$pdo->prepare("INSERT INTO device_models(brand_id,name) VALUES(?,?)");
   $q->execute([$brand,$modelName]); $mid=(int)$pdo->lastInsertId();
   $sku="B2B-".$x["token"];
-  $name="Café B2B onderdeel ".$x["token"];
+  $name="Café B2B part ".$x["token"];
   $q=$pdo->prepare("INSERT INTO products
     (sku,name,description,category_id,brand_id,quality,stock,list_price_cents,
      list_price_eur_cents,minimum_quantity,image_url,featured,active)
@@ -182,7 +182,7 @@ def assert_public_product(product, fixture):
     check(product["category_name"] is not None, "category metadata is present")
     check(product["models"] == [{"id": fixture["model_id"], "name": fixture["model_name"]}],
           "model metadata is present")
-    check(product["review_summary"] is None, "missing native reviews remain null")
+    check("review_summary" not in product, "the catalogue carries no review field")
     forbidden = {
         "list_price_cents", "list_price_eur_cents", "purchase_price_eur_cents",
         "price_eur_cents", "pricing_version", "group_prices", "base_price",
@@ -202,9 +202,13 @@ try:
     customer = Client()
     customer.login(email, password)
 
-    guest.call("GET", "/search/products?" + urllib.parse.urlencode({"q": " é "}), expected=(422,))
-    guest.call("GET", "/search/products?" + urllib.parse.urlencode({"q": "ab"}), expected=(422,))
-    check(True, "search enforces three trimmed Unicode characters")
+    guest.call("GET", "/search/products?" + urllib.parse.urlencode({"q": "   "}), expected=(422,))
+    guest.call("GET", "/search/products?" + urllib.parse.urlencode({"q": "--"}), expected=(422,))
+    check(True, "search rejects an empty box and a term without letters or digits")
+    single = guest.call("GET", "/search/products?" + urllib.parse.urlencode({"q": " é "}))
+    check(isinstance(single.get("products"), list), "a single trimmed Unicode character is a valid search")
+    two = guest.call("GET", "/search/products?" + urllib.parse.urlencode({"q": "ab"}))
+    check(isinstance(two.get("products"), list), "two characters no longer hit a minimum length")
 
     search_start = time.monotonic()
     result = guest.call("GET", "/search/products?" + urllib.parse.urlencode({

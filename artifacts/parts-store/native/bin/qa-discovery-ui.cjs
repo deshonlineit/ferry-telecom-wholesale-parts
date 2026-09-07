@@ -67,4 +67,24 @@ check('small model groups remain selectable and wrong-brand models do not', () =
     ]}, '1');
     assert.deepEqual(Array.from(models, model => model.id), [1, 2]);
 });
+check('the category rail asks for the thumbnail variant, not the full-size photo', () => {
+    const html = discovery.categoryThumb({image_url: '/test-shop/media/products/7811/054abc-1280w.webp'});
+    assert.match(html, /class="quick-category-thumb"/);
+    assert.match(html, /054abc-320w\.webp/);
+    assert.equal(html.includes('1280w'), false);
+    assert.match(html, /loading="lazy"/);
+    assert.match(html, /alt=""/);
+});
+check('a category without a photo falls back to the glyph instead of a broken image', () => {
+    assert.match(discovery.categoryThumb({}), /quick-category-thumb is-glyph/);
+    assert.equal(discovery.categoryThumb({image_url: ''}).includes('<img'), false);
+    assert.match(discovery.railGlyph(), /<svg/);
+});
+check('a legacy photo without a variant set never lands full size in the rail', () => {
+    ['/test-shop/media/legacy/scherm.jpg', '/test-shop/media/legacy/scherm-1280w.png', 'https://elders.test/foto-1280w.webp?v=2'].forEach(url => {
+        const html = discovery.categoryThumb({image_url: url});
+        assert.equal(html.includes('<img'), false, `expected glyph for ${url}`);
+        assert.match(html, /quick-category-thumb is-glyph/);
+    });
+});
 console.log(`${passed} discovery UI navigation checks passed.`);

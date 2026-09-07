@@ -153,6 +153,12 @@ function commerceAddressInput(array $input, ?array $existing = null): array
     if (!preg_match('/^[A-Z]{2}$/', $values['country'])) {
         throw new HttpError(422, 'Country must be a two-letter code.');
     }
+    // Een bestaand adres buiten Europa blijft bewerkbaar zolang het land niet
+    // verandert; een nieuwe bestemming buiten Europa leveren wij niet.
+    $keptCountry = strtoupper((string) ($existing['country'] ?? ''));
+    if ($values['country'] !== $keptCountry && !in_array($values['country'], currencyDeliveryCountries(), true)) {
+        throw new HttpError(422, 'We only deliver within Europe.');
+    }
     if (array_key_exists('is_default', $input)) {
         $rawDefault = $input['is_default'];
         if (is_bool($rawDefault)) {
@@ -385,6 +391,9 @@ function commerceCheckoutAddress(array $input, int $userId, bool $lock = false):
         if (!$address) {
             throw new HttpError(404, 'Address not found.');
         }
+        // An address saved before the Europe-only rule stays editable, but it may
+        // not be used to quote or ship an order.
+        currencyDeliveryCountry((string) $address['country']);
         return commerceAddressRow($address);
     }
     if (!isset($input['address']) || !is_array($input['address'])) {

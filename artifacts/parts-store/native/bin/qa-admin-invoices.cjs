@@ -32,8 +32,8 @@ const invoice = { id: 1, order_number: '<unsafe>', company: '<img src=x>', custo
 const html = ui.renderRows([invoice]);
 assert(html.includes('&lt;unsafe&gt;'));
 assert(!html.includes('<img src=x>'));
-assert(html.includes('Niet bevestigd'));
-assert(html.includes('Te controleren'));
+assert(html.includes('Not confirmed'));
+assert(html.includes('To be checked'));
 assert(html.includes('06-09-2026'));
 assert(html.includes('/test-shop/api/documents/1/invoice.pdf'));
 assert(!html.includes('onclick='));

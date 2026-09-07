@@ -18,25 +18,122 @@ body:not(:has(.admin-shell)) .app-header .logo img {
 body:not(:has(.admin-shell)) .app-header .search-bar {
     flex: 1;
     min-width: 120px;
-    max-width: 620px;
+    max-width: 640px;
     margin: 0;
 }
 body:not(:has(.admin-shell)) .app-header .search-input-wrapper {
-    border: 1px solid #dfe3e9;
-    border-radius: 7px;
-    background: #f7f8fa;
-    min-height: 44px;
-    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 5px 0 16px;
+    border: 1px solid #dde2ea;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+body:not(:has(.admin-shell)) .app-header .search-input-wrapper:hover {
+    border-color: #c6cedb;
 }
 body:not(:has(.admin-shell)) .app-header .search-input-wrapper:focus-within {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px #0075dd12;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, .15);
+}
+body:not(:has(.admin-shell)) .app-header .search-icon {
+    flex-shrink: 0;
+    margin: 0;
+    color: #98a2b3;
+}
+body:not(:has(.admin-shell)) .app-header #search-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: .9375rem;
+    color: var(--text-main);
+}
+body:not(:has(.admin-shell)) .app-header #search-input::placeholder {
+    color: #98a2b3;
+}
+body:not(:has(.admin-shell)) .app-header #search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+body:not(:has(.admin-shell)) .app-header .search-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 999px;
+    background: var(--text-main);
+    color: #ffffff;
+    font-size: .8125rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    cursor: pointer;
+    transition: background .15s ease, transform .15s ease;
+}
+body:not(:has(.admin-shell)) .app-header .search-submit:hover {
+    background: #1e293b;
+}
+body:not(:has(.admin-shell)) .app-header .search-submit:active {
+    transform: scale(.98);
 }
 body:not(:has(.admin-shell)) .app-header .user-nav {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 10px;
     flex-shrink: 0;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: .875rem;
+    font-weight: 500;
+    color: var(--text-main);
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-link:hover {
+    background: #f1f4f9;
+    text-decoration: none;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-signin {
+    height: 40px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #344054;
+    font-weight: 600;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-signin:hover {
+    border-color: transparent;
+    background: transparent;
+    color: var(--primary);
+    text-decoration: none;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-signin svg {
+    flex: none;
+    transition: transform .15s ease;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-signin:hover svg {
+    transform: translateY(-1px);
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .btn-primary {
+    height: 40px;
+    padding: 0 22px;
+    font-size: .875rem;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .06);
 }
 body:not(:has(.admin-shell)) .store-mega-menu {
     background: #ffffff;
@@ -106,7 +203,36 @@ body:not(:has(.admin-shell)) .b2b-nav-link {
     text-decoration: none;
 }
 
+/* A brand is both a destination and a panel: the label navigates, the caret opens the models. */
+body:not(:has(.admin-shell)) .b2b-nav-item.has-dropdown {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-link.is-linked {
+    padding-right: 4px;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-caret {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    width: 28px;
+    padding: 0;
+    font: inherit;
+    color: #1d1d1f;
+    background: transparent;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+}
+
 body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-nav-link,
+body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-nav-caret,
+body:not(:has(.admin-shell)) .b2b-nav-item.has-dropdown:hover > .b2b-nav-link,
+body:not(:has(.admin-shell)) .b2b-nav-item.has-dropdown:hover > .b2b-nav-caret,
 body:not(:has(.admin-shell)) .b2b-nav-link:hover {
     color: var(--primary);
     border-bottom-color: var(--primary);
@@ -152,31 +278,54 @@ body:not(:has(.admin-shell)) .b2b-mega-families {
     padding: 1rem 0;
 }
 
-body:not(:has(.admin-shell)) .b2b-family-btn {
+/* A family row is a destination (the label) plus a preview control (the caret). */
+body:not(:has(.admin-shell)) .b2b-family-row {
     display: flex;
-    justify-content: space-between;
+    align-items: stretch;
+}
+
+body:not(:has(.admin-shell)) .b2b-family-link {
+    flex: 1 1 auto;
+    display: flex;
     align-items: center;
-    width: 100%;
     min-height: 40px;
-    padding: 0.5rem 1.25rem;
-    background: none;
-    border: none;
-    text-align: left;
+    padding: 0.5rem 0.25rem 0.5rem 1.25rem;
     font-size: 0.8125rem;
     font-weight: 500;
     color: #1d1d1f;
+    text-decoration: none;
+}
+
+body:not(:has(.admin-shell)) .b2b-family-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 0 0 36px;
+    min-height: 40px;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    font-size: 0.9375rem;
+    color: #64748b;
     cursor: pointer;
 }
 
-body:not(:has(.admin-shell)) .b2b-family-btn:hover {
+body:not(:has(.admin-shell)) .b2b-family-row:hover,
+body:not(:has(.admin-shell)) .b2b-family-row:focus-within {
     background: #e8e8ed;
 }
 
-body:not(:has(.admin-shell)) .b2b-family-btn.active {
+body:not(:has(.admin-shell)) .b2b-family-row.active {
     background: #fff;
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+
+body:not(:has(.admin-shell)) .b2b-family-row.active .b2b-family-link,
+body:not(:has(.admin-shell)) .b2b-family-row.active .b2b-family-btn,
+body:not(:has(.admin-shell)) .b2b-family-link:hover {
     font-weight: 600;
     color: var(--primary);
-    box-shadow: inset 3px 0 0 var(--primary);
+    text-decoration: none;
 }
 
 body:not(:has(.admin-shell)) .b2b-mega-models {
@@ -237,25 +386,31 @@ body:not(:has(.admin-shell)) .b2b-model-search-wrap > span {
     overflow: hidden;
     white-space: nowrap;
 }
-body:not(:has(.admin-shell)) .b2b-model-count {
+body:not(:has(.admin-shell)) .b2b-model-status {
     margin: 0 0 8px;
     color: #64748b;
     font-size: 12px;
 }
-body:not(:has(.admin-shell)) .b2b-model-empty {
-    font-size: 13px;
-    color: #52647a;
-    padding-block: 12px;
-}
 body:not(:has(.admin-shell)) .b2b-family-all {
-    grid-column: 1 / -1;
-    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    font-size: 12.5px;
     font-weight: 600;
-    min-height: 32px;
-    padding: 8px;
-    margin-bottom: 4px;
+    min-height: 36px;
+    padding: 8px 0 0;
+    margin-top: 10px;
     color: var(--primary);
-    border-bottom: 1px solid #edf0f5;
+    border-top: 1px solid #edf0f5;
+    text-decoration: none;
+}
+body:not(:has(.admin-shell)) .b2b-family-all:hover {
+    text-decoration: underline;
+}
+body:not(:has(.admin-shell)) .b2b-family-all small {
+    font-weight: 500;
+    color: #64748b;
 }
 body:not(:has(.admin-shell)) .b2b-mega-brands {
     padding: 0 12px 12px;
@@ -306,13 +461,19 @@ body:not(:has(.admin-shell)) .b2b-mega-view-all:hover {
 
 body:not(:has(.admin-shell)) .b2b-models-grid {
     display: none;
-    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
-    gap: 2px 16px;
-    align-content: start;
 }
 
 body:not(:has(.admin-shell)) .b2b-models-grid.active {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+body:not(:has(.admin-shell)) .b2b-model-links {
     display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+    gap: 2px 16px;
+    align-content: start;
 }
 
 body:not(:has(.admin-shell)) .b2b-model-link {
@@ -327,6 +488,28 @@ body:not(:has(.admin-shell)) .b2b-model-link {
     border-radius: 4px;
     white-space: normal;
     overflow-wrap: anywhere;
+}
+
+body:not(:has(.admin-shell)) .b2b-model-expand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 36px;
+    padding: 7px 11px;
+    margin-top: 12px;
+    border: 1px solid #cfe0f4;
+    border-radius: 6px;
+    background: #f4f8fd;
+    color: #1768bd;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+body:not(:has(.admin-shell)) .b2b-model-expand:hover {
+    border-color: #9fc2e8;
+    background: #eaf3fd;
 }
 
 body:not(:has(.admin-shell)) .b2b-model-link:hover {
@@ -498,20 +681,46 @@ body:not(:has(.admin-shell)) .mobile-chevron {
         border-bottom: 1px solid var(--border-light);
         padding: 10px;
     }
-    body:not(:has(.admin-shell)) .b2b-family-btn {
-        width: auto;
-        min-height: 38px;
-        padding: 8px 10px;
-        gap: 8px;
+    body:not(:has(.admin-shell)) .b2b-family-row {
         border: 1px solid #dce3eb;
         border-radius: 4px;
+        background: #fff;
+    }
+    body:not(:has(.admin-shell)) .b2b-family-row.active {
+        border-color: var(--primary);
+        background: #edf5ff;
+        box-shadow: none;
+    }
+    body:not(:has(.admin-shell)) .b2b-family-link {
+        min-height: 38px;
+        padding: 8px 6px 8px 10px;
+    }
+    body:not(:has(.admin-shell)) .b2b-family-btn {
+        flex: 0 0 32px;
+        min-height: 38px;
+        padding: 8px 4px;
+        border-left: 1px solid #eef1f5;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-dropdown-overlay {
+        flex: 1 0 100%;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-link.is-linked {
+        width: auto;
+        flex: 1 1 auto;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-caret {
+        width: 48px;
+        min-height: 46px;
+    }
+    body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-nav-caret .mobile-chevron {
+        transform: rotate(180deg);
     }
     body:not(:has(.admin-shell)) .b2b-mega-models {
         height: auto;
         max-height: none;
         padding: 1rem;
     }
-    body:not(:has(.admin-shell)) .b2b-models-grid {
+    body:not(:has(.admin-shell)) .b2b-model-links {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 4px;
     }
@@ -535,152 +744,19 @@ body:not(:has(.admin-shell)) .mobile-chevron {
 
 
 /* 2. Compact Catalog Discovery Area */
-body:not(:has(.admin-shell)) .catalog-breadcrumb {
-    margin-bottom: 8px;
-    padding-block: 0;
+body:not(:has(.admin-shell)):has(.catalog-layout) .catalog-breadcrumb {
+    display: none;
 }
-body:not(:has(.admin-shell)) .catalog-heading {
-    padding: 4px 0 12px;
-    text-align: left;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid var(--border-light);
-    margin-bottom: 12px;
+body:not(:has(.admin-shell)):has(.catalog-layout) .catalog-heading {
+    display: none;
 }
-body:not(:has(.admin-shell)) .catalog-heading h1 {
-    font-size: 1.375rem;
-    margin: 0;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
-body:not(:has(.admin-shell)) .catalog-description {
-    font-size: 0.8125rem;
-    color: var(--apple-muted);
-    margin: 0.25rem 0 0;
-}
-body:not(:has(.admin-shell)) .catalog-eyebrow {
+body:not(:has(.admin-shell)):has(.catalog-layout) .catalog-eyebrow {
     display: none;
 }
 
 /* Quick Categories (Pills) */
-body:not(:has(.admin-shell)) .quick-categories {
-    padding: 0;
-    margin-bottom: 0.75rem;
-    gap: 0.35rem;
-    justify-content: flex-start;
-}
-body:not(:has(.admin-shell)) .quick-category {
-    min-height: 34px;
-    padding: 0.3rem 0.65rem;
-    font-size: 0.8125rem;
-    border-radius: 4px;
-    background: #fff;
-    border: 1px solid #dde2e9;
-}
-body:not(:has(.admin-shell)) .quick-category.active {
-    background: #25364d;
-    color: #fff;
-    border-color: #25364d;
-}
-body:not(:has(.admin-shell)) .quick-category small {
-    background: rgba(0,0,0,0.06);
-    padding: 1px 6px;
-    border-radius: 4px;
-}
-body:not(:has(.admin-shell)) .quick-category.active small {
-    background: rgba(255,255,255,0.2);
-}
 
 /* Category Models Selector (Make it very tight) */
-body:not(:has(.admin-shell)) .category-models {
-    padding: 0.75rem 1rem;
-    margin-bottom: 12px;
-    background: #fdfdfd;
-    border-radius: 6px;
-    box-shadow: none;
-    border: 1px solid var(--border-light);
-}
-body:not(:has(.admin-shell)) .category-model-heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-}
-body:not(:has(.admin-shell)) .category-model-heading strong {
-    font-size: 0.9375rem;
-}
-body:not(:has(.admin-shell)) .category-model-heading small {
-    display: none; /* Hide verbose instructions */
-}
-body:not(:has(.admin-shell)) .device-family-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    margin-bottom: 0.5rem;
-}
-body:not(:has(.admin-shell)) .device-family-choice {
-    padding: 0.15rem 0.4rem;
-    border-radius: 4px;
-    background: #fff;
-    border: 1px solid var(--border-light);
-    font-size: 0.75rem;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.25rem;
-}
-body:not(:has(.admin-shell)) .device-family-choice small {
-    background: rgba(0,0,0,0.05);
-    padding: 0 4px;
-    border-radius: 2px;
-}
-body:not(:has(.admin-shell)) .device-family-choice.active {
-    background: #1d1d1f;
-    color: #fff;
-    border-color: #1d1d1f;
-}
-body:not(:has(.admin-shell)) .category-model-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    margin-top: 0.5rem;
-}
-body:not(:has(.admin-shell)) .category-model-choice {
-    padding: 0.15rem 0.4rem;
-    font-size: 0.75rem;
-    border-radius: 4px;
-    background: #fff;
-    border: 1px solid var(--border-light);
-}
-body:not(:has(.admin-shell)) .category-model-choice:hover {
-    border-color: var(--primary);
-}
-body:not(:has(.admin-shell)) .category-model-choice.active {
-    background: #eef5ff;
-    border-color: var(--primary);
-    color: var(--primary);
-}
-body:not(:has(.admin-shell)) .category-model-tools {
-    max-width: 260px;
-    margin-bottom: 0.25rem;
-}
-body:not(:has(.admin-shell)) .category-model-tools input {
-    min-height: 34px;
-    font-size: 0.8125rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-}
-body:not(:has(.admin-shell)) .category-model-search span { display: none; }
-body:not(:has(.admin-shell)) .category-model-caption {
-    font-size: 0.75rem;
-    color: var(--apple-muted);
-    margin-bottom: 0.25rem;
-}
-body:not(:has(.admin-shell)) .category-model-empty {
-    font-size: 0.8125rem;
-    color: var(--apple-muted);
-}
 
 /* Filter Bar (.catalog-refine-row) */
 body:not(:has(.admin-shell)) .catalog-refine-row {

@@ -39,8 +39,8 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         const val = existing && existing.price_eur_cents != null ? (existing.price_eur_cents / 100).toFixed(2) : '';
         return `
             <div class="form-group" style="margin-bottom:0.75rem;">
-                <label style="font-size:0.75rem;">Prijs voor ${esc(g.name)} (EUR)</label>
-                <input type="text" inputmode="decimal" name="gp_eur_${g.id}" value="${val}" class="form-control" placeholder="Standaardprijs als leeg">
+                <label style="font-size:0.75rem;">Price for ${esc(g.name)} (EUR)</label>
+                <input type="text" inputmode="decimal" name="gp_eur_${g.id}" value="${val}" class="form-control" placeholder="Standard price if blank">
             </div>
         `;
     }).join('');
@@ -61,18 +61,18 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             <div style="position:relative; display:inline-block; border:1px solid var(--wb-border-light); padding:0.25rem; border-radius:var(--wb-radius); margin-right:0.5rem; margin-bottom:0.5rem; background:var(--wb-bg);">
                 <img src="${esc(img.url)}" style="height:100px; width:100px; object-fit:contain; display:block;">
                 ${img.legacy
-                    ? '<span class="text-muted" style="display:block; max-width:100px; font-size:0.6875rem; text-align:center;">Bestaande hoofdfoto</span>'
-                    : `<button type="button" class="btn btn-sm btn-danger action-del-img" data-id="${img.id}" data-url="${esc(img.url)}" aria-label="Afbeelding verwijderen" style="position:absolute; top:-5px; right:-5px; padding:0; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:var(--wb-shadow-sm)">&times;</button>`}
+                    ? '<span class="text-muted" style="display:block; max-width:100px; font-size:0.6875rem; text-align:center;">Existing main image</span>'
+                    : `<button type="button" class="btn btn-sm btn-danger action-del-img" data-id="${img.id}" data-url="${esc(img.url)}" aria-label="Remove image" style="position:absolute; top:-5px; right:-5px; padding:0; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:var(--wb-shadow-sm)">&times;</button>`}
             </div>
-        `).join('') || '<p class="text-muted" style="font-size:0.875rem;">Nog geen afbeeldingen.</p>';
+        `).join('') || '<p class="text-muted" style="font-size:0.875rem;">No images yet.</p>';
     };
 
     const content = `
         <div class="page-header">
-            <h1>${isNew ? 'Nieuw Product Toevoegen' : 'Product Bewerken: ' + esc(p.sku)}</h1>
+            <h1>${isNew ? 'Add New Product' : 'Edit Product: ' + esc(p.sku)}</h1>
             <div class="page-actions">
-                <a href="${window.APP_BASE}admin/products" class="btn btn-outline">&larr; Terug naar overzicht</a>
-                ${!isNew ? `<button type="button" class="btn btn-danger action-del-product">Product Archiveren</button>` : ''}
+                <a href="${window.APP_BASE}admin/products" class="btn btn-outline">&larr; Back to overview</a>
+                ${!isNew ? `<button type="button" class="btn btn-danger action-del-product">Archive Product</button>` : ''}
             </div>
         </div>
         
@@ -80,36 +80,36 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             <div class="grid-cols-2" style="align-items:start">
                 <div>
                     <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Basisinformatie</h3>
+                        <h3 class="form-section-title">Basic Information</h3>
                         <div class="grid-cols-2">
                             <div class="form-group">
-                                <label>SKU (Artikelnummer)</label>
+                                <label>SKU (Part Number)</label>
                                 <input type="text" name="sku" value="${esc(p.sku)}" class="form-control" required>
                             </div>
                             <div class="form-group">
-                                <label>Kwaliteit (Grade)</label>
-                                <input type="text" name="quality" value="${esc(p.quality)}" class="form-control" placeholder="Bijv. OEM, AAA">
+                                <label>Quality (Grade)</label>
+                                <input type="text" name="quality" value="${esc(p.quality)}" class="form-control" placeholder="e.g. OEM, AAA">
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Productnaam</label>
+                            <label>Product Name</label>
                             <input type="text" name="name" value="${esc(p.name)}" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label>Uitgebreide beschrijving <span class="text-muted">(optioneel)</span></label>
+                            <label>Detailed Description <span class="text-muted">(optional)</span></label>
                             <textarea name="description" class="form-control" rows="5">${esc(p.description)}</textarea>
                         </div>
                         
                         <details class="wb-details" ${p.category_id || p.brand_id ? 'open' : ''}>
-                            <summary>Categorisatie (Merk & Categorie)</summary>
+                            <summary>Categorisation (Brand & Category)</summary>
                             <div class="wb-details-content grid-cols-2">
                                 <div class="form-group" style="margin-bottom:0">
-                                    <label>Categorie</label>
-                                    <select name="category_id" class="form-control"><option value="">-- Geen --</option>${catsHtml}</select>
+                                    <label>Category</label>
+                                    <select name="category_id" class="form-control"><option value="">-- None --</option>${catsHtml}</select>
                                 </div>
                                 <div class="form-group" style="margin-bottom:0">
-                                    <label>Merk</label>
-                                    <select name="brand_id" class="form-control"><option value="">-- Geen --</option>${brandsHtml}</select>
+                                    <label>Brand</label>
+                                    <select name="brand_id" class="form-control"><option value="">-- None --</option>${brandsHtml}</select>
                                 </div>
                             </div>
                         </details>
@@ -118,37 +118,37 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
 
                 <div>
                     <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Voorraad & Logistiek</h3>
+                        <h3 class="form-section-title">Stock & Logistics</h3>
                         <div class="grid-cols-2">
                             <div class="form-group">
-                                <label>Actuele Voorraad</label>
+                                <label>Current Stock</label>
                                 <input type="number" name="stock" value="${p.stock}" class="form-control" min="0" step="1" required>
                             </div>
                             <div class="form-group">
-                                <label>Minimum Bestelaantal</label>
+                                <label>Minimum Order Quantity</label>
                                 <input type="number" name="minimum_quantity" value="${p.minimum_quantity}" min="1" class="form-control" required>
                             </div>
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-                                <input type="checkbox" name="featured" value="1" ${p.featured ? 'checked' : ''}> Uitgelicht (Featured op homepage)
+                                <input type="checkbox" name="featured" value="1" ${p.featured ? 'checked' : ''}> Featured (on homepage)
                             </label>
                         </div>
                     </div>
                     
                     <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Prijsbeheer (EUR)</h3>
+                        <h3 class="form-section-title">Price Management (EUR)</h3>
                         <input type="hidden" name="pricing_version" value="${p.pricing_version}">
                         <div class="form-group">
-                            <label>Inkoopprijs / Cost (EUR)</label>
-                            <input type="text" inputmode="decimal" name="purchase_price_eur" value="${p.purchase_price_eur_cents != null ? (p.purchase_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" placeholder="Onbekend">
+                            <label>Purchase Price / Cost (EUR)</label>
+                            <input type="text" inputmode="decimal" name="purchase_price_eur" value="${p.purchase_price_eur_cents != null ? (p.purchase_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" placeholder="Unknown">
                         </div>
                         <div class="form-group">
-                            <label>Basisverkoopprijs (EUR)</label>
+                            <label>Base Selling Price (EUR)</label>
                             <input type="text" inputmode="decimal" name="list_price_eur" value="${p.list_price_eur_cents != null ? (p.list_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" required>
                         </div>
                         <details class="wb-details" ${groupPrices.length > 0 ? 'open' : ''} style="margin-bottom:0;">
-                            <summary>Specifieke B2B Groepsprijzen (EUR)</summary>
+                            <summary>Specific B2B Group Prices (EUR)</summary>
                             <div class="wb-details-content">
                                 ${groupPricesHtml}
                             </div>
@@ -159,31 +159,31 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
 
             <div class="grid-cols-2" style="align-items:start">
                 <div class="card" style="margin-bottom:1.5rem">
-                    <h3 class="form-section-title">Compatibele Modellen</h3>
-                    <p style="font-size:0.875rem; color:var(--wb-text-muted); margin-bottom:1rem;">Selecteer de toestellen waarvoor dit onderdeel geschikt is.</p>
+                    <h3 class="form-section-title">Compatible Models</h3>
+                    <p style="font-size:0.875rem; color:var(--wb-text-muted); margin-bottom:1rem;">Select the devices this part is suitable for.</p>
                     <div style="max-height:300px; overflow-y:auto; border:1px solid var(--wb-border-light); padding:0.5rem; border-radius:var(--wb-radius); background:var(--wb-surface);">
-                        ${modelsHtml || '<div class="text-muted">Geen modellen beschikbaar.</div>'}
+                        ${modelsHtml || '<div class="text-muted">No models available.</div>'}
                     </div>
                 </div>
                 
                 ${!isNew ? `
                 <div class="card" style="margin-bottom:1.5rem">
-                    <h3 class="form-section-title">Afbeeldingen</h3>
+                    <h3 class="form-section-title">Images</h3>
                     <div class="admin-product-images">${renderImages(images)}</div>
                     <div class="form-section" style="border-top:1px solid var(--wb-border-light); margin-top:1.5rem; padding-top:1.5rem; padding-bottom:0; margin-bottom:0; border-bottom:none;">
-                        <label>Nieuwe Afbeeldingen Uploaden</label>
+                        <label>Upload New Images</label>
                         <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem; flex-wrap:wrap;">
                             <input type="file" id="img-upload" accept="image/jpeg,image/png,image/webp" multiple class="form-control" style="flex:1; min-width:220px">
-                            <button type="button" class="btn btn-outline action-upload-img">Uploaden</button>
+                            <button type="button" class="btn btn-outline action-upload-img">Upload</button>
                         </div>
                         <div class="image-upload-progress" role="status" aria-live="polite" style="margin-top:0.75rem;"></div>
                     </div>
                 </div>
-                ` : '<div class="alert warning" style="margin-bottom:1.5rem;">Sla het product eerst op om afbeeldingen te kunnen toevoegen.</div>'}
+                ` : '<div class="alert warning" style="margin-bottom:1.5rem;">Save the product before adding images.</div>'}
             </div>
 
             <div class="card" style="display:flex; justify-content:flex-end; padding:1.5rem; background:var(--wb-bg)">
-                <button type="submit" class="btn product-submit" style="padding:0.75rem 2rem; font-size:1rem;">${isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'}</button>
+                <button type="submit" class="btn product-submit" style="padding:0.75rem 2rem; font-size:1rem;">${isNew ? 'Create Product' : 'Save Changes'}</button>
             </div>
         </form>
     `;
@@ -202,7 +202,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
 
     const bindImageDeleteHandlers = () => {
         root.querySelectorAll('.action-del-img').forEach(deleteButton => deleteButton.addEventListener('click', async event => {
-            if (!confirm('Afbeelding definitief verwijderen?')) return;
+            if (!confirm('Permanently remove this image?')) return;
             const target = event.currentTarget;
             try {
                 const response = await window.Core.fetch(`/admin/images/${target.dataset.id}`, { method: 'DELETE' });
@@ -210,7 +210,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                     coverUrl = response.images?.[0]?.url || '';
                 }
                 updateImageGallery(response.images || []);
-                window.Workbench.toast('Afbeelding verwijderd', 'success');
+                window.Workbench.toast('Image removed', 'success');
             } catch (error) {
                 window.Workbench.toast(error.message, 'error');
             }
@@ -224,13 +224,13 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         const parseFormCents = (val, fieldName) => {
             if (!val) return null;
             const c = window.Workbench.parseCentsStrict(val);
-            if (Number.isNaN(c)) throw new Error("Ongeldig bedrag ingevuld voor " + fieldName);
+            if (Number.isNaN(c)) throw new Error("Invalid amount entered for " + fieldName);
             return c;
         };
 
-        const listPriceEurCents = parseFormCents(fd.get('list_price_eur'), 'Basisverkoopprijs');
+        const listPriceEurCents = parseFormCents(fd.get('list_price_eur'), 'base selling price');
         if (listPriceEurCents === null) {
-            window.Workbench.toast('Basisverkoopprijs is verplicht', 'error');
+            window.Workbench.toast('Base selling price is required', 'error');
             return;
         }
 
@@ -240,7 +240,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             brand_id: fd.get('brand_id') ? parseInt(fd.get('brand_id'), 10) : null,
             quality: fd.get('quality'), stock: parseInt(fd.get('stock'), 10),
             list_price_eur_cents: listPriceEurCents,
-            purchase_price_eur_cents: parseFormCents(fd.get('purchase_price_eur'), 'Inkoopprijs'),
+            purchase_price_eur_cents: parseFormCents(fd.get('purchase_price_eur'), 'purchase price'),
             pricing_version: fd.get('pricing_version') ? parseInt(fd.get('pricing_version'), 10) : 0,
             minimum_quantity: parseInt(fd.get('minimum_quantity'), 10),
             featured: fd.get('featured') ? 1 : 0
@@ -250,7 +250,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         groups.forEach(g => {
             const val = fd.get(`gp_eur_${g.id}`);
             if (val !== '') {
-                gps.push({ group_id: g.id, price_eur_cents: parseFormCents(val, `Groepsprijs ${g.name}`) });
+                gps.push({ group_id: g.id, price_eur_cents: parseFormCents(val, `group price ${g.name}`) });
             } else {
                 gps.push({ group_id: g.id, price_eur_cents: null });
             }
@@ -259,43 +259,43 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         payload.model_ids = fd.getAll('models[]').map(m => parseInt(m, 10));
         const btn = e.target.querySelector('.product-submit');
         btn.disabled = true;
-        btn.textContent = 'Opslaan...';
+        btn.textContent = 'Saving...';
         try {
             if (isNew) {
                 const res = await window.Core.fetch('/admin/products', { method: 'POST', body: payload });
-                window.Workbench.toast('Product aangemaakt', 'success');
+                window.Workbench.toast('Product created', 'success');
                 window.Router.navigate(`${window.APP_BASE}admin/products/${res.product.id}`);
             } else {
                 await window.Core.fetch(`/admin/products/${id}`, { method: 'PATCH', body: payload });
-                window.Workbench.toast('Product opgeslagen', 'success');
+                window.Workbench.toast('Product saved', 'success');
                 window.Router.route(); 
             }
-        } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
+        } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Create Product' : 'Save Changes'; }
     };
 
     if (!isNew) {
         const delBtn = root.querySelector('.action-del-product');
         if (delBtn) delBtn.addEventListener('click', async () => {
-            if (!confirm('Weet u zeker dat u dit product wilt archiveren? Orderhistorie blijft intact.')) return;
+            if (!confirm('Are you sure you want to archive this product? The order history will remain intact.')) return;
             try {
                 await window.Core.fetch(`/admin/products/${id}`, { method: 'DELETE' });
-                window.Workbench.toast('Product gearchiveerd', 'success');
+                window.Workbench.toast('Product archived', 'success');
                 window.Router.navigate(window.APP_BASE + 'admin/products');
-            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Product Aanmaken' : 'Wijzigingen Opslaan'; }
+            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Create Product' : 'Save Changes'; }
         });
 
         const upBtn = root.querySelector('.action-upload-img');
         if (upBtn) upBtn.addEventListener('click', async () => {
             const input = document.getElementById('img-upload');
             const files = [...input.files];
-            if (!files.length) return window.Workbench.toast('Kies eerst één of meer bestanden', 'warning');
+            if (!files.length) return window.Workbench.toast('Select one or more files first', 'warning');
             const progress = root.querySelector('.image-upload-progress');
             const results = files.map(file => ({file, state: 'waiting', error: ''}));
             const renderProgress = () => {
                 progress.innerHTML = results.map((result, index) => `
                     <div class="image-upload-result ${result.state}" data-upload-index="${index}">
                         <span>${esc(result.file.name)}</span>
-                        <strong>${result.state === 'waiting' ? 'Wacht' : result.state === 'uploading' ? 'Bezig…' : result.state === 'success' ? 'Opgeslagen' : esc(result.error)}</strong>
+                        <strong>${result.state === 'waiting' ? 'Waiting' : result.state === 'uploading' ? 'Uploading…' : result.state === 'success' ? 'Saved' : esc(result.error)}</strong>
                     </div>
                 `).join('');
             };
@@ -313,7 +313,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                     result.state = 'success';
                 } catch (error) {
                     result.state = 'error';
-                    result.error = error.message || 'Upload mislukt';
+                    result.error = error.message || 'Upload failed';
                 }
                 renderProgress();
             }
@@ -323,9 +323,9 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             input.disabled = false;
             input.value = '';
             if (failures) {
-                window.Workbench.toast(`${successes} opgeslagen, ${failures} mislukt. De geslaagde uploads blijven bewaard.`, 'error');
+                window.Workbench.toast(`${successes} saved, ${failures} failed. Successful uploads have been retained.`, 'error');
             } else {
-                window.Workbench.toast(`${successes} afbeelding${successes === 1 ? '' : 'en'} geüpload`, 'success');
+                window.Workbench.toast(`${successes} image${successes === 1 ? '' : 's'} uploaded`, 'success');
             }
         });
 

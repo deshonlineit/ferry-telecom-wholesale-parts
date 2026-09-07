@@ -2,20 +2,30 @@
     const esc = window.Core.escapeHtml;
     const MOBILE_WIDTH = 768;
 
+    const MODEL_LIMIT = 12;
+
     const currentParams = () => new URLSearchParams(window.location?.search || '');
+    // The top menu is a destination picker, not a refinement of the page you are on:
+    // every pick starts a fresh scope, so a part type or facet chosen earlier can never
+    // travel along and leave the visitor on an empty combination. Only how the results
+    // are presented (sort, page size) survives.
+    const SCOPE_RESET = ['brand', 'device_brand', 'q', 'page', 'category', 'part', 'quality', 'stock', 'featured'];
     const compatibilityUrl = changes => {
         const params = currentParams();
-        ['brand', 'q', 'page'].forEach(key => params.delete(key));
+        SCOPE_RESET.forEach(key => params.delete(key));
         Object.entries(changes || {}).forEach(([key, value]) => {
             if (value === '' || value === null || value === undefined) params.delete(key);
             else params.set(key, String(value));
         });
         return window.APP_BASE + 'catalog' + (params.size ? '?' + params.toString() : '');
     };
+    // Menu labels are destinations: a brand opens every part for that device brand, a family opens the whole family.
+    const brandUrl = brandId => compatibilityUrl({device_brand: brandId, family: '', model: ''});
+    const familyUrl = familyId => compatibilityUrl({family: familyId, model: ''});
     const orderedModels = models => [...models].sort((a, b) =>
         Number(Boolean(b.order_known)) - Number(Boolean(a.order_known))
         || Number(b.sort_order || 0) - Number(a.sort_order || 0)
-        || String(b.name).localeCompare(String(a.name), 'nl', {numeric: true})
+        || String(b.name).localeCompare(String(a.name), 'en', {numeric: true})
     );
     const deviceData = catalog => {
         const familiesById = new Map((catalog.device_families || []).map(family => [String(family.id), family]));
@@ -35,12 +45,15 @@
         return [...groups.values()].map(group => ({
             brand: group.brand,
             modelCount: group.modelCount,
+            // The panel opens on the family with the most parts, so the common case needs no clicks.
             families: [...group.families.values()].map(entry => ({
                 family: entry.family,
                 models: orderedModels(entry.models)
-            }))
+            })).sort((a, b) => Number(b.family.count || 0) - Number(a.family.count || 0)
+                || b.models.length - a.models.length
+                || String(a.family.label).localeCompare(String(b.family.label), 'en'))
         })).sort((a, b) => b.modelCount - a.modelCount
-            || String(a.brand.name).localeCompare(String(b.brand.name), 'nl'));
+            || String(a.brand.name).localeCompare(String(b.brand.name), 'en'));
     };
 
     const setHidden = (element, hidden) => {
@@ -91,7 +104,7 @@
         },
 
         renderLoading() {
-            Menu._container.innerHTML = '<div class="b2b-nav-skeleton" aria-label="Assortiment laden"><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div></div>';
+            Menu._container.innerHTML = '<div class="b2b-nav-skeleton" aria-label="Loading catalogue"><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div></div>';
         },
 
         load() {
@@ -107,11 +120,11 @@
             Menu._container.replaceChildren();
             const error = document.createElement('div');
             error.className = 'b2b-menu-error text-danger p-3';
-            error.textContent = 'Kon menu niet laden. ';
+            error.textContent = 'Could not load menu. ';
             const retry = document.createElement('button');
             retry.type = 'button';
             retry.className = 'b2b-menu-retry';
-            retry.textContent = 'Opnieuw proberen';
+            retry.textContent = 'Try again';
             retry.addEventListener('click', () => {
                 Menu.renderLoading();
                 Menu.load();
@@ -158,6 +171,7 @@
         openItem(item, fromHover = false) {
             if (!item?._b2bOverlay) return;
             if (Menu._openItem && Menu._openItem !== item) Menu.closeItem(Menu._openItem);
+            Menu.refreshDestination(item._b2bLink);
             Menu.refreshLinks(item._b2bOverlay);
             item._openedByHover = fromHover;
             item.classList.add('is-open');
@@ -165,6 +179,16 @@
             setHidden(item._b2bOverlay, false);
             Menu._openItem = item;
             Menu.filterModels(item._b2bOverlay);
+        },
+
+        /** Client-side navigation changes the context, so a link is rebuilt right before it is used. */
+        refreshDestination(link) {
+            if (!link?.classList) return;
+            if (link.dataset?.deviceBrand) link.href = brandUrl(link.dataset.deviceBrand);
+            else if (link.classList.contains('b2b-family-link') || link.classList.contains('b2b-family-all')) link.href = familyUrl(link.dataset?.familyId);
+            else if (link.classList.contains('b2b-model-link') && link.dataset?.modelId) {
+                link.href = compatibilityUrl({family: new URL(link.href, window.location.href).searchParams.get('family'), model: link.dataset.modelId});
+            }
         },
 
         refreshLinks(overlay) {
@@ -175,8 +199,8 @@
                     link.href = compatibilityUrl({family: target.searchParams.get('family'), model});
                     if (model === currentParams().get('model')) link.setAttribute('aria-current', 'page');
                     else link.removeAttribute('aria-current');
-                } else if (link.classList.contains('b2b-family-all')) {
-                    link.href = compatibilityUrl({family: target.searchParams.get('family'), model: ''});
+                } else if (link.classList.contains('b2b-family-all') || link.classList.contains('b2b-family-link')) {
+                    link.href = familyUrl(link.dataset?.familyId || target.searchParams.get('family'));
                 } else if (link.classList.contains('b2b-acc-link')) {
                     link.href = compatibilityUrl({category: target.searchParams.get('category'), part: '', family: '', model: ''});
                 }
@@ -195,15 +219,29 @@
             Menu._list?.classList.remove('mobile-open');
         },
 
-        createDropdownItem(label, id, content) {
+        createDropdownItem(label, id, content, destination = null) {
             const item = document.createElement('li');
             item.className = 'b2b-nav-item has-dropdown';
+            const chevron = '<svg class="mobile-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>';
             const trigger = document.createElement('button');
             trigger.type = 'button';
-            trigger.className = 'b2b-nav-link';
             trigger.setAttribute('aria-expanded', 'false');
             trigger.setAttribute('aria-controls', id);
-            trigger.innerHTML = `<span>${esc(label)}</span><svg class="mobile-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+            if (destination) {
+                const anchor = document.createElement('a');
+                anchor.className = 'b2b-nav-link is-linked';
+                anchor.href = destination.href;
+                anchor.dataset.deviceBrand = String(destination.brandId);
+                anchor.textContent = label;
+                item._b2bLink = anchor;
+                item.appendChild(anchor);
+                trigger.className = 'b2b-nav-caret';
+                trigger.setAttribute('aria-label', `Show ${label} models`);
+                trigger.innerHTML = chevron;
+            } else {
+                trigger.className = 'b2b-nav-link';
+                trigger.innerHTML = `<span>${esc(label)}</span>${chevron}`;
+            }
             const overlay = document.createElement('div');
             overlay.id = id;
             overlay.className = 'b2b-dropdown-overlay';
@@ -226,29 +264,60 @@
             return item;
         },
 
-        familyGrid(group, prefix, familyOffset = 0, groupActive = true) {
+        modelLink(model) {
+            return `<a href="${esc(compatibilityUrl({family: model.family, model: model.id}))}" class="b2b-model-link" data-model-id="${esc(model.id)}" title="${esc(model.name)}">${esc(model.name)}</a>`;
+        },
+
+        /** Start concise, but let the visitor expand the complete newest-to-oldest overview in place. */
+        modelsMarkup(entry, query = '', expanded = false) {
+            const term = String(query || '').trim();
+            const ranked = window.ModelSearch.rank(entry.models, term);
+            const shown = term || expanded ? ranked : ranked.slice(0, MODEL_LIMIT);
+            const total = entry.models.length;
+            const label = entry.family.label;
+            const parts = Number(entry.family.count || 0);
+            let status;
+            if (term) {
+                status = ranked.length
+                    ? `${ranked.length} of ${total} models`
+                    : `No model with this name in ${label}`;
+            } else if (expanded) {
+                status = `All ${total} models · newest to oldest`;
+            } else {
+                status = total > shown.length
+                    ? `${shown.length} newest of ${total} models`
+                    : `${total} ${total === 1 ? 'model' : 'models'}`;
+            }
+            const toggle = !term && total > MODEL_LIMIT
+                ? `<button type="button" class="b2b-model-expand" data-model-expand aria-expanded="${expanded}">${expanded ? `Show newest ${MODEL_LIMIT}` : `Show all ${total} models`}<span aria-hidden="true">${expanded ? '↑' : '↓'}</span></button>`
+                : '';
+            return `<p class="b2b-model-status" role="status" aria-live="polite">${esc(status)}</p>
+                <div class="b2b-model-links">${shown.map(Menu.modelLink).join('')}</div>
+                ${toggle}
+                <a class="b2b-family-all" href="${esc(familyUrl(entry.family.id))}" data-family-id="${esc(entry.family.id)}">All parts for ${esc(label)}${parts ? ` <small>${parts.toLocaleString('en-GB')}</small>` : ''}</a>`;
+        },
+
+        familyGrid(group, prefix, familyOffset = 0, groupActive = true, registry = null) {
             const familyButtons = [];
             const grids = [];
             group.families.forEach((entry, index) => {
                 const familyIndex = familyOffset + index;
                 const panelId = `${prefix}-models-${familyIndex}`;
                 const active = groupActive && index === 0;
-                familyButtons.push(`<button type="button" class="b2b-family-btn${active ? ' active' : ''}" data-family-index="${familyIndex}" aria-expanded="${active}" aria-controls="${panelId}"><span>${esc(entry.family.label)}</span><span aria-hidden="true">›</span></button>`);
-                const links = entry.models.map(model =>
-                    `<a href="${esc(compatibilityUrl({family: model.family, model: model.id}))}" class="b2b-model-link" title="${esc(model.name)}">${esc(model.name)}</a>`
-                ).join('');
-                grids.push(`<div class="b2b-models-grid${active ? ' active' : ''}" id="${panelId}" data-family-grid="${familyIndex}"${active ? '' : ' hidden inert'}><a class="b2b-family-all" href="${esc(compatibilityUrl({family: entry.family.id, model: ''}))}">Alle onderdelen voor ${esc(entry.family.label)}</a>${links}</div>`);
+                registry?.set(String(familyIndex), entry);
+                familyButtons.push(`<div class="b2b-family-row${active ? ' active' : ''}" data-family-row="${familyIndex}"><a class="b2b-family-link" href="${esc(familyUrl(entry.family.id))}" data-family-id="${esc(entry.family.id)}">${esc(entry.family.label)}</a><button type="button" class="b2b-family-btn${active ? ' active' : ''}" data-family-index="${familyIndex}" aria-expanded="${active}" aria-controls="${panelId}" aria-label="Show models for ${esc(entry.family.label)}"><span aria-hidden="true">›</span></button></div>`);
+                grids.push(`<div class="b2b-models-grid${active ? ' active' : ''}" id="${panelId}" data-family-grid="${familyIndex}"${active ? '' : ' hidden inert'}>${Menu.modelsMarkup(entry)}</div>`);
             });
             return {familyButtons: familyButtons.join(''), grids: grids.join('')};
         },
 
-        deviceContent(groups, prefix, showBrands) {
+        deviceContent(groups, prefix, showBrands, registry = null) {
             let offset = 0;
             const familySections = [];
             const grids = [];
             groups.forEach((group, brandIndex) => {
                 const sectionId = `${prefix}-brand-families-${brandIndex}`;
-                const section = Menu.familyGrid(group, prefix, offset, brandIndex === 0);
+                const section = Menu.familyGrid(group, prefix, offset, brandIndex === 0, registry);
                 familySections.push(`<div class="b2b-brand-families${brandIndex === 0 ? ' active' : ''}" id="${sectionId}" data-brand-families="${brandIndex}"${brandIndex === 0 ? '' : ' hidden inert'}>${section.familyButtons}</div>`);
                 grids.push(section.grids);
                 offset += group.families.length;
@@ -256,16 +325,18 @@
             const brands = showBrands ? `<div class="b2b-mega-brands">${groups.map((group, index) =>
                 `<button type="button" class="b2b-brand-btn${index === 0 ? ' active' : ''}" data-brand-index="${index}" aria-expanded="${index === 0}" aria-controls="${prefix}-brand-families-${index}">${esc(group.brand.name)}</button>`
             ).join('')}</div>` : '';
-            return `<div class="b2b-mega-layout"><div class="b2b-mega-families">${brands}${familySections.join('')}</div><div class="b2b-mega-models"><div class="b2b-mega-heading"><span>Kies een model <small>Nieuw naar oud</small></span><button type="button" class="b2b-menu-close">Menu sluiten</button></div><label class="b2b-model-search-wrap"><span>Model zoeken</span><input type="search" class="b2b-model-search" placeholder="Typ een modelnaam…" autocomplete="off"></label><p class="b2b-model-count" role="status" aria-live="polite"></p><p class="b2b-model-empty" hidden>Geen modellen gevonden. Wis de zoekopdracht of probeer een andere naam.</p>${grids.join('')}<button type="button" class="b2b-menu-back">Terug naar assortiment</button></div></div>`;
+            return `<div class="b2b-mega-layout"><div class="b2b-mega-families">${brands}${familySections.join('')}</div><div class="b2b-mega-models"><div class="b2b-mega-heading"><span>Choose a model <small>Newest to oldest</small></span><button type="button" class="b2b-menu-close">Close menu</button></div><label class="b2b-model-search-wrap"><span>Search models</span><input type="search" class="b2b-model-search" placeholder="Enter a model name…" autocomplete="off"></label>${grids.join('')}<button type="button" class="b2b-menu-back">Back to catalogue</button></div></div>`;
         },
 
         bindDropdown(item) {
             const overlay = item._b2bOverlay;
             const activateFamily = button => {
+                if (!button) return;
                 overlay.querySelectorAll('.b2b-family-btn').forEach(candidate => {
                     const active = candidate === button;
                     candidate.classList.toggle('active', active);
                     candidate.setAttribute('aria-expanded', String(active));
+                    candidate.parentElement?.classList?.toggle('active', active);
                 });
                 overlay.querySelectorAll('[data-family-grid]').forEach(grid => {
                     const active = grid.dataset.familyGrid === button.dataset.familyIndex;
@@ -273,11 +344,15 @@
                     setHidden(grid, !active);
                 });
                 const input = overlay.querySelector('.b2b-model-search');
-                if (input) {
-                    input.value = '';
-                    Menu.filterModels(overlay);
-                }
+                if (input) input.value = '';
+                Menu.filterModels(overlay);
             };
+            // Pointing at a family previews its models; the label itself stays a link to the whole family.
+            overlay.addEventListener('mouseover', event => {
+                if (window.innerWidth <= MOBILE_WIDTH) return;
+                const button = event.target.closest?.('.b2b-family-row')?.querySelector('.b2b-family-btn');
+                if (button && !button.classList.contains('active')) activateFamily(button);
+            });
             overlay.addEventListener('click', event => {
                 const close = event.target.closest?.('.b2b-menu-close, .b2b-menu-back');
                 if (close) {
@@ -302,6 +377,25 @@
                 }
                 const familyButton = event.target.closest?.('.b2b-family-btn');
                 if (familyButton) activateFamily(familyButton);
+                const expandButton = event.target.closest?.('[data-model-expand]');
+                if (expandButton) {
+                    // The clicked button is replaced below. Stop this event before its
+                    // detached target reaches the document outside-click handler.
+                    event.stopPropagation?.();
+                    const active = overlay.querySelector('.b2b-models-grid.active');
+                    const entry = active && overlay._b2bFamilies?.get(String(active.dataset.familyGrid));
+                    if (active && entry) {
+                        const expanded = active.dataset.expanded !== 'true';
+                        active.dataset.expanded = String(expanded);
+                        const input = overlay.querySelector('.b2b-model-search');
+                        active.innerHTML = Menu.modelsMarkup(entry, input?.value || '', expanded);
+                        // Replacing the clicked button can fire mouseleave under a stationary
+                        // pointer. Keep keyboard focus inside the menu so its desktop
+                        // mouse-leave guard does not close the freshly expanded overview.
+                        active.querySelector('[data-model-expand]')?.focus({preventScroll: true});
+                    }
+                    return;
+                }
                 if (event.target.closest?.('a')) Menu.closeAll();
             });
             overlay.addEventListener('input', event => {
@@ -320,25 +414,21 @@
         filterModels(overlay) {
             const input = overlay.querySelector('.b2b-model-search');
             const active = overlay.querySelector('.b2b-models-grid.active');
-            if (!input || !active) return;
-            const query = input.value.trim().toLocaleLowerCase('nl');
-            let visible = 0;
+            const entry = active && overlay._b2bFamilies?.get(String(active.dataset.familyGrid));
+            if (!input || !entry) return;
+            active.innerHTML = Menu.modelsMarkup(entry, input.value, active.dataset.expanded === 'true');
+            const current = currentParams().get('model');
             active.querySelectorAll('.b2b-model-link').forEach(link => {
-                const match = !query || link.textContent.toLocaleLowerCase('nl').includes(query);
-                link.hidden = !match;
-                if (match) visible++;
+                if (current && link.dataset.modelId === current) link.setAttribute('aria-current', 'page');
+                else link.removeAttribute('aria-current');
             });
-            const empty = overlay.querySelector('.b2b-model-empty');
-            const count = overlay.querySelector('.b2b-model-count');
-            if (empty) empty.hidden = visible > 0;
-            if (count) count.textContent = `${visible} ${visible === 1 ? 'model' : 'modellen'}`;
         },
 
         categoryItem(label, categories, id) {
             const links = categories.map(category =>
                 `<div class="b2b-acc-group"><a href="${esc(compatibilityUrl({category: category.id, part: '', family: '', model: ''}))}" class="b2b-acc-link fw-bold">${esc(category.name)}</a></div>`
             ).join('');
-            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">Menu sluiten</button></div>`);
+            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">Close menu</button></div>`);
         },
 
         renderMegaMenu(container, catalog) {
@@ -351,7 +441,7 @@
             mobileToggle.className = 'b2b-mobile-toggle';
             mobileToggle.setAttribute('aria-expanded', 'false');
             mobileToggle.setAttribute('aria-controls', 'b2b-top-navigation');
-            mobileToggle.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>Assortiment</span>';
+            mobileToggle.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>Catalogue</span>';
             const list = document.createElement('ul');
             list.id = 'b2b-top-navigation';
             list.className = 'b2b-top-nav';
@@ -367,30 +457,33 @@
 
             const allItem = document.createElement('li');
             allItem.className = 'b2b-nav-item';
-            allItem.innerHTML = `<a class="b2b-nav-link" href="${window.APP_BASE}catalog">Alles</a>`;
+            allItem.innerHTML = `<a class="b2b-nav-link" href="${window.APP_BASE}catalog">All</a>`;
             list.appendChild(allItem);
-            top.forEach((group, index) => {
-                const item = Menu.createDropdownItem(group.brand.name, `b2b-device-menu-${index}`, Menu.deviceContent([group], `top-${index}`, false));
+            const deviceItem = (label, id, groups, prefix, showBrands, destination) => {
+                const registry = new Map();
+                const item = Menu.createDropdownItem(label, id, Menu.deviceContent(groups, prefix, showBrands, registry), destination);
+                item._b2bOverlay._b2bFamilies = registry;
                 Menu.bindDropdown(item);
                 list.appendChild(item);
-            });
-            if (other.length) {
-                const item = Menu.createDropdownItem('Overige merken', 'b2b-device-menu-other', Menu.deviceContent(other, 'other', true));
-                Menu.bindDropdown(item);
-                list.appendChild(item);
-            }
+            };
+            top.forEach((group, index) => deviceItem(group.brand.name, `b2b-device-menu-${index}`, [group], `top-${index}`, false,
+                {href: brandUrl(group.brand.id), brandId: group.brand.id}));
+            if (other.length) deviceItem('Other brands', 'b2b-device-menu-other', other, 'other', true, null);
 
             const grouped = window.App.groupCategories ? window.App.groupCategories(catalog.categories || []) : {parts: catalog.categories || [], supplies: []};
             if (grouped.parts.length) {
-                const item = Menu.categoryItem('Onderdelen', grouped.parts, 'b2b-parts-menu');
+                const item = Menu.categoryItem('Parts', grouped.parts, 'b2b-parts-menu');
                 Menu.bindDropdown(item);
                 list.appendChild(item);
             }
             if (grouped.supplies.length) {
-                const item = Menu.categoryItem('Accessoires & Tools', grouped.supplies, 'b2b-supplies-menu');
+                const item = Menu.categoryItem('Accessories & Tools', grouped.supplies, 'b2b-supplies-menu');
                 Menu.bindDropdown(item);
                 list.appendChild(item);
             }
+            list.addEventListener('click', event => {
+                Menu.refreshDestination(event.target.closest?.('a'));
+            }, true);
             list.addEventListener('click', event => {
                 if (event.target.closest?.('a')) Menu.closeAll();
             });

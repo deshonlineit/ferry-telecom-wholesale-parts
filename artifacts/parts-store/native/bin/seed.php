@@ -16,7 +16,7 @@ if ((int) $pdo->query('SELECT COUNT(*) FROM customer_groups')->fetchColumn() ===
             $insert->execute([$name, $email, password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT), $company, $role, $group]);
             $id = (int) $pdo->lastInsertId();
             $pdo->prepare('INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,?,?,?,?,?,?,?,?,1)')
-                ->execute([$id, 'Testadres', $name, $company, 'Voorbeeldstraat 1', '', '8000', 'Zürich', 'CH']);
+                ->execute([$id, 'Test address', $name, $company, 'Example Street 1', '', '8000', 'Zürich', 'CH']);
         }
         $insert = $pdo->prepare('INSERT INTO settings(name,value) VALUES(?,?)');
         foreach (['currency' => 'CHF', 'tax_bps' => '810', 'shipping_cents' => '950', 'free_shipping_cents' => '25000', 'low_stock_threshold' => '5', 'seed_version' => '1'] as $name => $value) {
@@ -24,7 +24,7 @@ if ((int) $pdo->query('SELECT COUNT(*) FROM customer_groups')->fetchColumn() ===
         }
         $insert = $pdo->prepare('INSERT INTO buyback_items(model,grade,price_cents) VALUES(?,?,?)');
         foreach (['iPhone 13', 'iPhone 14', 'iPhone 15', 'iPhone 15 Pro', 'iPhone 16 Pro', 'Samsung Galaxy S24'] as $index => $model) {
-            $insert->execute([$model, 'Werkende OLED, gebroken glas — test', 1200 + $index * 650]);
+            $insert->execute([$model, 'Working OLED, broken glass — test', 1200 + $index * 650]);
         }
         $pdo->commit();
     } catch (Throwable $error) {
@@ -57,10 +57,10 @@ $handle = fopen($files[0], 'r');
 $headers = fgetcsv($handle, 0, ',', '"', '');
 $headers[0] = ltrim($headers[0], "\xEF\xBB\xBF");
 $categories = [
-    'screens' => 'Displays & touchscreens', 'batteries' => 'Batterijen', 'charging' => 'Laadpoorten',
-    'cameras' => "Camera's", 'housing' => 'Behuizing & achterglas', 'flex' => 'Flexkabels & knoppen',
-    'audio' => 'Speakers & audio', 'adhesive' => 'Adhesive & afdichting', 'tools' => 'Reparatiegereedschap',
-    'protection' => 'Hoesjes & bescherming', 'accessories' => 'Kabels & accessoires', 'other' => 'Overige onderdelen',
+    'screens' => 'Displays & touchscreens', 'batteries' => 'Batteries', 'charging' => 'Charging ports',
+    'cameras' => 'Cameras', 'housing' => 'Housings & back glass', 'flex' => 'Flex cables & buttons',
+    'audio' => 'Speakers & audio', 'adhesive' => 'Adhesive & sealing', 'tools' => 'Repair tools',
+    'protection' => 'Cases & protection', 'accessories' => 'Cables & accessories', 'other' => 'Other parts',
 ];
 $pdo->beginTransaction();
 $categoryIds = [];
@@ -119,7 +119,7 @@ try {
         $quality = trim($row['attribute:pa_quality'] ?? $row['attribute:Quality'] ?? '');
         if (!$quality) {
             preg_match('/\b(Service Pack|Refurbished|Original|OEM|Premium|Aftermarket|Incell|Soft OLED|Hard OLED)\b/i', $name, $qualityMatch);
-            $quality = $qualityMatch[1] ?? 'Standaard';
+            $quality = $qualityMatch[1] ?? 'Standard';
         }
         $stock = max(0, min(100000, (int) ($row['stock'] ?? 0)));
         $price = match ($category) {
@@ -131,7 +131,7 @@ try {
         $description = trim(html_entity_decode(strip_tags($row['post_excerpt'] ?: ($row['post_content'] ?? '')), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $description = mb_substr(preg_replace('/\s+/u', ' ', $description), 0, 5000);
         if (!$description) {
-            $description = $name . '. Productgegevens uit de offline catalogusexport. Controleer model en kwaliteit vóór gebruik.';
+            $description = $name . '. Product data from the offline catalogue export. Check the model and quality before use.';
         }
         $featured = $stock > 0 && preg_match('/iphone (14|15|16|17)|galaxy s2[3456]/i', $name) && in_array($category, ['screens', 'batteries', 'cameras', 'charging'], true);
         $insertProduct->execute([$sku, mb_substr($name, 0, 500), $description, $categoryIds[$category], $brandIds[$brand], mb_substr($quality, 0, 100), $stock, $price, (int) $featured]);

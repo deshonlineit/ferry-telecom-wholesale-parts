@@ -48,9 +48,8 @@
 }
 
 /* Columns */
-.col-img { width: 64px; padding-right: 0 !important; }
+.col-img { width: 80px; padding-right: 0 !important; }
 .col-product { min-width: 260px; }
-.col-reviews { width: 110px; color: var(--apple-muted); font-size: 0.8125rem; }
 .col-stock { width: 140px; }
 .col-price { width: 120px; font-weight: 600; }
 .col-order { width: 180px; }
@@ -58,8 +57,8 @@
 /* Image */
 .b2b-img-wrap {
     display: flex;
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
     background: #fff;
     border-radius: 6px;
     overflow: hidden;
@@ -73,11 +72,16 @@
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+    transition: transform 0.2s ease;
+}
+
+.b2b-img-wrap:hover img {
+    transform: scale(1.06);
 }
 
 .b2b-img-wrap.no-img svg {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     color: #c7c7cc;
 }
 
@@ -89,8 +93,12 @@
     line-height: 1.2;
 }
 
-.b2b-prod-title a { color: #1d1d1f; text-decoration: none; }
-.b2b-prod-title a:hover { color: var(--primary); text-decoration: underline; }
+.b2b-prod-title a { color: #1d1d1f; text-decoration: none; transition: color 0.2s ease; }
+body:not(:has(.admin-shell)) .b2b-prod-title a:hover,
+body:not(:has(.admin-shell)) .b2b-prod-title a:focus-visible {
+    color: var(--primary);
+    text-decoration: none;
+}
 
 .b2b-prod-meta {
     display: flex;
@@ -134,12 +142,6 @@
     max-width: 280px;
 }
 
-/* Reviews */
-.b2b-reviews-empty {
-    color: var(--apple-muted);
-    font-style: italic;
-}
-
 /* Stock */
 .b2b-stock-indicator {
     display: flex;
@@ -148,9 +150,9 @@
     font-weight: 500;
 }
 .b2b-dot { width: 8px; height: 8px; border-radius: 50%; }
+.b2b-stock-ok { color: #1f7a37; }
 .b2b-stock-ok .b2b-dot { background: #34c759; }
-.b2b-stock-low .b2b-dot { background: #ff9f0a; }
-.b2b-stock-out { color: var(--apple-muted); }
+.b2b-stock-out { color: #c72c22; }
 .b2b-stock-out .b2b-dot { background: #ff3b30; }
 
 .b2b-min-qty-warn {
@@ -554,7 +556,7 @@
     }
     .b2b-prod-models { white-space: normal; max-width: none; }
     
-    .col-reviews, .col-stock {
+    .col-stock {
         padding-left: 80px !important;
         margin-bottom: 0.5rem;
     }

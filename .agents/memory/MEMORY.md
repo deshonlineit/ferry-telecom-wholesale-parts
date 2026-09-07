@@ -21,3 +21,12 @@
 - [Authentication test rate limits](auth-test-rate-limits.md) — reuse short-lived tokens in API suites so shared provider limits do not block assertions or fixture cleanup.
 - [Catalog photo lifecycle](catalog-photo-lifecycle.md) — prototype gallery removal unlinks public photos; permanent erasure must account for order and shared references.
 - [Identity test rate limits](identity-test-rate-limits.md) — concurrent task checks share one development tenant; reuse session tokens and retry throttled cleanup.
+- [Device scope navigation](device-scope-navigation.md) — brand/family/model are one scope axis: a narrower pick must clear the wider one, and escape-hatch facets must exclude the whole axis.
+- [Brand asset rendering](brand-asset-rendering.md) — a logo re-coloured by a CSS invert filter must cut its letter out with a mask; a white fill vanishes.
+- [Keyboard commit paths](keyboard-commit-paths.md) — Enter in a suggestion list must navigate itself; a synthetic click leans on the document router and fails where a mouse click does not.
+- [Native theme CSS specificity](native-theme-css-specificity.md) — body-level `:has()` theme rules beat single-class heading/link styles; dark panels need an extra wrapper class.
+- [vm-realm assertions](vm-realm-assertions.md) — deepStrictEqual fails on identical arrays crossing a node:vm boundary; copy with Array.from before asserting.
+- [Search minimum length](search-minimum-length.md) — no character minimum by owner's decision; bound search by row limit and debounce, never by refusing short terms.
+- [Landing visual tone](landing-visual-tone.md) — the front page opens light and quiet; dark saturated blocks and black buttons read as aggressive to the owner.
+- [Catalogue visual language](catalogue-visual-language.md) — image-led categories, collapsed model families, quiet blue surface, larger product images, and no title underlines.
+- [Client policy enforcement](client-policy-enforcement.md) — a shortened UI list is not a rule until PHP rejects the excluded values, with a QA check keeping both lists identical.

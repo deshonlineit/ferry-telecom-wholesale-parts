@@ -38,3 +38,9 @@ Exercise pointer entry followed by click as a single interaction for hover-enabl
 **Why:** Real pointer clicks first enter the target. A click-only test double can pass while the preceding hover opens the menu and the click immediately closes it. Browser focus restoration must also target a control that remains visible after mobile navigation closes.
 
 **How to apply:** Include the real pointer sequence and mobile Escape in the controller regression; assess the navigation and surrounding catalog controls together, not the trigger alone.
+
+Park the pointer away from the element before measuring or screenshotting a rest state.
+
+**Why:** a headless driver keeps its virtual cursor where the last interaction left it, and that survives navigation and reloads. A correct resting style then reports and renders as its hover style, which looks like a failed fix and invites a second, wrong change.
+
+**How to apply:** move the pointer to a neutral coordinate first, measure the rest state, then hover explicitly and measure again; report both. Treat a "rest" measurement that exactly equals the hover rule as a parked cursor until proven otherwise.

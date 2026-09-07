@@ -75,6 +75,21 @@ check('model switching preserves precise housing type', () => {
     assert.equal(url.searchParams.get('part'), 'frame');
     assert.equal(url.searchParams.get('category'), '5');
     assert.equal(url.searchParams.has('q'), false);
+    const scoped = new URL(finder.modelUrl(new URLSearchParams('category=5&device_brand=1'), catalog.models[2]), 'https://shop.example.test');
+    assert.equal(scoped.searchParams.get('model'), '30');
+    assert.equal(scoped.searchParams.has('device_brand'), false, 'Choosing a model releases the wider device brand it may contradict');
+});
+check('a model from another family releases the family of the page you came from', () => {
+    const iphone = {id: 132, brand_id: 1, name: 'iPhone 13', count: 13, family: 'iphone'};
+    const galaxy = {id: 30, brand_id: 2, name: 'Galaxy S22', count: 4, family: 'galaxy'};
+    const crossed = new URL(finder.modelUrl(new URLSearchParams('family=iphone&category=5&quality=OLED'), galaxy), 'https://shop.example.test');
+    assert.equal(crossed.searchParams.has('family'), false, 'An iPhone family plus a Galaxy model intersects into an empty page');
+    assert.equal(crossed.searchParams.get('model'), '30');
+    assert.equal(crossed.searchParams.get('category'), '5', 'The part context of the current page survives a contextual model switch');
+    assert.equal(crossed.searchParams.get('quality'), 'OLED');
+    const same = new URL(finder.modelUrl(new URLSearchParams('family=iphone&category=5'), iphone), 'https://shop.example.test');
+    assert.equal(same.searchParams.get('family'), 'iphone', 'Staying inside the family keeps it');
+    assert.equal(same.searchParams.get('model'), '132');
 });
 check('inline model search exposes keyboard combobox and browse action', () => {
     const html = finder.inline(new URLSearchParams(), catalog.models[0]);
@@ -135,4 +150,132 @@ check('shortcut does not hijack editing or an open dialog', () => {
     listeners.keydown(keyEvent('/'));
     assert.equal(focused, '');
 });
-console.log(`${count} quick-finder checks passed.`);
+function stubLink(href, dialog = null) {
+    const attributes = {href};
+    return {
+        dataset: {},
+        getAttribute: key => attributes[key],
+        setAttribute(key, value) { attributes[key] = value; },
+        closest: selector => (selector === 'dialog' ? dialog : null),
+        scrollIntoView() {}
+    };
+}
+check('a keyboard choice navigates itself through the router', () => {
+    const navigated = [];
+    context.window.Router = {navigate: url => navigated.push(url)};
+    assert.equal(finder.go(stubLink('/test-shop/catalog?brand=1&model=132')), true);
+    assert.deepEqual(navigated, ['/test-shop/catalog?brand=1&model=132']);
+});
+check('a keyboard choice closes the model dialog it was made in', () => {
+    let closed = false;
+    context.window.Router = {navigate() {}};
+    finder.go(stubLink('/test-shop/catalog?model=132', {close() { closed = true; }}));
+    assert.equal(closed, true);
+});
+check('without a router the browser itself performs the jump', () => {
+    const assigned = [];
+    context.window.Router = {};
+    context.window.location = {assign: url => assigned.push(url)};
+    finder.go(stubLink('/test-shop/catalog?model=132'));
+    assert.deepEqual(assigned, ['/test-shop/catalog?model=132']);
+});
+check('nothing to choose means no navigation at all', () => {
+    const navigated = [];
+    context.window.Router = {navigate: url => navigated.push(url)};
+    assert.equal(finder.go(null), false);
+    assert.equal(finder.go(stubLink(undefined)), false);
+    assert.deepEqual(navigated, []);
+});
+
+// The inline finder without a DOM: enough of one to press keys against.
+function inlineHarness(loadChoices) {
+    const events = new Map();
+    const anchors = [];
+    const input = {value: '', addEventListener(name, callback) { events.set('input:' + name, callback); }, setAttribute() {}, removeAttribute() {}};
+    const list = {
+        querySelectorAll: () => anchors,
+        set innerHTML(html) {
+            anchors.length = 0;
+            for (const match of String(html).matchAll(/<a class="finder-model" href="([^"]+)" data-finder-model="(\d+)"/g)) {
+                anchors.push(Object.assign(stubLink(match[1].replaceAll('&amp;', '&')), {dataset: {finderModel: match[2]}}));
+            }
+        }
+    };
+    const popover = {hidden: true};
+    const root = {
+        isConnected: true,
+        contains: () => false,
+        addEventListener(name, callback) { events.set('root:' + name, callback); },
+        querySelector(selector) {
+            if (selector === 'input') return input;
+            if (selector === '.model-command-popover') return popover;
+            if (selector === '[role="listbox"]') return list;
+            if (selector === '.model-command-status') return {textContent: ''};
+            return null;
+        }
+    };
+    finder.bindInline(root, {brands: [], models: []}, new URLSearchParams(''), loadChoices);
+    const press = key => events.get('input:keydown')({key, preventDefault() {}});
+    const type = value => { input.value = value; return events.get('input:input')(); };
+    return {events, input, popover, press, type};
+}
+async function checkAsync(label, callback) { await callback(); count++; console.log('PASS:', label); }
+(async () => {
+    await checkAsync('Enter opens the best match while the model list is still loading', async () => {
+        const navigated = [];
+        context.window.Router = {navigate: url => navigated.push(url)};
+        let deliver;
+        const harness = inlineHarness(() => new Promise(resolve => { deliver = resolve; }));
+        harness.input.value = 'iPhone 13';
+        const pressed = harness.press('Enter');
+        deliver(catalog);
+        await pressed;
+        assert.deepEqual(navigated, ['/test-shop/catalog?brand=1&model=132']);
+    });
+    await checkAsync('Enter opens the highlighted model, not always the first one', async () => {
+        const navigated = [];
+        context.window.Router = {navigate: url => navigated.push(url)};
+        const harness = inlineHarness(() => Promise.resolve(catalog));
+        harness.input.value = 'iPhone 13';
+        await harness.events.get('input:focus')();
+        await harness.press('ArrowDown');
+        await harness.press('ArrowDown');
+        await harness.press('Enter');
+        assert.deepEqual(navigated, ['/test-shop/catalog?brand=1&model=133']);
+    });
+    await checkAsync('Enter still opens the match after the list was closed', async () => {
+        const navigated = [];
+        context.window.Router = {navigate: url => navigated.push(url)};
+        const harness = inlineHarness(() => Promise.resolve(catalog));
+        harness.input.value = 'iPhone 13';
+        await harness.events.get('input:focus')();
+        await harness.press('Escape');
+        assert.equal(harness.popover.hidden, true);
+        await harness.press('Enter');
+        assert.deepEqual(navigated, ['/test-shop/catalog?brand=1&model=132']);
+    });
+    await checkAsync('a second Enter during the same wait cannot open two pages', async () => {
+        const navigated = [];
+        context.window.Router = {navigate: url => navigated.push(url)};
+        let deliver;
+        const harness = inlineHarness(() => new Promise(resolve => { deliver = resolve; }));
+        harness.input.value = 'iPhone 13';
+        const first = harness.press('Enter');
+        const second = harness.press('Enter');
+        deliver(catalog);
+        await Promise.all([first, second]);
+        assert.deepEqual(navigated, ['/test-shop/catalog?brand=1&model=132']);
+    });
+    await checkAsync('Enter without a match keeps the field usable for the next attempt', async () => {
+        const navigated = [];
+        context.window.Router = {navigate: url => navigated.push(url)};
+        const harness = inlineHarness(() => Promise.resolve(catalog));
+        harness.input.value = 'onbekend-model';
+        await harness.press('Enter');
+        assert.deepEqual(navigated, []);
+        await harness.type('iPhone 13');
+        await harness.press('Enter');
+        assert.deepEqual(navigated, ['/test-shop/catalog?brand=1&model=132']);
+    });
+    console.log(`${count} quick-finder checks passed.`);
+})().catch(error => { console.error(error); process.exit(1); });

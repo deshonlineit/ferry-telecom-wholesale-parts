@@ -13,11 +13,11 @@
             app.searchAbort?.abort();
             const sequence = app.searchSequence = (app.searchSequence || 0) + 1;
             const query = value.trim();
-            if ([...query].length < 3) {
+            if (query === '') {
                 window.UI.closeSuggestions();
                 return;
             }
-            O.searchMessage('Producten zoeken…');
+            O.searchMessage('Searching for products…');
             app.searchTimer = setTimeout(async () => {
                 app.searchAbort = new AbortController();
                 try {
@@ -25,7 +25,7 @@
                     if (sequence === app.searchSequence) O.renderSuggestions(data, query);
                 } catch (error) {
                     if (sequence === app.searchSequence && error.name !== 'AbortError') {
-                        O.searchMessage('Zoeken is niet gelukt. Typ opnieuw om het nogmaals te proberen.', true);
+                        O.searchMessage('Search failed. Type again to retry.', true);
                     }
                 }
             }, 150);
@@ -43,18 +43,18 @@
             const {container, input} = window.App.searchElements();
             if (!container || !input?.isConnected) return;
             if (!data.products?.length) {
-                O.searchMessage(`Geen producten gevonden voor “${query}”. Probeer een SKU, model of onderdeel.`);
+                O.searchMessage(`No products found for “${query}”. Try a SKU, model or part.`);
                 return;
             }
             const esc = window.Core.escapeHtml;
             const owner = window.App.searchOwner || 'search-input';
             container.classList.add('b2b-search-results');
             container.setAttribute('role', 'dialog');
-            container.setAttribute('aria-label', 'Producten direct bestellen');
+            container.setAttribute('aria-label', 'Order products directly');
             input.setAttribute('aria-haspopup', 'dialog');
             input.removeAttribute('aria-activedescendant');
             window.App.searchIndex = -1;
-            container.innerHTML = `<div class="suggestion-group-title">Direct bestellen <span>${data.products.length} producten</span></div>` +
+            container.innerHTML = `<div class="suggestion-group-title">Order directly <span>${data.products.length} products</span></div>` +
                 data.products.map((product, index) => {
                     const minimum = Math.max(1, Number(product.minimum_quantity) || 1);
                     const available = Number(product.stock) >= minimum && product.price_cents !== null;
@@ -63,19 +63,19 @@
                     const info = [product.sku, product.quality, product.brand_name].filter(Boolean).join(' · ');
                     return `<div class="b2b-suggestion" data-product-row="${product.id}">
                         <a id="${owner}-option-${index}" class="b2b-suggestion-link" data-search-option href="${window.APP_BASE}products/${product.id}">
-                            ${product.image_url ? `<img src="${esc(product.image_url)}" alt="" loading="lazy" width="44" height="44">` : '<span class="img-placeholder" aria-label="Geen productfoto"></span>'}
-                            <span class="b2b-suggestion-info"><strong>${esc(product.name)}</strong><small>${esc(info)}</small><small>${Number(product.stock) > 0 ? `${Number(product.stock)} op voorraad` : 'Niet op voorraad'}</small></span>
+                            ${product.image_url ? `<img src="${esc(product.image_url)}" alt="" loading="lazy" width="44" height="44">` : '<span class="img-placeholder" aria-label="No product photo"></span>'}
+                            <span class="b2b-suggestion-info"><strong>${esc(product.name)}</strong><small>${esc(info)}</small><small>${Number(product.stock) > 0 ? `${Number(product.stock)} in stock` : 'Out of stock'}</small></span>
                         </a>
-                        <div class="b2b-suggestion-price">${product.price_cents === null ? 'Login voor prijs' : esc(window.Core.formatMoney(product.price_cents, product.currency))}</div>
+                        <div class="b2b-suggestion-price">${product.price_cents === null ? 'Sign in for prices' : esc(window.Core.formatMoney(product.price_cents, product.currency))}</div>
                         <div class="b2b-suggestion-order">
-                            ${orderable ? `<label class="sr-only" for="${inputId}">Aantal ${esc(product.name)}</label><input id="${inputId}" aria-label="Aantal ${esc(product.sku)}" type="number" inputmode="numeric" min="${minimum}" max="${Number(product.stock)}" step="1" value="${minimum}"><button type="button" class="b2b-add btn btn-primary btn-sm" data-quick-add="${product.id}" aria-label="${esc(product.name)} toevoegen">Toevoegen</button>`
-                                : !window.Core.user ? `<a href="${window.APP_BASE}login" class="btn btn-outline btn-sm">Inloggen</a>`
-                                : `<span class="text-muted">${available ? 'Niet bestelbaar' : 'Niet beschikbaar'}</span>`}
+                            ${orderable ? `<label class="sr-only" for="${inputId}">Quantity of ${esc(product.name)}</label><input id="${inputId}" aria-label="Quantity of ${esc(product.sku)}" type="number" inputmode="numeric" min="${minimum}" max="${Number(product.stock)}" step="1" value="${minimum}"><button type="button" class="b2b-add btn btn-primary btn-sm" data-quick-add="${product.id}" aria-label="Add ${esc(product.name)}">Add</button>`
+                                : !window.Core.user ? `<a href="${window.APP_BASE}login" class="btn btn-outline btn-sm">Sign in</a>`
+                                : `<span class="text-muted">${available ? 'Cannot be ordered' : 'Unavailable'}</span>`}
                         </div>
                         <span class="b2b-row-feedback" role="status" aria-live="polite"></span>
                     </div>`;
                 }).join('') +
-                `<a href="${window.APP_BASE}catalog?q=${encodeURIComponent(query)}" class="suggestion-footer" data-search-option>${data.has_more ? 'Bekijk alle resultaten' : 'Bekijk deze producten in de tabel'} &rarr;</a>`;
+                `<a href="${window.APP_BASE}catalog?q=${encodeURIComponent(query)}" class="suggestion-footer" data-search-option>${data.has_more ? 'View all results' : 'View these products in the table'} &rarr;</a>`;
             container.querySelectorAll('[data-quick-add]').forEach(button => {
                 button.addEventListener('click', event => {
                     event.preventDefault();
@@ -154,11 +154,11 @@
                 }
             };
             if (!O.canOrder()) {
-                tell('Log in met een actief klantaccount om te bestellen.', true);
+                tell('Sign in with an active customer account to order.', true);
                 return null;
             }
             if (!Number.isInteger(Number(id)) || !Number.isInteger(Number(quantity)) || Number(quantity) < 1) {
-                tell('Vul een geldig geheel aantal in.', true);
+                tell('Enter a valid whole quantity.', true);
                 return null;
             }
             if (button) {
@@ -166,7 +166,7 @@
                 button.disabled = true;
                 button.setAttribute('aria-busy', 'true');
             }
-            tell('Toevoegen…');
+            tell('Adding…');
             const currencySequence = window.Core.countryChangeSequence;
             const request = O.queue.then(() => window.Core.fetch('/cart/quick-add', {
                 method: 'POST', body: {product_id: Number(id), quantity: Number(quantity)}
@@ -178,7 +178,7 @@
                 if (currencySequence === window.Core.countryChangeSequence) window.Core.updateCurrencyContext(cart);
                 window.Core.updateCartCount();
                 const item = cart.items.find(product => product.product_id === Number(id));
-                tell(`Toegevoegd · ${item?.quantity ?? quantity} in uw winkelwagen`);
+                tell(`Added · ${item?.quantity ?? quantity} in your cart`);
                 document.dispatchEvent(new CustomEvent('cart:updated', {detail: cart}));
                 if (location.pathname === window.APP_BASE + 'cart') window.Router.route();
                 return cart;

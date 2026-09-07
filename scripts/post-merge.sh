@@ -8,3 +8,4 @@ node scripts/normalize-qualities.mjs
 node scripts/split-photo-video.mjs
 node scripts/split-devices.mjs
 node scripts/split-wearables.mjs
+php artifacts/parts-store/native/bin/translate-seeded-dutch.php

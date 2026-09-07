@@ -42,23 +42,58 @@ function currencyCountry(string $country): string
     return $country === 'CH' ? 'CHF' : 'EUR';
 }
 
+/**
+ * We only deliver inside Europe. This list is the source for the country field on
+ * the address forms (public/assets/buyer-currency.js) and must stay in step with
+ * it; bin/qa-delivery-countries.cjs guards against the two drifting apart.
+ */
+function currencyDeliveryCountries(): array
+{
+    return ['AD', 'AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI',
+        'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IS', 'IT', 'LI', 'LT', 'LU', 'LV', 'MC', 'MD',
+        'ME', 'MK', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK', 'SM', 'UA',
+        'VA', 'XK'];
+}
+
+function currencyDeliveryCountry(string $country): string
+{
+    $country = strtoupper(trim($country));
+    if (!preg_match('/^[A-Z]{2}$/', $country)) {
+        throw new HttpError(422, 'Country must be a two-letter code.');
+    }
+    if (!in_array($country, currencyDeliveryCountries(), true)) {
+        throw new HttpError(422, 'We only deliver within Europe.');
+    }
+    return $country;
+}
+
 function currencyContext(?string $country = null): array
 {
     startSession();
     if ($country === null) {
-        $country = isset($_SESSION['currency_country']) ? (string) $_SESSION['currency_country'] : null;
-    }
-    if ($country === null) {
+        $session = isset($_SESSION['currency_country'])
+            ? strtoupper(trim((string) $_SESSION['currency_country']))
+            : null;
         $user = currentUser();
         if ($user) {
+            // The address book is the only place a customer can pick a delivery
+            // country, so the cached session value may only survive while it
+            // still matches one of their own addresses. Anything else (a stale
+            // value, a one-off address typed at checkout) falls back to the
+            // default address, which is what the order will be billed against.
             $statement = db()->prepare(
-                'SELECT country FROM addresses WHERE user_id=? ORDER BY is_default DESC,id ASC LIMIT 1'
+                'SELECT country FROM addresses WHERE user_id=? ORDER BY is_default DESC,id ASC'
             );
             $statement->execute([(int) $user['id']]);
-            $ownedCountry = $statement->fetchColumn();
-            if ($ownedCountry !== false) {
-                $country = (string) $ownedCountry;
-            }
+            $owned = array_map(
+                static fn($value): string => strtoupper(trim((string) $value)),
+                $statement->fetchAll(PDO::FETCH_COLUMN)
+            );
+            $country = $session !== null && in_array($session, $owned, true)
+                ? $session
+                : ($owned[0] ?? null);
+        } else {
+            $country = $session;
         }
     }
     $country = strtoupper(trim($country ?? 'CH'));

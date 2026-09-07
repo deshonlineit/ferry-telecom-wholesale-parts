@@ -1,6 +1,6 @@
 (function () {
     const esc = window.Core.escapeHtml;
-    const compact = value => String(value || '').toLocaleLowerCase('nl').replace(/[^a-z0-9]/g, '');
+    const compact = value => String(value || '').toLocaleLowerCase('en').replace(/[^a-z0-9]/g, '');
     const recentKey = 'parts_recent_models';
     const F = window.FastFinder = {
         modelQuery(query) {
@@ -8,14 +8,14 @@
         },
         models(catalog, brand = '', query = '', order = 'count') {
             const term = compact(query);
-            const tokens = String(query || '').toLocaleLowerCase('nl').match(/[a-z]+|\d+/g) || [];
+            const tokens = String(query || '').toLocaleLowerCase('en').match(/[a-z]+|\d+/g) || [];
             const rank = model => {
                 if (!term) return 0;
                 const name = compact(model.name);
                 const brandName = (catalog.brands || []).find(item => String(item.id) === String(model.brand_id))?.name || '';
                 const full = compact(brandName + ' ' + model.name);
-                const words = (brandName + ' ' + model.name).toLocaleLowerCase('nl').match(/[a-z]+|\d+/g) || [];
-                const brandTokens = brandName.toLocaleLowerCase('nl').match(/[a-z]+|\d+/g) || [];
+                const words = (brandName + ' ' + model.name).toLocaleLowerCase('en').match(/[a-z]+|\d+/g) || [];
+                const brandTokens = brandName.toLocaleLowerCase('en').match(/[a-z]+|\d+/g) || [];
                 const deviceTerm = compact(tokens.filter(token => !brandTokens.includes(token)).join(' ')) || term;
                 // Match ordered name segments, never "s23" across "Series 2 - 38mm".
                 let cursor = 0;
@@ -43,11 +43,25 @@
                 .filter(model => Number(model.count) > 0 && (!brand || String(model.brand_id) === String(brand)) && rank(model) >= 0)
                 .sort((a, b) => {
                     const exact = rank(b) - rank(a);
-                    return exact || (order === 'name' ? 0 : Number(b.count) - Number(a.count)) || a.name.localeCompare(b.name, 'nl', {numeric: true});
+                    return exact || (order === 'name' ? 0 : Number(b.count) - Number(a.count)) || a.name.localeCompare(b.name, 'en', {numeric: true});
                 });
         },
         modelUrl(params, model) {
-            return window.Discovery.buildUrl(params, {brand: model.brand_id, model: model.id, q: ''});
+            const currentFamily = params.get('family') || '';
+            // The finder reaches models outside the current family, so a family that the
+            // chosen model does not belong to must go: keeping both intersects into nothing.
+            const family = currentFamily && model.family && currentFamily !== model.family ? '' : currentFamily;
+            return window.Discovery.buildUrl(params, {brand: model.brand_id, model: model.id, device_brand: '', family, q: ''});
+        },
+        // A keyboard choice navigates itself. Dispatching a synthetic click instead makes the
+        // jump depend on the document router seeing that event, which is one bubble too many.
+        go(link) {
+            const href = link?.getAttribute?.('href');
+            if (!href) return false;
+            link.closest?.('dialog')?.close();
+            if (typeof window.Router?.navigate === 'function') window.Router.navigate(href);
+            else window.location.assign(href);
+            return true;
         },
         recent(catalog) {
             try {
@@ -65,15 +79,15 @@
         },
         modelLinks(models, params) {
             return models.map(model => `<a class="finder-model" href="${esc(F.modelUrl(params, model))}" data-finder-model="${model.id}">
-                <span><strong>${esc(model.name)}</strong><small>Bekijk onderdelen</small></span><span aria-hidden="true">↗</span></a>`).join('');
+                <span><strong>${esc(model.name)}</strong><small>View parts</small></span><span aria-hidden="true">↗</span></a>`).join('');
         },
         inline(params, model) {
             return `<div class="model-command" data-inline-model>
-                <label class="model-command-label" for="inline-model-search">Toestel</label>
+                <label class="model-command-label" for="inline-model-search">Device</label>
                 <div class="model-command-input"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg>
-                <input id="inline-model-search" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="inline-model-results" autocomplete="off" placeholder="${esc(model ? 'Wissel ' + model.name + '…' : 'Typ uw model…')}" aria-label="Direct een toestel zoeken">
-                <button type="button" class="model-browse" data-change-device aria-label="Alle modellen bekijken">Alle modellen <span aria-hidden="true">↗</span></button></div>
-                <div class="model-command-popover" hidden><p class="model-command-status" role="status"></p><div id="inline-model-results" role="listbox" aria-label="Gevonden modellen"></div></div>
+                <input id="inline-model-search" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="inline-model-results" autocomplete="off" placeholder="${esc(model ? 'Change ' + model.name + '…' : 'Enter your model…')}" aria-label="Find a device directly">
+                <button type="button" class="model-browse" data-change-device aria-label="View all models">All models <span aria-hidden="true">↗</span></button></div>
+                <div class="model-command-popover" hidden><p class="model-command-status" role="status"></p><div id="inline-model-results" role="listbox" aria-label="Models found"></div></div>
             </div>`;
         },
         bindInline(root, initialCatalog, params, loadChoices) {
@@ -83,8 +97,9 @@
             const status = root.querySelector('.model-command-status');
             let catalog = initialCatalog;
             let ready = false;
-            let pending = false;
+            let loading = null;
             let active = -1;
+            let committing = false;
             const close = () => {
                 popover.hidden = true;
                 input.setAttribute('aria-expanded', 'false');
@@ -93,7 +108,7 @@
             };
             const render = () => {
                 const models = F.models(catalog, '', input.value).slice(0, 8);
-                status.textContent = models.length ? 'Kies een model · filters blijven behouden' : 'Geen passend model. Gebruik “Alle modellen” of de algemene zoekbalk.';
+                status.textContent = models.length ? 'Choose a model · filters will be retained' : 'No matching model. Use “All models” or the main search bar.';
                 list.innerHTML = F.modelLinks(models, params);
                 list.querySelectorAll('a').forEach((link, index) => {
                     link.id = 'inline-model-option-' + index;
@@ -107,22 +122,42 @@
                 popover.hidden = false;
                 input.setAttribute('aria-expanded', 'true');
                 if (ready) { render(); return; }
-                if (pending) return;
-                pending = true;
-                status.textContent = 'Modellen ophalen…';
+                status.textContent = 'Loading models…';
+                // One shared load, awaited by every caller: pressing Enter while the list is
+                // still on its way must wait for it, not fall through to nothing.
+                if (!loading) loading = Promise.resolve(loadChoices()).then(result => { catalog = result; ready = true; }).finally(() => { loading = null; });
                 try {
-                    catalog = await loadChoices();
-                    ready = true;
+                    await loading;
                     if (root.isConnected && !popover.hidden) render();
                 } catch (_) {
-                    if (root.isConnected && !popover.hidden) status.textContent = 'Modellen ophalen is niet gelukt. Klik opnieuw in het zoekveld om te proberen.';
-                } finally { pending = false; }
+                    if (root.isConnected && !popover.hidden) status.textContent = 'Models could not be loaded. Click the search field to try again.';
+                }
             };
             input.addEventListener('focus', open);
             input.addEventListener('click', () => { if (popover.hidden || !ready) open(); });
             input.addEventListener('input', () => { if (popover.hidden) open(); else if (ready) render(); });
+            const commit = link => {
+                if (!link) return false;
+                const model = catalog.models.find(item => String(item.id) === link.dataset.finderModel);
+                if (model) F.remember(model);
+                close();
+                return F.go(link);
+            };
             input.addEventListener('keydown', async event => {
-                if (event.key === 'Escape') { event.preventDefault(); close(); }
+                if (event.key === 'Escape') { event.preventDefault(); close(); return; }
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    if (committing) return;
+                    committing = true;
+                    try {
+                        // Reopen after a blur and finish a pending load before deciding there is nothing to open.
+                        if (popover.hidden || !ready) await open();
+                        // Read the highlight after the wait; an arrow key may have moved it meanwhile.
+                        const results = [...list.querySelectorAll('a')];
+                        if (!commit(results[active] || results[0])) committing = false;
+                    } catch (_) { committing = false; }
+                    return;
+                }
                 if (['ArrowDown', 'ArrowUp'].includes(event.key) && popover.hidden) { event.preventDefault(); await open(); }
                 const options = [...list.querySelectorAll('a')];
                 if (popover.hidden || !options.length) return;
@@ -133,7 +168,6 @@
                     input.setAttribute('aria-activedescendant', options[active].id);
                     options[active].scrollIntoView({block: 'nearest'});
                 }
-                if (event.key === 'Enter') { event.preventDefault(); (options[active] || options[0]).click(); }
             });
             root.addEventListener('focusout', () => setTimeout(() => { if (!root.contains(document.activeElement)) close(); }, 0));
             root.addEventListener('click', event => {
@@ -152,19 +186,19 @@
             const brands = catalog.brands.filter(item => Number(item.count) > 0 && catalog.models.some(model => Number(model.count) > 0 && String(model.brand_id) === String(item.id)));
             const recent = F.recent(catalog);
             return `<section class="fast-finder" data-fast-finder data-prefix="${esc(prefix)}">
-                <div class="finder-heading"><div><span class="finder-eyebrow">Begin bij het toestel</span><h2>Kies uw model.</h2></div><span class="finder-caption">Direct naar de onderdelen</span></div>
-                ${params.get('q') ? '<p class="finder-hint">Een modelkeuze vervangt uw zoekterm. Andere filters blijven behouden.</p>' : ''}
-                <div class="finder-brands" role="group" aria-label="Merk kiezen">
-                    <button type="button" data-finder-brand="" class="${brand ? '' : 'active'}" aria-pressed="${!brand}">Alle merken</button>
+                <div class="finder-heading"><div><span class="finder-eyebrow">Start with the device</span><h2>Choose your model.</h2></div><span class="finder-caption">Go straight to the parts</span></div>
+                ${params.get('q') ? '<p class="finder-hint">Choosing a model replaces your search term. Other filters will be retained.</p>' : ''}
+                <div class="finder-brands" role="group" aria-label="Choose a brand">
+                    <button type="button" data-finder-brand="" class="${brand ? '' : 'active'}" aria-pressed="${!brand}">All brands</button>
                     ${brands.map(item => `<button type="button" data-finder-brand="${item.id}" class="${String(item.id) === brand ? 'active' : ''}" aria-pressed="${String(item.id) === brand}">${esc(item.name)}</button>`).join('')}
                 </div>
-                <label class="finder-search-label" for="${esc(prefix)}-quick-model">Zoek uw model</label>
-                <div class="finder-model-search"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input type="search" id="${esc(prefix)}-quick-model" placeholder="Bijvoorbeeld iPhone 13 of Galaxy S22" autocomplete="off"><kbd>Enter ↵</kbd></div>
-                <div class="finder-recent" ${recent.length ? '' : 'hidden'}><span>Recent gekozen</span><div>${recent.map(model => `<a href="${esc(F.modelUrl(params, model))}" data-finder-model="${model.id}">${esc(model.name)}</a>`).join('')}</div><button type="button" data-clear-recent>Wissen</button></div>
-                <div class="finder-list-tools"><p class="finder-status" role="status" aria-live="polite">${models.length} modellen met onderdelen</p><label>Volgorde <select class="finder-sort" aria-label="Modellen sorteren"><option value="count">Meeste onderdelen</option><option value="name">Model A–Z</option></select></label></div>
+                <label class="finder-search-label" for="${esc(prefix)}-quick-model">Search for your model</label>
+                <div class="finder-model-search"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input type="search" id="${esc(prefix)}-quick-model" placeholder="For example, iPhone 13 or Galaxy S22" autocomplete="off"><kbd>Enter ↵</kbd></div>
+                <div class="finder-recent" ${recent.length ? '' : 'hidden'}><span>Recently selected</span><div>${recent.map(model => `<a href="${esc(F.modelUrl(params, model))}" data-finder-model="${model.id}">${esc(model.name)}</a>`).join('')}</div><button type="button" data-clear-recent>Clear</button></div>
+                <div class="finder-list-tools"><p class="finder-status" role="status" aria-live="polite">${models.length} models with parts</p><label>Order <select class="finder-sort" aria-label="Sort models"><option value="count">Most parts</option><option value="name">Model A–Z</option></select></label></div>
                 <div class="finder-models">${F.modelLinks(models.slice(0, 8), params)}</div>
-                <div class="finder-empty" ${models.length ? 'hidden' : ''}>Geen model in deze selectie. Kies een ander merk of zoek in de productnamen.<br><a data-model-fallback hidden>Zoeken in het assortiment →</a></div>
-                <div class="finder-footer"><button type="button" data-more-models ${models.length > 8 ? '' : 'hidden'}>Alle ${models.length} modellen tonen <span aria-hidden="true">↓</span></button><a data-finder-all href="${esc(window.Discovery.buildUrl(params, {model: '', q: ''}))}">Alle onderdelen bekijken →</a></div>
+                <div class="finder-empty" ${models.length ? 'hidden' : ''}>No model in this selection. Choose another brand or search the product names.<br><a data-model-fallback hidden>Search the catalogue →</a></div>
+                <div class="finder-footer"><button type="button" data-more-models ${models.length > 8 ? '' : 'hidden'}>Show all ${models.length} models <span aria-hidden="true">↓</span></button><a data-finder-all href="${esc(window.Discovery.buildUrl(params, {model: '', q: ''}))}">View all parts →</a></div>
             </section>`;
         },
         bind(root, catalog, params) {
@@ -182,9 +216,9 @@
                 const fallback = root.querySelector('[data-model-fallback]');
                 fallback.hidden = !search.value.trim();
                 fallback.href = window.Discovery.buildUrl(params, {q: search.value.trim(), model: '', brand: ''});
-                root.querySelector('.finder-status').textContent = `${models.length} ${models.length === 1 ? 'model' : 'modellen'} met onderdelen`;
+                root.querySelector('.finder-status').textContent = `${models.length} ${models.length === 1 ? 'model' : 'models'} with parts`;
                 more.hidden = Boolean(showAll) || models.length <= 8;
-                more.textContent = `Alle ${models.length} modellen tonen ↓`;
+                more.textContent = `Show all ${models.length} models ↓`;
                 root.querySelector('[data-finder-all]').href = window.Discovery.buildUrl(params, {brand, model: '', q: ''});
             };
             root.addEventListener('click', event => {
@@ -214,7 +248,13 @@
             search.addEventListener('input', refresh);
             root.querySelector('.finder-sort').addEventListener('change', refresh);
             search.addEventListener('keydown', event => {
-                if (event.key === 'Enter') { event.preventDefault(); list.querySelector('a')?.click(); }
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const link = list.querySelector('a');
+                    const model = link && catalog.models.find(item => String(item.id) === link.dataset.finderModel);
+                    if (model) F.remember(model);
+                    F.go(link);
+                }
                 if (event.key === 'ArrowDown') { event.preventDefault(); list.querySelector('a')?.focus(); }
             });
         }

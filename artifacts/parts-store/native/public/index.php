@@ -3,13 +3,21 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../src/bootstrap.php';
 
+// This is a session-aware application shell, not a static marketing page.
+// Never let a browser revive an older shell with stale script URLs: model
+// navigation and account controls must always match the currently deployed JS.
+header('Cache-Control: no-store, no-cache, must-revalidate, private');
+header('Pragma: no-cache');
+header('Expires: 0');
+header('Vary: Cookie');
+
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $basePath = '/test-shop/';
 $relPath = str_starts_with($path, $basePath) ? substr($path, strlen($basePath)) : ltrim($path, '/');
 if ($relPath === '') $relPath = '/';
 
-$title = "Ferry Telecom | Groothandel in Onderdelen";
-$description = "Precisie en betrouwbaarheid voor professionele reparateurs. Bestel uw onderdelen direct uit voorraad.";
+$title = "Ferry Telecom | Wholesale Repair Parts";
+$description = "Precision and reliability for professional repairers. Order your parts straight from stock.";
 $ssrHtml = '';
 
 $db = db();
@@ -27,7 +35,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     $stmt = $db->query("SELECT id, name FROM categories ORDER BY name ASC LIMIT 20");
     $cats = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if ($cats) {
-        $ssrHtml .= "<h2>Assortiment</h2><ul class='ssr-categories'>";
+        $ssrHtml .= "<h2>Catalogue</h2><ul class='ssr-categories'>";
         foreach ($cats as $cat) {
             $ssrHtml .= "<li><a href=\"/test-shop/catalog?category=" . $cat['id'] . "\">" . htmlspecialchars((string)$cat['name'], ENT_QUOTES) . "</a></li>";
         }
@@ -46,45 +54,51 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     $v_admin = @filemtime(__DIR__ . '/assets/admin.js') ?: 1;
     $v_aprod = @filemtime(__DIR__ . '/assets/admin-products.js') ?: 1;
     $v_aops = @filemtime(__DIR__ . '/assets/admin-operations.js') ?: 1;
+    $v_logo = @filemtime(__DIR__ . '/assets/logo.svg') ?: 1;
+    $v_mark = @filemtime(__DIR__ . '/assets/mark.svg') ?: 1;
+    $v_icon = @filemtime(__DIR__ . '/assets/apple-touch-icon.png') ?: 1;
 ?>
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?></title>
     <meta name="description" content="<?= $description ?>">
-    <link rel="icon" type="image/svg+xml" href="/test-shop/assets/logo.svg">
+    <link rel="icon" type="image/svg+xml" href="/test-shop/assets/mark.svg?v=<?= $v_mark ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="/test-shop/assets/apple-touch-icon.png?v=<?= $v_icon ?>">
     <link rel="stylesheet" href="/test-shop/assets/styles.css?v=<?= $v_css ?>">
     <link rel="stylesheet" href="/test-shop/assets/workspace.css?v=<?= $v_ws ?>">
     <link rel="stylesheet" href="/test-shop/assets/workbench.css?v=<?= $v_wb ?>">
     <link rel="stylesheet" href="/test-shop/assets/backoffice.css?v=<?= @filemtime(__DIR__ . '/assets/backoffice.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/storefront-redesign.css?v=<?= @filemtime(__DIR__ . '/assets/storefront-redesign.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/category-models.css?v=<?= @filemtime(__DIR__ . '/assets/category-models.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/home-search.css?v=<?= @filemtime(__DIR__ . '/assets/home-search.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/home-landing.css?v=<?= @filemtime(__DIR__ . '/assets/home-landing.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/buyer-currency.css?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/admin-prices.css?v=<?= @filemtime(__DIR__ . '/assets/admin-prices.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/b2b-catalog.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-catalog.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/b2b-navigation.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-navigation.css') ?: 1 ?>">
-    <script>window.APP_BASE = '/test-shop/';</script>
+    <link rel="stylesheet" href="/test-shop/assets/category-rail.css?v=<?= @filemtime(__DIR__ . '/assets/category-rail.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/commerce-redesign.css?v=<?= @filemtime(__DIR__ . '/assets/commerce-redesign.css') ?: 1 ?>">
+    <script>window.APP_BASE = '/test-shop/'; window.LOGO_V = '<?= $v_logo ?>';</script>
 </head>
 <body>
-    <div id="test-banner" class="test-banner">TESTOMGEVING &mdash; GEEN ECHTE BESTELLINGEN, VOORRAAD OF BETALINGEN</div>
+    <div id="test-banner" class="test-banner">TEST ENVIRONMENT &mdash; NO REAL ORDERS, STOCK OR PAYMENTS</div>
     
     <header class="app-header">
         <div class="container header-inner">
             <a href="/test-shop/" class="logo" aria-label="Home">
-                <img src="/test-shop/assets/logo.svg" alt="Ferry Telecom Wholesale">
+                <img src="/test-shop/assets/logo.svg?v=<?= $v_logo ?>" alt="Ferry Telecom Wholesale">
             </a>
             
             <div class="search-bar">
                 <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
-                    <div class="search-input-wrapper" style="display: flex; align-items: center; gap: 0.5rem;">
-                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #86868b;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="search" name="q" id="search-input" placeholder="Wat zoekt u? Product, SKU of model…" aria-label="Zoeken in assortiment, vanaf drie tekens" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" style="border: none; background: transparent; width: 100%; outline: none; font-size: 0.9375rem;" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
-                        <button type="submit" class="search-submit" aria-label="Zoeken" style="display:none;">Zoeken</button>
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line></svg>
+                        <input type="search" name="q" id="search-input" placeholder="Search parts, SKU or model" aria-label="Search the catalogue by product, SKU or model" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
+                        <button type="submit" class="search-submit">Search</button>
                     </div>
-                    <div id="search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Producten direct bestellen" style="display:none;"></div>
+                    <div id="search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" style="display:none;"></div>
                 </form>
             </div>
             
@@ -92,12 +106,12 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
                 <!-- Nav populated by JS -->
             </nav>
         </div>
-        <nav id="store-menu" class="store-menu" aria-label="Assortiment menu"></nav>
+        <nav id="store-menu" class="store-menu" aria-label="Catalogue menu"></nav>
     </header>
 
     <main id="app-root" class="main-content container">
         <noscript>
-            <div class="alert error">JavaScript is vereist voor de volledige functionaliteit van de groothandel.</div>
+            <div class="alert error">JavaScript is required for the full wholesale experience.</div>
             <div class="ssr-content">
                 <?= $ssrHtml ?>
             </div>
@@ -111,20 +125,20 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
-                    <img src="/test-shop/assets/logo.svg" alt="Ferry Telecom" class="footer-logo">
-                    <p>De standaard voor professionele reparateurs. Precisie, betrouwbaarheid en directe voorraad.</p>
+                    <img src="/test-shop/assets/logo.svg?v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo">
+                    <p>The standard for professional repairers. Precision, reliability and stock ready to ship.</p>
                 </div>
                 <div class="footer-links">
-                    <h4>Navigatie</h4>
-                    <a href="/test-shop/catalog">Assortiment</a>
-                    <a href="/test-shop/login">Inloggen</a>
-                    <a href="/test-shop/register">Account Aanvragen</a>
+                    <h4>Navigation</h4>
+                    <a href="/test-shop/catalog">Catalogue</a>
+                    <a href="/test-shop/login">Sign in</a>
+                    <a href="/test-shop/register">Request an account</a>
                 </div>
                 <div class="footer-links">
-                    <h4>Testomgeving</h4>
-                    <p class="text-muted small">Deze applicatie is uitsluitend voor demonstratiedoeleinden. Er worden geen echte e-mails verzonden of betalingen verwerkt.</p>
+                    <h4>Test environment</h4>
+                    <p class="text-muted small">This application is for demonstration purposes only. No real e-mails are sent and no payments are processed.</p>
                     <div class="demo-actions mt-2">
-                        <button onclick="window.App.demoLogin('customer')" class="btn btn-outline btn-sm">Demo Klant Inloggen</button>
+                        <button onclick="window.App.demoLogin('customer')" class="btn btn-outline btn-sm">Demo customer login</button>
                         <button onclick="window.App.demoLogin('partner')" class="btn btn-outline btn-sm">Demo Partner</button>
                     </div>
                 </div>
@@ -132,7 +146,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         </div>
         <div class="footer-bottom">
             <div class="container">
-                &copy; <?= date('Y') ?> Ferry Telecom Testomgeving. Alle rechten voorbehouden.
+                &copy; <?= date('Y') ?> Ferry Telecom test environment. All rights reserved.
             </div>
         </div>
     </footer>
@@ -140,13 +154,14 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <script src="/test-shop/assets/core.js?v=<?= $v_core ?>"></script>
     <script src="/test-shop/assets/b2b-ordering.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-ordering.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/buyer-currency.js?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.js') ?: 1 ?>"></script>
+    <script src="/test-shop/assets/model-search.js?v=<?= @filemtime(__DIR__ . '/assets/model-search.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/discovery-controls.js?v=<?= $v_disc ?>"></script>
     <script src="/test-shop/assets/quick-finder.js?v=<?= $v_qf ?>"></script>
     <script src="/test-shop/assets/category-models.js?v=<?= @filemtime(__DIR__ . '/assets/category-models.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/store.js?v=<?= $v_store ?>"></script>
     <script src="/test-shop/assets/b2b-catalog.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-catalog.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/b2b-menu.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-menu.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/home-search.js?v=<?= @filemtime(__DIR__ . '/assets/home-search.js') ?: 1 ?>"></script>
+    <script src="/test-shop/assets/home-landing.js?v=<?= @filemtime(__DIR__ . '/assets/home-landing.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/home.js?v=<?= $v_home ?>"></script>
     <script src="/test-shop/assets/account.js?v=<?= $v_acc ?>"></script>
     <script src="/test-shop/assets/admin-shell.js?v=<?= @filemtime(__DIR__ . '/assets/admin-shell.js') ?: 1 ?>"></script>

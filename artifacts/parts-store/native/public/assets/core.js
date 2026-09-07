@@ -68,7 +68,7 @@ window.Core = {
             await this.refreshCart();
             this.renderNav();
         } catch(e) {
-            document.body.innerHTML = `<div class="container mt-4"><div class="alert error">Kritieke fout bij laden applicatie: ${this.escapeHtml(e.message)}</div></div>`;
+            document.body.innerHTML = `<div class="container mt-4"><div class="alert error">The application failed to load: ${this.escapeHtml(e.message)}</div></div>`;
         }
     },
     
@@ -106,30 +106,9 @@ window.Core = {
     currencyNotice(context = this) {
         const rate = context.exchange_rate || context.exchangeRate;
         if ((context.currency || this.currency) !== 'CHF') return '';
-        if (!rate || rate.status === 'unavailable') return 'CHF-prijzen zijn niet beschikbaar: er is geen bruikbare wisselkoers.';
-        if (rate.status === 'stale') return 'CHF-prijzen zijn niet beschikbaar: de wisselkoers is verouderd.';
+        if (!rate || rate.status === 'unavailable') return 'CHF prices are unavailable: there is no usable exchange rate.';
+        if (rate.status === 'stale') return 'CHF prices are unavailable: the exchange rate is out of date.';
         return '';
-    },
-
-    async changeCountry(country, select) {
-        window.UI.closeSuggestions();
-        const sequence = this.countryChangeSequence = (this.countryChangeSequence || 0) + 1;
-        if (select) select.disabled = true;
-        try {
-            const data = await this.fetch('/currency', {method: 'POST', body: {country}});
-            if (sequence !== this.countryChangeSequence) return;
-            this.updateCurrencyContext(data);
-            await this.refreshCart();
-            this.renderNav();
-            await window.Router.route();
-        } catch (error) {
-            if (sequence === this.countryChangeSequence) {
-                if (select) select.value = this.country;
-                alert(error.message);
-            }
-        } finally {
-            if (select && sequence === this.countryChangeSequence) select.disabled = false;
-        }
     },
 
     renderNav() {
@@ -138,25 +117,17 @@ window.Core = {
         
         const count = this.cart.items ? this.cart.items.reduce((a,b)=>a+b.quantity,0) : 0;
         let html = '';
-        if (!this.user || this.user.role !== 'staff') {
-            const options = window.BuyerCurrency?.options(this.country) || `<option value="${this.country}">${this.country}</option>`;
-            html += `<label class="delivery-country" title="Prijzen en levering voor dit land">
-                <span>Levering</span>
-                <select aria-label="Land van levering" onchange="window.Core.changeCountry(this.value, this)">${options}</select>
-                <strong>${this.currency}</strong>
-            </label>`;
-        }
-        
+
         if (this.user) {
             html += `<a href="${window.APP_BASE}account" class="nav-link">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                <span class="nav-text">Mijn Account</span>
+                <span class="nav-text">My account</span>
             </a>`;
             
             if (this.user.role === 'staff') {
                 html += `<a href="${window.APP_BASE}admin" class="nav-link text-danger">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                    <span class="nav-text">Beheer</span>
+                    <span class="nav-text">Backoffice</span>
                 </a>`;
             } else {
                 html += `<a href="${window.APP_BASE}cart" class="nav-link nav-cart">
@@ -164,14 +135,17 @@ window.Core = {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
                         <span class="cart-badge" style="display:${count > 0 ? 'flex' : 'none'}">${count}</span>
                     </div>
-                    <span class="nav-text">Winkelwagen</span>
+                    <span class="nav-text">Cart</span>
                 </a>`;
             }
             
-            html += `<a href="#" onclick="window.App.logout(); return false;" class="nav-link text-muted">Uitloggen</a>`;
+            html += `<a href="#" onclick="window.App.logout(); return false;" class="nav-link text-muted">Sign out</a>`;
         } else {
-            html += `<a href="${window.APP_BASE}login" class="nav-link">Inloggen</a>`;
-            html += `<a href="${window.APP_BASE}register" class="btn btn-primary btn-sm ml-2">Klant worden</a>`;
+            html += `<a href="${window.APP_BASE}login" class="nav-link nav-signin">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span>Sign in</span>
+            </a>`;
+            html += `<a href="${window.APP_BASE}register" class="btn btn-primary btn-sm">Become a customer</a>`;
         }
         
         nav.innerHTML = html;
@@ -192,11 +166,11 @@ window.Core = {
     renderPagination(currentPage, totalPages, searchParams, basePath) {
         if (totalPages <= 1) return '';
         currentPage = parseInt(currentPage, 10);
-        let html = `<nav class="pagination" aria-label="Paginatie">`;
+        let html = `<nav class="pagination" aria-label="Pagination">`;
         
         if (currentPage > 1) {
             searchParams.set('page', currentPage - 1);
-            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link prev" aria-label="Vorige">&lsaquo;</a>`;
+            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link prev" aria-label="Previous">&lsaquo;</a>`;
         }
         
         const pages = [];
@@ -226,7 +200,7 @@ window.Core = {
         
         if (currentPage < totalPages) {
             searchParams.set('page', currentPage + 1);
-            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link next" aria-label="Volgende">&rsaquo;</a>`;
+            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link next" aria-label="Next">&rsaquo;</a>`;
         }
         
         html += `</nav>`;
@@ -280,9 +254,9 @@ window.Router = {
                     if (renderVersion !== this.renderVersion) return;
                     root.innerHTML = `
                         <div class="alert error mt-4">
-                            <h3>Er is een fout opgetreden</h3>
+                            <h3>Something went wrong</h3>
                             <p>${window.Core.escapeHtml(err.message)}</p>
-                            <button onclick="window.Router.route()" class="btn btn-outline btn-sm mt-2">Opnieuw proberen</button>
+                            <button onclick="window.Router.route()" class="btn btn-outline btn-sm mt-2">Try again</button>
                         </div>
                     `;
                 }
@@ -291,9 +265,9 @@ window.Router = {
         }
         root.innerHTML = `
             <div class="empty-state mt-4">
-                <h2>404 - Pagina niet gevonden</h2>
-                <p>De opgevraagde pagina bestaat niet.</p>
-                <a href="${window.APP_BASE}catalog" class="btn btn-primary mt-4">Terug naar assortiment</a>
+                <h2>404 — Page not found</h2>
+                <p>The page you requested does not exist.</p>
+                <a href="${window.APP_BASE}catalog" class="btn btn-primary mt-4">Back to the catalogue</a>
             </div>
         `;
     }
@@ -436,7 +410,7 @@ window.UI = {
             <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title-${Date.now()}">
                 <div class="modal-header">
                     <h2 id="modal-title-${Date.now()}">${window.Core.escapeHtml(title)}</h2>
-                    <button type="button" class="modal-close" aria-label="Sluiten">&times;</button>
+                    <button type="button" class="modal-close" aria-label="Close">&times;</button>
                 </div>
                 <div class="modal-body">${contentHtml}</div>
             </div>
@@ -513,20 +487,20 @@ window.UI = {
                         <h2 class="photo-preview-title" id="${titleId}"></h2>
                         <span class="photo-preview-counter gallery-counter" aria-live="polite"></span>
                     </div>
-                    <div class="photo-preview-tools" aria-label="Zoom bedienen">
-                        <button type="button" class="photo-preview-zoom-out" aria-label="Uitzoomen">&minus;</button>
-                        <output class="photo-preview-zoom-level" aria-live="polite">Passend</output>
-                        <button type="button" class="photo-preview-zoom-in" aria-label="Inzoomen">&plus;</button>
-                        <button type="button" class="photo-preview-zoom-reset">Passend</button>
+                    <div class="photo-preview-tools" aria-label="Zoom controls">
+                        <button type="button" class="photo-preview-zoom-out" aria-label="Zoom out">&minus;</button>
+                        <output class="photo-preview-zoom-level" aria-live="polite">Fit</output>
+                        <button type="button" class="photo-preview-zoom-in" aria-label="Zoom in">&plus;</button>
+                        <button type="button" class="photo-preview-zoom-reset">Fit</button>
                     </div>
-                    <button type="button" class="photo-preview-close gallery-close" aria-label="Fotovoorbeeld sluiten">&times;</button>
+                    <button type="button" class="photo-preview-close gallery-close" aria-label="Close photo preview">&times;</button>
                 </header>
                 <div class="photo-preview-content gallery-content">
-                    <button type="button" class="photo-preview-nav gallery-nav prev" aria-label="Vorige foto">&lsaquo;</button>
+                    <button type="button" class="photo-preview-nav gallery-nav prev" aria-label="Previous photo">&lsaquo;</button>
                     <figure class="photo-preview-figure">
                         <img class="photo-preview-image gallery-img" alt="">
                     </figure>
-                    <button type="button" class="photo-preview-nav gallery-nav next" aria-label="Volgende foto">&rsaquo;</button>
+                    <button type="button" class="photo-preview-nav gallery-nav next" aria-label="Next photo">&rsaquo;</button>
                 </div>
             </div>
         `;
@@ -541,7 +515,7 @@ window.UI = {
         const zoomInButton = dialog.querySelector('.photo-preview-zoom-in');
         const zoomResetButton = dialog.querySelector('.photo-preview-zoom-reset');
         const zoomLevel = dialog.querySelector('.photo-preview-zoom-level');
-        const productName = options.title || 'Productfoto';
+        const productName = options.title || 'Product photo';
         const zoomSteps = [1, 1.5, 2, 3, 4];
         let zoomIndex = 0;
         let dragging = false;
@@ -565,7 +539,7 @@ window.UI = {
             zoomOutButton.disabled = zoomIndex === 0;
             zoomInButton.disabled = zoomIndex === zoomSteps.length - 1;
             zoomResetButton.disabled = zoomIndex === 0;
-            zoomLevel.value = zoom === 1 ? 'Passend' : `${Math.round(zoom * 100)}%`;
+            zoomLevel.value = zoom === 1 ? 'Fit' : `${Math.round(zoom * 100)}%`;
             if (!keepCenter || zoom === 1) {
                 figure.scrollTo(0, 0);
                 return;
@@ -589,7 +563,7 @@ window.UI = {
             resetZoom();
             image.src = images[currentIndex].url;
             image.alt = images.length > 1
-                ? `${productName}, foto ${currentIndex + 1} van ${images.length}`
+                ? `${productName}, photo ${currentIndex + 1} of ${images.length}`
                 : productName;
             counter.textContent = images.length > 1 ? `${currentIndex + 1} / ${images.length}` : '';
             prevButton.disabled = currentIndex === 0;

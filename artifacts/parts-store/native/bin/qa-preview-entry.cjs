@@ -28,7 +28,7 @@ async function main() {
 
     const native = await check('/test-shop/');
     assert.equal(native.status, 200);
-    assert.match(await native.text(), /\/test-shop\/assets\/home-search\.js/);
+    assert.match(await native.text(), /\/test-shop\/assets\/home-landing\.js/);
 
     const products = await check('/test-shop/api/products?limit=1');
     assert.equal(products.status, 200);

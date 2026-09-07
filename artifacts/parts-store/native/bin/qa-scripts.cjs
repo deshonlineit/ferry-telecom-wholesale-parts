@@ -6,7 +6,7 @@ const context = vm.createContext({
     document: { addEventListener() {} },
     console, URL, URLSearchParams,
 });
-for (const file of ['core.js', 'b2b-ordering.js', 'buyer-currency.js', 'discovery-controls.js', 'quick-finder.js', 'category-models.js', 'store.js', 'b2b-catalog.js', 'b2b-menu.js', 'home-search.js', 'home.js', 'account.js', 'admin-shell.js', 'admin.js', 'admin-products.js', 'admin-prices.js', 'admin-operations.js', 'admin-invoices.js']) {
+for (const file of ['core.js', 'b2b-ordering.js', 'buyer-currency.js', 'model-search.js', 'discovery-controls.js', 'quick-finder.js', 'category-models.js', 'store.js', 'b2b-catalog.js', 'b2b-menu.js', 'home-landing.js', 'home.js', 'account.js', 'admin-shell.js', 'admin.js', 'admin-products.js', 'admin-prices.js', 'admin-operations.js', 'admin-invoices.js']) {
     const p = path.join(__dirname, '../public/assets/', file);
     vm.runInContext(fs.readFileSync(p, 'utf8'), context, { filename: file });
 }

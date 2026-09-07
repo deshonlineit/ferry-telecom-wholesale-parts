@@ -39,19 +39,23 @@ const button = () => {
         calls.push({url, options});
         return new Promise(resolve => { resolveSearch = resolve; });
     };
+    App.handleSearchInput('   ');
+    await pause(180);
+    assert.equal(calls.length, 0, 'An empty box has nothing to look for');
     App.handleSearchInput('ab');
     await pause(180);
-    assert.equal(calls.length, 0, 'No live request for two characters');
+    assert.equal(calls.length, 1, 'A short fragment is a real search, there is no character minimum');
+    assert.equal(calls[0].url, '/search/products?q=ab&limit=8');
     App.handleSearchInput('  abc  ');
     await pause(180);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, '/search/products?q=abc&limit=8');
-    App.handleSearchInput('a');
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].url, '/search/products?q=abc&limit=8');
+    App.handleSearchInput('');
     const unchanged = popup.innerHTML;
     resolveSearch({products: [], has_more: false});
     await pause(0);
     assert.equal(popup.style.display, 'none');
-    assert.equal(popup.innerHTML, unchanged, 'Late results do not reopen or overwrite a dismissed search');
+    assert.equal(popup.innerHTML, unchanged, 'Late results do not reopen or overwrite a cleared search box');
 
     Core.user = {id: 1, role: 'customer', status: 'active'};
     ordering.renderSuggestions({products: [{
@@ -78,7 +82,7 @@ const button = () => {
         price_cents: null, currency: 'EUR'
     }]}, 'row');
     assert.doesNotMatch(popup.innerHTML, /data-quick-add=/);
-    assert.match(popup.innerHTML, /Login voor prijs/);
+    assert.match(popup.innerHTML, /Sign in for prices/);
 
     Core.user = {id: 1, role: 'customer', status: 'active'};
     calls = [];
@@ -105,17 +109,17 @@ const button = () => {
     pending[1].resolve({items: [{product_id: 7, quantity: 5}], currency: 'EUR', country: 'NL'});
     await add2;
     assert.equal(Core.cart.items[0].quantity, 5);
-    assert.match(second.feedback.textContent, /5 in uw winkelwagen/);
+    assert.match(second.feedback.textContent, /5 in your cart/);
     assert.equal(second.disabled, false);
     const invalid = await App.addToCartWithQty(7, 1.5, second);
     assert.equal(invalid, null);
     assert.equal(calls.length, 2);
     const failing = App.addToCartWithQty(7, 100, second);
     await pause(0);
-    pending[2].reject(new Error('Onvoldoende voorraad'));
+    pending[2].reject(new Error('Insufficient stock'));
     assert.equal(await failing, null);
     assert.equal(Core.cart.items[0].quantity, 5, 'Failed add preserves last confirmed cart');
-    assert.match(second.feedback.textContent, /Onvoldoende voorraad/);
+    assert.match(second.feedback.textContent, /Insufficient stock/);
     assert.equal(second.disabled, false);
     console.log('PASS: actual B2B scripts — threshold, stale search, privacy, decimals, serialized additive cart and inline failure.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -8,7 +8,7 @@
         window.Router.navigate = function(url) {
             const isSamePage = url.replace(/^https?:\/\/[^\/]+/, '').startsWith(window.APP_BASE + 'admin/prices');
             if (priceDrafts.size > 0 && !isSamePage) {
-                if (!confirm('U heeft onopgeslagen prijswijzigingen. Weet u zeker dat u deze pagina wilt verlaten?')) return;
+                if (!confirm('You have unsaved price changes. Are you sure you want to leave this page?')) return;
                 priceDrafts.clear();
             }
             return origNav.apply(this, arguments);
@@ -108,18 +108,18 @@
         if (priceDrafts.size === 0) return;
         const btn = document.getElementById('btn-save-drafts');
         btn.disabled = true;
-        btn.textContent = 'Opslaan...';
+        btn.textContent = 'Saving...';
         
         const rows = Array.from(priceDrafts.values());
         try {
             await window.Core.fetch('/admin/prices/bulk', { method: 'POST', body: { rows } });
-            window.Workbench.toast(`${rows.length} producten bijgewerkt`, 'success');
+            window.Workbench.toast(`${rows.length} products updated`, 'success');
             priceDrafts.clear();
             window.Router.route(); // Refresh to get new versions
         } catch(err) {
             window.Workbench.toast(err.message, 'error');
             btn.disabled = false;
-            btn.textContent = 'Opslaan';
+            btn.textContent = 'Save';
         }
     }
 
@@ -145,7 +145,7 @@
                 <td style="text-align:center"><input type="checkbox" class="row-select" value="${p.id}"></td>
                 <td class="sku-cell" title="${esc(p.sku)}"><a href="${window.APP_BASE}admin/products/${p.id}" target="_blank">${esc(p.sku)}</a></td>
                 <td class="name-cell" title="${esc(p.name)}">${esc(p.name)}</td>
-                <td><input type="text" inputmode="decimal" class="prices-input ${costDirty?'is-dirty':''} unknown-placeholder" data-id="${p.id}" data-field="purchase_price_eur_cents" value="${formatCents(cost)}" placeholder="Onbekend"></td>
+                <td><input type="text" inputmode="decimal" class="prices-input ${costDirty?'is-dirty':''} unknown-placeholder" data-id="${p.id}" data-field="purchase_price_eur_cents" value="${formatCents(cost)}" placeholder="Unknown"></td>
                 <td><input type="text" inputmode="decimal" class="prices-input ${baseDirty?'is-dirty':''}" data-id="${p.id}" data-field="list_price_eur_cents" value="${formatCents(base)}" required></td>
                 ${groupCells}
             </tr>
@@ -173,12 +173,12 @@
         const rateBannerHtml = rate ? `
             <div class="prices-rate-banner ${rate.status}">
                 <div>
-                    <strong>ECB Koers:</strong> 1 EUR = ${(rate.rate_ppm / 1000000).toFixed(4)} ${rate.quote_currency} 
-                    <span style="color:var(--wb-text-muted); font-size:0.75rem; margin-left:0.5rem;">(Peildatum: ${esc(rate.rate_date)})</span>
+                    <strong>ECB Rate:</strong> 1 EUR = ${(rate.rate_ppm / 1000000).toFixed(4)} ${rate.quote_currency} 
+                    <span style="color:var(--wb-text-muted); font-size:0.75rem; margin-left:0.5rem;">(Reference date: ${esc(rate.rate_date)})</span>
                 </div>
-                ${rate.status === 'stale' ? '<span class="wb-badge wb-badge-warning">Koers is verouderd (>7 dagen)</span>' : ''}
-                ${rate.status === 'unavailable' ? '<span class="wb-badge wb-badge-danger">Koers niet beschikbaar</span>' : ''}
-                ${rate.status === 'fresh' ? '<span class="wb-badge wb-badge-success">Actueel</span>' : ''}
+                ${rate.status === 'stale' ? '<span class="wb-badge wb-badge-warning">Rate is out of date (>7 days)</span>' : ''}
+                ${rate.status === 'unavailable' ? '<span class="wb-badge wb-badge-danger">Rate unavailable</span>' : ''}
+                ${rate.status === 'fresh' ? '<span class="wb-badge wb-badge-success">Current</span>' : ''}
             </div>
         ` : '';
 
@@ -187,21 +187,21 @@
 
         const content = `
             <div class="page-header">
-                <h1>B2B Prijzen (EUR)</h1>
+                <h1>B2B Prices (EUR)</h1>
                 <div class="prices-header-actions">
-                    <button type="button" class="btn btn-outline" id="btn-import-excel">Plakken uit Excel</button>
-                    <button type="button" class="btn btn-outline" id="btn-adjust-selected">Geselecteerde Aanpassen</button>
-                    <button type="button" class="btn btn-outline" id="btn-bulk-adjust">Filter Bulk Aanpassen</button>
+                    <button type="button" class="btn btn-outline" id="btn-import-excel">Paste from Excel</button>
+                    <button type="button" class="btn btn-outline" id="btn-adjust-selected">Adjust Selected</button>
+                    <button type="button" class="btn btn-outline" id="btn-bulk-adjust">Bulk Adjust Filtered</button>
                 </div>
             </div>
             
             ${rateBannerHtml}
             
             <form id="prices-filter-form" class="prices-toolbar" style="margin: 1.5rem 0;">
-                <input type="text" name="q" value="${esc(q)}" placeholder="Zoek SKU of naam..." style="flex:1; min-width:200px;">
-                <select name="category"><option value="">Alle Categorieën</option>${catsHtml}</select>
-                <button type="submit" class="btn btn-outline">Filteren</button>
-                <a href="${window.APP_BASE}admin/prices" class="btn btn-outline" style="border:none">Wissen</a>
+                <input type="text" name="q" value="${esc(q)}" placeholder="Search by SKU or name..." style="flex:1; min-width:200px;">
+                <select name="category"><option value="">All Categories</option>${catsHtml}</select>
+                <button type="submit" class="btn btn-outline">Filter</button>
+                <a href="${window.APP_BASE}admin/prices" class="btn btn-outline" style="border:none">Clear</a>
             </form>
 
             <div class="prices-grid-container">
@@ -210,14 +210,14 @@
                         <tr>
                             <th style="width:40px; text-align:center"><input type="checkbox" id="select-all"></th>
                             <th>SKU</th>
-                            <th>Naam</th>
-                            <th>Inkoop (Cost)</th>
-                            <th>Basis (Base)</th>
+                            <th>Name</th>
+                            <th>Purchase (Cost)</th>
+                            <th>Base</th>
                             ${groupHeaders}
                         </tr>
                     </thead>
                     <tbody>
-                        ${currentProducts.length ? renderGrid(currentProducts, currentGroups) : '<tr><td colspan="10" style="text-align:center; padding:2rem;">Geen producten gevonden.</td></tr>'}
+                        ${currentProducts.length ? renderGrid(currentProducts, currentGroups) : '<tr><td colspan="10" style="text-align:center; padding:2rem;">No products found.</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -227,9 +227,9 @@
             </div>
 
             <div id="prices-unsaved-banner" class="prices-unsaved-banner" hidden>
-                <span><strong class="draft-count">0</strong> wijzigingen onopgeslagen</span>
-                <button type="button" class="btn btn-discard" id="btn-discard-drafts">Annuleren</button>
-                <button type="button" class="btn" id="btn-save-drafts">Opslaan</button>
+                <span><strong class="draft-count">0</strong> unsaved changes</span>
+                <button type="button" class="btn btn-discard" id="btn-discard-drafts">Cancel</button>
+                <button type="button" class="btn" id="btn-save-drafts">Save</button>
             </div>
         `;
 
@@ -256,7 +256,7 @@
         }
 
         document.getElementById('btn-discard-drafts')?.addEventListener('click', () => {
-            if (confirm('Alle niet-opgeslagen wijzigingen weggooien?')) {
+            if (confirm('Discard all unsaved changes?')) {
                 priceDrafts.clear();
                 window.Router.route();
             }
@@ -273,14 +273,14 @@
         document.getElementById('btn-import-excel').addEventListener('click', () => {
             const html = `
                 <div class="form-group">
-                    <label>Plak rijen uit Excel (Kopieer SKU, Cost, Base, Groups...)</label>
+                    <label>Paste rows from Excel (Copy SKU, Cost, Base, Groups...)</label>
                     <textarea id="excel-paste-area" class="form-control" rows="8" placeholder="SKU123\\t5,50\\t12,00\\t..."></textarea>
-                    <small>Verwachte volgorde per rij (tab-gescheiden): SKU, Inkoopprijs, Basisprijs${groups.length ? ', ' + groups.map(g=>g.name).join(', ') : ''}. Lege cellen worden genegeerd. Een - (streepje) wist de waarde.</small>
+                    <small>Expected order per row (tab-separated): SKU, purchase price, base price${groups.length ? ', ' + groups.map(g=>g.name).join(', ') : ''}. Blank cells are ignored. A - (dash) clears the value.</small>
                 </div>
                 <div class="alert error" id="paste-error" hidden></div>
-                <button type="button" class="btn" id="btn-process-paste" style="width:100%">Analyseren</button>
+                <button type="button" class="btn" id="btn-process-paste" style="width:100%">Analyse</button>
             `;
-            const overlay = window.UI.showModal('Excel Prijzen Plakken', html);
+            const overlay = window.UI.showModal('Paste Excel Prices', html);
             
             document.getElementById('btn-process-paste').addEventListener('click', async () => {
                 const text = document.getElementById('excel-paste-area').value;
@@ -289,18 +289,18 @@
                 
                 const btn = document.getElementById('btn-process-paste');
                 btn.disabled = true;
-                btn.textContent = 'Zoeken...';
+                btn.textContent = 'Searching...';
                 
                 const skus = rows.map(r => r[0]);
                 try {
                     for (const row of rows) {
-                        if (row.length < 2) throw new Error(`Plak ${row[0]} met minstens één prijskolom, gescheiden door tabs.`);
+                        if (row.length < 2) throw new Error(`Paste ${row[0]} with at least one price column, separated by tabs.`);
                         for (let column = 1; column < Math.min(row.length, 3 + groups.length); column++) {
                             const cell = row[column].trim();
                             if (!cell) continue;
-                            if (column === 2 && cell === '-') throw new Error(`De basisprijs van ${row[0]} kan niet worden gewist.`);
+                            if (column === 2 && cell === '-') throw new Error(`The base price of ${row[0]} cannot be cleared.`);
                             if (Number.isNaN(window.Workbench.parseCentsStrict(cell))) {
-                                throw new Error(`Ongeldig EUR-bedrag bij ${row[0]}, kolom ${column + 1}: ${cell}`);
+                                throw new Error(`Invalid EUR amount for ${row[0]}, column ${column + 1}: ${cell}`);
                             }
                         }
                     }
@@ -318,7 +318,7 @@
                             if (!val || val === '') return undefined;
                             if (val === '-') return null;
                             const cents = window.Workbench.parseCentsStrict(val);
-                            if (Number.isNaN(cents)) throw new Error(`Ongeldig EUR-bedrag bij ${sku}: ${val}`);
+                            if (Number.isNaN(cents)) throw new Error(`Invalid EUR amount for ${sku}: ${val}`);
                             return cents;
                         };
                         
@@ -343,15 +343,15 @@
                     
                     if (res.unknown_skus && res.unknown_skus.length > 0) {
                         const err = document.getElementById('paste-error');
-                        err.textContent = `Onbekende SKUs genegeerd: ${res.unknown_skus.join(', ')}`;
+                        err.textContent = `Unknown SKUs ignored: ${res.unknown_skus.join(', ')}`;
                         err.hidden = false;
                         if (applied > 0) {
-                            window.Workbench.toast(`${applied} producten in draft gezet. Sla op om te bevestigen.`, 'success');
+                            window.Workbench.toast(`${applied} products added to the draft. Save to confirm.`, 'success');
                             window.Router.route(); // Re-render to show dirtiness
                         }
                     } else {
                         window.UI.closeModal(overlay);
-                        window.Workbench.toast(`${applied} producten in draft gezet. Sla op om te bevestigen.`, 'success');
+                        window.Workbench.toast(`${applied} products added to the draft. Save to confirm.`, 'success');
                         window.Router.route(); // Re-render to show dirtiness
                     }
                 } catch(err) {
@@ -360,7 +360,7 @@
                     errEl.hidden = false;
                 } finally {
                     btn.disabled = false;
-                    btn.textContent = 'Analyseren';
+                    btn.textContent = 'Analyse';
                 }
             });
         });
@@ -380,39 +380,39 @@
         document.getElementById('btn-adjust-selected').addEventListener('click', () => {
             const selectedIds = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => parseInt(cb.value, 10));
             if (!selectedIds.length) {
-                return window.Workbench.toast('Selecteer eerst producten in de tabel', 'warning');
+                return window.Workbench.toast('Select products in the table first', 'warning');
             }
             
             const html = `
-                <div class="alert info">Aanpassing wordt als concept (draft) toegepast op ${selectedIds.length} geselecteerde rijen.</div>
+                <div class="alert info">The adjustment will be applied as a draft to ${selectedIds.length} selected rows.</div>
                 <form id="adjust-selected-form">
                     <div class="form-group">
-                        <label>Veld</label>
+                        <label>Field</label>
                         <select name="field" class="form-control">
-                            <option value="list_price_eur_cents">Basisverkoopprijs</option>
-                            <option value="purchase_price_eur_cents">Inkoopprijs</option>
-                            ${groups.map(g => `<option value="group_${g.id}">Groepsprijs: ${esc(g.name)}</option>`).join('')}
+                            <option value="list_price_eur_cents">Base Selling Price</option>
+                            <option value="purchase_price_eur_cents">Purchase Price</option>
+                            ${groups.map(g => `<option value="group_${g.id}">Group Price: ${esc(g.name)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="grid-cols-2">
                         <div class="form-group">
-                            <label>Operatie</label>
+                            <label>Operation</label>
                             <select name="operation" class="form-control">
                                 <option value="percent">Percentage (+ of - %)</option>
-                                <option value="add">Vast bedrag optellen (+ of - EUR)</option>
-                                <option value="set">Instellen op exact bedrag (EUR)</option>
-                                <option value="clear">Leegmaken (Onbekend/Erven)</option>
+                                <option value="add">Add fixed amount (+ or - EUR)</option>
+                                <option value="set">Set exact amount (EUR)</option>
+                                <option value="clear">Clear (Unknown/Inherit)</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Waarde</label>
+                            <label>Value</label>
                             <input type="text" inputmode="decimal" name="value" class="form-control">
                         </div>
                     </div>
-                    <button type="submit" class="btn" style="width:100%">Toepassen op concepten</button>
+                    <button type="submit" class="btn" style="width:100%">Apply to Drafts</button>
                 </form>
             `;
-            const overlay = window.UI.showModal('Geselecteerde Aanpassen', html);
+            const overlay = window.UI.showModal('Adjust Selected', html);
             
             const form = document.getElementById('adjust-selected-form');
             form.elements.operation.addEventListener('change', e => {
@@ -432,9 +432,9 @@
                         val = parseFloat(valStr.replace(',', '.'));
                     } else if (op === 'set' || op === 'add') {
                         const match = valStr.trim().replace(',', '.').match(/^(-?\d+)(\.(\d{0,2}))?$/);
-                        if (!match) return window.Workbench.toast('Ongeldig bedrag', 'error');
+                        if (!match) return window.Workbench.toast('Invalid amount', 'error');
                         val = Number(match[1]) * 100 + (valStr.trim().startsWith('-') ? -1 : 1) * Number((match[3] || '').padEnd(2, '0'));
-                        if (op === 'set' && val < 0) return window.Workbench.toast('Bedrag kan niet negatief zijn', 'error');
+                        if (op === 'set' && val < 0) return window.Workbench.toast('Amount cannot be negative', 'error');
                         val = val / 100; // Keep as float matching original logic before applying logic
                     }
                 }
@@ -480,7 +480,7 @@
                 });
                 
                 window.UI.closeModal(overlay);
-                window.Workbench.toast(`Concepten aangepast voor ${selectedIds.length} producten`, 'success');
+                window.Workbench.toast(`Drafts adjusted for ${selectedIds.length} products`, 'success');
                 window.Router.route(); // Re-render to show changes
             };
         });
@@ -488,40 +488,40 @@
         // Bulk Adjust Modal
         document.getElementById('btn-bulk-adjust').addEventListener('click', () => {
             const html = `
-                <div class="alert info">Filterwijziging past direct alle matchende producten op de server aan (max 10.000). Conceptwijzigingen worden niet meegenomen in deze berekening.</div>
+                <div class="alert info">This filtered adjustment directly updates all matching products on the server (max. 10,000). Draft changes are not included in this calculation.</div>
                 <form id="bulk-adjust-form">
                     <div class="form-group">
-                        <label>Veld</label>
+                        <label>Field</label>
                         <select name="field" class="form-control">
-                            <option value="list_price_eur_cents">Basisverkoopprijs</option>
-                            <option value="purchase_price_eur_cents">Inkoopprijs</option>
-                            ${groups.map(g => `<option value="group:${g.id}">Groepsprijs: ${esc(g.name)}</option>`).join('')}
+                            <option value="list_price_eur_cents">Base Selling Price</option>
+                            <option value="purchase_price_eur_cents">Purchase Price</option>
+                            ${groups.map(g => `<option value="group:${g.id}">Group Price: ${esc(g.name)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="grid-cols-2">
                         <div class="form-group">
-                            <label>Operatie</label>
+                            <label>Operation</label>
                             <select name="operation" class="form-control">
                                 <option value="percent">Percentage (+ of - %)</option>
-                                <option value="add">Vast bedrag optellen (+ of - EUR)</option>
-                                <option value="set">Instellen op exact bedrag (EUR)</option>
+                                <option value="add">Add fixed amount (+ or - EUR)</option>
+                                <option value="set">Set exact amount (EUR)</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Waarde</label>
+                            <label>Value</label>
                             <input type="text" inputmode="decimal" name="value" class="form-control" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn" style="width:100%" id="btn-preview-bulk">Preview Berekenen</button>
+                    <button type="submit" class="btn" style="width:100%" id="btn-preview-bulk">Calculate Preview</button>
                 </form>
                 <div id="bulk-preview-result" style="margin-top:1.5rem; display:none;">
                     <hr style="border:0; border-top:1px solid var(--wb-border-light); margin-bottom:1rem;">
-                    <p><strong><span id="bp-count"></span> producten</strong> worden aangepast.</p>
+                    <p><strong><span id="bp-count"></span> products</strong> will be adjusted.</p>
                     <div id="bp-samples" style="background:var(--wb-surface); padding:0.5rem; border-radius:4px; font-family:monospace; font-size:0.75rem; max-height:150px; overflow-y:auto; margin-bottom:1rem;"></div>
-                    <button type="button" class="btn btn-primary" id="btn-apply-bulk" style="width:100%">Wijzigingen Definitief Doorvoeren</button>
+                    <button type="button" class="btn btn-primary" id="btn-apply-bulk" style="width:100%">Apply Changes Permanently</button>
                 </div>
             `;
-            const overlay = window.UI.showModal('Bulk Prijzen Wijzigen', html);
+            const overlay = window.UI.showModal('Change Prices in Bulk', html);
             
             let applyToken = null;
 
@@ -535,20 +535,20 @@
                 
                 if (op === 'percent') {
                     const parsed = parseFloat(valStr.replace(',', '.'));
-                    if (isNaN(parsed)) return window.Workbench.toast('Ongeldig percentage', 'error');
+                    if (isNaN(parsed)) return window.Workbench.toast('Invalid percentage', 'error');
                     val = Math.round(parsed * 100); // basis points
                 } else if (op === 'set') {
                     val = window.Workbench.parseCentsStrict(valStr);
-                    if (Number.isNaN(val)) return window.Workbench.toast('Ongeldig bedrag', 'error');
+                    if (Number.isNaN(val)) return window.Workbench.toast('Invalid amount', 'error');
                 } else if (op === 'add') {
                     const match = valStr.trim().replace(',', '.').match(/^(-?\d+)(\.(\d{0,2}))?$/);
-                    if (!match) return window.Workbench.toast('Ongeldig bedrag', 'error');
+                    if (!match) return window.Workbench.toast('Invalid amount', 'error');
                     val = Number(match[1]) * 100 + (valStr.trim().startsWith('-') ? -1 : 1) * Number((match[3] || '').padEnd(2, '0'));
                 }
                 
                 const btn = document.getElementById('btn-preview-bulk');
                 btn.disabled = true;
-                btn.textContent = 'Berekenen...';
+                btn.textContent = 'Calculating...';
                 
                 const filters = {};
                 for (const [k, v] of searchParams.entries()) {
@@ -563,8 +563,8 @@
                     
                     document.getElementById('bp-count').textContent = res.count;
                     document.getElementById('bp-samples').textContent = res.samples.map(s => {
-                        const beforeStr = s.before != null ? (s.before / 100).toFixed(2) : 'Onbekend';
-                        const afterStr = s.after != null ? (s.after / 100).toFixed(2) : 'Onbekend';
+                        const beforeStr = s.before != null ? (s.before / 100).toFixed(2) : 'Unknown';
+                        const afterStr = s.after != null ? (s.after / 100).toFixed(2) : 'Unknown';
                         return `${s.sku}: ${beforeStr} -> ${afterStr}`;
                     }).join('\n');
                     applyToken = res.token;
@@ -573,7 +573,7 @@
                     window.Workbench.toast(err.message, 'error');
                 } finally {
                     btn.disabled = false;
-                    btn.textContent = 'Preview Berekenen';
+                    btn.textContent = 'Calculate Preview';
                 }
             };
             
@@ -581,17 +581,17 @@
                 if (!applyToken) return;
                 const btn = e.target;
                 btn.disabled = true;
-                btn.textContent = 'Toepassen...';
+                btn.textContent = 'Applying...';
                 try {
                     await window.Core.fetch('/admin/prices/adjust/apply', { method: 'POST', body: { token: applyToken } });
                     window.UI.closeModal(overlay);
-                    window.Workbench.toast('Bulk update uitgevoerd', 'success');
+                    window.Workbench.toast('Bulk update completed', 'success');
                     priceDrafts.clear(); // invalidate drafts since server changed
                     window.Router.route();
                 } catch(err) {
                     window.Workbench.toast(err.message, 'error');
                     btn.disabled = false;
-                    btn.textContent = 'Wijzigingen Definitief Doorvoeren';
+                    btn.textContent = 'Apply Changes Permanently';
                 }
             });
         });

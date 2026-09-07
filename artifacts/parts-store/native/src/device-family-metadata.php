@@ -42,10 +42,10 @@ function deviceFamilyGroup(string $family, string $name): array
                 || preg_match('/^(?:galaxy\s+)?' . preg_quote($id, '/') . '\s*\d/i', $plain)
                 || ($id === 'xcover' && str_contains($plain, 'xcover'))) return [$id, $label];
         }
-        return ['other', 'Overige Galaxy-modellen'];
+        return ['other', 'Other Galaxy models'];
     }
     $labels = ['iphone' => 'iPhone', 'pixel' => 'Google Pixel', 'watch' => 'Apple Watch', 'macbook' => 'MacBook'];
-    return [$family, $labels[$family] ?? 'Overige modellen'];
+    return [$family, $labels[$family] ?? 'Other models'];
 }
 
 /** Curated chronology key. Unknown generations are explicitly placed after known ones. */

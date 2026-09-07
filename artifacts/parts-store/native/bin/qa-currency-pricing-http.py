@@ -254,6 +254,14 @@ try:
          "purchase_price_eur_cents": None,
          "group_prices": [{"group_id": 1, "price_eur_cents": None}]}
     ]})["products"][0]
+    # The browsing currency follows the address book now that the header has no
+    # country control, so the Dutch destination must exist as an owned address
+    # before the session can resolve to EUR.
+    nl = customer.call("POST", "/addresses", {
+        "label": "QA NL", "name": "QA fixture", "company": "", "line1": "Teststraat 1",
+        "line2": "", "postal_code": "1011AA", "city": "Amsterdam", "country": "NL",
+        "is_default": False,
+    })["address"]
     customer.call("POST", "/currency", {"country": "NL"})
     customer_product = customer.call("GET", f"/products/{cleared['id']}")["product"]
     check(cleared["purchase_price_eur_cents"] is None and not cleared["group_prices"]
@@ -317,11 +325,6 @@ try:
         "group_prices": [{"group_id": 1, "price_eur_cents": None}],
     }]})
 
-    nl = customer.call("POST", "/addresses", {
-        "label": "QA NL", "name": "QA fixture", "company": "", "line1": "Teststraat 1",
-        "line2": "", "postal_code": "1011AA", "city": "Amsterdam", "country": "NL",
-        "is_default": False,
-    })["address"]
     ch = customer.call("GET", "/addresses")["addresses"][0]
     if ch["country"] != "CH":
         ch = next(address for address in customer.call("GET", "/addresses")["addresses"] if address["country"] == "CH")

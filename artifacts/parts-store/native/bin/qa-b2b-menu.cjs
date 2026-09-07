@@ -59,7 +59,7 @@ app.document.activeElement = null;
 app.window.addEventListener = (key, fn) => { windowHandlers[key] = fn; };
 app.window.innerWidth = 1200;
 app.window.APP_BASE = '/test-shop/';
-app.window.location = {href: 'https://shop.example.test/test-shop/catalog', search: '?category=screens&part=oled&brand=99&q=iphone&page=4&quality=OEM'};
+app.window.location = {href: 'https://shop.example.test/test-shop/catalog', search: '?category=screens&part=oled&brand=99&q=iphone&page=4&quality=OEM&featured=1&limit=48&sort=name'};
 
 const catalog = {
     categories: [],
@@ -104,11 +104,18 @@ app.window.Core.fetch = async url => {
     const mobile = created.find(node => node.className === 'b2b-mobile-toggle');
     const list = created.find(node => node.className === 'b2b-top-nav');
     const deviceItem = created.find(node => node.className.includes('has-dropdown'));
-    const trigger = deviceItem.children[0];
-    const overlay = deviceItem.children[1];
+    const brandLink = deviceItem.children[0];
+    const trigger = deviceItem.children[1];
+    const overlay = deviceItem.children[2];
+    assert.equal(brandLink.tag, 'a', 'The brand label is a destination, not only a panel toggle');
+    assert.match(brandLink.href, /device_brand=1/, 'Apple opens every part that fits an Apple device');
+    assert.doesNotMatch(brandLink.href, /[?&]brand=/, 'Device browsing never applies a product manufacturer filter');
+    assert.doesNotMatch(brandLink.href, /family=|model=/, 'A brand releases a narrower device scope');
     assert.equal(overlay.hidden, true);
     assert.equal(overlay.attributes.inert, '');
     assert.equal(trigger.tag, 'button');
+    assert.equal(trigger.className, 'b2b-nav-caret');
+    assert.ok(trigger.attributes['aria-label'], 'The panel control is labelled for screen readers');
     assert.ok(trigger.attributes['aria-controls']);
 
     fire(trigger, 'click');
@@ -135,11 +142,11 @@ app.window.Core.fetch = async url => {
     assert.equal(list.classList.contains('mobile-open'), false, 'Mobile toggle truly closes its list');
 
     const url = app.window.StoreMenu.compatibilityUrl({family: 'iphone', model: 11});
-    assert.match(url, /category=screens/);
-    assert.match(url, /part=oled/);
-    assert.match(url, /quality=OEM/);
+    assert.doesNotMatch(url, /category=|part=|quality=|stock=|featured=/, 'A menu pick starts a fresh scope instead of carrying the previous part filter');
     assert.match(url, /family=iphone/);
     assert.match(url, /model=11/);
+    assert.match(url, /sort=name/, 'How results are presented survives a menu pick');
+    assert.match(url, /limit=48/, 'Page size is presentation too and survives a menu pick');
     assert.doesNotMatch(url, /brand=|q=|page=/, 'Device navigation never applies a product manufacturer filter');
     const modelLink = element('a');
     modelLink.className = 'b2b-model-link';
@@ -147,13 +154,25 @@ app.window.Core.fetch = async url => {
     const categoryLink = element('a');
     categoryLink.className = 'b2b-acc-link';
     categoryLink.href = 'https://shop.example.test/test-shop/catalog?category=housing';
-    app.window.location.search = '?category=batteries&brand=99&page=4&model=11';
+    app.window.location.search = '?category=batteries&stock=in_stock&brand=99&page=4&model=11';
     app.window.StoreMenu.refreshLinks({querySelectorAll: () => [modelLink, categoryLink]});
-    assert.match(modelLink.href, /category=batteries/, 'Mounted menu links use current category after client-side navigation');
+    assert.doesNotMatch(modelLink.href, /category=|stock=/, 'Choosing a model from the menu drops the part filter of the page you came from');
     assert.doesNotMatch(modelLink.href, /category=old|brand=|page=/);
     assert.equal(modelLink.attributes['aria-current'], 'page');
     assert.match(categoryLink.href, /category=housing/);
     assert.doesNotMatch(categoryLink.href, /model=|family=/, 'Part department links clear device restrictions');
+    const familyLink = element('a');
+    familyLink.className = 'b2b-family-link';
+    familyLink.dataset.familyId = 'iphone';
+    familyLink.href = 'https://shop.example.test/test-shop/catalog?family=iphone&category=old';
+    app.window.StoreMenu.refreshLinks({querySelectorAll: () => [familyLink]});
+    assert.match(familyLink.href, /family=iphone/);
+    assert.doesNotMatch(familyLink.href, /category=/, 'A family row opens the whole family, not the part filter of the previous page');
+    assert.doesNotMatch(familyLink.href, /model=11/, 'Choosing a family releases the previously chosen model');
+    app.window.StoreMenu.refreshDestination(brandLink);
+    assert.match(brandLink.href, /device_brand=1/);
+    assert.doesNotMatch(brandLink.href, /category=/, 'A brand opens every part for that brand after client-side navigation');
+    assert.doesNotMatch(brandLink.href, /model=11|[?&]brand=99/);
 
     app.window.innerWidth = 320;
     fire(mobile, 'click');
@@ -166,9 +185,30 @@ app.window.Core.fetch = async url => {
     assert.deepEqual(Array.from(groups[0].families[0].models, model => model.id), [11, 10, 12], 'Every model is retained newest-to-oldest, with unknown chronology last');
     assert.equal(groups[0].brand.name, 'Apple');
     assert.equal(groups[0].modelCount, 3, 'Device brand ranking derives from real model memberships, not product-brand counts');
+    const bigCatalog = {...catalog, models: Array.from({length: 20}, (_, index) => ({
+        id: 100 + index, name: `iPhone ${index}`, brand_id: 1, family: 'iphone', sort_order: index, order_known: true
+    }))};
+    const bigEntry = app.window.StoreMenu.deviceData(bigCatalog)[0].families[0];
+    const panel = app.window.StoreMenu.modelsMarkup(bigEntry);
+    assert.equal((panel.match(/class="b2b-model-link"/g) || []).length, 12, 'The panel offers a workable shortlist instead of a scroll hunt');
+    assert.match(panel, /12 newest of 20 models/, 'The visitor is told what is shown and how to reach the rest');
+    assert.match(panel, /Show all 20 models/, 'A clear control expands the complete model overview');
+    assert.match(panel, /aria-expanded="false"/);
+    assert.match(panel, /data-model-id="119"/, 'The newest model leads the shortlist');
+    assert.doesNotMatch(panel, /data-model-id="105"/, 'An older model waits behind the search');
+    const expanded = app.window.StoreMenu.modelsMarkup(bigEntry, '', true);
+    assert.equal((expanded.match(/class="b2b-model-link"/g) || []).length, 20, 'Expanding shows every real model in the family');
+    assert.match(expanded, /All 20 models · newest to oldest/);
+    assert.match(expanded, /Show newest 12/);
+    assert.match(expanded, /data-model-id="105"/, 'Older models join the same at-a-glance panel after expansion');
+    const searched = app.window.StoreMenu.modelsMarkup(bigEntry, 'iphone 5');
+    assert.match(searched, /1 of 20 models|2 of 20 models/);
+    assert(searched.indexOf('data-model-id="105"') >= 0, 'A typed model surfaces however old it is');
+    assert(searched.indexOf('data-model-id="105"') < searched.indexOf('data-model-id="115"'), 'The exact model outranks a partial name');
+    assert.match(app.window.StoreMenu.modelsMarkup(bigEntry, 'zzz'), /No model with this name in iPhone/);
     const allMarkup = created.map(node => node.innerHTML).join('');
     assert.doesNotMatch(allMarkup, /[?&]brand=/, 'Rendered Apple and other device links contain no manufacturer fallback');
-    assert.match(allMarkup, /Alle onderdelen voor iPhone/);
+    assert.match(allMarkup, /All parts for iPhone/);
     assert.match(allMarkup, /b2b-model-search/);
 
     const count = created.length;

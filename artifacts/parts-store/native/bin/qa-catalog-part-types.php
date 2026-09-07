@@ -35,7 +35,7 @@ foreach ($facets as $facet) {
         throw new RuntimeException("PHP/SQL classifier mismatch for {$facet['id']}");
     }
 }
-$glass = catalogProductList(['q' => 'iphone13 achterglas', 'limit' => 100], null);
+$glass = catalogProductList(['q' => 'iphone13 rear glass', 'limit' => 100], null);
 foreach ($glass['products'] as $product) {
     if (($product['part_type']['id'] ?? null) !== 'rear-glass' || $product['price_cents'] !== null) {
         throw new RuntimeException('Precise rear-glass search or guest price privacy failed.');
@@ -47,7 +47,7 @@ foreach ($frames['products'] as $product) {
         throw new RuntimeException('Precise frame search returned a different subtype.');
     }
 }
-$withParts = catalogProductList(['q' => 'behuizing met onderdelen', 'limit' => 100], null);
+$withParts = catalogProductList(['q' => 'housing with parts', 'limit' => 100], null);
 foreach ($withParts['products'] as $product) {
     if (($product['part_type']['id'] ?? null) !== 'housing-with-parts') {
         throw new RuntimeException('Precise housing-with-parts search returned a different subtype.');
@@ -55,11 +55,11 @@ foreach ($withParts['products'] as $product) {
 }
 
 $aliasGroups = [
-    'rear-glass' => ['back cover glass', 'back glass', 'rear glass', 'achter glas', 'achterglas'],
+    'rear-glass' => ['back cover glass', 'back glass', 'rear glass'],
     'frame-chassis' => ['frame', 'mid frame', 'middle frame', 'chassis'],
-    'rear-cover' => ['back cover', 'rear cover', 'battery cover', 'achtercover', 'batterijcover'],
-    'housing-with-parts' => ['behuizing met onderdelen', 'housing with small components', 'housing with parts', 'voorgemonteerd', 'pre installed'],
-    'complete-housing' => ['complete housing', 'housing complete', 'complete behuizing', 'full housing'],
+    'rear-cover' => ['back cover', 'rear cover', 'battery cover'],
+    'housing-with-parts' => ['housing with small components', 'housing with parts', 'pre installed'],
+    'complete-housing' => ['complete housing', 'housing complete', 'full housing'],
 ];
 foreach ($aliasGroups as $part => $aliases) {
     foreach ($aliases as $alias) {
@@ -93,7 +93,7 @@ try {
 echo json_encode([
     'housing_category_id' => $housingId,
     'counts' => $phpCounts,
-    'iphone13_achterglas' => $glass['total'],
+    'iphone13_rear_glass' => $glass['total'],
     'frame_search' => $frames['total'],
     'housing_with_parts_search' => $withParts['total'],
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . PHP_EOL;

@@ -82,25 +82,25 @@ async function renderProducts(threshold, stocks, query = 'stock=low_stock') {
 (async () => {
     const defaultBoundary = await renderProducts(undefined, [0, 4, 5, 6]);
     assert(requestedProductsUrl.includes('stock=low_stock'), 'selected filter must send stock=low_stock');
-    assert(defaultBoundary.includes('<option value="low_stock" selected>Lage voorraad</option>'));
-    assert(defaultBoundary.includes('<option value="in_stock" >Op voorraad</option>'));
-    assert(defaultBoundary.includes('<option value="out_of_stock" >Uitverkocht</option>'));
-    assert(defaultBoundary.includes('Lage voorraad: ≤ 5 stuks'));
-    assert(defaultBoundary.includes('0 stuks · Uitverkocht'));
-    assert(defaultBoundary.includes('4 stuks · Lage voorraad'));
-    assert(defaultBoundary.includes('5 stuks · Lage voorraad'));
-    assert(defaultBoundary.includes('6 stuks</span>'));
-    assert(!defaultBoundary.includes('6 stuks · Lage voorraad'));
+    assert(defaultBoundary.includes('<option value="low_stock" selected>Low stock</option>'));
+    assert(defaultBoundary.includes('<option value="in_stock" >In stock</option>'));
+    assert(defaultBoundary.includes('<option value="out_of_stock" >Out of stock</option>'));
+    assert(defaultBoundary.includes('Low stock: ≤ 5 units'));
+    assert(defaultBoundary.includes('0 units · Out of stock'));
+    assert(defaultBoundary.includes('4 units · Low stock'));
+    assert(defaultBoundary.includes('5 units · Low stock'));
+    assert(defaultBoundary.includes('6 units</span>'));
+    assert(!defaultBoundary.includes('6 units · Low stock'));
 
     const zeroThreshold = await renderProducts(0, [0, 1]);
-    assert(zeroThreshold.includes('Lage voorraad: ≤ 0 stuks'));
-    assert(zeroThreshold.includes('0 stuks · Uitverkocht'));
-    assert(!zeroThreshold.includes('1 stuks · Lage voorraad'));
+    assert(zeroThreshold.includes('Low stock: ≤ 0 units'));
+    assert(zeroThreshold.includes('0 units · Out of stock'));
+    assert(!zeroThreshold.includes('1 units · Low stock'));
 
     const tenThreshold = await renderProducts(10, [10, 11]);
-    assert(tenThreshold.includes('Lage voorraad: ≤ 10 stuks'));
-    assert(tenThreshold.includes('10 stuks · Lage voorraad'));
-    assert(!tenThreshold.includes('11 stuks · Lage voorraad'));
+    assert(tenThreshold.includes('Low stock: ≤ 10 units'));
+    assert(tenThreshold.includes('10 units · Low stock'));
+    assert(!tenThreshold.includes('11 units · Low stock'));
 
     const settingsRoot = rootFixture();
     await settingsRoute([], settingsRoot);
