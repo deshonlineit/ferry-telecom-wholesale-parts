@@ -1400,12 +1400,14 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
 @media (min-width: 1024px) {
     body:not(:has(.admin-shell)) .catalog-layout {
         display: grid !important;
-        grid-template-columns: minmax(230px, 260px) minmax(0, 1fr);
+        grid-template-columns: 288px minmax(0, 1fr);
         gap: 24px;
         align-items: start;
         margin-top: 12px !important;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar {
+        width: 288px;
+        min-width: 288px;
         position: sticky;
         top: 126px;
         max-height: calc(100dvh - 142px);

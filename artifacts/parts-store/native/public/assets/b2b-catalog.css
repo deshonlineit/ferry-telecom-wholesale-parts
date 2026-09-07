@@ -1,5 +1,159 @@
 /* B2B Catalog Table & Search Styling */
 
+/* Calm, task-led catalogue filters */
+body:not(:has(.admin-shell)) .catalog-desktop-filters {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid #e8edf3;
+}
+
+body:not(:has(.admin-shell)) .catalog-desktop-filters > h3 {
+    margin: 0 0 16px;
+    color: #738196;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+body:not(:has(.admin-shell)) .catalog-sidebar .device-fields,
+body:not(:has(.admin-shell)) .filter-dialog .device-fields {
+    gap: 10px;
+}
+
+@media (min-width: 1000px) {
+    body:not(:has(.admin-shell)) .catalog-sidebar {
+        flex: 0 0 288px;
+    }
+
+    body:not(:has(.admin-shell)) .catalog-main {
+        min-width: 0;
+    }
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step {
+    position: relative;
+    padding: 10px 10px 11px 42px;
+    border: 1px solid #e4e9f0;
+    border-radius: 9px;
+    background: #fbfcfe;
+    transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step::before {
+    content: attr(data-step);
+    position: absolute;
+    top: 11px;
+    left: 11px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e9eef5;
+    color: #607087;
+    font-size: 0.6875rem;
+    font-weight: 700;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step > label,
+body:not(:has(.admin-shell)) .advanced-filters .field > label {
+    display: block;
+    margin: 0 0 6px;
+    color: #637087;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step .form-control {
+    min-height: 36px;
+    padding: 6px 9px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    font-size: 0.8125rem;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step .model-picker summary {
+    min-height: 42px;
+    align-items: flex-start;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step .model-caption {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-height: 2.7em;
+    white-space: normal !important;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .model-picker-popover .model-search {
+    min-height: 42px;
+    padding-inline: 10px;
+    background: #fff;
+    border-color: #dce4ee;
+    font-size: 0.8125rem;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step:focus-within,
+body:not(:has(.admin-shell)) .discovery-filters .filter-step.has-value {
+    border-color: #afcaeb;
+    background: #f5f9ff;
+    box-shadow: inset 3px 0 0 #2878c7;
+}
+
+body:not(:has(.admin-shell)) .discovery-filters .filter-step.has-value::before {
+    content: "✓";
+    background: #2878c7;
+    color: #fff;
+}
+
+body:not(:has(.admin-shell)) .advanced-filters {
+    margin-top: 14px;
+    padding-top: 0;
+    border-top: 0;
+    border-bottom: 1px solid #e8edf3;
+}
+
+body:not(:has(.admin-shell)) .advanced-filters > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+    padding: 8px 2px;
+    color: #42546b;
+    list-style: none;
+}
+
+body:not(:has(.admin-shell)) .advanced-filters > summary::-webkit-details-marker { display: none; }
+body:not(:has(.admin-shell)) .advanced-filters > summary::after {
+    content: "+";
+    color: #6c7d91;
+    font-size: 1rem;
+}
+body:not(:has(.admin-shell)) .advanced-filters[open] > summary::after { content: "−"; }
+
+body:not(:has(.admin-shell)) .advanced-filters .field {
+    margin: 6px 0 12px;
+}
+
+body:not(:has(.admin-shell)) .advanced-filters .form-control {
+    min-height: 40px;
+    font-size: 0.8125rem;
+}
+
+body:not(:has(.admin-shell)) .filter-auto-hint {
+    margin: 11px 0 0;
+    color: #8190a3;
+    font-size: 0.6875rem;
+    line-height: 1.45;
+}
+
 /* B2B Products Wrapper */
 .b2b-products {
     background: #ffffff;

@@ -42,3 +42,4 @@
 - [Smart-search model numbers](smart-search-model-numbers.md) — standalone numbers are device intent, not digit fragments inside SKUs or supplier codes.
 - [Smart-search typo tolerance](smart-search-typo-tolerance.md) — correct clear word misspellings centrally, but never alter model numbers, SKU-like codes, or ambiguous words.
 - [WooCommerce review imports](woocommerce-review-imports.md) — reconcile published products by exact SKU; refresh media from URL-keyed cache instead of trusting old product files.
+- [Catalogue filter hierarchy](catalogue-filter-hierarchy.md) — primary flow is model → part → subtype; brand, quality, and stock stay under optional filters.

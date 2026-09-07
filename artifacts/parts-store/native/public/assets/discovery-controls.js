@@ -34,10 +34,7 @@
             const model = catalog.models.find(item => String(item.id) === params.get('model'));
             const category = params.get('category') || '';
             return `<div class="device-fields">
-                <div class="field"><label for="${prefix}-brand">${t('brand')}</label>
-                    <select id="${prefix}-brand" name="brand" class="form-control"><option value="">${t('allBrands')}</option>
-                    ${catalog.brands.filter(b => b.count > 0 || String(b.id) === brand).map(b => `<option value="${b.id}" ${String(b.id) === brand ? 'selected' : ''}>${escape(b.name)} (${b.count})</option>`).join('')}</select></div>
-                <div class="field"><label id="${prefix}-model-label">${t('model')}</label>
+                <div class="field filter-step ${model ? 'has-value' : ''}" data-step="1"><label id="${prefix}-model-label">${t('model')}</label>
                     <input type="hidden" name="model" value="${model?.id || ''}">
                     <details class="model-picker">
                         <summary class="form-control" aria-labelledby="${prefix}-model-label ${prefix}-model-caption"><span id="${prefix}-model-caption" class="model-caption">${escape(model?.name || t('allModels'))}</span><span aria-hidden="true">⌄</span></summary>
@@ -48,11 +45,18 @@
                         </div>
                     </details>
                 </div>
-                <div class="field"><label for="${prefix}-category">${t('part')}</label><select id="${prefix}-category" name="category" class="form-control"><option value="">${t('allParts')}</option>
+                <div class="field filter-step ${category ? 'has-value' : ''}" data-step="2"><label for="${prefix}-category">${t('part')}</label><select id="${prefix}-category" name="category" class="form-control"><option value="">${t('allParts')}</option>
                     ${window.App.sortCategories(catalog.categories).filter(c => c.count > 0 || String(c.id) === category).map(c => `<option value="${c.id}" ${String(c.id) === category ? 'selected' : ''}>${escape(c.name)} (${c.count})</option>`).join('')}
                 </select></div>
-                <div class="field part-type-field" ${!(catalog.part_types || []).some(type => !category || String(type.category_id) === category) ? 'hidden' : ''}><label for="${prefix}-part">${t('partType')}</label><select id="${prefix}-part" name="part" class="form-control"><option value="">${t('allTypes')}</option>${(catalog.part_types || []).filter(type => !category || String(type.category_id) === category).map(type => `<option value="${escape(type.id)}" ${type.id === params.get('part') ? 'selected' : ''}>${escape(type.name)} (${type.count})</option>`).join('')}</select></div>
+                <div class="field filter-step part-type-field ${params.get('part') ? 'has-value' : ''}" data-step="3" ${!(catalog.part_types || []).some(type => !category || String(type.category_id) === category) ? 'hidden' : ''}><label for="${prefix}-part">${t('partType')}</label><select id="${prefix}-part" name="part" class="form-control"><option value="">${t('allTypes')}</option>${(catalog.part_types || []).filter(type => !category || String(type.category_id) === category).map(type => `<option value="${escape(type.id)}" ${type.id === params.get('part') ? 'selected' : ''}>${escape(type.name)} (${type.count})</option>`).join('')}</select></div>
             </div>`;
+        },
+        renderBrandField(catalog, params, prefix) {
+            params = getParams(params);
+            const brand = params.get('brand') || '';
+            return `<div class="field secondary-filter ${brand ? 'has-value' : ''}"><label for="${prefix}-brand">${t('brand')}</label>
+                <select id="${prefix}-brand" name="brand" class="form-control"><option value="">${t('allBrands')}</option>
+                ${catalog.brands.filter(b => b.count > 0 || String(b.id) === brand).map(b => `<option value="${b.id}" ${String(b.id) === brand ? 'selected' : ''}>${escape(b.name)} (${b.count})</option>`).join('')}</select></div>`;
         },
         // The rail shows the real part photo the category already carries; the 320w variant keeps it light.
         railGlyph() {
@@ -80,6 +84,12 @@
             const options = form.querySelector('.model-options');
             const caption = form.querySelector('.model-caption');
             const values = () => Object.fromEntries(new FormData(form));
+            const syncFieldStates = () => {
+                form.querySelectorAll('.field').forEach(field => {
+                    const control = field.querySelector('select, input[name]');
+                    field.classList.toggle('has-value', Boolean(control?.value));
+                });
+            };
             const filterModels = () => {
                 const term = search.value.toLocaleLowerCase().replace(/\s/g, '');
                 let visible = 0;
@@ -106,6 +116,7 @@
                 if (choice.dataset.brand) brand.value = choice.dataset.brand;
                 caption.textContent = choice.dataset.name;
                 picker.open = false;
+                syncFieldStates();
                 picker.querySelector('summary').focus();
                 model.dispatchEvent(new Event('change', {bubbles: true}));
             });
@@ -116,6 +127,7 @@
                     caption.textContent = t('allModels');
                     options.innerHTML = D.renderModelOptions(catalog, brand.value, '');
                 }
+                syncFieldStates();
                 if (onChange && onChange(values()) === false) return;
                 if (!['brand', 'model', 'category', 'part', 'quality', 'stock'].includes(event.target.name)) return;
                 if (!refreshFacets) return;
@@ -300,7 +312,8 @@
             const removeLink = ([key, label]) => `<a class="filter-chip" href="${D.buildUrl(params, {[key]: ''})}" aria-label="${t('removeFilter', {label})}">${escape(label)}<span aria-hidden="true">×</span></a>`;
             const filterForm = (prefix, mobile = false) => `<form class="discovery-filters" id="${prefix}-filters" data-context="${escape(params.toString())}">
                 ${D.renderDeviceFields(catalog, params, prefix)}
-                <details class="advanced-filters" ${params.get('quality') || params.get('stock') ? 'open' : ''}><summary>${t('moreFilters')} <small>${t('optional')}</small></summary>
+                <details class="advanced-filters" ${params.get('brand') || params.get('quality') || params.get('stock') ? 'open' : ''}><summary>${t('moreFilters')} <small>${t('optional')}</small></summary>
+                    ${D.renderBrandField(catalog, params, prefix)}
                     <div class="field"><label for="${prefix}-quality">${t('typeQuality')}</label><select name="quality" id="${prefix}-quality" class="form-control"><option value="">${t('allTypes')}</option>
                     ${[...new Set([...catalog.qualities, params.get('quality')].filter(Boolean))].map(q => `<option ${q === params.get('quality') ? 'selected' : ''} value="${escape(q)}">${escape(q)}</option>`).join('')}</select></div>
                     <label class="check-label"><input type="checkbox" name="stock" value="in_stock" ${params.get('stock') === 'in_stock' || params.get('stock') === '1' ? 'checked' : ''}> ${t('inStockOnly')}</label>
