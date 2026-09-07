@@ -45,15 +45,25 @@ function commerceSettings(PDO $pdo, string $currency = 'EUR'): array
     return $defaults;
 }
 
-function commerceShippingMethods(string $country): array
+function commerceSaturdayDeliveryAvailable(?DateTimeImmutable $now = null): bool
+{
+    $zurich = new DateTimeZone('Europe/Zurich');
+    $localNow = ($now ?? new DateTimeImmutable('now', $zurich))->setTimezone($zurich);
+    return $localNow->format('N') === '5' && $localNow->format('H:i:s') <= '17:00:00';
+}
+
+function commerceShippingMethods(string $country, ?DateTimeImmutable $now = null): array
 {
     $country = currencyDeliveryCountry($country);
     if ($country === 'CH') {
-        return [
+        $methods = [
             ['code' => 'swiss_post_priority', 'carrier' => 'Swiss Post', 'label' => 'Swiss Post Priority', 'amount_cents' => 600, 'currency' => 'CHF'],
-            ['code' => 'swiss_post_saturday', 'carrier' => 'Swiss Post', 'label' => 'Saturday Delivery', 'amount_cents' => 1500, 'currency' => 'CHF'],
-            ['code' => 'pickup', 'carrier' => 'Ferry Telecom', 'label' => 'Pick-up', 'amount_cents' => 0, 'currency' => 'CHF'],
         ];
+        if (commerceSaturdayDeliveryAvailable($now)) {
+            $methods[] = ['code' => 'swiss_post_saturday', 'carrier' => 'Swiss Post', 'label' => 'Saturday Delivery', 'amount_cents' => 1500, 'currency' => 'CHF'];
+        }
+        $methods[] = ['code' => 'pickup', 'carrier' => 'Ferry Telecom', 'label' => 'Pick-up', 'amount_cents' => 0, 'currency' => 'CHF'];
+        return $methods;
     }
     return [
         ['code' => 'ups_standard', 'carrier' => 'UPS', 'label' => 'UPS Standard', 'amount_cents' => 1500, 'currency' => 'EUR'],
@@ -61,9 +71,9 @@ function commerceShippingMethods(string $country): array
     ];
 }
 
-function commerceShippingMethod(string $country, ?string $requestedCode = null): array
+function commerceShippingMethod(string $country, ?string $requestedCode = null, ?DateTimeImmutable $now = null): array
 {
-    $methods = commerceShippingMethods($country);
+    $methods = commerceShippingMethods($country, $now);
     $code = trim((string) $requestedCode);
     if ($code === '') {
         return $methods[0];

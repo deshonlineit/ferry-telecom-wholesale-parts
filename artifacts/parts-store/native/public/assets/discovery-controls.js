@@ -41,6 +41,15 @@
             if (current && !models.some(model => String(model.id) === String(current.id))) models.unshift(current);
             return {models, total: ranked.length};
         },
+        modelGroupLabel(familyId, label) {
+            const value = String(label || '').trim();
+            if (familyId !== 'iphone' || !value) return value;
+            if (/^iPhone\b.*\bSeries$/i.test(value)) return value;
+            const series = value.match(/^(?:iPhone\s+)?(.+?)\s+Series$/i);
+            if (series) return `iPhone ${series[1]} Series`;
+            const generation = value.match(/^iPhone\s+(.+)$/i);
+            return generation ? `iPhone ${generation[1]} Series` : value;
+        },
         modelGroups(catalog, models) {
             const families = new Map((catalog.device_families || []).map((family, index) => [family.id, {...family, index}]));
             const groups = new Map();
@@ -51,7 +60,7 @@
                 const brand = (catalog.brands || []).find(item => String(item.id) === String(model.brand_id));
                 if (!groups.has(id)) groups.set(id, {
                     id,
-                    label: model.family_group_label || family?.label || brand?.name || t('other'),
+                    label: D.modelGroupLabel(familyId, model.family_group_label || family?.label || brand?.name || t('other')),
                     order: family?.index ?? 999,
                     sortOrder: 0,
                     models: []

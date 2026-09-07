@@ -44,12 +44,12 @@
             return {key: 'galaxy-other', label: 'Andere Galaxy-modellen', order: 20};
         }
         if (family.includes('iphone')) {
-            if (/\biphone\s+se\b/i.test(name)) return {key: 'iphone-se', label: 'iPhone SE', order: 80};
-            if (/\biphone\s+(?:x|xr|xs)\b/i.test(name)) return {key: 'iphone-x', label: 'iPhone X · XR · XS', order: 40};
+            if (/\biphone\s+se\b/i.test(name)) return {key: 'iphone-se', label: 'iPhone SE Series', order: 80};
+            if (/\biphone\s+(?:x|xr|xs)\b/i.test(name)) return {key: 'iphone-x', label: 'iPhone X · XR · XS Series', order: 40};
             const generation = name.match(/\biphone\s+(\d{1,2})\b/i)?.[1];
             if (generation) {
                 const number = Number(generation);
-                return {key: `iphone-${number}`, label: `iPhone ${number}`, order: 30 - number};
+                return {key: `iphone-${number}`, label: `iPhone ${number} Series`, order: 30 - number};
             }
             return {key: 'iphone-classic', label: 'Eerdere iPhone-modellen', order: 100};
         }
@@ -385,7 +385,7 @@
             return `<div class="b2b-model-series">${[...groups.values()]
                 .sort((a, b) => a.order - b.order)
                 .map(group => `<section class="b2b-model-series-group" aria-labelledby="series-${esc(entry.family.id)}-${esc(group.key)}">
-                    <h4 id="series-${esc(entry.family.id)}-${esc(group.key)}">${esc(group.label)} <small>${group.models.length}</small></h4>
+                    <h4 id="series-${esc(entry.family.id)}-${esc(group.key)}">${esc(group.label)}</h4>
                     <div class="b2b-model-links">${group.models.map(Menu.modelLink).join('')}</div>
                 </section>`).join('')}</div>`;
         },

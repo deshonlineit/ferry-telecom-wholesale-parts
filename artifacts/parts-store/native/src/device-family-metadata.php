@@ -38,9 +38,9 @@ function deviceFamilyGroup(string $family, string $name): array
 {
     $name = mb_strtolower($name, 'UTF-8');
     if ($family === 'iphone') {
-        if (preg_match('/^iphone\s+(\d+)(?:s|c)?\b/i', $name, $match)) return ["series-{$match[1]}", "{$match[1]} Series"];
-        if (preg_match('/^iphone\s+x[rs]?(?:\s|\(|$)/i', $name)) return ['series-x', 'X · XR · XS Series'];
-        if (preg_match('/^iphone\s+se(?:\s|\(|$)/i', $name)) return ['series-se', 'SE Series'];
+        if (preg_match('/^iphone\s+(\d+)(?:s|c)?\b/i', $name, $match)) return ["series-{$match[1]}", "iPhone {$match[1]} Series"];
+        if (preg_match('/^iphone\s+x[rs]?(?:\s|\(|$)/i', $name)) return ['series-x', 'iPhone X · XR · XS Series'];
+        if (preg_match('/^iphone\s+se(?:\s|\(|$)/i', $name)) return ['series-se', 'iPhone SE Series'];
         return ['iphone-other', 'Other iPhone models'];
     }
     if ($family === 'ipad') {

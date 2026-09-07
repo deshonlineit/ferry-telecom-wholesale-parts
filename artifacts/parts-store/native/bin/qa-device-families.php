@@ -26,7 +26,9 @@ check(deviceCanonicalModelName('iPhone 6S Plus (10 Pack)') === 'iPhone 6S Plus',
 check(deviceFamilyGroup('iphone', 'iPhone X')[0] === 'series-x'
     && deviceFamilyGroup('iphone', 'iPhone XR')[0] === 'series-x'
     && deviceFamilyGroup('iphone', 'iPhone XS Max')[0] === 'series-x', 'X, XR and XS must share one chronological generation group');
-check(deviceFamilyGroup('iphone', 'iPhone SE (2022)')[1] === 'SE Series', 'SE models must share one generation heading');
+check(deviceFamilyGroup('iphone', 'iPhone 16 Pro')[1] === 'iPhone 16 Series', 'numbered iPhones use an explicit series heading');
+check(deviceFamilyGroup('iphone', 'iPhone SE (2022)')[1] === 'iPhone SE Series', 'SE models must share one explicit series heading');
+check(deviceFamilyGroup('iphone', 'iPhone XS Max')[1] === 'iPhone X · XR · XS Series', 'X-family models use one explicit series heading');
 
 $screens = db()->query("SELECT id FROM categories WHERE slug='screens'")->fetchColumn();
 $facets = catalogFacets(['category' => $screens]);

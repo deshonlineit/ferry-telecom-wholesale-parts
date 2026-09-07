@@ -44,3 +44,9 @@ Park the pointer away from the element before measuring or screenshotting a rest
 **Why:** a headless driver keeps its virtual cursor where the last interaction left it, and that survives navigation and reloads. A correct resting style then reports and renders as its hover style, which looks like a failed fix and invites a second, wrong change.
 
 **How to apply:** move the pointer to a neutral coordinate first, measure the rest state, then hover explicitly and measure again; report both. Treat a "rest" measurement that exactly equals the hover rule as a parked cursor until proven otherwise.
+
+Authenticated native browser checks must use dedicated synthetic credentials rather than depending on workspace-only staff secrets.
+
+**Why:** Browser automation cannot read the native staff password secret, so a test can reach the correct sign-in form yet remain blocked before exercising the storefront.
+
+**How to apply:** Create an isolated active QA identity with a unique synthetic address and disposable password, verify the authenticated session in the browser, and delete every owned fixture after the check.

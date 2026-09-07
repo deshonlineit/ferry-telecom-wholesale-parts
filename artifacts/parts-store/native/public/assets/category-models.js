@@ -59,6 +59,15 @@
         familyLabel(catalog, family) {
             return (catalog.device_families || []).find(item => item.id === family)?.label || family;
         },
+        groupLabel(family, label) {
+            const value = String(label || '').trim();
+            if (family !== 'iphone' || !value) return value;
+            if (/^iPhone\b.*\bSeries$/i.test(value)) return value;
+            const series = value.match(/^(?:iPhone\s+)?(.+?)\s+Series$/i);
+            if (series) return `iPhone ${series[1]} Series`;
+            const generation = value.match(/^iPhone\s+(.+)$/i);
+            return generation ? `iPhone ${generation[1]} Series` : value;
+        },
         familyCaption(label, shown, total, query, outside = 0) {
             if (!String(query || '').trim()) return t('modelsWithParts', {count: window.I18n.number(total), models: t(total === 1 ? 'model' : 'models')});
             if (shown) return t('modelsOfTotal', {shown, total});
@@ -77,9 +86,9 @@
             const groups = new Map();
             models.forEach(model => {
                 const id = model.family_group || family || 'other';
-                const label = model.family_group_label
+                const label = C.groupLabel(family, model.family_group_label
                     || configured.find(group => group.id === id)?.label
-                    || C.familyLabel(catalog, family);
+                    || C.familyLabel(catalog, family));
                 if (!groups.has(id)) groups.set(id, {id, label, models: [], sortOrder: 0});
                 const group = groups.get(id);
                 group.models.push(model);

@@ -75,6 +75,9 @@ assert(selectedHtml.includes('<details class="device-family-group"'), 'Model fam
 assert(!selectedHtml.includes('<details class="device-family-group" name="device-family-accordion" open'), 'Choosing a model does not expand the long model list');
 assert(selectedHtml.includes(context.window.I18n.t('device')));
 assert(selectedHtml.includes('aria-current="page"'));
+const iphoneSeriesHtml = C.orderedModels(catalog, new URLSearchParams('family=iphone'), 'iphone', '', true);
+assert.match(iphoneSeriesHtml, /aria-label="iPhone 13 Series"/, 'Legacy generation labels gain the explicit iPhone series name');
+assert.doesNotMatch(iphoneSeriesHtml, /<h4[^>]*>[^<]*<small>/, 'Generation headings never expose a loose model count');
 assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes(context.window.I18n.t('noModelInFamily', {label: 'iPhone'})) || C.render({ ...catalog, models: [] }, new URLSearchParams(), 'LCD').includes(context.window.I18n.t('chooseModel')));
 console.log('PASS: visible category-first model choices, contextual URLs, query preservation, counts, small groups, escaping, selection and empty state.');
 

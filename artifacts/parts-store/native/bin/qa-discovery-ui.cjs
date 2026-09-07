@@ -106,8 +106,9 @@ check('model picker starts compact and makes the full list deliberate', () => {
     assert.match(html, /Show all 14 models/);
     const expandedHtml = discovery.renderModelOptions(catalog, '', '', '', true);
     assert.equal((expandedHtml.match(/data-model="\d+"/g) || []).length, 14);
-    assert.match(expandedHtml, />5 Series</);
-    assert.match(expandedHtml, />6 Series</);
+    assert.match(expandedHtml, />iPhone 5 Series</);
+    assert.match(expandedHtml, />iPhone 6 Series</);
+    assert.doesNotMatch(expandedHtml, /<h4[^>]*>[^<]*\s\d+\s*</, 'Generation headings never end in a loose count');
     assert.doesNotMatch(expandedHtml, /data-model-show-all/);
     const searchHtml = discovery.renderModelOptions(catalog, '', '', 'iphone18');
     assert.equal((searchHtml.match(/data-model="\d+"/g) || []).length, 1);

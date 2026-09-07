@@ -403,23 +403,33 @@ window.Router.add(/^checkout$/, async (match, root) => {
             // One address is preselected: the default when there is one, otherwise the first.
             // The radio group and the .selected outline must agree on exactly that card.
             const preselected = addresses.find(a => a.is_default) || addresses[0];
-            addrHtml = addresses.map((a) => `
-                <label class="address-card ${a.id === preselected.id ? 'selected' : ''}">
+            addrHtml = addresses.map((a) => {
+                const compact = addresses.length === 1;
+                const addressText = [
+                    a.company || a.name,
+                    a.company ? a.name : '',
+                    a.line1,
+                    a.line2 || '',
+                    `${a.postal_code} ${a.city}`,
+                    a.country
+                ].filter(Boolean).map(esc).join(' · ');
+                return `
+                <label class="address-card ${compact ? 'address-card-compact' : ''} ${a.id === preselected.id ? 'selected' : ''}">
                     <input type="radio" name="address_choice" value="${a.id}" data-country="${esc(a.country)}" ${a.id === preselected.id ? 'checked' : ''}>
-                    <div class="address-header mb-2">
+                    <div class="address-header ${compact ? '' : 'mb-2'}">
                         <strong>${esc(a.label || t('address'))}</strong>
                         <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
-                    <div class="text-sm">
+                    ${compact ? `<div class="compact-address-line">${addressText}</div>` : `<div class="text-sm">
                         ${a.company ? `<div>${esc(a.company)}</div>` : ''}
                         <div>${esc(a.name)}</div>
                         <div>${esc(a.line1)}</div>
                         ${a.line2 ? `<div>${esc(a.line2)}</div>` : ''}
                         <div>${esc(a.postal_code)} ${esc(a.city)}</div>
                         <div class="text-muted mt-1">${esc(a.country)}</div>
-                    </div>
+                    </div>`}
                 </label>
-            `).join('');
+            `}).join('');
         }
 
         const idem = Math.random().toString(36).substring(2);
@@ -446,15 +456,15 @@ window.Router.add(/^checkout$/, async (match, root) => {
                                     <div class="step-number">1</div>
                                     <h3>${t('deliveryAddress')}</h3>
                                 </div>
-                                <div class="address-grid">
+                                <div class="address-grid ${addresses.length === 1 ? 'address-grid-single' : ''}">
                                     ${addrHtml}
-                                    <label class="address-card address-card-new ${addresses.length === 0 ? 'selected' : ''}">
+                                    <label class="address-card address-card-new ${addresses.length === 1 ? 'address-card-new-inline' : ''} ${addresses.length === 0 ? 'selected' : ''}">
                                         <input type="radio" name="address_choice" value="new" ${addresses.length === 0 ? 'checked' : ''}>
                                         <div class="address-header">
                                             <strong>${t('differentDeliveryAddress')}</strong>
                                             <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         </div>
-                                        <div class="text-muted text-sm mt-1">${t('oneOffAddress')}</div>
+                                        ${addresses.length === 1 ? '' : `<div class="text-muted text-sm mt-1">${t('oneOffAddress')}</div>`}
                                     </label>
                                 </div>
                                 <div id="checkout-address-fields" class="checkout-address-fields mt-3" ${addresses.length ? 'hidden' : ''}>

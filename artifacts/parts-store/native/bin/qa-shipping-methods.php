@@ -26,7 +26,15 @@ function shippingRejects(callable $call): bool
 }
 
 assertIsolated();
-$ch = commerceShippingMethods('CH');
+$zurich = new DateTimeZone('Europe/Zurich');
+$fridayBeforeCutoff = new DateTimeImmutable('2026-09-11 16:59:59', $zurich);
+$fridayAtCutoff = new DateTimeImmutable('2026-09-11 17:00:00', $zurich);
+$fridayAfterCutoff = new DateTimeImmutable('2026-09-11 17:00:01', $zurich);
+$thursday = new DateTimeImmutable('2026-09-10 12:00:00', $zurich);
+$summerFriday = new DateTimeImmutable('2026-07-10 16:30:00', $zurich);
+$winterFriday = new DateTimeImmutable('2026-12-11 16:30:00', $zurich);
+
+$ch = commerceShippingMethods('CH', $fridayBeforeCutoff);
 $de = commerceShippingMethods('DE');
 
 shippingAssert(array_column($ch, 'code') === ['swiss_post_priority', 'swiss_post_saturday', 'pickup'], 'Swiss methods or ordering changed.');
@@ -39,9 +47,18 @@ shippingAssert(commerceShippingMethod('CH')['code'] === 'swiss_post_priority', '
 shippingAssert(commerceShippingMethod('DE')['code'] === 'ups_standard', 'International default is not UPS Standard.');
 shippingAssert(shippingRejects(static fn() => commerceShippingMethod('CH', 'ups_standard')), 'A foreign UPS method was accepted for Switzerland.');
 shippingAssert(shippingRejects(static fn() => commerceShippingMethod('DE', 'pickup')), 'Swiss pickup was accepted outside Switzerland.');
+shippingAssert(commerceSaturdayDeliveryAvailable($fridayBeforeCutoff), 'Saturday Delivery is unavailable before Friday cutoff.');
+shippingAssert(commerceSaturdayDeliveryAvailable($fridayAtCutoff), 'Saturday Delivery is unavailable exactly at Friday cutoff.');
+shippingAssert(!commerceSaturdayDeliveryAvailable($fridayAfterCutoff), 'Saturday Delivery remains available after Friday cutoff.');
+shippingAssert(!commerceSaturdayDeliveryAvailable($thursday), 'Saturday Delivery is available outside Friday.');
+shippingAssert(commerceSaturdayDeliveryAvailable($summerFriday) && commerceSaturdayDeliveryAvailable($winterFriday), 'Zürich daylight-saving handling changed availability.');
+shippingAssert(!in_array('swiss_post_saturday', array_column(commerceShippingMethods('CH', $fridayAfterCutoff), 'code'), true), 'Saturday Delivery is returned after cutoff.');
+shippingAssert(!in_array('swiss_post_saturday', array_column(commerceShippingMethods('CH', $thursday), 'code'), true), 'Saturday Delivery is returned on a non-Friday.');
+shippingAssert(shippingRejects(static fn() => commerceShippingMethod('CH', 'swiss_post_saturday', $fridayAfterCutoff)), 'Saturday Delivery can be forced after cutoff.');
+shippingAssert(shippingRejects(static fn() => commerceShippingMethod('CH', 'swiss_post_saturday', $thursday)), 'Saturday Delivery can be forced on a non-Friday.');
 
 $settings = ['tax_bps' => 810];
-$priority = commerceTotals(10000, $settings, commerceShippingMethod('CH', 'swiss_post_priority'));
+$priority = commerceTotals(10000, $settings, commerceShippingMethod('CH', 'swiss_post_priority', $fridayBeforeCutoff));
 $pickup = commerceTotals(10000, $settings, commerceShippingMethod('CH', 'pickup'));
 $express = commerceTotals(10000, $settings, commerceShippingMethod('DE', 'ups_express'));
 shippingAssert($priority['shipping_cents'] === 600 && $priority['tax_cents'] === 859 && $priority['total_cents'] === 11459, 'Swiss Priority VAT arithmetic is wrong.');

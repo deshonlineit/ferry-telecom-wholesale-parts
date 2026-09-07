@@ -233,9 +233,9 @@ app.window.Core.fetch = async url => {
     };
     const groupedIpad = app.window.StoreMenu.modelsMarkup(ipadEntry, '', true);
     assert.match(groupedIpad, /b2b-model-series/, 'Expanded iPad models use scan-friendly product-line groups');
-    assert(groupedIpad.indexOf('>iPad Pro <') < groupedIpad.indexOf('>iPad Air <'));
-    assert(groupedIpad.indexOf('>iPad Air <') < groupedIpad.indexOf('>iPad mini <'));
-    assert(groupedIpad.indexOf('>iPad mini <') < groupedIpad.indexOf('>iPad <'));
+    assert(groupedIpad.indexOf('>iPad Pro<') < groupedIpad.indexOf('>iPad Air<'));
+    assert(groupedIpad.indexOf('>iPad Air<') < groupedIpad.indexOf('>iPad mini<'));
+    assert(groupedIpad.indexOf('>iPad mini<') < groupedIpad.indexOf('>iPad<'));
     assert.equal((groupedIpad.match(/class="b2b-model-link"/g) || []).length, 5, 'Grouping retains every iPad model');
     const searchedIpad = app.window.StoreMenu.modelsMarkup(ipadEntry, 'pro');
     assert.doesNotMatch(searchedIpad, /b2b-model-series/, 'Search remains one relevance-ranked result list');
@@ -251,9 +251,9 @@ app.window.Core.fetch = async url => {
     };
     const groupedSamsung = app.window.StoreMenu.modelsMarkup(samsungEntry);
     assert.match(groupedSamsung, /b2b-model-series/, 'Samsung is grouped immediately, not only after expanding');
-    assert(groupedSamsung.indexOf('>Galaxy S <') < groupedSamsung.indexOf('>Galaxy A <'));
-    assert(groupedSamsung.indexOf('>Galaxy A <') < groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip <'));
-    assert(groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip <') < groupedSamsung.indexOf('>Galaxy Note <'));
+    assert(groupedSamsung.indexOf('>Galaxy S<') < groupedSamsung.indexOf('>Galaxy A<'));
+    assert(groupedSamsung.indexOf('>Galaxy A<') < groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip<'));
+    assert(groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip<') < groupedSamsung.indexOf('>Galaxy Note<'));
     const iphoneEntry = {
         family: {id: 'iphone', label: 'iPhone', count: 1736},
         models: app.window.StoreMenu.orderedModels([
@@ -266,9 +266,10 @@ app.window.Core.fetch = async url => {
     };
     const groupedIphone = app.window.StoreMenu.modelsMarkup(iphoneEntry);
     assert.match(groupedIphone, /b2b-model-series/);
-    assert(groupedIphone.indexOf('>iPhone 16 <') < groupedIphone.indexOf('>iPhone 15 <'));
-    assert.match(groupedIphone, />iPhone X · XR · XS </);
-    assert.match(groupedIphone, />iPhone SE </);
+    assert(groupedIphone.indexOf('>iPhone 16 Series<') < groupedIphone.indexOf('>iPhone 15 Series<'));
+    assert.match(groupedIphone, />iPhone X · XR · XS Series</);
+    assert.match(groupedIphone, />iPhone SE Series</);
+    assert.doesNotMatch(groupedIphone, /<h4[^>]*>[^<]*<small>/, 'Series headings never expose group counts');
     const searched = app.window.StoreMenu.modelsMarkup(bigEntry, 'iphone 5');
     assert.match(searched, /1 of 20 models|2 of 20 models/);
     assert(searched.indexOf('data-model-id="105"') >= 0, 'A typed model surfaces however old it is');
