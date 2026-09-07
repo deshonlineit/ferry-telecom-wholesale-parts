@@ -86,6 +86,12 @@
             group.families.get(String(family.id)).models.push(model);
             group.modelCount++;
         });
+        const priority = name => {
+            const normalized = String(name || '').toLowerCase();
+            if (normalized === 'apple') return 1;
+            if (normalized === 'samsung') return 2;
+            return 100;
+        };
         return [...groups.values()].map(group => ({
             brand: group.brand,
             modelCount: group.modelCount,
@@ -96,7 +102,8 @@
             })).sort((a, b) => Number(b.family.count || 0) - Number(a.family.count || 0)
                 || b.models.length - a.models.length
                 || String(a.family.label).localeCompare(String(b.family.label), 'en'))
-        })).sort((a, b) => b.modelCount - a.modelCount
+        })).sort((a, b) => priority(a.brand.name) - priority(b.brand.name)
+            || b.modelCount - a.modelCount
             || String(a.brand.name).localeCompare(String(b.brand.name), 'en'));
     };
 
@@ -510,8 +517,8 @@
         renderMegaMenu(container, catalog) {
             Menu.closeAll();
             const groups = deviceData(catalog);
-            const top = groups.slice(0, 5);
-            const other = groups.slice(5);
+            const top = groups.filter(group => ['apple', 'samsung'].includes(String(group.brand.name).toLowerCase()));
+            const other = groups.filter(group => !top.includes(group));
             const mobileToggle = document.createElement('button');
             mobileToggle.type = 'button';
             mobileToggle.className = 'b2b-mobile-toggle';
@@ -544,8 +551,6 @@
             };
             top.forEach((group, index) => deviceItem(group.brand.name, `b2b-device-menu-${index}`, [group], `top-${index}`, false,
                 {href: brandUrl(group.brand.id), brandId: group.brand.id}));
-            if (other.length) deviceItem(t('otherBrands'), 'b2b-device-menu-other', other, 'other', true, null);
-
             const grouped = window.App.groupCategories ? window.App.groupCategories(catalog.categories || []) : {parts: catalog.categories || [], supplies: []};
             if (grouped.parts.length) {
                 const item = Menu.categoryItem(t('partsMenu'), grouped.parts, 'b2b-parts-menu');
@@ -557,6 +562,10 @@
                 Menu.bindDropdown(item);
                 list.appendChild(item);
             }
+            // Keep the primary navigation commercial and concise. Less-used
+            // device brands (including Google) remain available under More /
+            // Other brands after the parts departments.
+            if (other.length) deviceItem(t('otherBrands'), 'b2b-device-menu-other', other, 'other', true, null);
             list.addEventListener('click', event => {
                 Menu.refreshDestination(event.target.closest?.('a'));
             }, true);

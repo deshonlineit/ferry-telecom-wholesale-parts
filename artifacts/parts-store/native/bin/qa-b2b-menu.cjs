@@ -65,17 +65,20 @@ const catalog = {
     categories: [],
     brands: [
         {id: 1, name: 'Apple', count: 9999},
-        {id: 2, name: 'Samsung', count: 1}
+        {id: 2, name: 'Samsung', count: 1},
+        {id: 3, name: 'Google', count: 5000}
     ],
     device_families: [
         {id: 'iphone', label: 'iPhone', count: 2},
-        {id: 'galaxy', label: 'Galaxy', count: 1}
+        {id: 'galaxy', label: 'Galaxy', count: 1},
+        {id: 'pixel', label: 'Google Pixel', count: 5000}
     ],
     models: [
         {id: 10, name: 'iPhone oud', brand_id: 1, family: 'iphone', sort_order: 1, order_known: true},
         {id: 11, name: 'iPhone nieuw', brand_id: 1, family: 'iphone', sort_order: 9, order_known: true},
         {id: 12, name: 'Onbekende chronologie', brand_id: 1, family: 'iphone', sort_order: 100, order_known: false},
-        {id: 20, name: 'Galaxy S', brand_id: 2, family: 'galaxy', sort_order: 2, order_known: true}
+        {id: 20, name: 'Galaxy S', brand_id: 2, family: 'galaxy', sort_order: 2, order_known: true},
+        {id: 30, name: 'Google Pixel 10', brand_id: 3, family: 'pixel', sort_order: 10, order_known: true}
     ]
 };
 
@@ -184,6 +187,8 @@ app.window.Core.fetch = async url => {
     const groups = app.window.StoreMenu.deviceData(catalog);
     assert.deepEqual(Array.from(groups[0].families[0].models, model => model.id), [11, 10, 12], 'Every model is retained newest-to-oldest, with unknown chronology last');
     assert.equal(groups[0].brand.name, 'Apple');
+    assert.equal(groups[1].brand.name, 'Samsung', 'Samsung is the second primary brand even when another brand has more models');
+    assert.equal(groups[2].brand.name, 'Google');
     assert.equal(groups[0].modelCount, 3, 'Device brand ranking derives from real model memberships, not product-brand counts');
     const bigCatalog = {...catalog, models: Array.from({length: 20}, (_, index) => ({
         id: 100 + index, name: `iPhone ${index}`, brand_id: 1, family: 'iphone', sort_order: index, order_known: true
@@ -258,6 +263,10 @@ app.window.Core.fetch = async url => {
     assert.doesNotMatch(allMarkup, /[?&]brand=/, 'Rendered Apple and other device links contain no manufacturer fallback');
     assert.match(allMarkup, /All parts for iPhone/);
     assert.match(allMarkup, /b2b-model-search/);
+    const topLabels = list.children.map(item => item.children[0]?.textContent || '').filter(Boolean);
+    assert.deepEqual(topLabels.slice(0, 2), ['Apple', 'Samsung'], 'The top menu starts with Apple and then Samsung');
+    assert.equal(topLabels.includes('Google'), false, 'Google is not a standalone primary-navigation item');
+    assert.equal(list.children.at(-1).className.includes('has-dropdown'), true, 'Other brands is placed after the department menus');
 
     const count = created.length;
     app.window.StoreMenu.init();

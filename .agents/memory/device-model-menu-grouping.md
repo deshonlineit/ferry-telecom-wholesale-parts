@@ -14,4 +14,8 @@ even when its chronology is technically correct.
 
 **How to apply:** keep sections in a stable commercial order, retain
 newest-to-oldest ordering inside each section, preserve every model when
-expanded, and keep typed search as one relevance-ranked result list.
+expanded, and keep typed search as one relevance-ranked result list. On wide
+screens, each series is one vertical column placed beside the other series;
+long columns scroll internally to keep the menu compact. Primary brand order
+is Apple then Samsung. Other device brands belong after the part departments
+under the final other-brands menu, not as competing top-level items.
