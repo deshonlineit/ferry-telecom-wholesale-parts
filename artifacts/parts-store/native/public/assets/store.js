@@ -681,7 +681,7 @@ window.Router.add(/^login$/, async (match, root) => {
         <div class="auth-wrapper">
             <div class="auth-card card">
                 <div class="auth-header mb-4 text-center">
-                    <img src="${window.APP_BASE}assets/logo.svg?v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
+                    <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
                     <h2>Sign in</h2>
                     <p class="text-muted">Welcome back to the test environment.</p>
                 </div>
@@ -729,7 +729,7 @@ window.Router.add(/^register$/, async (match, root) => {
         <div class="auth-wrapper">
             <div class="auth-card card" style="max-width:500px;">
                 <div class="auth-header mb-4 text-center">
-                    <img src="${window.APP_BASE}assets/logo.svg?v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
+                    <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
                     <h2>Become a customer</h2>
                     <p class="text-muted">Apply for an account with our wholesale business.</p>
                 </div>

@@ -1,6 +1,19 @@
 <?php
 declare(strict_types=1);
 
+$brandLogo = dirname(__DIR__, 2) . '/src/assets/ferry-logo.png';
+if (($_GET['asset'] ?? '') === 'brand-logo') {
+    if (!is_file($brandLogo)) {
+        http_response_code(404);
+        exit;
+    }
+    header('Content-Type: image/png');
+    header('Content-Length: ' . (string) filesize($brandLogo));
+    header('Cache-Control: public, max-age=31536000, immutable');
+    readfile($brandLogo);
+    exit;
+}
+
 require_once __DIR__ . '/../src/bootstrap.php';
 
 // This is a session-aware application shell, not a static marketing page.
@@ -54,7 +67,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     $v_admin = @filemtime(__DIR__ . '/assets/admin.js') ?: 1;
     $v_aprod = @filemtime(__DIR__ . '/assets/admin-products.js') ?: 1;
     $v_aops = @filemtime(__DIR__ . '/assets/admin-operations.js') ?: 1;
-    $v_logo = @filemtime(__DIR__ . '/assets/logo.svg') ?: 1;
+    $v_logo = @filemtime($brandLogo) ?: 1;
     $v_mark = @filemtime(__DIR__ . '/assets/mark.svg') ?: 1;
     $v_icon = @filemtime(__DIR__ . '/assets/apple-touch-icon.png') ?: 1;
 ?>
@@ -88,7 +101,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <header class="app-header">
         <div class="container header-inner">
             <a href="/test-shop/" class="logo" aria-label="Home">
-                <img src="/test-shop/assets/logo.svg?v=<?= $v_logo ?>" alt="Ferry Telecom Wholesale">
+                <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom">
             </a>
             
             <div class="search-bar">
@@ -125,7 +138,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
-                    <img src="/test-shop/assets/logo.svg?v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo">
+                    <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo">
                     <p>The standard for professional repairers. Precision, reliability and stock ready to ship.</p>
                 </div>
                 <div class="footer-links">

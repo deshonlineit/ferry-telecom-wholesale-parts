@@ -14,7 +14,6 @@ function check(name, run) {
 }
 
 const mark = read('public/assets/mark.svg');
-const logo = read('public/assets/logo.svg');
 const shell = read('public/index.php');
 const store = read('public/assets/store.js');
 
@@ -47,14 +46,12 @@ check('the icon mark stays square so browser and home-screen icons are not disto
     assert.match(mark, /width="64" height="64" viewBox="0 0 64 64"/);
 });
 
-check('the lockup keeps the 200x48 canvas the header, footer and login card size against', () => {
-    assert.match(logo, /width="200" height="48" viewBox="0 0 200 48"/);
-});
-
-check('the lockup is the original square F supplied for the shop', () => {
-    assert.match(logo, /<rect x="4" y="8" width="32" height="32" rx="6" fill="hsl\(217 91% 60%\)"\/>/);
-    assert.match(logo, /<path d="M12 32V16h16v4H17v3h9v4h-9v5z" fill="#fff"\/>/);
-    assert.doesNotMatch(logo, /rotate\(45|linearGradient|mask=/, 'do not replace the supplied square F with a generated diamond');
+check('the visible lockup is the supplied Ferry Telecom PNG, not recreated artwork', () => {
+    assert.match(shell, /src\/assets\/ferry-logo\.png/);
+    assert.match(shell, /Content-Type: image\/png/);
+    const supplied = fs.readFileSync(path.join(root, '../src/assets/ferry-logo.png'));
+    const uploaded = fs.readFileSync(path.join(root, '../../../attached_assets/ferrytelecom-logo_1788731448807.png'));
+    assert.deepEqual(supplied, uploaded, 'the public logo source must stay byte-for-byte identical to the supplied artwork');
 });
 
 for (const [name, svg] of [['mark', mark]]) {
@@ -122,22 +119,21 @@ check('the browser icon uses the square mark and the home-screen icon a real bit
 });
 
 check('every page-shell logo reference is cache-busted', () => {
-    const refs = shell.match(/src="[^"]*assets\/logo\.svg[^"]*"/g) || [];
+    const refs = shell.match(/src="[^"]*\?asset=brand-logo[^"]*"/g) || [];
     assert.equal(refs.length, 2, 'the header and the footer show the lockup');
-    for (const ref of refs) assert.match(ref, /\?v=<\?= \$v_logo \?>"$/);
+    for (const ref of refs) assert.match(ref, /&amp;v=<\?= \$v_logo \?>"$/);
 });
 
 check('the login and register cards cache-bust the lockup as well', () => {
-    const refs = store.match(/assets\/logo\.svg[^"`]*/g) || [];
+    const refs = store.match(/\?asset=brand-logo[^"`]*/g) || [];
     assert.ok(refs.length >= 2, 'both auth cards show the lockup');
-    for (const ref of refs) assert.match(ref, /\?v=\$\{window\.LOGO_V/);
+    for (const ref of refs) assert.match(ref, /&v=\$\{window\.LOGO_V/);
     assert.match(shell, /window\.LOGO_V = '<\?= \$v_logo \?>'/, 'the shell must publish the version those cards use');
     assert.doesNotMatch(store, /alt="Logo"/, 'name the brand in alt text instead of the word logo');
 });
 
 check('the artwork carries the shop its own name only', () => {
-    assert.match(logo, />Ferry Telecom<\/text>/);
-    assert.match(logo, />WHOLESALE PARTS<\/text>/);
+    assert.match(shell, /ferry-logo\.png/);
     assert.match(mark, /<title>Ferry Telecom<\/title>/);
 });
 
@@ -173,9 +169,9 @@ check('the rendered home-screen icon shows a blue diamond with a see-through F',
 (async () => {
     const host = process.env.REPLIT_DEV_DOMAIN;
     if (host) {
-        const expected = {'mark.svg': /image\/svg\+xml/, 'logo.svg': /image\/svg\+xml/, 'apple-touch-icon.png': /image\/png/};
+        const expected = {'assets/mark.svg': /image\/svg\+xml/, '?asset=brand-logo': /image\/png/, 'assets/apple-touch-icon.png': /image\/png/};
         for (const [file, type] of Object.entries(expected)) {
-            const response = await fetch(`https://${host}/test-shop/assets/${file}`);
+            const response = await fetch(`https://${host}/test-shop/${file}`);
             assert.equal(response.status, 200, `${file} must be reachable`);
             assert.match(response.headers.get('content-type') || '', type);
             count += 1;

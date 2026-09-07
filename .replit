@@ -101,4 +101,4 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
-packages = ["mysql84"]
+packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf", "mysql84", "openjpeg", "swig", "xcbuild"]
