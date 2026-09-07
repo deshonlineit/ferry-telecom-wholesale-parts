@@ -26,6 +26,7 @@
 - [Catalogue thumbnail performance](catalogue-thumbnail-performance.md) — list views use eager 320px thumbnails and immutable hashed-media caching; lazy rows visibly lag while scrolling.
 - [Identity test rate limits](identity-test-rate-limits.md) — concurrent task checks share one development tenant; reuse session tokens and retry throttled cleanup.
 - [Device scope navigation](device-scope-navigation.md) — brand/family/model are one scope axis: a narrower pick must clear the wider one, and escape-hatch facets must exclude the whole axis.
+- [Device model menu grouping](device-model-menu-grouping.md) — large Samsung and iPhone menus are scanned by product line/generation, never shown as one mixed chronological grid.
 - [Brand asset rendering](brand-asset-rendering.md) — a logo re-coloured by a CSS invert filter must cut its letter out with a mask; a white fill vanishes.
 - [Keyboard commit paths](keyboard-commit-paths.md) — Enter in a suggestion list must navigate itself; a synthetic click leans on the document router and fails where a mouse click does not.
 - [Native theme CSS specificity](native-theme-css-specificity.md) — body-level `:has()` theme rules beat single-class heading/link styles; dark panels need an extra wrapper class.

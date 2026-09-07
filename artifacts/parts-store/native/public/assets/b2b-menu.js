@@ -31,6 +31,27 @@
     const modelSeries = (entry, model) => {
         const family = String(entry?.family?.label || '').toLowerCase();
         const name = String(model?.name || '').toLowerCase();
+        if (family.includes('samsung') || family === 'galaxy') {
+            if (/\bgalaxy\s+s\d/i.test(name)) return {key: 'galaxy-s', label: 'Galaxy S', order: 1};
+            if (/\bgalaxy\s+a\d/i.test(name)) return {key: 'galaxy-a', label: 'Galaxy A', order: 2};
+            if (/\bgalaxy\s+(?:z\s+)?(?:fold|flip)\b/i.test(name)) return {key: 'galaxy-z', label: 'Galaxy Z · Fold & Flip', order: 3};
+            if (/\bgalaxy\s+note\b/i.test(name)) return {key: 'galaxy-note', label: 'Galaxy Note', order: 4};
+            if (/\bgalaxy\s+m\d/i.test(name)) return {key: 'galaxy-m', label: 'Galaxy M', order: 5};
+            if (/\bgalaxy\s+j\d/i.test(name)) return {key: 'galaxy-j', label: 'Galaxy J', order: 6};
+            if (/\bgalaxy\s+xcover\b/i.test(name)) return {key: 'galaxy-xcover', label: 'Galaxy XCover', order: 7};
+            if (/\bgalaxy\s+tab\b/i.test(name)) return {key: 'galaxy-tab', label: 'Galaxy Tab', order: 8};
+            return {key: 'galaxy-other', label: 'Andere Galaxy-modellen', order: 20};
+        }
+        if (family.includes('iphone')) {
+            if (/\biphone\s+se\b/i.test(name)) return {key: 'iphone-se', label: 'iPhone SE', order: 80};
+            if (/\biphone\s+(?:x|xr|xs)\b/i.test(name)) return {key: 'iphone-x', label: 'iPhone X · XR · XS', order: 40};
+            const generation = name.match(/\biphone\s+(\d{1,2})\b/i)?.[1];
+            if (generation) {
+                const number = Number(generation);
+                return {key: `iphone-${number}`, label: `iPhone ${number}`, order: 30 - number};
+            }
+            return {key: 'iphone-classic', label: 'Eerdere iPhone-modellen', order: 100};
+        }
         if (family.includes('ipad')) {
             if (/\bipad\s+pro\b/.test(name)) return {key: 'ipad-pro', label: 'iPad Pro', order: 1};
             if (/\bipad\s+air\b/.test(name)) return {key: 'ipad-air', label: 'iPad Air', order: 2};
@@ -334,7 +355,7 @@
             const toggle = !term && total > MODEL_LIMIT
                 ? `<button type="button" class="b2b-model-expand" data-model-expand aria-expanded="${expanded}">${expanded ? t('showNewest', {count: MODEL_LIMIT}) : t('showAllModels', {count: total})}<span aria-hidden="true">${expanded ? '↑' : '↓'}</span></button>`
                 : '';
-            const modelLinks = expanded && !term
+            const modelLinks = !term
                 ? Menu.groupedModelLinks(entry, shown)
                 : `<div class="b2b-model-links">${shown.map(Menu.modelLink).join('')}</div>`;
             return `<p class="b2b-model-status" role="status" aria-live="polite">${esc(status)}</p>

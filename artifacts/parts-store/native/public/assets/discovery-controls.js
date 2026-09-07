@@ -180,11 +180,45 @@
             return data;
         });
     };
-    D.catalogSkeleton = () => `<div data-catalog-shell class="catalog-skeleton" aria-busy="true">
-        <div class="catalog-skeleton-heading"><i></i><i></i></div><div class="catalog-layout">
-        <aside class="catalog-sidebar"><i></i><i></i><i></i><i></i></aside>
-        <section class="catalog-main"><i class="catalog-skeleton-toolbar"></i><div class="b2b-products">${[1,2,3,4,5].map(() => '<i class="catalog-skeleton-row"></i>').join('')}</div></section>
-        </div></div>`;
+    D.catalogSkeleton = input => {
+        const params = getParams(input);
+        const familyNames = {
+            iphone: 'iPhone',
+            ipad: 'iPad',
+            macbook: 'MacBook',
+            'apple-watch': 'Apple Watch',
+            samsung: 'Samsung Galaxy',
+            pixel: 'Google Pixel'
+        };
+        const rawDevice = params.get('family') || '';
+        const device = familyNames[rawDevice] || rawDevice.replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+        const loadingText = device ? `${t('loadingParts')} ${t('for')} ${device}` : t('loadingParts');
+        const rows = [1, 2, 3, 4, 5].map(() => `<div class="catalog-skeleton-row" aria-hidden="true">
+            <i class="catalog-skeleton-photo"></i>
+            <span class="catalog-skeleton-copy"><i></i><i></i><i></i></span>
+            <i class="catalog-skeleton-stock"></i>
+            <i class="catalog-skeleton-price"></i>
+            <i class="catalog-skeleton-action"></i>
+        </div>`).join('');
+        return `<div data-catalog-shell class="catalog-skeleton" aria-busy="true">
+            <div class="catalog-refresh-progress" aria-hidden="true"></div>
+            <div class="catalog-skeleton-heading" role="status" aria-live="polite">
+                <span class="catalog-eyebrow">${escape(t('catalogue'))}</span>
+                <h1>${escape(loadingText)}</h1>
+                <p>${escape(t('selectionApplied'))}</p>
+            </div>
+            <div class="catalog-layout">
+                <aside class="catalog-sidebar" aria-hidden="true">
+                    <div class="catalog-skeleton-side-title"><i></i><i></i></div>
+                    ${[1,2,3,4,5,6].map(() => '<div class="catalog-skeleton-side-row"><i></i><span><i></i></span></div>').join('')}
+                </aside>
+                <section class="catalog-main" aria-hidden="true">
+                    <div class="catalog-skeleton-toolbar"><i></i><i></i></div>
+                    <div class="b2b-products">${rows}</div>
+                </section>
+            </div>
+        </div>`;
+    };
     D.setCatalogRefreshing = (shell, busy, params) => {
         shell.classList.toggle('is-catalog-refreshing', busy);
         shell.setAttribute('aria-busy', String(busy));
@@ -236,7 +270,7 @@
         const token = (D.catalogToken || 0) + 1;
         D.catalogToken = token;
         if (previousShell) D.setCatalogRefreshing(previousShell, true, params);
-        else root.innerHTML = D.catalogSkeleton();
+        else root.innerHTML = D.catalogSkeleton(params);
         try {
             const [catalog, result] = await Promise.all([
                 D.getCatalog(params, D.catalogCacheKey(params), controller.signal),

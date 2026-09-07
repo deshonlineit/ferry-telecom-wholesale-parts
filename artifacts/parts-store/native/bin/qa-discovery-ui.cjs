@@ -45,10 +45,14 @@ check('facet metadata cache key is shared by sort and pagination changes', () =>
     assert.notEqual(base, discovery.catalogCacheKey('category=5&model=133'));
 });
 check('first catalogue load has a shaped shell and table-row skeletons', () => {
-    const html = discovery.catalogSkeleton();
+    context.window.I18n = {t: key => ({loadingParts: 'Onderdelen laden…', for: 'voor', catalogue: 'Catalogus', selectionApplied: 'Uw selectie wordt toegepast.'})[key] || key};
+    const html = discovery.catalogSkeleton('family=iphone');
     assert.match(html, /data-catalog-shell/);
     assert.match(html, /catalog-sidebar/);
     assert.match(html, /catalog-skeleton-row/);
+    assert.match(html, /Onderdelen laden… voor iPhone/);
+    assert.match(html, /role="status"/);
+    assert.match(html, /catalog-skeleton-photo/);
 });
 check('filter changes reset pagination', () => assert.equal(parse('page=9&sort=name', {quality: 'OLED'}).has('page'), false));
 check('changing category removes a stale housing subtype', () => {

@@ -220,6 +220,35 @@ app.window.Core.fetch = async url => {
     const searchedIpad = app.window.StoreMenu.modelsMarkup(ipadEntry, 'pro');
     assert.doesNotMatch(searchedIpad, /b2b-model-series/, 'Search remains one relevance-ranked result list');
     assert.equal((searchedIpad.match(/class="b2b-model-link"/g) || []).length, 2, 'Search still finds models across product-line groups');
+    const samsungEntry = {
+        family: {id: 'samsung', label: 'Samsung Galaxy', count: 1561},
+        models: app.window.StoreMenu.orderedModels([
+            {id: 41, name: 'Samsung Galaxy S25 Ultra', family: 'samsung', sort_order: 2025, order_known: true},
+            {id: 42, name: 'Samsung Galaxy A56 5G', family: 'samsung', sort_order: 2025, order_known: true},
+            {id: 43, name: 'Samsung Galaxy Z Fold 7 5G', family: 'samsung', sort_order: 2025, order_known: true},
+            {id: 44, name: 'Samsung Galaxy Note 20 Ultra', family: 'samsung', sort_order: 2020, order_known: true}
+        ])
+    };
+    const groupedSamsung = app.window.StoreMenu.modelsMarkup(samsungEntry);
+    assert.match(groupedSamsung, /b2b-model-series/, 'Samsung is grouped immediately, not only after expanding');
+    assert(groupedSamsung.indexOf('>Galaxy S <') < groupedSamsung.indexOf('>Galaxy A <'));
+    assert(groupedSamsung.indexOf('>Galaxy A <') < groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip <'));
+    assert(groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip <') < groupedSamsung.indexOf('>Galaxy Note <'));
+    const iphoneEntry = {
+        family: {id: 'iphone', label: 'iPhone', count: 1736},
+        models: app.window.StoreMenu.orderedModels([
+            {id: 51, name: 'iPhone 16 Pro Max', family: 'iphone', sort_order: 2024, order_known: true},
+            {id: 52, name: 'iPhone 16', family: 'iphone', sort_order: 2024, order_known: true},
+            {id: 53, name: 'iPhone 15 Pro', family: 'iphone', sort_order: 2023, order_known: true},
+            {id: 54, name: 'iPhone SE 2022', family: 'iphone', sort_order: 2022, order_known: true},
+            {id: 55, name: 'iPhone XS Max', family: 'iphone', sort_order: 2018, order_known: true}
+        ])
+    };
+    const groupedIphone = app.window.StoreMenu.modelsMarkup(iphoneEntry);
+    assert.match(groupedIphone, /b2b-model-series/);
+    assert(groupedIphone.indexOf('>iPhone 16 <') < groupedIphone.indexOf('>iPhone 15 <'));
+    assert.match(groupedIphone, />iPhone X · XR · XS </);
+    assert.match(groupedIphone, />iPhone SE </);
     const searched = app.window.StoreMenu.modelsMarkup(bigEntry, 'iphone 5');
     assert.match(searched, /1 of 20 models|2 of 20 models/);
     assert(searched.indexOf('data-model-id="105"') >= 0, 'A typed model surfaces however old it is');
