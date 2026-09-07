@@ -224,10 +224,18 @@
                         <div id="catalog-smart-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Smart Search results" style="display:none;"></div>
                     </form>
                 </section>
-                <nav class="quick-categories" aria-label="Choose a part quickly"><a class="quick-category ${!cat ? 'active' : ''}" ${!cat ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: ''})}">${D.railGlyph()}<span>All parts</span></a>${quickCategories.map(c => `<a class="quick-category ${c.id === cat?.id ? 'active' : ''}" ${c.id === cat?.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: c.id, part: ''})}">${D.categoryThumb(c)}<span>${escape(quickNames[c.slug] || c.name)}</span><small>${c.count}</small></a>`).join('')}</nav>
-                ${typePicker}
-                ${showCategoryModels ? window.CategoryModels.render(catalog, params, part?.name || categoryName || 'Your search') : ''}
                 <div class="catalog-layout">
+                    <aside class="catalog-sidebar" aria-label="Browse and filter catalogue">
+                        <div class="catalog-sidebar-heading"><span>Catalogue</span><h2>Find the right part</h2></div>
+                        <nav class="quick-categories" aria-label="Choose a part category"><a class="quick-category ${!cat ? 'active' : ''}" ${!cat ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: ''})}">${D.railGlyph()}<span>All parts</span></a>${quickCategories.map(c => `<a class="quick-category ${c.id === cat?.id ? 'active' : ''}" ${c.id === cat?.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: c.id, part: ''})}">${D.categoryThumb(c)}<span>${escape(quickNames[c.slug] || c.name)}</span><small>${c.count}</small></a>`).join('')}</nav>
+                        ${typePicker}
+                        ${showCategoryModels ? window.CategoryModels.render(catalog, params, part?.name || categoryName || 'Your search') : ''}
+                        <div class="catalog-desktop-filters">
+                            <h3>Filter products</h3>
+                            ${filterForm('desktop')}
+                        </div>
+                        ${chips.length ? `<div class="catalog-sidebar-active"><span>Active filters</span><div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">Clear all</a></div></div>` : ''}
+                    </aside>
                     <section class="catalog-main" data-catalog-results tabindex="-1" aria-label="Product results">
                         <div class="catalog-refine-row">${showCategoryModels ? '' : `<label class="catalog-tool-field">Brand<select id="catalog-brand" class="form-control"><option value="">All brands</option>${catalog.brands.filter(b => b.count > 0 || String(b.id) === params.get('brand')).map(b => `<option value="${b.id}" ${String(b.id) === params.get('brand') ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label>`}
                         <label class="catalog-tool-field">Quality<select id="quick-quality" class="form-control"><option value="">All qualities</option>${[...new Set([...catalog.qualities, params.get('quality')].filter(Boolean))].map(q => `<option value="${escape(q)}" ${q === params.get('quality') ? 'selected' : ''}>${escape(q)}</option>`).join('')}</select></label>
@@ -253,9 +261,13 @@
                 if (!changes.stock) changes.stock = '';
                 window.Router.navigate(D.buildUrl(params, changes));
             };
-            for (const prefix of ['mobile']) {
+            for (const prefix of ['desktop', 'mobile']) {
                 const form = document.getElementById(prefix + '-filters');
                 D.bindDeviceFields(form, catalog, prefix === 'desktop' ? {onChange() { apply(form); return false; }} : {});
+                if (prefix === 'desktop') {
+                    form.querySelector('.advanced-filters')?.addEventListener('change', () => apply(form));
+                    continue;
+                }
                 form.addEventListener('submit', event => {
                     event.preventDefault();
                     document.getElementById('catalog-filter-dialog').close();

@@ -13,3 +13,14 @@ also stay light; stacking them as large dark slabs makes the whole page end feel
 dated and visually heavy. Use the SF Pro/system family with deliberate weight,
 tight display-heading tracking, readable body contrast, and one deeper blue for
 the primary action.
+
+The storefront header uses surface hierarchy: the brand/account row remains
+clean white, while catalogue navigation sits on a very light blue-grey layer
+with a restrained lower divider.
+
+**Why:** two adjacent white header rows looked like one undifferentiated strip,
+making account controls and shopping navigation compete at the same level.
+
+**How to apply:** separate the rows through quiet background tone and edge
+depth, not dark fills or heavy shadows. Active and hovered navigation may return
+to white with the existing blue accent.

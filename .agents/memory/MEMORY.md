@@ -30,8 +30,10 @@
 - [vm-realm assertions](vm-realm-assertions.md) — deepStrictEqual fails on identical arrays crossing a node:vm boundary; copy with Array.from before asserting.
 - [Search minimum length](search-minimum-length.md) — no character minimum by owner's decision; bound search by row limit and debounce, never by refusing short terms.
 - [Landing visual tone](landing-visual-tone.md) — the front page opens light and quiet; dark saturated blocks and black buttons read as aggressive to the owner.
+- [Signed-in header actions](signed-in-header-actions.md) — account and sign-out stay polished icon-only controls; Cart retains its label and count.
 - [Catalogue visual language](catalogue-visual-language.md) — image-led categories, collapsed model families, quiet blue surface, larger product images, and no title underlines.
 - [Client policy enforcement](client-policy-enforcement.md) — a shortened UI list is not a rule until PHP rejects the excluded values, with a QA check keeping both lists identical.
 - [Smart-search privacy boundary](smart-search-privacy.md) — learn from intent and outcomes, never send customers’ raw search text to analytics.
 - [Smart-search model numbers](smart-search-model-numbers.md) — standalone numbers are device intent, not digit fragments inside SKUs or supplier codes.
+- [Smart-search typo tolerance](smart-search-typo-tolerance.md) — correct clear word misspellings centrally, but never alter model numbers, SKU-like codes, or ambiguous words.
 - [WooCommerce review imports](woocommerce-review-imports.md) — reconcile published products by exact SKU; refresh media from URL-keyed cache instead of trusting old product files.

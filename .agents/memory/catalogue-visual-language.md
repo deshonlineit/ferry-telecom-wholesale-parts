@@ -42,6 +42,30 @@ space with no clear reading order.
 icon-only sign-in action so the customer CTA remains readable without colliding
 with the brand.
 
+On desktop, catalogue discovery belongs in a compact left rail and product
+results start immediately in the wider right column. Categories, device
+selection, product filters, and active-filter controls must not form wide bands
+above the inventory.
+
+**Why:** the owner wants products and specifications visible higher on the page;
+the previous full-width category tiles and filter rows delayed the inventory
+and weakened the browse/filter hierarchy.
+
+**How to apply:** use a roughly 230–260px sticky desktop sidebar with compact
+image-led category rows and filters. Keep the product column flexible and wide.
+Below desktop width, return to the existing accessible single-column category
+rail, collapsed device chooser, and compact filter controls.
+
+Device families inside a brand mega menu use deliberate horizontal tabs above
+the full-width model grid. Pointer hover must never switch the active family.
+
+**Why:** with a vertical family rail, moving from an iPhone choice toward its
+models could cross the iPad row and accidentally replace the visible models.
+
+**How to apply:** switch family panels only by click/tap or keyboard tab
+navigation. Use tablist/tab/tabpanel semantics with roving focus and arrow,
+Home, and End keys. Keep “all parts for this family” inside the selected panel.
+
 Product-card imagery must align by the visible product contour, not by the raw
 source canvas. Normalize embedded white margins so products appear centered and
 at a consistent perceived size without distortion or clipping.

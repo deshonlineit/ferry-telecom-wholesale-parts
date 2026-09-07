@@ -350,8 +350,9 @@
                 const panelId = `${prefix}-models-${familyIndex}`;
                 const active = groupActive && index === 0;
                 registry?.set(String(familyIndex), entry);
-                familyButtons.push(`<div class="b2b-family-row${active ? ' active' : ''}" data-family-row="${familyIndex}"><a class="b2b-family-link" href="${esc(familyUrl(entry.family.id))}" data-family-id="${esc(entry.family.id)}">${esc(entry.family.label)}</a><button type="button" class="b2b-family-btn${active ? ' active' : ''}" data-family-index="${familyIndex}" aria-expanded="${active}" aria-controls="${panelId}" aria-label="Show models for ${esc(entry.family.label)}"><span aria-hidden="true">›</span></button></div>`);
-                grids.push(`<div class="b2b-models-grid${active ? ' active' : ''}" id="${panelId}" data-family-grid="${familyIndex}"${active ? '' : ' hidden inert'}>${Menu.modelsMarkup(entry)}</div>`);
+                const tabId = `${prefix}-family-${familyIndex}`;
+                familyButtons.push(`<div class="b2b-family-row${active ? ' active' : ''}" data-family-row="${familyIndex}"><button type="button" id="${tabId}" role="tab" class="b2b-family-btn${active ? ' active' : ''}" data-family-index="${familyIndex}" aria-selected="${active}" aria-controls="${panelId}" tabindex="${active ? '0' : '-1'}">${esc(entry.family.label)}</button></div>`);
+                grids.push(`<div class="b2b-models-grid${active ? ' active' : ''}" role="tabpanel" aria-labelledby="${tabId}" id="${panelId}" data-family-grid="${familyIndex}"${active ? '' : ' hidden inert'}>${Menu.modelsMarkup(entry)}</div>`);
             });
             return {familyButtons: familyButtons.join(''), grids: grids.join('')};
         },
@@ -363,7 +364,7 @@
             groups.forEach((group, brandIndex) => {
                 const sectionId = `${prefix}-brand-families-${brandIndex}`;
                 const section = Menu.familyGrid(group, prefix, offset, brandIndex === 0, registry);
-                familySections.push(`<div class="b2b-brand-families${brandIndex === 0 ? ' active' : ''}" id="${sectionId}" data-brand-families="${brandIndex}"${brandIndex === 0 ? '' : ' hidden inert'}>${section.familyButtons}</div>`);
+                familySections.push(`<div class="b2b-brand-families${brandIndex === 0 ? ' active' : ''}" role="tablist" aria-label="${esc(group.brand.name)} device families" id="${sectionId}" data-brand-families="${brandIndex}"${brandIndex === 0 ? '' : ' hidden inert'}>${section.familyButtons}</div>`);
                 grids.push(section.grids);
                 offset += group.families.length;
             });
@@ -380,7 +381,8 @@
                 overlay.querySelectorAll('.b2b-family-btn').forEach(candidate => {
                     const active = candidate === button;
                     candidate.classList.toggle('active', active);
-                    candidate.setAttribute('aria-expanded', String(active));
+                    candidate.setAttribute('aria-selected', String(active));
+                    candidate.tabIndex = active ? 0 : -1;
                     candidate.parentElement?.classList?.toggle('active', active);
                 });
                 overlay.querySelectorAll('[data-family-grid]').forEach(grid => {
@@ -392,12 +394,6 @@
                 if (input) input.value = '';
                 Menu.filterModels(overlay);
             };
-            // Pointing at a family previews its models; the label itself stays a link to the whole family.
-            overlay.addEventListener('mouseover', event => {
-                if (window.innerWidth <= MOBILE_WIDTH) return;
-                const button = event.target.closest?.('.b2b-family-row')?.querySelector('.b2b-family-btn');
-                if (button && !button.classList.contains('active')) activateFamily(button);
-            });
             overlay.addEventListener('click', event => {
                 const close = event.target.closest?.('.b2b-menu-close, .b2b-menu-back');
                 if (close) {
@@ -442,6 +438,19 @@
                     return;
                 }
                 if (event.target.closest?.('a')) Menu.closeAll();
+            });
+            overlay.addEventListener('keydown', event => {
+                const current = event.target.closest?.('.b2b-family-btn');
+                if (!current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                const tabs = [...current.closest('[role="tablist"]').querySelectorAll('.b2b-family-btn')];
+                if (!tabs.length) return;
+                event.preventDefault();
+                const currentIndex = tabs.indexOf(current);
+                const nextIndex = event.key === 'Home' ? 0
+                    : event.key === 'End' ? tabs.length - 1
+                    : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+                activateFamily(tabs[nextIndex]);
+                tabs[nextIndex].focus();
             });
             overlay.addEventListener('input', event => {
                 if (event.target.classList.contains('b2b-model-search')) Menu.filterModels(overlay);

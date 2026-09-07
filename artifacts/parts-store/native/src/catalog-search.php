@@ -362,6 +362,83 @@ function catalogConversationStopWords(): array
     ];
 }
 
+/**
+ * Correct a clear spelling mistake against known catalogue language.
+ * Numeric and SKU-like tokens are deliberately excluded: a buyer's exact code
+ * must never silently become another product or device.
+ *
+ * @param list<string> $tokens
+ * @return list<string>
+ */
+function catalogCorrectSearchTokens(array $tokens): array
+{
+    static $vocabulary = null;
+    if ($vocabulary === null) {
+        $words = [];
+        foreach (catalogCategoryAliases() as $aliases) {
+            array_push($words, ...$aliases);
+        }
+        $words = array_merge($words, [
+            'black', 'zwart', 'schwarz', 'white', 'wit', 'weiss', 'blue', 'blauw',
+            'red', 'rood', 'green', 'groen', 'yellow', 'geel', 'grey', 'gray',
+            'grijs', 'purple', 'paars', 'pink', 'roze', 'orange', 'oranje',
+            'gold', 'goud', 'silver', 'zilver', 'brown', 'bruin',
+            'oled', 'lcd', 'original', 'premium', 'pulled', 'servicepack',
+        ]);
+        $rows = db()->query(
+            "SELECT name FROM brands
+             UNION SELECT name FROM device_models
+             UNION SELECT name FROM categories
+             UNION SELECT quality AS name FROM products WHERE active=1 AND quality<>''"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($rows as $row) {
+            $parts = preg_split(
+                '/[^\p{L}]+/u',
+                mb_strtolower((string) $row, 'UTF-8'),
+                -1,
+                PREG_SPLIT_NO_EMPTY
+            ) ?: [];
+            array_push($words, ...$parts);
+        }
+        $vocabulary = array_values(array_unique(array_filter(
+            $words,
+            static fn(string $word): bool =>
+                mb_strlen($word, 'UTF-8') >= 4
+                && (bool) preg_match('/^\p{L}+$/u', $word)
+        )));
+    }
+
+    return array_map(static function (string $token) use ($vocabulary): string {
+        $length = mb_strlen($token, 'UTF-8');
+        if ($length < 4 || !preg_match('/^\p{L}+$/u', $token) || in_array($token, $vocabulary, true)) {
+            return $token;
+        }
+        // levenshtein() is byte based. The catalogue's typo vocabulary is
+        // overwhelmingly ASCII; leave accented input exact rather than guessing.
+        if (!preg_match('/^[a-z]+$/', $token)) {
+            return $token;
+        }
+        $maximum = $length >= 6 ? 2 : 1;
+        $bestWord = $token;
+        $bestDistance = $maximum + 1;
+        $bestCount = 0;
+        foreach ($vocabulary as $word) {
+            if (!preg_match('/^[a-z]+$/', $word) || abs(strlen($word) - strlen($token)) > $maximum) {
+                continue;
+            }
+            $distance = levenshtein($token, $word);
+            if ($distance < $bestDistance) {
+                $bestWord = $word;
+                $bestDistance = $distance;
+                $bestCount = 1;
+            } elseif ($distance === $bestDistance) {
+                $bestCount++;
+            }
+        }
+        return $bestDistance <= $maximum && $bestCount === 1 ? $bestWord : $token;
+    }, $tokens);
+}
+
 function catalogTokens(string $search): array
 {
     $normalized = preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($search, 'UTF-8')) ?? '';
@@ -382,7 +459,7 @@ function catalogTokens(string $search): array
     if (count($tokens) > 1) {
         $tokens = array_values(array_diff($tokens, catalogConversationStopWords()));
     }
-    return array_slice(array_unique($tokens), 0, 8);
+    return array_slice(array_unique(catalogCorrectSearchTokens($tokens)), 0, 8);
 }
 
 /** Read-only matching: suggestions never create or infer compatibility records. */

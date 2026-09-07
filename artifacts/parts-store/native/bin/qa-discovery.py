@@ -52,6 +52,27 @@ check(
     "standalone model numbers never match digits buried in unrelated supplier codes",
 )
 check(smart_model["intent"]["kind"] == "model" and "14" in smart_model["intent"]["label"], "smart search explains the recognized model")
+plain_screen = read("/search/products?" + urllib.parse.urlencode({"q": "14 screen", "limit": 12}))
+check(
+    plain_screen["products"]
+    and plain_screen["intent"]["kind"] == "model_part"
+    and plain_screen["intent"]["label"].lower().startswith("iphone 14"),
+    "omitted device brand still resolves an unambiguous common model and part",
+)
+for typo in ["14 scren", "iphone 14 screeen", "iphnoe 14 screen"]:
+    corrected = read("/search/products?" + urllib.parse.urlencode({"q": typo, "limit": 12}))
+    check(
+        corrected["products"]
+        and corrected["intent"]["kind"] == "model_part"
+        and corrected["intent"]["label"].lower().startswith("iphone 14"),
+        "clear spelling errors still resolve model and part intent: " + typo,
+    )
+samsung_typo = read("/search/products?" + urllib.parse.urlencode({"q": "samsng s22 batery", "limit": 12}))
+check(
+    samsung_typo["products"]
+    and all("s22" in p["name"].lower() and "battery" in p["name"].lower() for p in samsung_typo["products"]),
+    "multiple clear spelling errors resolve without losing the explicit device brand",
+)
 mixed_parts = read("/search/products?" + urllib.parse.urlencode({"q": "pulled 15 pro", "limit": 12}))
 check(len(mixed_parts["part_options"]) > 1, "smart search offers real part-type routes for mixed device results")
 check(

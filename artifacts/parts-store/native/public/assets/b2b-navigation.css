@@ -240,6 +240,39 @@ body:not(:has(.admin-shell)) .app-header .user-nav .nav-link:hover {
     background: #f1f4f9;
     text-decoration: none;
 }
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid #dfe5ed;
+    border-radius: 999px;
+    background: #fff;
+    color: #34465e;
+    box-shadow: 0 1px 2px rgba(20, 36, 60, .04);
+    cursor: pointer;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-icon-action:hover {
+    border-color: #bcd2ed;
+    background: #f3f8ff;
+    color: #1768c5;
+    transform: translateY(-1px);
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-signout-action:hover {
+    border-color: #edc5c8;
+    background: #fff5f5;
+    color: #b4232d;
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-icon-action:active {
+    transform: translateY(0) scale(.97);
+}
+body:not(:has(.admin-shell)) .app-header .user-nav .nav-icon-action:focus-visible {
+    outline: 2px solid #2878ed;
+    outline-offset: 2px;
+}
 body:not(:has(.admin-shell)) .app-header .user-nav .nav-signin {
     height: 40px;
     padding: 0 8px;
@@ -270,9 +303,12 @@ body:not(:has(.admin-shell)) .app-header .user-nav .btn-primary {
     box-shadow: 0 1px 2px rgba(16, 24, 40, .06);
 }
 body:not(:has(.admin-shell)) .store-mega-menu {
-    background: #ffffff;
-    border-bottom: 1px solid var(--border-light);
-    border-top: 1px solid var(--border-light);
+    background: #f5f8fc;
+    border-top: 1px solid #edf1f6;
+    border-bottom: 1px solid #dbe3ed;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .9),
+        0 2px 5px rgba(28, 50, 82, .035);
     position: relative;
     z-index: 900;
 }
@@ -327,7 +363,7 @@ body:not(:has(.admin-shell)) .b2b-nav-link {
     font: inherit;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #1d1d1f;
+    color: #28384d;
     background: transparent;
     border: 0;
     border-radius: 0;
@@ -356,7 +392,7 @@ body:not(:has(.admin-shell)) .b2b-nav-caret {
     width: 28px;
     padding: 0;
     font: inherit;
-    color: #1d1d1f;
+    color: #5f7188;
     background: transparent;
     border: 0;
     border-bottom: 3px solid transparent;
@@ -370,7 +406,7 @@ body:not(:has(.admin-shell)) .b2b-nav-item.has-dropdown:hover > .b2b-nav-caret,
 body:not(:has(.admin-shell)) .b2b-nav-link:hover {
     color: var(--primary);
     border-bottom-color: var(--primary);
-    background: #f4f8fe;
+    background: #ffffff;
     text-decoration: none;
 }
 
@@ -397,6 +433,7 @@ body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-dropdown-overlay {
 
 body:not(:has(.admin-shell)) .b2b-mega-layout {
     display: flex;
+    flex-direction: column;
     width: 100%;
     min-width: 0;
     margin: 0 auto;
@@ -404,18 +441,22 @@ body:not(:has(.admin-shell)) .b2b-mega-layout {
 }
 
 body:not(:has(.admin-shell)) .b2b-mega-families {
-    width: 224px;
-    flex-shrink: 0;
-    background: #f6f8fb;
-    border-right: 1px solid var(--border-light);
-    overflow-y: auto;
-    padding: 1rem 0;
+    width: 100%;
+    flex: 0 0 auto;
+    background: #f8fafc;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-light);
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px 20px;
+    scrollbar-width: thin;
 }
 
 /* A family row is a destination (the label) plus a preview control (the caret). */
 body:not(:has(.admin-shell)) .b2b-family-row {
-    display: flex;
-    align-items: stretch;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
 }
 
 body:not(:has(.admin-shell)) .b2b-family-link {
@@ -434,24 +475,28 @@ body:not(:has(.admin-shell)) .b2b-family-btn {
     display: flex;
     justify-content: center;
     align-items: center;
-    flex: 0 0 36px;
-    min-height: 40px;
-    padding: 0.5rem;
-    background: none;
-    border: none;
-    font-size: 0.9375rem;
-    color: #64748b;
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 7px 14px;
+    background: #fff;
+    border: 1px solid #dce3ed;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #34465e;
+    white-space: nowrap;
     cursor: pointer;
 }
 
 body:not(:has(.admin-shell)) .b2b-family-row:hover,
 body:not(:has(.admin-shell)) .b2b-family-row:focus-within {
-    background: #e8e8ed;
+    background: transparent;
 }
 
 body:not(:has(.admin-shell)) .b2b-family-row.active {
-    background: #fff;
-    box-shadow: inset 3px 0 0 var(--primary);
+    background: transparent;
+    box-shadow: none;
 }
 
 body:not(:has(.admin-shell)) .b2b-family-row.active .b2b-family-link,
@@ -459,13 +504,15 @@ body:not(:has(.admin-shell)) .b2b-family-row.active .b2b-family-btn,
 body:not(:has(.admin-shell)) .b2b-family-link:hover {
     font-weight: 600;
     color: var(--primary);
+    border-color: #9fc3f3;
+    background: #edf5ff;
     text-decoration: none;
 }
 
 body:not(:has(.admin-shell)) .b2b-mega-models {
     flex: 1;
     min-width: 0;
-    padding: 20px 24px;
+    padding: 18px 24px 20px;
     overflow-y: auto;
     background: #fff;
 }
@@ -547,12 +594,18 @@ body:not(:has(.admin-shell)) .b2b-family-all small {
     color: #64748b;
 }
 body:not(:has(.admin-shell)) .b2b-mega-brands {
-    padding: 0 12px 12px;
-    margin-bottom: 12px;
+    padding: 0 0 8px;
+    margin-bottom: 8px;
     border-bottom: 1px solid #dfe5ee;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+}
+body:not(:has(.admin-shell)) .b2b-brand-families.active {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: max-content;
 }
 body:not(:has(.admin-shell)) .b2b-brand-btn {
     padding: 7px 9px;
@@ -843,6 +896,7 @@ body:not(:has(.admin-shell)) .mobile-chevron {
         padding: 10px;
     }
     body:not(:has(.admin-shell)) .b2b-family-row {
+        flex: 1 1 140px;
         border: 1px solid #dce3eb;
         border-radius: 4px;
         background: #fff;
@@ -857,10 +911,12 @@ body:not(:has(.admin-shell)) .mobile-chevron {
         padding: 8px 6px 8px 10px;
     }
     body:not(:has(.admin-shell)) .b2b-family-btn {
-        flex: 0 0 32px;
+        flex: 1 1 auto;
+        width: 100%;
         min-height: 38px;
-        padding: 8px 4px;
-        border-left: 1px solid #eef1f5;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 4px;
     }
     body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-dropdown-overlay {
         flex: 1 0 100%;
@@ -1193,7 +1249,165 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
 /* Desktop layout constraints */
 @media (min-width: 1024px) {
     body:not(:has(.admin-shell)) .catalog-layout {
+        display: grid !important;
+        grid-template-columns: minmax(230px, 260px) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+        margin-top: 12px !important;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar {
+        position: sticky;
+        top: 126px;
+        max-height: calc(100dvh - 142px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 16px;
+        background: #fff;
+        border: 1px solid var(--border-light);
+        border-radius: 10px;
+        scrollbar-width: thin;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar-heading {
+        margin-bottom: 14px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar-heading span,
+    body:not(:has(.admin-shell)) .catalog-desktop-filters > h3,
+    body:not(:has(.admin-shell)) .catalog-sidebar-active > span {
         display: block;
+        margin: 0 0 6px;
+        color: #66758a;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar-heading h2 {
+        margin: 0;
+        color: #172033;
+        font-size: 18px;
+        line-height: 1.25;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-categories {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+        margin: 0 0 18px;
+        padding: 0 0 18px;
+        border-bottom: 1px solid #e8edf4;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-category {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
+        align-items: center;
+        width: 100%;
+        min-height: 46px;
+        padding: 5px 8px;
+        gap: 9px;
+        border-color: transparent;
+        border-radius: 7px;
+        box-shadow: none;
+        font-size: 13px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-category:hover {
+        transform: none;
+        background: #f7f9fc;
+        box-shadow: none;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-category.active {
+        background: #eef5ff;
+        border-color: #c8dcf8;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-category-thumb {
+        width: 34px;
+        height: 34px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-category span {
+        text-align: left;
+        -webkit-line-clamp: 2;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .quick-category small {
+        display: inline;
+        color: #78879a;
+        font-size: 11px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .category-models {
+        display: none;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .part-type-picker {
+        margin: 0 0 18px;
+        padding: 0 0 18px;
+        border: 0;
+        border-bottom: 1px solid #e8edf4;
+        border-radius: 0;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .part-type-options {
+        flex-direction: column;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .part-type-option {
+        width: 100%;
+    }
+    body:not(:has(.admin-shell)) .catalog-desktop-filters {
+        padding-top: 2px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .discovery-filters,
+    body:not(:has(.admin-shell)) .catalog-sidebar .device-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .field,
+    body:not(:has(.admin-shell)) .catalog-sidebar .field select {
+        width: 100%;
+        min-width: 0;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .advanced-filters {
+        margin: 0;
+        border-top: 1px solid #e8edf4;
+        padding-top: 12px;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar .filter-auto-hint {
+        margin: 0;
+        color: #78879a;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar-active {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid #e8edf4;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar-active .active-filters {
+        margin: 0;
+    }
+    body:not(:has(.admin-shell)) .catalog-main {
+        min-width: 0;
+    }
+    body:not(:has(.admin-shell)) .catalog-main .catalog-refine-row,
+    body:not(:has(.admin-shell)) .catalog-main > .active-filters {
+        display: none;
+    }
+    body:not(:has(.admin-shell)) .catalog-toolbar {
+        min-height: 42px;
+        margin-bottom: 10px;
+        padding: 0 2px;
+        border-bottom: 1px solid #e4e9f0;
+    }
+    body:not(:has(.admin-shell)) .catalog-price-notice {
+        margin-bottom: 10px;
+    }
+}
+@media (max-width: 1023px) {
+    body:not(:has(.admin-shell)) .catalog-layout {
+        display: block;
+        margin-top: 0;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar {
+        display: contents;
+    }
+    body:not(:has(.admin-shell)) .catalog-sidebar-heading,
+    body:not(:has(.admin-shell)) .catalog-desktop-filters,
+    body:not(:has(.admin-shell)) .catalog-sidebar-active {
+        display: none;
     }
 }
 @media (max-width: 768px) {
