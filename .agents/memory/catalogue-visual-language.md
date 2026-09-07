@@ -9,6 +9,18 @@ The catalogue is product-led, not heading-led: omit the breadcrumb and large dev
 
 **How to apply:** keep the catalogue on a light Ferry-blue-derived surface. Concrete device models stay hidden inside closed family disclosures until a visitor deliberately opens one. Product rows keep their dense structure, but images are larger with a restrained hover scale. Product-title links never underline on hover or keyboard focus; use colour only.
 
+Show only one Smart Search surface per page. The homepage uses its hero search,
+the catalogue uses a compact search directly above the part-category tiles, and
+other storefront pages use the header search. The catalogue device picker is one
+closed “Choose a device” row until the visitor deliberately opens it.
+
+**Why:** the owner found a header search plus a second page search visually
+duplicated, while an always-visible list of device families slowed scanning.
+
+**How to apply:** every search surface must use the same conversational intent
+and live-product result behavior; do not fall back to a simpler keyword-only
+header search.
+
 Product-card imagery must align by the visible product contour, not by the raw
 source canvas. Normalize embedded white margins so products appear centered and
 at a consistent perceived size without distortion or clipping.

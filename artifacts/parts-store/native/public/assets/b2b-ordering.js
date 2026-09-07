@@ -28,8 +28,8 @@
             app.searchTimer = setTimeout(async () => {
                 app.searchAbort = new AbortController();
                 try {
-                    const hero = owner === 'home-search';
-                    const data = await window.Core.fetch(`/search/products?q=${encodeURIComponent(query)}&limit=${hero ? 12 : 8}`, {signal: app.searchAbort.signal});
+                    const expanded = owner === 'home-search' || owner === 'catalog-smart-search';
+                    const data = await window.Core.fetch(`/search/products?q=${encodeURIComponent(query)}&limit=${expanded ? 12 : 8}`, {signal: app.searchAbort.signal});
                     if (sequence === app.searchSequence) O.renderSuggestions(data, query);
                 } catch (error) {
                     if (sequence === app.searchSequence && error.name !== 'AbortError') {
@@ -51,11 +51,12 @@
             const {container, input} = window.App.searchElements();
             if (!container || !input?.isConnected) return;
             const owner = window.App.searchOwner || 'search-input';
-            const hero = owner === 'home-search';
+            const smartSurface = true;
+            const source = owner === 'home-search' ? 'homepage' : (owner === 'catalog-smart-search' ? 'catalogue' : 'header');
             const intent = data.intent || {kind: 'product', label: 'Product match'};
-            if (hero) {
+            if (smartSurface) {
                 O.track(data.products?.length ? 'smart_search_results' : 'smart_search_zero_results', {
-                    source: 'homepage',
+                    source,
                     intent: String(intent.kind || 'product'),
                     result_count: Number(data.products?.length || 0),
                     has_more: Boolean(data.has_more)
@@ -66,7 +67,7 @@
                 return;
             }
             const esc = window.Core.escapeHtml;
-            const partOptions = hero && Array.isArray(data.part_options) && data.part_options.length > 1
+            const partOptions = smartSurface && Array.isArray(data.part_options) && data.part_options.length > 1
                 ? `<div class="smart-search-parts" aria-label="Choose a part type">
                     <p>What part do you need?</p>
                     <div class="smart-search-part-grid">${data.part_options.map(option => {
@@ -90,8 +91,8 @@
             input.setAttribute('aria-haspopup', 'dialog');
             input.removeAttribute('aria-activedescendant');
             window.App.searchIndex = -1;
-            container.innerHTML = `<div class="suggestion-group-title">${hero ? 'Smart matches · fast order' : 'Order directly'} <span>${data.products.length} products</span></div>
-                ${hero ? `<div class="smart-search-context"><span class="smart-search-understood">Understood as <strong>${esc(intent.label || 'Product match')}</strong></span><span>Choose quantity</span><span>Add to cart</span></div>${partOptions}` : ''}` +
+            container.innerHTML = `<div class="suggestion-group-title">Smart matches · fast order <span>${data.products.length} products</span></div>
+                ${smartSurface ? `<div class="smart-search-context"><span class="smart-search-understood">Understood as <strong>${esc(intent.label || 'Product match')}</strong></span><span>Choose quantity</span><span>Add to cart</span></div>${partOptions}` : ''}` +
                 data.products.map((product, index) => {
                     const minimum = Math.max(1, Number(product.minimum_quantity) || 1);
                     const available = Number(product.stock) >= minimum && product.price_cents !== null;
@@ -126,8 +127,8 @@
             });
             container.querySelectorAll('[data-smart-product]').forEach(link => {
                 link.addEventListener('click', () => {
-                    if (hero) O.track('smart_search_product_opened', {
-                        source: 'homepage',
+                    if (smartSurface) O.track('smart_search_product_opened', {
+                        source,
                         intent: String(intent.kind || 'product'),
                         product_id: Number(link.dataset.smartProduct)
                     });

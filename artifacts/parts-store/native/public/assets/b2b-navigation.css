@@ -70,7 +70,7 @@ body:not(:has(.admin-shell)) .app-header .search-submit {
     padding: 0 18px;
     border: none;
     border-radius: 999px;
-    background: var(--text-main);
+    background: #2878ed;
     color: #ffffff;
     font-size: .8125rem;
     font-weight: 600;
@@ -79,7 +79,85 @@ body:not(:has(.admin-shell)) .app-header .search-submit {
     transition: background .15s ease, transform .15s ease;
 }
 body:not(:has(.admin-shell)) .app-header .search-submit:hover {
-    background: #1e293b;
+    background: #1768d4;
+}
+
+body:not(:has(.admin-shell)):has(.lp) .app-header .search-bar,
+body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .search-bar {
+    display: none;
+}
+
+body:not(:has(.admin-shell)):has(.lp) .app-header .header-inner,
+body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .header-inner {
+    justify-content: space-between;
+}
+
+body:not(:has(.admin-shell)) .catalog-smart-search {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    margin: 0 0 18px;
+    padding: 14px;
+    border: 1px solid #dce7f5;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f7fbff, #fff);
+}
+
+body:not(:has(.admin-shell)) .catalog-smart-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+body:not(:has(.admin-shell)) .catalog-smart-intro strong { font-size: 14px; color: #172033; }
+body:not(:has(.admin-shell)) .catalog-smart-intro span { font-size: 12px; color: #69778b; line-height: 1.35; }
+body:not(:has(.admin-shell)) .catalog-smart-form { position: relative; min-width: 0; }
+body:not(:has(.admin-shell)) .catalog-smart-field {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    padding: 5px 5px 5px 15px;
+    border: 1px solid #b9cce5;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(31, 75, 128, .06);
+}
+body:not(:has(.admin-shell)) .catalog-smart-field:focus-within {
+    border-color: #2878ed;
+    box-shadow: 0 0 0 4px rgba(40, 120, 237, .13);
+}
+body:not(:has(.admin-shell)) .catalog-smart-field > svg { width: 20px; color: #728197; }
+body:not(:has(.admin-shell)) .catalog-smart-field input {
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+}
+body:not(:has(.admin-shell)) .catalog-smart-field button {
+    min-height: 40px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 8px;
+    background: #2878ed;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+body:not(:has(.admin-shell)) .catalog-smart-search .b2b-search-results[role="dialog"] { top: calc(100% + 5px); }
+
+@media (max-width: 720px) {
+    body:not(:has(.admin-shell)) .catalog-smart-search { grid-template-columns: 1fr; gap: 9px; padding: 11px; }
+    body:not(:has(.admin-shell)) .catalog-smart-intro span { display: none; }
+    body:not(:has(.admin-shell)) .catalog-smart-field { grid-template-columns: 20px minmax(0, 1fr); padding: 7px 10px; }
+    body:not(:has(.admin-shell)) .catalog-smart-field button { grid-column: 1 / -1; width: 100%; }
 }
 body:not(:has(.admin-shell)) .app-header .search-submit:active {
     transform: scale(.98);

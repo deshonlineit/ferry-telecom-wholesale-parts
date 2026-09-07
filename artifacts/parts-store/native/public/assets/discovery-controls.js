@@ -181,7 +181,7 @@
             const subject = part?.name || categoryName || 'Parts';
             const device = model?.name || family?.label || deviceBrand?.name || '';
             const title = device ? `${subject} for ${device}` : (part?.name || categoryName || (query ? 'Search results' : 'All parts'));
-            const showCategoryModels = !model && Boolean(cat || part || query || family || deviceBrand);
+            const showCategoryModels = true;
             const chips = [
                 query && ['q', `“${query}”`], cat && ['category', categoryName], part && ['part', part.name],
                 deviceBrand && ['device_brand', deviceBrand.name], family && ['family', family.label], brand && ['brand', brand.name],
@@ -213,6 +213,17 @@
             const typePicker = partTypes.length ? `<section class="part-type-picker" aria-label="Which part do you need?"><div class="part-type-intro"><span>Which part?</span><small>Not every item is a complete housing.</small></div><nav class="part-type-options" aria-label="Housing part type"><a class="part-type-option ${!part ? 'active' : ''}" ${!part ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {part: ''})}"><strong>All</strong><small>All variants</small></a>${partTypes.map(type => `<a class="part-type-option ${type.id === part?.id ? 'active' : ''} ${type.count === 0 ? 'is-empty' : ''}" ${type.id === part?.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: cat.id, part: type.id})}" title="${escape(type.description)}"><span><strong>${escape(type.name)}</strong><b>${type.count}</b></span><small>${escape(type.description)}</small></a>`).join('')}</nav></section>` : '';
             root.innerHTML = `<div class="catalog-breadcrumb"><a href="${window.APP_BASE}">Home</a><span>/</span><a href="${D.buildUrl('')}">Catalogue</a>${cat ? `<span>/</span><span>${escape(cat.name)}</span>` : ''}</div>
                 <div class="catalog-heading"><div><span class="catalog-eyebrow">Exactly the right part</span><h1>${escape(title)}</h1><p class="catalog-description">${result.total.toLocaleString('en-GB')} ${result.total === 1 ? 'part' : 'parts'}${query ? ` for “${escape(query)}”` : ''}</p></div>${showCategoryModels ? '' : window.FastFinder.inline(params, model)}</div>
+                <section class="catalog-smart-search" aria-label="Smart Search">
+                    <div class="catalog-smart-intro"><strong>Smart search</strong><span>Describe what you need in your own words</span></div>
+                    <form class="catalog-smart-form" role="search" data-search-root onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(window.location.search), {q: this.q.value})); window.UI.closeSuggestions();">
+                        <div class="catalog-smart-field">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.3-4.3"/></svg>
+                            <input type="search" id="catalog-smart-search" name="q" value="${escape(query)}" placeholder="Ask for any model, part, colour or quality…" aria-label="Describe the part you need" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="catalog-smart-search-suggestions" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'catalog-smart-search')" onfocus="window.App.handleSearchFocus('catalog-smart-search')" onkeydown="window.App.handleSearchKeydown(event)">
+                            <button type="submit">Smart search</button>
+                        </div>
+                        <div id="catalog-smart-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Smart Search results" style="display:none;"></div>
+                    </form>
+                </section>
                 <nav class="quick-categories" aria-label="Choose a part quickly"><a class="quick-category ${!cat ? 'active' : ''}" ${!cat ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: ''})}">${D.railGlyph()}<span>All parts</span></a>${quickCategories.map(c => `<a class="quick-category ${c.id === cat?.id ? 'active' : ''}" ${c.id === cat?.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: c.id, part: ''})}">${D.categoryThumb(c)}<span>${escape(quickNames[c.slug] || c.name)}</span><small>${c.count}</small></a>`).join('')}</nav>
                 ${typePicker}
                 ${showCategoryModels ? window.CategoryModels.render(catalog, params, part?.name || categoryName || 'Your search') : ''}

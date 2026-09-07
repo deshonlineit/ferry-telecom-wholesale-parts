@@ -22,8 +22,36 @@
 }
 
 body:not(:has(.admin-shell)) .category-models { padding: 12px; margin-bottom: 16px; border-radius: 8px; box-shadow: none; background: #fff; border: 1px solid var(--border-light); }
-body:not(:has(.admin-shell)) .category-models .category-model-heading { gap: 3px; margin-bottom: 10px; font-size: 15px; }
+body:not(:has(.admin-shell)) .category-models { padding: 0; overflow: hidden; }
+body:not(:has(.admin-shell)) .category-model-trigger {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 58px;
+    padding: 9px 14px;
+    list-style: none;
+    cursor: pointer;
+    background: #fff;
+}
+body:not(:has(.admin-shell)) .category-model-trigger::-webkit-details-marker { display: none; }
+body:not(:has(.admin-shell)) .category-model-trigger:hover { background: #f8fbff; }
+body:not(:has(.admin-shell)) .category-model-trigger:focus-visible { outline: 2px solid #2f6fe4; outline-offset: -2px; }
+body:not(:has(.admin-shell)) .category-model-trigger-icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: #eef5ff;
+    color: #1768c5;
+}
+body:not(:has(.admin-shell)) .category-model-trigger-icon svg { width: 18px; height: 18px; }
+body:not(:has(.admin-shell)) .category-models .category-model-heading { gap: 2px; margin: 0; font-size: 14px; }
 body:not(:has(.admin-shell)) .category-models .category-model-heading small { font-size: 12px; }
+body:not(:has(.admin-shell)) .category-model-chevron { color: #7c899a; transition: transform .18s ease; }
+body:not(:has(.admin-shell)) .category-models[open] .category-model-chevron { transform: rotate(180deg); }
+body:not(:has(.admin-shell)) .category-model-body { padding: 10px 12px 12px; border-top: 1px solid #e7edf5; background: #fafcff; }
 body:not(:has(.admin-shell)) .category-models .device-family-options { display: flex; flex-direction: column; gap: 4px; margin-bottom: 0; }
 
 body:not(:has(.admin-shell)) .device-family-group {

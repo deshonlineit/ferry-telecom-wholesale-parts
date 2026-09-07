@@ -108,8 +108,8 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
                 <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
                     <div class="search-input-wrapper">
                         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line></svg>
-                        <input type="search" name="q" id="search-input" placeholder="Search parts, SKU or model" aria-label="Search the catalogue by product, SKU or model" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
-                        <button type="submit" class="search-submit">Search</button>
+                        <input type="search" name="q" id="search-input" placeholder="Describe what you need…" aria-label="Smart Search: describe the part you need" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
+                        <button type="submit" class="search-submit">Smart search</button>
                     </div>
                     <div id="search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" style="display:none;"></div>
                 </form>

@@ -102,14 +102,18 @@
         render(catalog, params, subject) {
             const selected = catalog.models.find(model => String(model.id) === params.get('model'));
             const heading = selected
-                ? `<strong>${esc(selected.name)}</strong><small>Need another model? Choose a family or search below.</small>`
-                : `<strong>Which device?</strong><small>${esc(subject)} · choose a device family.</small>`;
-            return `<section class="category-models" data-category-models aria-label="Search models">
-                <div class="category-model-heading">${heading}</div>
+                ? `<strong>${esc(selected.name)}</strong><small>Selected device · click to change</small>`
+                : `<strong>Choose a device</strong><small>Optional · open device families and models</small>`;
+            return `<details class="category-models" data-category-models>
+                <summary class="category-model-trigger">
+                    <span class="category-model-trigger-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 5h4M11 18.5h2"/></svg></span>
+                    <span class="category-model-heading">${heading}</span>
+                    <svg class="category-model-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </summary>
                 <div class="category-model-body">
                     <nav class="device-family-options" data-device-family-options aria-label="Choose a device family">${C.familyLinks(catalog, params)}</nav>
                 </div>
-            </section>`;
+            </details>`;
         },
         bind(root, catalog, params) {
             if (!root) return;
