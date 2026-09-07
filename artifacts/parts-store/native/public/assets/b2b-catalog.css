@@ -247,6 +247,65 @@ body:not(:has(.admin-shell)) .b2b-prod-title a:focus-visible {
     font-size: 0.9375rem;
 }
 
+/* Catalogue refreshes retain the last useful table, rather than swapping the
+   entire page for a loader. The veil is deliberately light so row geometry
+   remains stable and the filter rail can accept the next selection. */
+[data-catalog-shell] { position: relative; }
+.catalog-refresh-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 4;
+    width: 42%;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--primary);
+    animation: catalog-progress 1.05s ease-in-out infinite;
+}
+.is-catalog-refreshing [data-catalog-results]::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    pointer-events: auto;
+    background: linear-gradient(105deg, rgba(255,255,255,.38), rgba(245,248,252,.62), rgba(255,255,255,.38));
+    background-size: 200% 100%;
+    animation: catalog-veil 1.2s linear infinite;
+}
+.is-catalog-refreshing [data-catalog-results] { position: relative; opacity: .72; }
+.catalog-refresh-error {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin: 0 0 .75rem;
+    padding: .55rem .75rem;
+    color: #9f2f26;
+    background: #fff5f4;
+    border: 1px solid #f0d1cd;
+    border-radius: 7px;
+    font-size: .8125rem;
+}
+.catalog-refresh-error .btn { padding: .35rem .65rem; font-size: .75rem; }
+.catalog-skeleton { padding-top: 1.25rem; }
+.catalog-skeleton i { display: block; border-radius: 7px; background: #e7ebf0; }
+.catalog-skeleton-heading { width: min(410px, 75%); margin: 1rem auto 2rem; }
+.catalog-skeleton-heading i:first-child { width: 35%; height: 12px; margin-bottom: 14px; }
+.catalog-skeleton-heading i:last-child { height: 34px; }
+.catalog-skeleton .catalog-sidebar { display: grid; align-content: start; gap: .8rem; }
+.catalog-skeleton .catalog-sidebar i { height: 42px; }
+.catalog-skeleton-toolbar { height: 58px; margin-bottom: 1rem; }
+.catalog-skeleton-row { height: 88px; margin: 0; border-radius: 0 !important; border-bottom: 1px solid #edf0f3; }
+.catalog-skeleton .b2b-products { overflow: hidden; }
+.catalog-result-status {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+@keyframes catalog-progress { 0% { transform: translateX(-105%); } 100% { transform: translateX(340%); } }
+@keyframes catalog-veil { from { background-position: 200% 0; } to { background-position: -20% 0; } }
+@media (prefers-reduced-motion: reduce) {
+    .catalog-refresh-progress, .is-catalog-refreshing [data-catalog-results]::after { animation: none; }
+}
+
 /* B2B Menu Navigation */
 .store-menu {
     background: #ffffff;

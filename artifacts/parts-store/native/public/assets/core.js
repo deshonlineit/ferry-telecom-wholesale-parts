@@ -228,7 +228,10 @@ window.Router = {
         }
         history.pushState({}, '', path);
         this.route();
-        window.scrollTo(0, 0);
+        // Refining an already visible catalogue should not throw the customer
+        // back to the top of the page.
+        const nextPath = new URL(path, location.origin).pathname.replace(window.APP_BASE, '');
+        if (!(nextPath === 'catalog' && document.querySelector('#app-root [data-catalog-shell]'))) window.scrollTo(0, 0);
     },
     async route() {
         this.renderVersion = (this.renderVersion || 0) + 1;
@@ -254,10 +257,15 @@ window.Router = {
 
         const qs = location.search;
         const mount = document.getElementById('app-root');
-        const root = document.createElement('div');
-        root.className = 'route-content';
-        mount.replaceChildren(root);
-        root.innerHTML = '<div class="page-loader"><div class="spinner"></div></div>';
+        // The catalogue owns its refresh state.  Reusing this mount keeps the
+        // sidebar and the previous rows in place while its next query arrives.
+        const catalogRefresh = path === 'catalog' && mount.querySelector?.('[data-catalog-shell]');
+        const root = catalogRefresh ? mount.firstElementChild : document.createElement('div');
+        if (!catalogRefresh) {
+            root.className = 'route-content';
+            mount.replaceChildren(root);
+            root.innerHTML = '<div class="page-loader"><div class="spinner"></div></div>';
+        }
         
         for (const {pattern, handler} of this.routes) {
             const match = path.match(pattern);

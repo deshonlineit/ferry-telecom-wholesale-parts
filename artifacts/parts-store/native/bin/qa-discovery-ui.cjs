@@ -39,6 +39,17 @@ check('pagination keeps sort and all filters', () => {
     assert.equal(result.get('sort'), 'name');
     assert.equal(result.get('stock'), 'in_stock');
 });
+check('facet metadata cache key is shared by sort and pagination changes', () => {
+    const base = discovery.catalogCacheKey('category=5&model=132&sort=name&page=3');
+    assert.equal(base, discovery.catalogCacheKey('model=132&category=5&sort=stock&page=9'));
+    assert.notEqual(base, discovery.catalogCacheKey('category=5&model=133'));
+});
+check('first catalogue load has a shaped shell and table-row skeletons', () => {
+    const html = discovery.catalogSkeleton();
+    assert.match(html, /data-catalog-shell/);
+    assert.match(html, /catalog-sidebar/);
+    assert.match(html, /catalog-skeleton-row/);
+});
 check('filter changes reset pagination', () => assert.equal(parse('page=9&sort=name', {quality: 'OLED'}).has('page'), false));
 check('changing category removes a stale housing subtype', () => {
     const result = parse('category=5&part=frame&model=132&sort=name', {category: 1});

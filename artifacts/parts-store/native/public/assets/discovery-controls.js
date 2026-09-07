@@ -68,7 +68,7 @@
             return `<button type="button" class="model-option" data-model="" data-name="${t('allModels')}">${t('allModels')}</button>` +
                 D.modelOptions(catalog, brand, selected).map(model => `<button type="button" class="model-option ${String(model.id) === String(selected) ? 'selected' : ''}" data-model="${model.id}" data-brand="${model.brand_id}" data-name="${escape(model.name)}"><span>${escape(model.name)}</span><small>${model.count}</small></button>`).join('');
         },
-        bindDeviceFields(form, initialCatalog, {onChange} = {}) {
+        bindDeviceFields(form, initialCatalog, {onChange, refreshFacets = true} = {}) {
             let catalog = initialCatalog;
             let sequence = 0;
             const brand = form.elements.namedItem('brand');
@@ -118,6 +118,7 @@
                 }
                 if (onChange && onChange(values()) === false) return;
                 if (!['brand', 'model', 'category', 'part', 'quality', 'stock'].includes(event.target.name)) return;
+                if (!refreshFacets) return;
                 const version = ++sequence;
                 const context = getParams(form.dataset.context || '');
                 if (form.elements.namedItem('stock') && !form.elements.namedItem('stock').checked) context.delete('stock');
@@ -151,6 +152,71 @@
             });
         }
     };
+    D.catalogMetadata = new Map();
+    D.catalogCacheKey = params => {
+        const key = getParams(params);
+        key.delete('page');
+        key.delete('sort');
+        return [...key.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&');
+    };
+    D.getCatalog = (params, key, signal) => {
+        const entry = D.catalogMetadata.get(key);
+        const now = Date.now();
+        if (entry && now - entry.at < 60000) return Promise.resolve(entry.data);
+        // A stale facet snapshot is still structurally valid for this filter
+        // context. Use it now, then refresh the next visit without delaying
+        // the independently fetched product result.
+        if (entry) {
+            window.Core.fetch('/catalog?' + getParams(params).toString(), {signal}).then(data => {
+                D.catalogMetadata.set(key, {data, at: Date.now()});
+            }).catch(error => {
+                if (error?.name !== 'AbortError') console.warn('Catalogue facets refresh failed', error);
+            });
+            return Promise.resolve(entry.data);
+        }
+        const request = window.Core.fetch('/catalog?' + getParams(params).toString(), {signal});
+        return request.then(data => {
+            D.catalogMetadata.set(key, {data, at: Date.now()});
+            return data;
+        });
+    };
+    D.catalogSkeleton = () => `<div data-catalog-shell class="catalog-skeleton" aria-busy="true">
+        <div class="catalog-skeleton-heading"><i></i><i></i></div><div class="catalog-layout">
+        <aside class="catalog-sidebar"><i></i><i></i><i></i><i></i></aside>
+        <section class="catalog-main"><i class="catalog-skeleton-toolbar"></i><div class="b2b-products">${[1,2,3,4,5].map(() => '<i class="catalog-skeleton-row"></i>').join('')}</div></section>
+        </div></div>`;
+    D.setCatalogRefreshing = (shell, busy, params) => {
+        shell.classList.toggle('is-catalog-refreshing', busy);
+        shell.setAttribute('aria-busy', String(busy));
+        const results = shell.querySelector('[data-catalog-results]');
+        if (results) {
+            results.setAttribute('aria-busy', String(busy));
+            results.toggleAttribute('inert', busy);
+        }
+        if (busy) {
+            shell.querySelectorAll('.quick-category, .part-type-option').forEach(link => {
+                const url = new URL(link.href, location.origin);
+                const active = url.pathname === location.pathname && url.search === location.search;
+                link.classList.toggle('active', active);
+                if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+            });
+            let progress = shell.querySelector('.catalog-refresh-progress');
+            if (!progress) { progress = document.createElement('div'); progress.className = 'catalog-refresh-progress'; progress.setAttribute('aria-hidden', 'true'); shell.prepend(progress); }
+        } else {
+            shell.querySelector('.catalog-refresh-progress')?.remove();
+        }
+    };
+    D.showCatalogError = (shell, retry) => {
+        let notice = shell.querySelector('.catalog-refresh-error');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.className = 'catalog-refresh-error';
+            notice.setAttribute('role', 'alert');
+            shell.querySelector('[data-catalog-results]')?.prepend(notice);
+        }
+        notice.innerHTML = `${escape(t('optionsRefreshFailed'))} <button type="button" class="btn btn-outline btn-sm">${escape(t('retry'))}</button>`;
+        notice.querySelector('button').addEventListener('click', retry);
+    };
 
     document.addEventListener('click', event => {
         document.querySelectorAll('.model-picker[open]').forEach(picker => {
@@ -163,13 +229,20 @@
         const params = getParams(input);
         const headerSearch = document.getElementById('search-input');
         if (headerSearch) headerSearch.value = params.get('q') || '';
-            root.innerHTML = `<div class="page-loader" role="status"><div class="spinner"></div><p>${t('loadingParts')}</p></div>`;
+        const previousShell = root.querySelector('[data-catalog-shell]');
+        D.catalogAbort?.abort();
+        const controller = new AbortController();
+        D.catalogAbort = controller;
+        const token = (D.catalogToken || 0) + 1;
+        D.catalogToken = token;
+        if (previousShell) D.setCatalogRefreshing(previousShell, true, params);
+        else root.innerHTML = D.catalogSkeleton();
         try {
             const [catalog, result] = await Promise.all([
-                window.Core.fetch('/catalog?' + params.toString()),
-                window.Core.fetch('/products?' + params.toString())
+                D.getCatalog(params, D.catalogCacheKey(params), controller.signal),
+                window.Core.fetch('/products?' + params.toString(), {signal: controller.signal})
             ]);
-            if (renderVersion !== window.Router.renderVersion) return;
+            if (renderVersion !== window.Router.renderVersion || token !== D.catalogToken || controller.signal.aborted) return;
             const part = (catalog.part_types || []).find(type => type.id === params.get('part'));
             const cat = catalog.categories.find(c => String(c.id) === (params.get('category') || String(part?.category_id || '')));
             const brand = catalog.brands.find(b => String(b.id) === params.get('brand'));
@@ -212,7 +285,7 @@
             const quickCategories = window.App.sortCategories(catalog.categories).filter(c => c.count > 0 || String(c.id) === params.get('category'));
             const partTypes = cat?.slug === 'housing' ? (catalog.part_types || []).filter(type => String(type.category_id) === String(cat.id)) : [];
             const typePicker = partTypes.length ? `<section class="part-type-picker" aria-label="Which part do you need?"><div class="part-type-intro"><span>Which part?</span><small>Not every item is a complete housing.</small></div><nav class="part-type-options" aria-label="Housing part type"><a class="part-type-option ${!part ? 'active' : ''}" ${!part ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {part: ''})}"><strong>All</strong><small>All variants</small></a>${partTypes.map(type => `<a class="part-type-option ${type.id === part?.id ? 'active' : ''} ${type.count === 0 ? 'is-empty' : ''}" ${type.id === part?.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: cat.id, part: type.id})}" title="${escape(type.description)}"><span><strong>${escape(type.name)}</strong><b>${type.count}</b></span><small>${escape(type.description)}</small></a>`).join('')}</nav></section>` : '';
-            root.innerHTML = `<div class="catalog-breadcrumb"><a href="${window.APP_BASE}">${t('home')}</a><span>/</span><a href="${D.buildUrl('')}">${t('catalogue')}</a>${cat ? `<span>/</span><span>${escape(cat.name)}</span>` : ''}</div>
+            root.innerHTML = `<div data-catalog-shell><div class="catalog-breadcrumb"><a href="${window.APP_BASE}">${t('home')}</a><span>/</span><a href="${D.buildUrl('')}">${t('catalogue')}</a>${cat ? `<span>/</span><span>${escape(cat.name)}</span>` : ''}</div>
                 <div class="catalog-heading"><div><span class="catalog-eyebrow">${t('exactlyRight')}</span><h1>${escape(title)}</h1><p class="catalog-description">${window.I18n.number(result.total)} ${t(result.total === 1 ? 'part' : 'parts')}${query ? ` ${t('for')} “${escape(query)}”` : ''}</p></div>${showCategoryModels ? '' : window.FastFinder.inline(params, model)}</div>
                 <section class="catalog-smart-search" data-catalog-smart-search aria-label="${t('smartSearch')}" hidden>
                     <div class="catalog-smart-intro"><strong>${t('smartSearch')}</strong><span>${t('smartSearchPrompt')}</span></div>
@@ -237,7 +310,7 @@
                         </div>
                         ${chips.length ? `<div class="catalog-sidebar-active"><span>${t('activeFilters')}</span><div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">${t('clearAll')}</a></div></div>` : ''}
                     </aside>
-                    <section class="catalog-main" data-catalog-results tabindex="-1" aria-label="Product results">
+                    <section class="catalog-main" data-catalog-results tabindex="-1" aria-label="Product results" aria-busy="false"><p class="catalog-result-status sr-only" aria-live="polite">${window.I18n.number(result.total)} ${t(result.total === 1 ? 'part' : 'parts')}</p>
                         <div class="catalog-refine-row">${showCategoryModels ? '' : `<label class="catalog-tool-field">Brand<select id="catalog-brand" class="form-control"><option value="">All brands</option>${catalog.brands.filter(b => b.count > 0 || String(b.id) === params.get('brand')).map(b => `<option value="${b.id}" ${String(b.id) === params.get('brand') ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label>`}
                         <label class="catalog-tool-field">${t('quality')}<select id="quick-quality" class="form-control"><option value="">${t('allQualities')}</option>${[...new Set([...catalog.qualities, params.get('quality')].filter(Boolean))].map(q => `<option value="${escape(q)}" ${q === params.get('quality') ? 'selected' : ''}>${escape(q)}</option>`).join('')}</select></label>
                         <button type="button" class="stock-shortcut ${params.get('stock') === 'in_stock' ? 'active' : ''}" data-stock-toggle aria-pressed="${params.get('stock') === 'in_stock'}">${t('inStock')}</button>
@@ -256,7 +329,7 @@
                     </section>
                 </div>
                 <dialog id="catalog-filter-dialog" class="filter-dialog"><div class="filter-dialog-heading"><h2>${t('refineSelection')}</h2><button type="button" class="btn-close" aria-label="${t('closeFilters')}">×</button></div>${filterForm('mobile', true)}</dialog>
-                <dialog id="device-finder-dialog" class="finder-dialog" aria-label="Choose another model"><button type="button" class="btn-close" data-close-finder aria-label="Close model selection">×</button><div data-finder-body></div></dialog>`;
+                <dialog id="device-finder-dialog" class="finder-dialog" aria-label="Choose another model"><button type="button" class="btn-close" data-close-finder aria-label="Close model selection">×</button><div data-finder-body></div></dialog></div>`;
             const apply = form => {
                 const changes = Object.fromEntries(new FormData(form));
                 if (!changes.stock) changes.stock = '';
@@ -264,7 +337,7 @@
             };
             for (const prefix of ['desktop', 'mobile']) {
                 const form = document.getElementById(prefix + '-filters');
-                D.bindDeviceFields(form, catalog, prefix === 'desktop' ? {onChange() { apply(form); return false; }} : {});
+                D.bindDeviceFields(form, catalog, prefix === 'desktop' ? {onChange() { apply(form); return false; }} : {refreshFacets: false});
                 if (prefix === 'desktop') {
                     form.querySelector('.advanced-filters')?.addEventListener('change', () => apply(form));
                     continue;
@@ -339,7 +412,12 @@
                 }
             });
         } catch (error) {
-            if (renderVersion !== window.Router.renderVersion) return;
+            if (error?.name === 'AbortError' || controller.signal.aborted || renderVersion !== window.Router.renderVersion || token !== D.catalogToken) return;
+            if (previousShell) {
+                D.setCatalogRefreshing(previousShell, false);
+                D.showCatalogError(previousShell, () => window.Router.route());
+                return;
+            }
             root.innerHTML = `<div class="alert error" role="alert"><h2>The catalogue could not be loaded</h2><p>${escape(error.message)}</p><a class="btn btn-outline" href="${D.buildUrl('')}">Try again</a></div>`;
         }
     });
