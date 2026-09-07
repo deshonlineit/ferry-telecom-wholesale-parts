@@ -49,11 +49,11 @@
                             <label class="lp-sr-only" for="home-search">Search the catalogue</label>
                             <div class="lp-search-field">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.3-4.3"/></svg>
-                                <input type="search" id="home-search" name="q" placeholder='Try “iPhone 13 OLED”, a SKU or “battery”…' autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="home-search-suggestions" aria-describedby="home-search-hint">
+                                <input type="search" id="home-search" name="q" placeholder="Describe what you need — in your own words…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="home-search-suggestions" aria-describedby="home-search-hint">
                                 <button type="submit" class="lp-search-submit">Smart search</button>
                             </div>
                             <div id="home-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" style="display:none;"></div>
-                            <p class="lp-search-hint" id="home-search-hint"><strong>Understands</strong> SKU · device model · part name · common repair terms <span>Set quantity and add directly</span></p>
+                            <p class="lp-search-hint" id="home-search-hint"><strong>Write it your way.</strong> Smart Search understands models, parts, colours, quality and everyday language <span>Order directly from the results</span></p>
                         </form>
                         <nav class="lp-chips" data-lp-chips aria-label="Go straight to a device family"></nav>
                         <dl class="lp-stats" data-lp-stats></dl>

@@ -66,6 +66,24 @@
                 return;
             }
             const esc = window.Core.escapeHtml;
+            const partOptions = hero && Array.isArray(data.part_options) && data.part_options.length > 1
+                ? `<div class="smart-search-parts" aria-label="Choose a part type">
+                    <p>What part do you need?</p>
+                    <div class="smart-search-part-grid">${data.part_options.map(option => {
+                        const params = new URLSearchParams({q: query, category: String(option.id)});
+                        const thumbnail = option.image_url && window.App.thumbnailUrl
+                            ? window.App.thumbnailUrl({url: option.image_url})
+                            : option.image_url;
+                        return `<a href="${window.APP_BASE}catalog?${params.toString()}" class="smart-search-part" data-search-option data-smart-part="${Number(option.id)}" data-smart-part-slug="${esc(option.slug)}">
+                            <span class="smart-search-part-media">${thumbnail
+                                ? `<img src="${esc(thumbnail)}" alt="" loading="lazy" decoding="async">`
+                                : '<span class="img-placeholder" aria-hidden="true"></span>'}</span>
+                            <span class="smart-search-part-copy"><strong>${esc(option.name)}</strong><small>${Number(option.count).toLocaleString('en-GB')} ${Number(option.count) === 1 ? 'part' : 'parts'}</small></span>
+                            <span aria-hidden="true">→</span>
+                        </a>`;
+                    }).join('')}</div>
+                </div>`
+                : '';
             container.classList.add('b2b-search-results');
             container.setAttribute('role', 'dialog');
             container.setAttribute('aria-label', 'Order products directly');
@@ -73,7 +91,7 @@
             input.removeAttribute('aria-activedescendant');
             window.App.searchIndex = -1;
             container.innerHTML = `<div class="suggestion-group-title">${hero ? 'Smart matches · fast order' : 'Order directly'} <span>${data.products.length} products</span></div>
-                ${hero ? `<div class="smart-search-context"><span class="smart-search-understood">Understood as <strong>${esc(intent.label || 'Product match')}</strong></span><span>Choose quantity</span><span>Add to cart</span></div>` : ''}` +
+                ${hero ? `<div class="smart-search-context"><span class="smart-search-understood">Understood as <strong>${esc(intent.label || 'Product match')}</strong></span><span>Choose quantity</span><span>Add to cart</span></div>${partOptions}` : ''}` +
                 data.products.map((product, index) => {
                     const minimum = Math.max(1, Number(product.minimum_quantity) || 1);
                     const available = Number(product.stock) >= minimum && product.price_cents !== null;
@@ -111,6 +129,14 @@
                         product_id: Number(link.dataset.smartProduct)
                     });
                 });
+            });
+            container.querySelectorAll('[data-smart-part]').forEach(link => {
+                link.addEventListener('click', () => O.track('smart_search_part_selected', {
+                    source: 'homepage',
+                    intent: String(intent.kind || 'product'),
+                    category_id: Number(link.dataset.smartPart),
+                    category: String(link.dataset.smartPartSlug || '')
+                }));
             });
             container.onkeydown = event => {
                 if (event.key === 'Escape') {

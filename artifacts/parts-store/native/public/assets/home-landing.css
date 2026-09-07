@@ -205,6 +205,88 @@
 
 .lp-search .smart-search-understood strong { color: var(--lp-accent); }
 
+.lp-search .smart-search-parts {
+    padding: 0.75rem 1rem 0.875rem;
+    border-bottom: 1px solid var(--border-light);
+    background: #fff;
+}
+
+.lp-search .smart-search-parts > p {
+    margin: 0 0 0.55rem;
+    color: var(--lp-ink);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.lp-search .smart-search-part-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 0.5rem;
+}
+
+.lp-search .smart-search-part {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
+    min-height: 58px;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid #dfe7f1;
+    border-radius: 9px;
+    background: #f8fbff;
+    color: var(--lp-ink);
+    text-decoration: none;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.lp-search .smart-search-part:hover,
+.lp-search .smart-search-part:focus-visible {
+    border-color: #9fc5f1;
+    background: #edf6ff;
+    color: var(--lp-accent);
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.lp-search .smart-search-part-media {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    overflow: hidden;
+    border-radius: 7px;
+    background: #fff;
+}
+
+.lp-search .smart-search-part-media img {
+    width: 100%;
+    height: 100%;
+    padding: 3px;
+    object-fit: contain;
+}
+
+.lp-search .smart-search-part-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.lp-search .smart-search-part-copy strong {
+    overflow: hidden;
+    color: inherit;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lp-search .smart-search-part-copy small {
+    margin-top: 2px;
+    color: var(--lp-muted);
+    font-size: 0.68rem;
+}
+
 .lp-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.75rem; }
 
 .lp .lp-chips a {
@@ -585,6 +667,16 @@
 @media (max-width: 640px) {
     .lp-hero { border-radius: 18px; }
     .lp-search-field { flex-wrap: wrap; padding: 0.625rem; }
+    .lp-search .smart-search-part-grid {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+        scroll-snap-type: x proximity;
+    }
+    .lp-search .smart-search-part {
+        flex: 0 0 178px;
+        scroll-snap-align: start;
+    }
     .lp-search-field input { flex: 1 1 60%; padding-left: 0.25rem; }
     .lp-search-submit { flex: 1 1 100%; }
     .lp-section-head { flex-direction: column; align-items: flex-start; gap: 0.75rem; }

@@ -70,8 +70,9 @@ function catalogB2bSearch(array $input, ?array $user): array
     }
     $limit = integer($input['limit'] ?? 8, 1, 50);
     $normalized = mb_strtolower($search, 'UTF-8');
-    $terms = preg_split('/[^\p{L}\p{N}]+/u', $normalized, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-    $terms = array_slice(array_values(array_unique($terms)), 0, 8);
+    // Smart Search and the full catalogue must interpret conversational wording
+    // identically: preserve product intent and discard only filler language.
+    $terms = catalogTokens($search);
     if (!$terms) {
         throw new HttpError(422, 'Enter a search term to look for products.');
     }
@@ -81,8 +82,6 @@ function catalogB2bSearch(array $input, ?array $user): array
     $aliases = catalogCategoryAliases();
     $matchedCategorySlugs = [];
     foreach ($terms as $term) {
-        $like = catalogLike($term);
-        $compact = catalogLike(catalogCompact($term));
         if (preg_match('/^\d{1,4}$/', $term)) {
             // A standalone number is normally a device model. Do not let it match
             // digits buried inside a SKU or supplier code such as GH82-28143A.
@@ -101,20 +100,28 @@ function catalogB2bSearch(array $input, ?array $user): array
             $aliases,
             static fn(array $words): bool => in_array($term, $words, true)
         ));
-        $termWhere = "(LOWER(p.sku) LIKE ? ESCAPE '!'
-            OR LOWER(p.name) LIKE ? ESCAPE '!'
-            OR LOWER(p.quality) LIKE ? ESCAPE '!'
-            OR LOWER(REPLACE(REPLACE(p.sku,' ',''),'-','')) LIKE ? ESCAPE '!'
-            OR LOWER(REPLACE(REPLACE(p.name,' ',''),'-','')) LIKE ? ESCAPE '!'
-            OR EXISTS(
-                SELECT 1 FROM product_models search_pm
-                JOIN device_models search_m ON search_m.id=search_pm.model_id
-                WHERE search_pm.product_id=p.id AND (
-                    LOWER(search_m.name) LIKE ? ESCAPE '!'
-                    OR LOWER(REPLACE(REPLACE(search_m.name,' ',''),'-','')) LIKE ? ESCAPE '!'
-                )
-            )";
-        array_push($parameters, $like, $like, $like, $compact, $compact, $like, $compact);
+        $variantConditions = [];
+        if (!$termCategorySlugs) {
+            foreach (catalogSearchTermVariants($term) as $variant) {
+                $like = catalogLike($variant);
+                $compact = catalogLike(catalogCompact($variant));
+                $variantConditions[] = "(LOWER(p.sku) LIKE ? ESCAPE '!'
+                    OR LOWER(p.name) LIKE ? ESCAPE '!'
+                    OR LOWER(p.quality) LIKE ? ESCAPE '!'
+                    OR LOWER(REPLACE(REPLACE(p.sku,' ',''),'-','')) LIKE ? ESCAPE '!'
+                    OR LOWER(REPLACE(REPLACE(p.name,' ',''),'-','')) LIKE ? ESCAPE '!'
+                    OR EXISTS(
+                        SELECT 1 FROM product_models search_pm
+                        JOIN device_models search_m ON search_m.id=search_pm.model_id
+                        WHERE search_pm.product_id=p.id AND (
+                            LOWER(search_m.name) LIKE ? ESCAPE '!'
+                            OR LOWER(REPLACE(REPLACE(search_m.name,' ',''),'-','')) LIKE ? ESCAPE '!'
+                        )
+                    ))";
+                array_push($parameters, $like, $like, $like, $compact, $compact, $like, $compact);
+            }
+        }
+        $termWhere = '(' . ($variantConditions ? implode(' OR ', $variantConditions) : '1=0');
         if ($termCategorySlugs) {
             $marks = implode(',', array_fill(0, count($termCategorySlugs), '?'));
             $termWhere .= " OR p.category_id IN (SELECT id FROM categories WHERE slug IN ($marks))";
@@ -123,10 +130,50 @@ function catalogB2bSearch(array $input, ?array $user): array
         }
         $where[] = $termWhere . ')';
     }
+    $partStatement = db()->prepare(
+        'SELECT c.id,c.name,c.slug,COUNT(*) AS count,
+            MAX(NULLIF(p.image_url,\'\')) AS image_url
+         FROM products p
+         JOIN categories c ON c.id=p.category_id
+         WHERE ' . implode(' AND ', $where) . '
+         GROUP BY c.id,c.name,c.slug
+         ORDER BY CASE c.slug
+            WHEN \'screens\' THEN 1
+            WHEN \'batteries\' THEN 2
+            WHEN \'housing\' THEN 3
+            WHEN \'charging\' THEN 4
+            WHEN \'cameras\' THEN 5
+            WHEN \'flex\' THEN 6
+            ELSE 20 END,
+            count DESC,c.name
+         LIMIT 8'
+    );
+    $partStatement->execute($parameters);
+    $partOptions = array_map(static fn(array $row): array => [
+        'id' => (int) $row['id'],
+        'name' => (string) $row['name'],
+        'slug' => (string) $row['slug'],
+        'count' => (int) $row['count'],
+        'image_url' => (string) ($row['image_url'] ?? ''),
+    ], $partStatement->fetchAll(PDO::FETCH_ASSOC));
     $exact = mb_strtolower($search, 'UTF-8');
+    $numericTerms = array_values(array_filter(
+        $terms,
+        static fn(string $term): bool => (bool) preg_match('/^\d{1,4}$/', $term)
+    ));
+    $iphonePreference = '';
+    $rankingParameters = [];
+    if ($numericTerms && !preg_match('/\b(samsung|galaxy|xiaomi|redmi|poco|google|pixel|huawei|honor|oneplus|oppo|motorola|nokia|sony|xperia)\b/u', $normalized)) {
+        $iphonePreference = "CASE WHEN EXISTS(
+            SELECT 1 FROM product_models rank_pm
+            JOIN device_models rank_m ON rank_m.id=rank_pm.model_id
+            WHERE rank_pm.product_id=p.id AND LOWER(rank_m.name) LIKE ? ESCAPE '!'
+        ) THEN 0 ELSE 1 END,";
+        $rankingParameters[] = catalogLike('iphone ' . $numericTerms[0]);
+    }
     $statement = db()->prepare(
         'SELECT p.* FROM products p WHERE ' . implode(' AND ', $where) .
-        " ORDER BY CASE
+        " ORDER BY $iphonePreference CASE
             WHEN LOWER(p.sku)=? THEN 0
             WHEN LOWER(p.name)=? THEN 1
             WHEN LOWER(p.sku) LIKE ? ESCAPE '!' THEN 2
@@ -137,6 +184,7 @@ function catalogB2bSearch(array $input, ?array $user): array
     );
     $statement->execute([
         ...$parameters,
+        ...$rankingParameters,
         $exact,
         $exact,
         catalogLike($exact),
@@ -152,40 +200,65 @@ function catalogB2bSearch(array $input, ?array $user): array
     $intent = ['kind' => 'product', 'label' => 'Product match'];
     if ($products && mb_strtolower((string) $products[0]['sku'], 'UTF-8') === $exact) {
         $intent = ['kind' => 'sku', 'label' => 'Exact SKU'];
-    } elseif ($products && array_filter($terms, static fn(string $term): bool => (bool) preg_match('/^\d{1,4}$/', $term))) {
-        $numericTerms = array_values(array_filter(
-            $terms,
-            static fn(string $term): bool => (bool) preg_match('/^\d{1,4}$/', $term)
-        ));
+    } elseif ($products) {
+        $recognizedModel = null;
+        $intentNeedle = catalogCompact(implode(' ', $terms));
         foreach ($products[0]['models'] as $model) {
             $modelName = mb_strtolower((string) $model['name'], 'UTF-8');
-            $matches = array_filter($numericTerms, static fn(string $term): bool =>
-                (bool) preg_match('/(^|[^\d])' . preg_quote($term, '/') . '([^\d]|$)/u', $modelName)
+            $modelCompact = catalogCompact($modelName);
+            $numericMatch = $numericTerms && count(array_filter(
+                $numericTerms,
+                static fn(string $term): bool =>
+                    (bool) preg_match('/(^|[^\d])' . preg_quote($term, '/') . '([^\d]|$)/u', $modelName)
+            )) === count($numericTerms);
+            $codedModelMatch = (bool) array_filter(
+                $terms,
+                static fn(string $term): bool =>
+                    (bool) preg_match('/\d/u', $term)
+                    && mb_strlen($term, 'UTF-8') >= 2
+                    && str_contains($modelCompact, catalogCompact($term))
             );
-            if (count($matches) === count($numericTerms)) {
-                $intent = ['kind' => 'model', 'label' => $model['name'], 'model_id' => (int) $model['id']];
+            if (
+                str_contains($intentNeedle, $modelCompact)
+                || str_contains($modelCompact, $intentNeedle)
+                || $numericMatch
+                || $codedModelMatch
+            ) {
+                $recognizedModel = $model;
                 break;
             }
         }
-    } elseif ($matchedCategorySlugs) {
-        $slug = array_values(array_unique($matchedCategorySlugs))[0];
-        $intent = [
-            'kind' => 'category',
-            'label' => ucwords(str_replace(['-', '_'], ' ', $slug)),
-            'category' => $slug,
+        $categoryLabels = [
+            'screens' => 'Displays & touchscreens',
+            'batteries' => 'Batteries',
+            'charging' => 'Charging parts',
+            'cameras' => 'Cameras',
+            'housing' => 'Housings & back glass',
+            'flex' => 'Flex cables & buttons',
+            'audio' => 'Audio parts',
+            'adhesive' => 'Adhesives',
+            'tools' => 'Tools',
+            'protection' => 'Protection',
+            'accessories' => 'Accessories',
         ];
-    } else {
-        $needle = catalogCompact($search);
-        if (mb_strlen($needle, 'UTF-8') >= 3) {
-            foreach ($products as $product) {
-                foreach ($product['models'] as $model) {
-                    $modelName = catalogCompact((string) $model['name']);
-                    if (str_contains($modelName, $needle) || str_contains($needle, $modelName)) {
-                        $intent = ['kind' => 'model', 'label' => $model['name'], 'model_id' => (int) $model['id']];
-                        break 2;
-                    }
-                }
-            }
+        $categorySlug = $matchedCategorySlugs
+            ? array_values(array_unique($matchedCategorySlugs))[0]
+            : null;
+        if ($recognizedModel && $categorySlug) {
+            $intent = [
+                'kind' => 'model_part',
+                'label' => $recognizedModel['name'] . ' · ' . ($categoryLabels[$categorySlug] ?? ucfirst($categorySlug)),
+                'model_id' => (int) $recognizedModel['id'],
+                'category' => $categorySlug,
+            ];
+        } elseif ($recognizedModel) {
+            $intent = ['kind' => 'model', 'label' => $recognizedModel['name'], 'model_id' => (int) $recognizedModel['id']];
+        } elseif ($categorySlug) {
+            $intent = [
+                'kind' => 'category',
+                'label' => $categoryLabels[$categorySlug] ?? ucfirst($categorySlug),
+                'category' => $categorySlug,
+            ];
         }
     }
     $context = currencyContext();
@@ -193,6 +266,7 @@ function catalogB2bSearch(array $input, ?array $user): array
         'products' => $products,
         'has_more' => $hasMore,
         'intent' => $intent,
+        'part_options' => $partOptions,
         'currency' => $context['currency'],
         'currency_context' => $context,
     ];

@@ -74,11 +74,35 @@ function catalogProductCondition(array $input, array $exclude = []): array
             if (in_array($term, $ignoredSubtypeTokens, true)) {
                 continue;
             }
-            $alternatives = ["p.name LIKE ? ESCAPE '!'", "p.sku LIKE ? ESCAPE '!'", "p.quality LIKE ? ESCAPE '!'"];
-            array_push($parameters, catalogLike($term), catalogLike($term), catalogLike($term));
-            if (preg_match('/[\p{L}].*\d|\d.*[\p{L}]/u', $term)) {
-                $alternatives[] = "$compactName LIKE ? ESCAPE '!'";
-                $parameters[] = catalogLike($term);
+            $alternatives = [];
+            $exactCategorySlugs = array_keys(array_filter(
+                catalogCategoryAliases(),
+                static fn(array $terms): bool => in_array($term, $terms, true)
+            ));
+            if ($exactCategorySlugs) {
+                // Exact part words express category intent. Treating "screen" as
+                // free text would incorrectly include "screen protector".
+            } elseif (preg_match('/^\d{1,4}$/', $term)) {
+                $boundary = '(^|[^0-9])' . preg_quote($term, '/') . '([^0-9]|$)';
+                $alternatives[] = 'LOWER(p.sku)=?';
+                $alternatives[] = "LOWER(SUBSTRING_INDEX(p.name,' - ',1)) REGEXP ?";
+                $alternatives[] = 'EXISTS(
+                    SELECT 1 FROM product_models token_pm
+                    JOIN device_models token_m ON token_m.id=token_pm.model_id
+                    WHERE token_pm.product_id=p.id AND LOWER(token_m.name) REGEXP ?
+                )';
+                array_push($parameters, $term, $boundary, $boundary);
+            } else {
+                foreach (catalogSearchTermVariants($term) as $variant) {
+                    $alternatives[] = "p.name LIKE ? ESCAPE '!'";
+                    $alternatives[] = "p.sku LIKE ? ESCAPE '!'";
+                    $alternatives[] = "p.quality LIKE ? ESCAPE '!'";
+                    array_push($parameters, catalogLike($variant), catalogLike($variant), catalogLike($variant));
+                    if (preg_match('/[\p{L}].*\d|\d.*[\p{L}]/u', $variant)) {
+                        $alternatives[] = "$compactName LIKE ? ESCAPE '!'";
+                        $parameters[] = catalogLike($variant);
+                    }
+                }
             }
             $matched = catalogMatchedFacets($facets, $term);
             foreach (['categories' => 'category_id', 'brands' => 'brand_id'] as $kind => $column) {
@@ -290,6 +314,54 @@ function catalogCategoryAliases(): array
     ];
 }
 
+/** @return list<string> */
+function catalogSearchTermVariants(string $term): array
+{
+    $groups = [
+        ['black', 'zwart', 'schwarz'],
+        ['white', 'wit', 'weiss', 'weiß'],
+        ['blue', 'blauw', 'blau'],
+        ['red', 'rood', 'rot'],
+        ['green', 'groen', 'grun', 'grün'],
+        ['yellow', 'geel', 'gelb'],
+        ['grey', 'gray', 'grijs', 'grau'],
+        ['purple', 'paars', 'lila', 'violet'],
+        ['pink', 'roze', 'rosa'],
+        ['orange', 'oranje'],
+        ['gold', 'goud'],
+        ['silver', 'zilver', 'silber'],
+        ['brown', 'bruin', 'braun'],
+    ];
+    foreach ($groups as $variants) {
+        if (in_array($term, $variants, true)) {
+            return $variants;
+        }
+    }
+    return [$term];
+}
+
+/** @return list<string> */
+function catalogConversationStopWords(): array
+{
+    return [
+        // Dutch conversational phrasing.
+        'ik', 'wij', 'we', 'wil', 'wilt', 'willen', 'zoek', 'zoeken', 'gezocht',
+        'heb', 'heeft', 'hebben', 'nodig', 'graag', 'aub', 'alsjeblieft', 'zou',
+        'een', 'het', 'dit', 'dat', 'die', 'jullie', 'kun', 'kunt', 'kan',
+        'geef', 'toon', 'laat', 'zien', 'vinden', 'bestellen', 'kopen',
+        'onderdeel', 'onderdelen', 'telefoon', 'toestel', 'mobiel',
+        // English conversational phrasing.
+        'i', 'we', 'me', 'my', 'want', 'need', 'needs', 'looking', 'find', 'show', 'give',
+        'please', 'a', 'an', 'some', 'buy', 'order', 'part', 'parts', 'phone',
+        // German conversational phrasing.
+        'ich', 'wir', 'brauche', 'brauchen', 'mochte', 'möchte', 'suche',
+        'suchen', 'bitte', 'ein', 'eine', 'einen', 'teil', 'teile', 'handy',
+        // Shared connectors that should never narrow a product search.
+        'voor', 'for', 'fur', 'für', 'van', 'von', 'de', 'the', 'der', 'die',
+        'das', 'en', 'and', 'und', 'met', 'with', 'mit',
+    ];
+}
+
 function catalogTokens(string $search): array
 {
     $normalized = preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($search, 'UTF-8')) ?? '';
@@ -305,7 +377,11 @@ function catalogTokens(string $search): array
         $normalized
     ) ?? $normalized;
     $tokens = preg_split('/\s+/u', trim($normalized), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-    $tokens = array_values(array_diff($tokens, ['voor', 'for', 'van', 'de', 'the', 'en', 'and', 'met', 'with']));
+    // A one-character or one-word search stays valid. In longer natural-language
+    // queries, discard only words that carry no product intent.
+    if (count($tokens) > 1) {
+        $tokens = array_values(array_diff($tokens, catalogConversationStopWords()));
+    }
     return array_slice(array_unique($tokens), 0, 8);
 }
 

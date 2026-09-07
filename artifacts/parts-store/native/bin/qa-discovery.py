@@ -52,6 +52,51 @@ check(
     "standalone model numbers never match digits buried in unrelated supplier codes",
 )
 check(smart_model["intent"]["kind"] == "model" and "14" in smart_model["intent"]["label"], "smart search explains the recognized model")
+mixed_parts = read("/search/products?" + urllib.parse.urlencode({"q": "pulled 15 pro", "limit": 12}))
+check(len(mixed_parts["part_options"]) > 1, "smart search offers real part-type routes for mixed device results")
+check(
+    all(option["count"] > 0 and option["image_url"].startswith("/test-shop/media/products/") for option in mixed_parts["part_options"]),
+    "part-type routes carry real result counts and local product imagery",
+)
+black_housing = read("/search/products?" + urllib.parse.urlencode({"q": "housing 14 zwart", "limit": 20}))
+check(black_housing["products"], "Dutch colour terms find products named in another supported language")
+check(
+    black_housing["products"][0]["sku"].upper().startswith("IPH14")
+    and black_housing["intent"]["label"].lower().startswith("iphone 14"),
+    "an ambiguous bare model number gives the common iPhone model priority unless another brand is named",
+)
+check(
+    all(any(colour in p["name"].lower() for colour in ["black", "schwarz", "zwart"]) for p in black_housing["products"]),
+    "multilingual colour aliases keep every smart-search result on the requested colour",
+)
+catalogue_black = query({"q": "housing iphone 14 zwart", "limit": 100})
+check(
+    catalogue_black["total"] > 0
+    and all("iphone 14" in p["name"].lower() and any(c in p["name"].lower() for c in ["black", "schwarz", "zwart"]) for p in catalogue_black["products"]),
+    "the full catalogue shares smart search colour aliases and strict model-number semantics",
+)
+natural_screen = read("/search/products?" + urllib.parse.urlencode({"q": "ik wil een iPhone 13 scherm", "limit": 20}))
+check(
+    natural_screen["products"]
+    and natural_screen["intent"]["kind"] == "model_part"
+    and natural_screen["intent"]["label"].lower().startswith("iphone 13")
+    and "display" in natural_screen["intent"]["label"].lower()
+    and all("iphone 13" in p["name"].lower() for p in natural_screen["products"]),
+    "natural Dutch requests are reduced to their model and part intent",
+)
+natural_battery = read("/search/products?" + urllib.parse.urlencode({"q": "hebben jullie een batterij nodig voor Samsung S22", "limit": 20}))
+check(
+    natural_battery["products"]
+    and all("s22" in p["name"].lower() and "battery" in p["name"].lower() for p in natural_battery["products"]),
+    "conversational Dutch battery requests ignore filler words",
+)
+english_screen = read("/search/products?" + urllib.parse.urlencode({"q": "please show me an iPhone 13 screen", "limit": 20}))
+german_screen = read("/search/products?" + urllib.parse.urlencode({"q": "ich brauche ein iPhone 13 Display", "limit": 20}))
+check(
+    {p["sku"] for p in english_screen["products"]} == {p["sku"] for p in natural_screen["products"]}
+    == {p["sku"] for p in german_screen["products"]},
+    "Dutch, English and German conversational requests resolve to the same products",
+)
 check(query({"q": "qazzz-not-a-real-part-938277"})["total"] == 0, "honest empty results")
 check(query({"stock": "out_of_stock", "limit": 100})["products"][0]["stock"] == 0, "optional out-of-stock filter")
 check(all(p["featured"] for p in query({"featured": 1, "limit": 100})["products"]), "featured results actually featured")
