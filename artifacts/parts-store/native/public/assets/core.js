@@ -42,6 +42,9 @@ window.Core = {
             const error = new Error(data.error || data.message || `HTTP error ${res.status}`);
             error.status = res.status;
             error.data = data;
+            error.code = data.code || data.error_code || null;
+            const translationKey = window.I18n?.errorKey(error.code);
+            if (translationKey) error.message = window.I18n.t(translationKey);
             error.response = res;
             throw error;
         }
@@ -100,14 +103,14 @@ window.Core = {
 
     formatMoney(cents, currency = this.currency) {
         if (typeof cents !== 'number') return '';
-        return (cents / 100).toFixed(2) + ' ' + currency;
+        return window.I18n ? window.I18n.formatMoney(cents, currency) : (cents / 100).toFixed(2) + ' ' + currency;
     },
 
     currencyNotice(context = this) {
         const rate = context.exchange_rate || context.exchangeRate;
         if ((context.currency || this.currency) !== 'CHF') return '';
-        if (!rate || rate.status === 'unavailable') return 'CHF prices are unavailable: there is no usable exchange rate.';
-        if (rate.status === 'stale') return 'CHF prices are unavailable: the exchange rate is out of date.';
+        if (!rate || rate.status === 'unavailable') return window.I18n.t('currencyUnavailable', {currency: context.currency || this.currency});
+        if (rate.status === 'stale') return window.I18n.t('currencyStale', {currency: context.currency || this.currency});
         return '';
     },
 
@@ -119,7 +122,7 @@ window.Core = {
         let html = '';
 
         if (this.user) {
-            html += `<a href="${window.APP_BASE}account" class="nav-link nav-icon-action nav-account-action" aria-label="My account" title="My account">
+            html += `<a href="${window.APP_BASE}account" class="nav-link nav-icon-action nav-account-action" aria-label="${window.I18n.t('account')}" title="${window.I18n.t('account')}">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             </a>`;
             
@@ -134,19 +137,19 @@ window.Core = {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
                         <span class="cart-badge" style="display:${count > 0 ? 'flex' : 'none'}">${count}</span>
                     </div>
-                    <span class="nav-text">Cart</span>
+                    <span class="nav-text">${window.I18n.t('cart')}</span>
                 </a>`;
             }
             
-            html += `<button type="button" onclick="window.App.logout()" class="nav-link nav-icon-action nav-signout-action" aria-label="Sign out" title="Sign out">
+            html += `<button type="button" onclick="window.App.logout()" class="nav-link nav-icon-action nav-signout-action" aria-label="${window.I18n.t('signOut')}" title="${window.I18n.t('signOut')}">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"></path></svg>
             </button>`;
         } else {
-            html += `<a href="${window.APP_BASE}login" class="nav-link nav-signin" aria-label="Sign in">
+            html += `<a href="${window.APP_BASE}login" class="nav-link nav-signin" aria-label="${window.I18n.t('signIn')}">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                <span>Sign in</span>
+                <span>${window.I18n.t('signIn')}</span>
             </a>`;
-            html += `<a href="${window.APP_BASE}register" class="btn btn-primary btn-sm">Become a customer</a>`;
+            html += `<a href="${window.APP_BASE}register" class="btn btn-primary btn-sm">${window.I18n.t('becomeCustomer')}</a>`;
         }
         
         nav.innerHTML = html;
@@ -167,11 +170,11 @@ window.Core = {
     renderPagination(currentPage, totalPages, searchParams, basePath) {
         if (totalPages <= 1) return '';
         currentPage = parseInt(currentPage, 10);
-        let html = `<nav class="pagination" aria-label="Pagination">`;
+        let html = `<nav class="pagination" aria-label="${window.I18n.t('pagination')}">`;
         
         if (currentPage > 1) {
             searchParams.set('page', currentPage - 1);
-            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link prev" aria-label="Previous">&lsaquo;</a>`;
+            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link prev" aria-label="${window.I18n.t('previous')}">&lsaquo;</a>`;
         }
         
         const pages = [];
@@ -201,7 +204,7 @@ window.Core = {
         
         if (currentPage < totalPages) {
             searchParams.set('page', currentPage + 1);
-            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link next" aria-label="Next">&rsaquo;</a>`;
+            html += `<a href="${basePath}?${searchParams.toString()}" class="page-link next" aria-label="${window.I18n.t('next')}">&rsaquo;</a>`;
         }
         
         html += `</nav>`;
@@ -218,6 +221,11 @@ window.Router = {
         this.routes.push({ pattern, handler });
     },
     navigate(path) {
+        if (window.I18n?.explicit) {
+            const destination = new URL(path, location.origin);
+            destination.searchParams.set('lang', window.I18n.locale);
+            path = destination.pathname + destination.search;
+        }
         history.pushState({}, '', path);
         this.route();
         window.scrollTo(0, 0);
@@ -232,6 +240,11 @@ window.Router = {
             path = path.substring(window.APP_BASE.length);
         }
         if (!path) path = '';
+
+        // Keep header search mode stable while asynchronous route content loads.
+        // Inferring this from page descendants caused a visible full-search flash
+        // between removing the homepage and mounting the catalogue.
+        document.body.setAttribute('data-header-search', path === '' || path === 'catalog' ? 'compact' : 'full');
         
         if (path.startsWith('admin') && window.Core.user && window.Core.user.role === 'staff') {
             document.body.setAttribute('data-area', 'admin');
@@ -251,13 +264,14 @@ window.Router = {
             if (match) {
                 try {
                     await handler(match, root, new URLSearchParams(qs));
+                    window.I18n?.localize(root);
                 } catch(err) {
                     if (renderVersion !== this.renderVersion) return;
                     root.innerHTML = `
                         <div class="alert error mt-4">
-                            <h3>Something went wrong</h3>
+                            <h3>${window.I18n.t('errorTitle')}</h3>
                             <p>${window.Core.escapeHtml(err.message)}</p>
-                            <button onclick="window.Router.route()" class="btn btn-outline btn-sm mt-2">Try again</button>
+                            <button onclick="window.Router.route()" class="btn btn-outline btn-sm mt-2">${window.I18n.t('retry')}</button>
                         </div>
                     `;
                 }
@@ -266,11 +280,12 @@ window.Router = {
         }
         root.innerHTML = `
             <div class="empty-state mt-4">
-                <h2>404 — Page not found</h2>
-                <p>The page you requested does not exist.</p>
-                <a href="${window.APP_BASE}catalog" class="btn btn-primary mt-4">Back to the catalogue</a>
+                <h2>404 — ${window.I18n.t('pageNotFound')}</h2>
+                <p>${window.I18n.t('pageMissing')}</p>
+                <a href="${window.APP_BASE}catalog" class="btn btn-primary mt-4">${window.I18n.t('backCatalogue')}</a>
             </div>
         `;
+        window.I18n?.localize(root);
     }
 };
 
@@ -283,10 +298,10 @@ window.App = {
             'batteries': 20,
             'charging': 30,
             'cameras': 40,
-            'housing': 50,
-            'flex': 60,
-            'audio': 70,
-            'adhesive': 80,
+            'flex': 50,
+            'audio': 60,
+            'adhesive': 70,
+            'housing': 80,
             'tools': 90,
             'protection': 100,
             'accessories': 110,
@@ -326,6 +341,7 @@ window.App = {
     },
 
     async init() {
+        window.I18n?.init();
         await window.Core.init();
         window.StoreMenu.init();
         window.Router.route();
@@ -516,7 +532,7 @@ window.UI = {
         const zoomInButton = dialog.querySelector('.photo-preview-zoom-in');
         const zoomResetButton = dialog.querySelector('.photo-preview-zoom-reset');
         const zoomLevel = dialog.querySelector('.photo-preview-zoom-level');
-        const productName = options.title || 'Product photo';
+        const productName = options.title || window.I18n.t('product');
         const zoomSteps = [1, 1.5, 2, 3, 4];
         let zoomIndex = 0;
         let dragging = false;

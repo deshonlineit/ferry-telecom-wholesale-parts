@@ -160,9 +160,36 @@ function catalogPartTypePublic(?string $id): ?array
     return null;
 }
 
+/**
+ * Keep an isolated missing EUR price from taking down an entire catalogue page.
+ * Checkout and cart deliberately continue to use productForUser() directly.
+ */
+function catalogProductForListing(array $product, ?array $user): array
+{
+    try {
+        return productForUser($product, $user);
+    } catch (HttpError $error) {
+        if (!$user || $error->status !== 503 || $error->getMessage() !== 'EUR pricing is not initialized for this product.') {
+            throw $error;
+        }
+        $product['price_cents'] = null;
+        $product['currency'] = currencyContext()['currency'];
+        foreach (array_keys($product) as $key) {
+            $plain = str_contains($key, '.') ? substr($key, (int) strrpos($key, '.') + 1) : $key;
+            if ($plain === 'list_price_cents' || $plain === 'list_price_eur_cents'
+                || $plain === 'purchase_price_eur_cents' || $plain === 'price_eur_cents'
+                || $plain === 'pricing_version' || str_contains($plain, 'group_price')
+                || str_contains($plain, 'purchase_price') || str_contains($plain, 'base_price')) {
+                unset($product[$key]);
+            }
+        }
+        return $product;
+    }
+}
+
 function catalogProductWithPartType(array $product, ?array $user): array
 {
-    $public = productForUser($product, $user);
+    $public = catalogProductForListing($product, $user);
     $public['part_type'] = (int) $product['category_id'] === catalogHousingCategoryId()
         ? catalogPartTypePublic(catalogHousingPartTypeForTitle((string) $product['name']))
         : null;

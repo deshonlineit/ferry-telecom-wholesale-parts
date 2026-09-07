@@ -16,6 +16,7 @@
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.
 - [Nullable currency initialization](currency-initialization-semantics.md) — recurring initialization must not resurrect deliberately cleared group prices from retained CHF sources.
 - [Commerce pricing readiness](commerce-pricing-readiness.md) — an unpriced catalogue item must block only itself, never correctly priced products or empty carts.
+- [Commercial catalogue hierarchy](commercial-catalogue-hierarchy.md) — default browse order is product-type-led; real screens first and customer-priced, protectors never masquerade as screens.
 - [Publishing preflight visibility](publishing-preflight-visibility.md) — a pending database-validation screen may have no new build record; do not attribute it to an old failed build.
 - [Native media isolation](native-media-isolation.md) — bulk PHP imports can exhaust a sibling preview's filesystem watchers; generated media is not JavaScript source.
 - [Account metadata updates](account-metadata-updates.md) — identity-provider metadata updates require the dedicated metadata endpoint; empty merges do not revoke roles.
@@ -31,6 +32,8 @@
 - [Search minimum length](search-minimum-length.md) — no character minimum by owner's decision; bound search by row limit and debounce, never by refusing short terms.
 - [Landing visual tone](landing-visual-tone.md) — the front page opens light and quiet; dark saturated blocks and black buttons read as aggressive to the owner.
 - [Signed-in header actions](signed-in-header-actions.md) — account and sign-out stay polished icon-only controls; Cart retains its label and count.
+- [Storefront localisation](storefront-localisation.md) — buyer UI supports EN/NL/DE/FR/IT; keep currency and catalogue source data independent from language.
+- [Header route state](header-route-state.md) — choose compact/full header mode from the target route before async rendering; never infer it only from mounted descendants.
 - [Catalogue visual language](catalogue-visual-language.md) — image-led categories, collapsed model families, quiet blue surface, larger product images, and no title underlines.
 - [Client policy enforcement](client-policy-enforcement.md) — a shortened UI list is not a rule until PHP rejects the excluded values, with a QA check keeping both lists identical.
 - [Smart-search privacy boundary](smart-search-privacy.md) — learn from intent and outcomes, never send customers’ raw search text to analytics.

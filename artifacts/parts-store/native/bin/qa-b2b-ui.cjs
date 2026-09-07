@@ -63,7 +63,7 @@ const button = () => {
         quality: 'OEM', price_cents: 1250, currency: 'EUR'
     }]}, 'row');
     assert.match(popup.innerHTML, /&lt;unsafe>/);
-    assert.match(popup.innerHTML, /12\.50 EUR/);
+    assert.match(popup.innerHTML, /(?:12\.50(?:\s|&nbsp;)*EUR|EUR(?:\s|&nbsp;|\u00a0)*12\.50)/);
     assert.match(popup.innerHTML, /min="2" max="15"/);
     assert.match(popup.innerHTML, /data-quick-add="7"/);
     const focusedLink = {classList: {toggle() {}}, focus() { app.document.activeElement = this; }, scrollIntoView() {}};

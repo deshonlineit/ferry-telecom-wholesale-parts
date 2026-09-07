@@ -16,6 +16,10 @@
 
     const currencyForCountry = country => (String(country || '').toUpperCase() === 'CH' ? 'CHF' : 'EUR');
 
+    const countryName = code => {
+        try { return new Intl.DisplayNames([window.I18n?.locale || 'en'], {type: 'region'}).of(code) || NAMES[code]; }
+        catch (_) { return NAMES[code]; }
+    };
     const countries = Object.keys(NAMES)
         .map(code => ({code, name: NAMES[code], currency: currencyForCountry(code)}))
         .sort((a, b) => a.name.localeCompare(b.name, 'en'));
@@ -33,7 +37,7 @@
                 ? countries
                 : [{code: value, name: value, currency: currencyForCountry(value)}].concat(countries);
             return list.map(country =>
-                `<option value="${country.code}" ${country.code === value ? 'selected' : ''}>${escape(country.name)} (${country.code})</option>`
+                `<option value="${country.code}" ${country.code === value ? 'selected' : ''}>${escape(countryName(country.code))} (${country.code})</option>`
             ).join('');
         },
         currencyForCountry,

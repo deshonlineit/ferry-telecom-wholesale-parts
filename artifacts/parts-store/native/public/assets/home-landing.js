@@ -1,13 +1,9 @@
 /* Front page. Product listings themselves live on the shop and category pages. */
 (function () {
     const esc = window.Core.escapeHtml;
-    const count = value => Number(value || 0).toLocaleString('en-GB');
-    const labels = {
-        screens: 'LCDs & screens', batteries: 'Batteries', charging: 'Charging ports', cameras: 'Cameras',
-        housing: 'Housing & rear glass', flex: 'Flex cables & buttons', audio: 'Speakers & audio',
-        adhesive: 'Adhesive & seals', tools: 'Repair tools', protection: 'Cases & protection',
-        accessories: 'Cables & accessories', other: 'Other parts'
-    };
+    const count = value => window.I18n.number(Number(value || 0));
+    const labels = slug => window.I18n.t(slug);
+    const t = (key, values) => window.I18n.t(key, values);
     const icons = {
         screens: '<rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="10" y1="18.5" x2="14" y2="18.5"/>',
         batteries: '<rect x="2" y="7" width="16" height="10" rx="2.5"/><line x1="21.5" y1="10.5" x2="21.5" y2="13.5"/><line x1="6" y1="12" x2="13" y2="12"/>',
@@ -42,20 +38,20 @@
                 <section class="lp-hero" aria-labelledby="lp-hero-title">
                     <div class="lp-hero-mesh" aria-hidden="true"></div>
                     <div class="lp-hero-body">
-                        <p class="lp-eyebrow">Smart search · fast order</p>
-                        <h1 id="lp-hero-title">The right part,<br><span>first time.</span></h1>
-                        <p class="lp-lead" data-lp-lead>Find your model, choose the right variant and order in one step.</p>
+                        <p class="lp-eyebrow">${t('heroEyebrow')}</p>
+                        <h1 id="lp-hero-title">${t('heroTitle')}</h1>
+                        <p class="lp-lead" data-lp-lead>${t('heroLead')}</p>
                         <form class="lp-search" role="search" data-search-root>
-                            <label class="lp-sr-only" for="home-search">Search the catalogue</label>
+                            <label class="lp-sr-only" for="home-search">${t('searchCatalogueLabel')}</label>
                             <div class="lp-search-field">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.3-4.3"/></svg>
-                                <input type="search" id="home-search" name="q" placeholder="Describe what you need — in your own words…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="home-search-suggestions" aria-describedby="home-search-hint">
-                                <button type="submit" class="lp-search-submit">Smart search</button>
+                                <input type="search" id="home-search" name="q" placeholder="${t('smartSearchPrompt')}" aria-label="${t('smartSearchPrompt')}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="home-search-suggestions" aria-describedby="home-search-hint">
+                                <button type="submit" class="lp-search-submit">${t('smartSearch')}</button>
                             </div>
-                            <div id="home-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" style="display:none;"></div>
-                            <p class="lp-search-hint" id="home-search-hint"><strong>Write it your way.</strong> Smart Search understands models, parts, colours, quality and everyday language <span>Order directly from the results</span></p>
+                            <div id="home-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="${t('orderDirectly')}" style="display:none;"></div>
+                            <p class="lp-search-hint" id="home-search-hint"><strong>${t('writeYourWay')}</strong> ${t('smartSearchExplainer')} <span>${t('orderResults')}</span></p>
                         </form>
-                        <nav class="lp-chips" data-lp-chips aria-label="Go straight to a device family"></nav>
+                        <nav class="lp-chips" data-lp-chips aria-label="${t('goDeviceFamily')}"></nav>
                         <dl class="lp-stats" data-lp-stats></dl>
                     </div>
                 </section>
@@ -65,10 +61,10 @@
                 <section class="lp-section" aria-labelledby="lp-categories-title">
                     <header class="lp-section-head">
                         <div>
-                            <p class="lp-kicker">Catalogue</p>
-                            <h2 id="lp-categories-title">Choose your part</h2>
+                            <p class="lp-kicker">${t('catalogue')}</p>
+                            <h2 id="lp-categories-title">${t('chooseYourPart')}</h2>
                         </div>
-                        <a class="lp-section-link" href="${window.APP_BASE}catalog">Shop the catalogue ${L.arrow()}</a>
+                        <a class="lp-section-link" href="${window.APP_BASE}catalog">${t('shopCatalogue')} ${L.arrow()}</a>
                     </header>
                     <div class="lp-grid lp-categories" data-lp-categories>${L.skeleton(8, 'lp-skeleton-card')}</div>
                 </section>
@@ -76,17 +72,17 @@
                 <section class="lp-section" aria-labelledby="lp-devices-title">
                     <header class="lp-section-head">
                         <div>
-                            <p class="lp-kicker">Devices</p>
-                            <h2 id="lp-devices-title">Find parts for your device</h2>
+                            <p class="lp-kicker">${t('devices')}</p>
+                            <h2 id="lp-devices-title">${t('findDeviceParts')}</h2>
                         </div>
                     </header>
                     <div class="lp-devices">
                         <nav class="lp-families" data-lp-families aria-label="Device families">${L.skeleton(4, 'lp-skeleton-row')}</nav>
                         <aside class="lp-models" aria-labelledby="lp-models-title">
-                            <h3 id="lp-models-title">Latest models</h3>
-                            <p class="lp-models-note">Newest to oldest, with the number of available parts.</p>
+                            <h3 id="lp-models-title">${t('latestModels')}</h3>
+                            <p class="lp-models-note">${t('modelsNote')}</p>
                             <div class="lp-model-chips" data-lp-models>${L.skeleton(6, 'lp-skeleton-chip')}</div>
-                            <a class="lp-models-all" href="${window.APP_BASE}catalog" data-lp-models-all>View all models ${L.arrow()}</a>
+                            <a class="lp-models-all" href="${window.APP_BASE}catalog" data-lp-models-all>${t('viewAllModels', {count: ''})} ${L.arrow()}</a>
                         </aside>
                     </div>
                 </section>
@@ -94,32 +90,32 @@
                 <section class="lp-section" aria-labelledby="lp-featured-title">
                     <header class="lp-section-head">
                         <div>
-                            <p class="lp-kicker">Selected range</p>
-                            <h2 id="lp-featured-title">Featured parts</h2>
+                            <p class="lp-kicker">${t('featuredRange')}</p>
+                            <h2 id="lp-featured-title">${t('featuredParts')}</h2>
                         </div>
-                        <a class="lp-section-link" href="${L.catalogUrl({featured: '1'})}" data-lp-featured-all>View all featured parts ${L.arrow()}</a>
+                        <a class="lp-section-link" href="${L.catalogUrl({featured: '1'})}" data-lp-featured-all>${t('viewFeatured')} ${L.arrow()}</a>
                     </header>
                     <div class="lp-grid lp-featured" data-lp-featured>${L.skeleton(4, 'lp-skeleton-product')}</div>
                 </section>
 
                 <section class="lp-method" aria-labelledby="lp-method-title">
-                    <h2 id="lp-method-title" class="lp-sr-only">How to order</h2>
+                        <h2 id="lp-method-title" class="lp-sr-only">${t('howOrder')}</h2>
                     <ol class="lp-method-list">
-                        <li><span class="lp-step">01</span><h3>Search by model</h3><p>Filter by device family and model, from the newest devices to the oldest.</p></li>
-                        <li><span class="lp-step">02</span><h3>Check stock</h3><p>Every line shows current stock status and the minimum order quantity.</p></li>
-                        <li><span class="lp-step">03</span><h3>Your own prices</h3><p>Sign in to see prices for your customer group in euros or Swiss francs.</p></li>
-                        <li><span class="lp-step">04</span><h3>Order in one step</h3><p>Add parts to your cart directly from the search results.</p></li>
+                        <li><span class="lp-step">01</span><h3>${t('searchByModel')}</h3><p>${t('searchByModelCopy')}</p></li>
+                        <li><span class="lp-step">02</span><h3>${t('checkStock')}</h3><p>${t('checkStockCopy')}</p></li>
+                        <li><span class="lp-step">03</span><h3>${t('ownPrices')}</h3><p>${t('ownPricesCopy')}</p></li>
+                        <li><span class="lp-step">04</span><h3>${t('orderOneStep')}</h3><p>${t('orderOneStepCopy')}</p></li>
                     </ol>
                 </section>
 
                 <section class="lp-cta" aria-labelledby="lp-cta-title">
                     <div>
-                        <h2 id="lp-cta-title">The complete catalogue</h2>
-                        <p data-lp-cta-note>All parts, filters and stock information in one place.</p>
+                        <h2 id="lp-cta-title">${t('completeCatalogue')}</h2>
+                        <p data-lp-cta-note>${t('catalogueInOnePlace')}</p>
                     </div>
                     <div class="lp-cta-actions">
-                        <a class="lp-btn lp-btn-primary" href="${window.APP_BASE}catalog">Shop the catalogue ${L.arrow()}</a>
-                        <a class="lp-btn lp-btn-ghost" href="${window.APP_BASE}login" data-lp-login>Sign in for prices</a>
+                        <a class="lp-btn lp-btn-primary" href="${window.APP_BASE}catalog">${t('shopCatalogue')} ${L.arrow()}</a>
+                        <a class="lp-btn lp-btn-ghost" href="${window.APP_BASE}login" data-lp-login>${t('signInPrices')}</a>
                     </div>
                 </section>
             </div>`;
@@ -128,9 +124,9 @@
             const models = (catalog.models || []).length;
             const categories = (catalog.categories || []).filter(item => Number(item.count) > 0).length;
             return [
-                [count(catalog.total), Number(catalog.total) === 1 ? 'part' : 'parts'],
-                [count(models), models === 1 ? 'model' : 'models'],
-                [count(categories), categories === 1 ? 'category' : 'categories']
+                [count(catalog.total), t(Number(catalog.total) === 1 ? 'part' : 'parts')],
+                [count(models), t(models === 1 ? 'model' : 'models')],
+                [count(categories), t(categories === 1 ? 'category' : 'categories')]
             ].map(([value, label]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
         },
         renderChips(catalog) {
@@ -143,17 +139,17 @@
         },
         renderCategories(catalog) {
             const categories = window.App.sortCategories(catalog.categories || []).filter(item => Number(item.count) > 0);
-            if (!categories.length) return '<p class="lp-empty">No categories are available yet.</p>';
+            if (!categories.length) return `<p class="lp-empty">${t('noCategories')}</p>`;
             return categories.map(item => `<a class="lp-category" href="${L.catalogUrl({category: item.id})}">
                 <span class="lp-category-icon">${L.icon(item.slug)}</span>
-                <span class="lp-category-name">${esc(labels[item.slug] || item.name)}</span>
-                <span class="lp-category-count">${count(item.count)} parts</span>
+                <span class="lp-category-name">${esc(window.I18n.dictionaries.en[item.slug] ? labels(item.slug) : item.name)}</span>
+                <span class="lp-category-count">${count(item.count)} ${window.I18n.t(Number(item.count) === 1 ? 'part' : 'parts')}</span>
                 <span class="lp-category-go" aria-hidden="true">${L.arrow()}</span>
             </a>`).join('');
         },
         renderFamilies(catalog) {
             const families = (catalog.device_families || []).filter(item => Number(item.count) > 0);
-            if (!families.length) return '<p class="lp-empty">No device families are available yet.</p>';
+            if (!families.length) return `<p class="lp-empty">${t('noFamilies')}</p>`;
             const rank = item => {
                 const index = familyOrder.indexOf(item.id);
                 return index === -1 ? familyOrder.length : index;
@@ -161,7 +157,7 @@
             return families.sort((a, b) => rank(a) - rank(b) || Number(b.count) - Number(a.count))
                 .map(item => `<a class="lp-family" href="${L.catalogUrl({family: item.id})}">
                     <span class="lp-family-name">${esc(item.label)}</span>
-                    <span class="lp-family-count">${count(item.count)} parts</span>
+                    <span class="lp-family-count">${count(item.count)} ${t(Number(item.count) === 1 ? 'part' : 'parts')}</span>
                     <span class="lp-family-go" aria-hidden="true">${L.arrow()}</span>
                 </a>`).join('');
         },
@@ -170,27 +166,27 @@
                 .slice()
                 .sort((a, b) => Number(b.sort_order || 0) - Number(a.sort_order || 0) || a.name.localeCompare(b.name, 'en', {numeric: true}))
                 .slice(0, 8);
-            if (!models.length) return '<p class="lp-empty">No models are available yet.</p>';
+            if (!models.length) return `<p class="lp-empty">${t('noModelsYet')}</p>`;
             return models.map(item => `<a class="lp-model-chip" href="${L.catalogUrl({model: item.id})}">${esc(item.name)}<small>${count(item.count)}</small></a>`).join('');
         },
         renderFeatured(result) {
             const products = (result && result.products) || [];
-            if (!products.length) return '<p class="lp-empty">There are no featured parts at present.</p>';
+            if (!products.length) return `<p class="lp-empty">${t('noFeatured')}</p>`;
             return products.map(product => {
                 const url = `${window.APP_BASE}products/${product.id}`;
                 const stockClass = product.stock > 0 ? 'is-ok' : 'is-out';
-                const stockText = product.stock > 0 ? `${count(product.stock)} in stock` : 'Out of stock';
+                const stockText = product.stock > 0 ? `${count(product.stock)} ${t('inStock').toLocaleLowerCase()}` : t('outOfStock');
                 const thumb = window.App.thumbnailUrl ? window.App.thumbnailUrl({url: product.image_url}) : product.image_url;
                 const media = product.image_url
                     ? `<img src="${esc(thumb)}" alt="" loading="lazy" decoding="async" data-lp-normalize>`
                     : `<span class="lp-product-placeholder" aria-hidden="true">${L.icon('other')}</span>`;
                 const price = product.price_cents !== null && product.price_cents !== undefined
                     ? `<span class="lp-product-price">${esc(window.Core.formatMoney(product.price_cents, product.currency))}</span>`
-                    : `<a class="lp-product-login" href="${window.APP_BASE}login">Sign in for prices</a>`;
+                    : `<a class="lp-product-login" href="${window.APP_BASE}login">${t('signInPrices')}</a>`;
                 const canBuy = typeof window.App.canOrderProduct === 'function' && window.App.canOrderProduct(product);
                 const quantity = Math.max(1, Number(product.minimum_quantity) || 1);
                 const action = canBuy
-                    ? `<button type="button" class="lp-product-add" data-lp-add="${product.id}" data-lp-quantity="${quantity}" aria-label="Add ${esc(product.name)} to cart">Add to cart</button>`
+                    ? `<button type="button" class="lp-product-add" data-lp-add="${product.id}" data-lp-quantity="${quantity}" aria-label="${t('add')} ${esc(product.name)}">${t('addToCart')}</button>`
                     : '';
                 const context = (product.models || []).map(model => model.name).join(', ') || product.category_name || '';
                 return `<article class="lp-product">
@@ -282,11 +278,11 @@
             set('[data-lp-featured]', L.renderFeatured(featured));
             L.bindProductImages(root);
             const lead = root.querySelector('[data-lp-lead]');
-            if (lead) lead.textContent = `Find your model, choose the right variant and order in one step. ${total} parts for ${count(models)} models.`;
+            if (lead) lead.textContent = `${t('heroLead')} ${total} ${t('parts')} ${t('modelsOfTotal', {shown: count(models), total: count(models)})}.`;
             const modelsAll = root.querySelector('[data-lp-models-all]');
-            if (modelsAll) modelsAll.firstChild.textContent = `View all ${count(models)} models `;
+            if (modelsAll) modelsAll.firstChild.textContent = `${t('viewAllModels', {count: count(models)})} `;
             const note = root.querySelector('[data-lp-cta-note]');
-            if (note) note.textContent = `${total} parts with filters for category, device and quality, including current stock information.`;
+            if (note) note.textContent = `${total} ${t('parts')} · ${t('filterProducts')}`;
             const login = root.querySelector('[data-lp-login]');
             if (login && window.Core.user) login.hidden = true;
         },
@@ -294,7 +290,7 @@
             const notice = root.querySelector('[data-lp-error]');
             if (!notice) return;
             notice.hidden = false;
-            notice.innerHTML = `<p>The catalogue could not be loaded. ${esc(error.message || '')}</p><button type="button" class="lp-btn lp-btn-ghost" data-lp-retry>Try again</button>`;
+            notice.innerHTML = `<p>${t('catalogueCouldNotLoad', {message: error.message || ''})}</p><button type="button" class="lp-btn lp-btn-ghost" data-lp-retry>${t('retry')}</button>`;
             root.querySelectorAll('[data-lp-categories], [data-lp-families], [data-lp-models], [data-lp-featured]').forEach(node => { node.innerHTML = ''; });
         },
         bind(root) {

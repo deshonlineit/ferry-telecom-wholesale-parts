@@ -15,6 +15,17 @@ function catalogLike(string $value): string
     return '%' . str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value) . '%';
 }
 
+/**
+ * A few legacy protection products retain the screens source category. Keep
+ * their source category for filtering/search, but do not commercially treat a
+ * clearly named protector as a display.
+ */
+function catalogRealScreenSqlCondition(string $categorySlugSql = 'catalog_category.slug', string $nameSql = 'p.name'): string
+{
+    $protection = "LOWER($nameSql) REGEXP '(panzer[[:space:]-]*glass|display[[:space:]-]*protection|screen[[:space:]-]*(protector|protection)|screenprotector)'";
+    return "($categorySlugSql='screens' AND NOT ($protection))";
+}
+
 function catalogUnfilteredFacets(): array
 {
     static $facets = null;
@@ -555,7 +566,49 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
         $order = 'COALESCE(gp.price_eur_cents,p.list_price_eur_cents) ' . ($sort === 'price_asc' ? 'ASC' : 'DESC') . ',p.id ASC';
         $orderParams = [];
     }
-    $query = db()->prepare("SELECT p.* FROM products p $priceJoin WHERE $condition ORDER BY $order LIMIT ? OFFSET ?");
+    // Only the unsearched featured/default catalogue has a commercial browse
+    // order. Search ordering (including exact SKU relevance) and every explicit
+    // sort above intentionally remain authoritative.
+    $categoryJoin = '';
+    if ($search === '' && $sort === 'featured') {
+        $categoryJoin = ' LEFT JOIN categories catalog_category ON catalog_category.id=p.category_id ';
+        $housingType = catalogHousingPartTypeSqlCase('p.name');
+        $realScreen = catalogRealScreenSqlCondition();
+        $categoryRank = "CASE
+            WHEN $realScreen THEN 1
+            WHEN catalog_category.slug='batteries' THEN 2
+            WHEN catalog_category.slug='charging' THEN 3
+            WHEN catalog_category.slug='cameras' THEN 4
+            WHEN catalog_category.slug='flex' THEN 5
+            WHEN catalog_category.slug='audio' THEN 6
+            WHEN catalog_category.slug='adhesive' THEN 7
+            WHEN catalog_category.slug='housing' AND $housingType='frame-chassis' THEN 8
+            WHEN catalog_category.slug='housing' AND $housingType='housing-with-parts' THEN 9
+            WHEN catalog_category.slug='housing' AND $housingType='complete-housing' THEN 10
+            WHEN catalog_category.slug='housing' AND $housingType='other-housing' THEN 11
+            WHEN catalog_category.slug='housing' AND $housingType='rear-cover' THEN 12
+            WHEN catalog_category.slug='housing' AND $housingType='rear-glass' THEN 13
+            WHEN catalog_category.slug='tools' THEN 14
+            WHEN catalog_category.slug='protection' OR catalog_category.slug='screens' THEN 15
+            WHEN catalog_category.slug='accessories' THEN 16
+            WHEN catalog_category.slug='other' THEN 17
+            ELSE 18
+        END";
+        if ($user) {
+            // Do not join or reference prices for guests: price visibility and
+            // price-based ranking are both restricted to authenticated buyers.
+            $priceJoin = ' LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=? ';
+            $priceParams = [$user['group_id']];
+            $screenPrice = 'COALESCE(gp.price_eur_cents,p.list_price_eur_cents)';
+            $order = "$categoryRank ASC,p.stock>0 DESC,
+                CASE WHEN $realScreen AND $screenPrice IS NULL THEN 1 ELSE 0 END ASC,
+                CASE WHEN $realScreen THEN $screenPrice END ASC,
+                p.featured DESC,p.image_url<>'' DESC,p.id DESC";
+        } else {
+            $order = "$categoryRank ASC,p.stock>0 DESC,p.featured DESC,p.image_url<>'' DESC,p.id DESC";
+        }
+    }
+    $query = db()->prepare("SELECT p.* FROM products p $categoryJoin $priceJoin WHERE $condition ORDER BY $order LIMIT ? OFFSET ?");
     $query->execute([...$priceParams, ...$parameters, ...$orderParams, $limit, ($page - 1) * $limit]);
     $context = currencyContext();
     return [

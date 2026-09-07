@@ -1,5 +1,6 @@
 (function () {
     const esc = window.Core.escapeHtml;
+    const t = (key, values) => window.I18n.t(key, values);
     const C = window.CategoryModels = {
         modelUrl(params, model) {
             const currentFamily = params.get('family') || '';
@@ -47,8 +48,8 @@
                     || b.name.localeCompare(a.name, 'en', {numeric: true}));
         },
         caption(shown, total, query) {
-            if (total > shown) return query ? `${shown} of ${total} models · keep typing to refine` : 'Type to find your model';
-            return `${total} ${total === 1 ? 'model' : 'models'} with parts in this selection`;
+            if (total > shown) return query ? t('modelsOfTotal', {shown, total}) : t('modelSearch');
+            return t('modelsWithParts', {count: window.I18n.number(total), models: t(total === 1 ? 'model' : 'models')});
         },
         activeFamily(catalog, params) {
             const selected = (catalog.models || []).find(model => String(model.id) === params.get('model'));
@@ -58,9 +59,9 @@
             return (catalog.device_families || []).find(item => item.id === family)?.label || family;
         },
         familyCaption(label, shown, total, query, outside = 0) {
-            if (!String(query || '').trim()) return `${total} ${total === 1 ? 'model' : 'models'} in ${label} · type to filter`;
-            if (shown) return `${shown} of ${total} models in ${label}`;
-            return outside ? `No ${label} model with this name · ${outside} outside ${label}` : `No model with this name in ${label}`;
+            if (!String(query || '').trim()) return t('modelsWithParts', {count: window.I18n.number(total), models: t(total === 1 ? 'model' : 'models')});
+            if (shown) return t('modelsOfTotal', {shown, total});
+            return t('noModelInFamily', {label});
         },
         familyOptions(catalog, params, family, query = '') {
             return window.ModelSearch.rank(C.familyModels(catalog, family), query);
@@ -82,14 +83,14 @@
                         <div class="device-family-dropdown">
                             <div class="category-model-tools">
                                 <label class="category-model-search">
-                                    <input type="search" class="form-control" data-category-model-search="${esc(family.id)}" placeholder="Search ${esc(family.label)} models" autocomplete="off">
+                                    <input type="search" class="form-control" data-category-model-search="${esc(family.id)}" placeholder="${esc(t('searchModels'))}" aria-label="${esc(t('searchModels'))}" autocomplete="off">
                                 </label>
                             </div>
                             <div class="device-family-models" data-family-models="${esc(family.id)}">
                                 ${C.orderedModels(catalog, params, family.id, '')}
                             </div>
                             <div class="device-family-all-link mt-2">
-                                <a href="${esc(C.familyUrl(catalog, params, family.id))}" class="btn btn-outline btn-sm">View all ${esc(family.label)} parts</a>
+                                <a href="${esc(C.familyUrl(catalog, params, family.id))}" class="btn btn-outline btn-sm">${esc(t('allPartsFor', {label: family.label}))}</a>
                             </div>
                         </div>
                     </details>`;
@@ -97,13 +98,13 @@
         },
         orderedModels(catalog, params, family, query = '') {
             const models = C.familyOptions(catalog, params, family, query);
-            return `<nav class="category-model-options" aria-label="Available models">${C.links(models, params)}</nav>`;
+            return `<nav class="category-model-options" aria-label="${t('modelsFound')}">${C.links(models, params)}</nav>`;
         },
         render(catalog, params, subject) {
             const selected = catalog.models.find(model => String(model.id) === params.get('model'));
             const heading = selected
-                ? `<strong>${esc(selected.name)}</strong><small>Selected device · click to change</small>`
-                : `<strong>Choose a device</strong><small>Optional · open device families and models</small>`;
+                ? `<strong>${esc(selected.name)}</strong><small>${t('device')} · ${t('changeDevice', {name: ''}).replace('…', '')}</small>`
+                : `<strong>${t('chooseModel')}</strong><small>${t('optional')}</small>`;
             return `<details class="category-models" data-category-models>
                 <summary class="category-model-trigger">
                     <span class="category-model-trigger-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 5h4M11 18.5h2"/></svg></span>
@@ -111,7 +112,7 @@
                     <svg class="category-model-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </summary>
                 <div class="category-model-body">
-                    <nav class="device-family-options" data-device-family-options aria-label="Choose a device family">${C.familyLinks(catalog, params)}</nav>
+                    <nav class="device-family-options" data-device-family-options aria-label="${t('chooseModel')}">${C.familyLinks(catalog, params)}</nav>
                 </div>
             </details>`;
         },
@@ -135,7 +136,7 @@
                     const host = root.querySelector(`[data-family-models="${familyId}"]`);
                     if (host) {
                         const matches = C.familyOptions(catalog, params, familyId, input.value);
-                        host.innerHTML = `<nav class="category-model-options" aria-label="Available models">${C.links(matches, params)}</nav>`;
+                        host.innerHTML = `<nav class="category-model-options" aria-label="${t('modelsFound')}">${C.links(matches, params)}</nav>`;
                     }
                 });
                 input.addEventListener('keydown', event => {

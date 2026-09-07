@@ -1,5 +1,6 @@
 (function () {
     const esc = window.Core.escapeHtml;
+    const t = (key, values) => window.I18n.t(key, values);
     const compact = value => String(value || '').toLocaleLowerCase('en').replace(/[^a-z0-9]/g, '');
     const recentKey = 'parts_recent_models';
     const F = window.FastFinder = {
@@ -79,15 +80,15 @@
         },
         modelLinks(models, params) {
             return models.map(model => `<a class="finder-model" href="${esc(F.modelUrl(params, model))}" data-finder-model="${model.id}">
-                <span><strong>${esc(model.name)}</strong><small>View parts</small></span><span aria-hidden="true">↗</span></a>`).join('');
+                <span><strong>${esc(model.name)}</strong><small>${t('viewParts')}</small></span><span aria-hidden="true">↗</span></a>`).join('');
         },
         inline(params, model) {
             return `<div class="model-command" data-inline-model>
-                <label class="model-command-label" for="inline-model-search">Device</label>
+                <label class="model-command-label" for="inline-model-search">${t('device')}</label>
                 <div class="model-command-input"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg>
-                <input id="inline-model-search" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="inline-model-results" autocomplete="off" placeholder="${esc(model ? 'Change ' + model.name + '…' : 'Enter your model…')}" aria-label="Find a device directly">
-                <button type="button" class="model-browse" data-change-device aria-label="View all models">All models <span aria-hidden="true">↗</span></button></div>
-                <div class="model-command-popover" hidden><p class="model-command-status" role="status"></p><div id="inline-model-results" role="listbox" aria-label="Models found"></div></div>
+                <input id="inline-model-search" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="inline-model-results" autocomplete="off" placeholder="${esc(model ? t('changeDevice', {name: model.name}) : t('enterModel'))}" aria-label="${t('findDevice')}">
+                <button type="button" class="model-browse" data-change-device aria-label="${t('viewAllModels')}">${t('allModels')} <span aria-hidden="true">↗</span></button></div>
+                <div class="model-command-popover" hidden><p class="model-command-status" role="status"></p><div id="inline-model-results" role="listbox" aria-label="${t('modelsFound')}"></div></div>
             </div>`;
         },
         bindInline(root, initialCatalog, params, loadChoices) {
@@ -108,7 +109,7 @@
             };
             const render = () => {
                 const models = F.models(catalog, '', input.value).slice(0, 8);
-                status.textContent = models.length ? 'Choose a model · filters will be retained' : 'No matching model. Use “All models” or the main search bar.';
+                status.textContent = models.length ? t('chooseModelRetain') : t('noMatchingModelHint');
                 list.innerHTML = F.modelLinks(models, params);
                 list.querySelectorAll('a').forEach((link, index) => {
                     link.id = 'inline-model-option-' + index;
@@ -122,7 +123,7 @@
                 popover.hidden = false;
                 input.setAttribute('aria-expanded', 'true');
                 if (ready) { render(); return; }
-                status.textContent = 'Loading models…';
+                status.textContent = t('loadingModels');
                 // One shared load, awaited by every caller: pressing Enter while the list is
                 // still on its way must wait for it, not fall through to nothing.
                 if (!loading) loading = Promise.resolve(loadChoices()).then(result => { catalog = result; ready = true; }).finally(() => { loading = null; });
@@ -130,7 +131,7 @@
                     await loading;
                     if (root.isConnected && !popover.hidden) render();
                 } catch (_) {
-                    if (root.isConnected && !popover.hidden) status.textContent = 'Models could not be loaded. Click the search field to try again.';
+                    if (root.isConnected && !popover.hidden) status.textContent = t('modelsLoadFailed');
                 }
             };
             input.addEventListener('focus', open);
@@ -186,19 +187,19 @@
             const brands = catalog.brands.filter(item => Number(item.count) > 0 && catalog.models.some(model => Number(model.count) > 0 && String(model.brand_id) === String(item.id)));
             const recent = F.recent(catalog);
             return `<section class="fast-finder" data-fast-finder data-prefix="${esc(prefix)}">
-                <div class="finder-heading"><div><span class="finder-eyebrow">Start with the device</span><h2>Choose your model.</h2></div><span class="finder-caption">Go straight to the parts</span></div>
+                <div class="finder-heading"><div><span class="finder-eyebrow">${t('startDevice')}</span><h2>${t('chooseYourModel')}</h2></div><span class="finder-caption">${t('goStraightParts')}</span></div>
                 ${params.get('q') ? '<p class="finder-hint">Choosing a model replaces your search term. Other filters will be retained.</p>' : ''}
                 <div class="finder-brands" role="group" aria-label="Choose a brand">
-                    <button type="button" data-finder-brand="" class="${brand ? '' : 'active'}" aria-pressed="${!brand}">All brands</button>
+                    <button type="button" data-finder-brand="" class="${brand ? '' : 'active'}" aria-pressed="${!brand}">${t('allBrands')}</button>
                     ${brands.map(item => `<button type="button" data-finder-brand="${item.id}" class="${String(item.id) === brand ? 'active' : ''}" aria-pressed="${String(item.id) === brand}">${esc(item.name)}</button>`).join('')}
                 </div>
-                <label class="finder-search-label" for="${esc(prefix)}-quick-model">Search for your model</label>
-                <div class="finder-model-search"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input type="search" id="${esc(prefix)}-quick-model" placeholder="For example, iPhone 13 or Galaxy S22" autocomplete="off"><kbd>Enter ↵</kbd></div>
-                <div class="finder-recent" ${recent.length ? '' : 'hidden'}><span>Recently selected</span><div>${recent.map(model => `<a href="${esc(F.modelUrl(params, model))}" data-finder-model="${model.id}">${esc(model.name)}</a>`).join('')}</div><button type="button" data-clear-recent>Clear</button></div>
-                <div class="finder-list-tools"><p class="finder-status" role="status" aria-live="polite">${models.length} models with parts</p><label>Order <select class="finder-sort" aria-label="Sort models"><option value="count">Most parts</option><option value="name">Model A–Z</option></select></label></div>
+                <label class="finder-search-label" for="${esc(prefix)}-quick-model">${t('modelSearch')}</label>
+                <div class="finder-model-search"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input type="search" id="${esc(prefix)}-quick-model" placeholder="${t('modelExample')}" autocomplete="off"><kbd>Enter ↵</kbd></div>
+                <div class="finder-recent" ${recent.length ? '' : 'hidden'}><span>${t('recentlySelected')}</span><div>${recent.map(model => `<a href="${esc(F.modelUrl(params, model))}" data-finder-model="${model.id}">${esc(model.name)}</a>`).join('')}</div><button type="button" data-clear-recent>${t('clearRecent')}</button></div>
+                <div class="finder-list-tools"><p class="finder-status" role="status" aria-live="polite">${t('modelsWithParts', {count: window.I18n.number(models.length), models: t(models.length === 1 ? 'model' : 'models')})}</p><label>${t('order')} <select class="finder-sort" aria-label="${t('sortModels')}"><option value="count">${t('mostParts')}</option><option value="name">${t('modelAZ')}</option></select></label></div>
                 <div class="finder-models">${F.modelLinks(models.slice(0, 8), params)}</div>
-                <div class="finder-empty" ${models.length ? 'hidden' : ''}>No model in this selection. Choose another brand or search the product names.<br><a data-model-fallback hidden>Search the catalogue →</a></div>
-                <div class="finder-footer"><button type="button" data-more-models ${models.length > 8 ? '' : 'hidden'}>Show all ${models.length} models <span aria-hidden="true">↓</span></button><a data-finder-all href="${esc(window.Discovery.buildUrl(params, {model: '', q: ''}))}">View all parts →</a></div>
+                <div class="finder-empty" ${models.length ? 'hidden' : ''}>${t('noModelSelection')}<br><a data-model-fallback hidden>${t('searchCatalogue')} →</a></div>
+                <div class="finder-footer"><button type="button" data-more-models ${models.length > 8 ? '' : 'hidden'}>${t('showAllModels', {count: window.I18n.number(models.length)})} <span aria-hidden="true">↓</span></button><a data-finder-all href="${esc(window.Discovery.buildUrl(params, {model: '', q: ''}))}">${t('viewAllParts')} →</a></div>
             </section>`;
         },
         bind(root, catalog, params) {
@@ -216,9 +217,9 @@
                 const fallback = root.querySelector('[data-model-fallback]');
                 fallback.hidden = !search.value.trim();
                 fallback.href = window.Discovery.buildUrl(params, {q: search.value.trim(), model: '', brand: ''});
-                root.querySelector('.finder-status').textContent = `${models.length} ${models.length === 1 ? 'model' : 'models'} with parts`;
+                root.querySelector('.finder-status').textContent = t('modelsWithParts', {count: window.I18n.number(models.length), models: t(models.length === 1 ? 'model' : 'models')});
                 more.hidden = Boolean(showAll) || models.length <= 8;
-                more.textContent = `Show all ${models.length} models ↓`;
+                more.innerHTML = `${t('showAllModels', {count: window.I18n.number(models.length)})} <span aria-hidden="true">↓</span>`;
                 root.querySelector('[data-finder-all]').href = window.Discovery.buildUrl(params, {brand, model: '', q: ''});
             };
             root.addEventListener('click', event => {

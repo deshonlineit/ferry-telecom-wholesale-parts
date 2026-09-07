@@ -29,7 +29,7 @@ const context = vm.createContext({
     document: {addEventListener() {}, activeElement: null},
     URLSearchParams, AbortController, console, setTimeout, clearTimeout
 });
-for (const file of ['discovery-controls.js', 'home-landing.js', 'home.js']) {
+for (const file of ['i18n.js', 'discovery-controls.js', 'home-landing.js', 'home.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets', file), 'utf8'), context, {filename: file});
 }
 const L = context.window.HomeLanding;
@@ -114,7 +114,7 @@ const root = {
     querySelectorAll(selector) { return [root.querySelector(selector)]; }
 };
 L.paint(root, catalog, {products: []});
-assert(root.querySelector('[data-lp-lead]').textContent.includes('7,856 parts for 4 models'));
+assert.match(root.querySelector('[data-lp-lead]').textContent, /7,856.*parts.*4.*models/);
 assert(root.querySelector('[data-lp-stats]').innerHTML.includes('7,856'));
 assert(root.querySelector('[data-lp-stats]').innerHTML.includes('categories'));
 assert(root.querySelector('[data-lp-models-all]').firstChild.textContent.includes('View all 4 models'));

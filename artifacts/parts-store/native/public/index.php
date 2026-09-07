@@ -59,6 +59,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     $v_ws = @filemtime(__DIR__ . '/assets/workspace.css') ?: 1;
     $v_wb = @filemtime(__DIR__ . '/assets/workbench.css') ?: 1;
     $v_core = @filemtime(__DIR__ . '/assets/core.js') ?: 1;
+    $v_i18n = @filemtime(__DIR__ . '/assets/i18n.js') ?: 1;
     $v_disc = @filemtime(__DIR__ . '/assets/discovery-controls.js') ?: 1;
     $v_qf = @filemtime(__DIR__ . '/assets/quick-finder.js') ?: 1;
     $v_store = @filemtime(__DIR__ . '/assets/store.js') ?: 1;
@@ -96,40 +97,46 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <script>window.APP_BASE = '/test-shop/'; window.LOGO_V = '<?= $v_logo ?>';</script>
 </head>
 <body>
-    <div id="test-banner" class="test-banner">TEST ENVIRONMENT &mdash; NO REAL ORDERS, STOCK OR PAYMENTS</div>
+    <div id="test-banner" class="test-banner" data-i18n="testBanner">TEST ENVIRONMENT &mdash; NO REAL ORDERS, STOCK OR PAYMENTS</div>
     
     <header class="app-header">
         <div class="container header-inner">
-            <a href="/test-shop/" class="logo" aria-label="Home">
+            <a href="/test-shop/" class="logo" aria-label="Home" data-i18n-aria-label="home">
                 <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom">
             </a>
 
-            <button type="button" class="page-search-jump" aria-label="Open Smart Search" onclick="const panel=document.querySelector('[data-catalog-smart-search]'); if(panel){panel.hidden=false;} const input=document.querySelector('#home-search, #catalog-smart-search'); if(input){input.focus({preventScroll:true}); input.scrollIntoView({behavior:'smooth',block:'center'});}">
+            <button type="button" class="page-search-jump" aria-label="Open Smart Search" data-i18n-aria-label="openSmartSearch" onclick="const panel=document.querySelector('[data-catalog-smart-search]'); if(panel){panel.hidden=false;} const input=document.querySelector('#home-search, #catalog-smart-search'); if(input){input.focus({preventScroll:true}); input.scrollIntoView({behavior:'smooth',block:'center'});}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line></svg>
-                <span>Search</span>
+                <span data-i18n="search">Search</span>
             </button>
             
             <div class="search-bar">
                 <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
                     <div class="search-input-wrapper">
                         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line></svg>
-                        <input type="search" name="q" id="search-input" placeholder="Describe what you need…" aria-label="Smart Search: describe the part you need" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
-                        <button type="submit" class="search-submit">Smart search</button>
+                        <input type="search" name="q" id="search-input" placeholder="Describe what you need…" data-i18n-placeholder="smartSearchPrompt" aria-label="Smart Search: describe the part you need" data-i18n-aria-label="smartSearchPrompt" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
+                        <button type="submit" class="search-submit" data-i18n="smartSearch">Smart search</button>
                     </div>
-                    <div id="search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" style="display:none;"></div>
+                    <div id="search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" data-i18n-aria-label="orderDirectly" style="display:none;"></div>
                 </form>
             </div>
             
+            <div class="language-control">
+                <label class="sr-only" for="language-selector" data-i18n="language">Language</label>
+                <select id="language-selector" aria-label="Select language" data-i18n-aria-label="selectLanguage">
+                    <option value="en">EN</option><option value="nl">NL</option><option value="de">DE</option><option value="fr">FR</option><option value="it">IT</option>
+                </select>
+            </div>
             <nav class="user-nav" id="user-nav">
                 <!-- Nav populated by JS -->
             </nav>
         </div>
-        <nav id="store-menu" class="store-menu" aria-label="Catalogue menu"></nav>
+        <nav id="store-menu" class="store-menu" aria-label="Catalogue menu" data-i18n-aria-label="catalogueMenu"></nav>
     </header>
 
     <main id="app-root" class="main-content container">
         <noscript>
-            <div class="alert error">JavaScript is required for the full wholesale experience.</div>
+            <div class="alert error" data-i18n="jsRequired">JavaScript is required for the full wholesale experience.</div>
             <div class="ssr-content">
                 <?= $ssrHtml ?>
             </div>
@@ -144,31 +151,32 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
             <div class="footer-grid">
                 <div class="footer-brand">
                     <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo">
-                    <p>The standard for professional repairers. Precision, reliability and stock ready to ship.</p>
+                    <p data-i18n="footerText">The standard for professional repairers. Precision, reliability and stock ready to ship.</p>
                 </div>
                 <div class="footer-links">
-                    <h4>Navigation</h4>
-                    <a href="/test-shop/catalog">Catalogue</a>
-                    <a href="/test-shop/login">Sign in</a>
-                    <a href="/test-shop/register">Request an account</a>
+                    <h4 data-i18n="navigation">Navigation</h4>
+                    <a href="/test-shop/catalog" data-i18n="catalogue">Catalogue</a>
+                    <a href="/test-shop/login" data-i18n="signIn">Sign in</a>
+                    <a href="/test-shop/register" data-i18n="requestAccount">Request an account</a>
                 </div>
                 <div class="footer-links">
-                    <h4>Test environment</h4>
-                    <p class="text-muted small">This application is for demonstration purposes only. No real e-mails are sent and no payments are processed.</p>
+                    <h4 data-i18n="testEnvironment">Test environment</h4>
+                    <p class="text-muted small" data-i18n="demoNotice">This application is for demonstration purposes only. No real e-mails are sent and no payments are processed.</p>
                     <div class="demo-actions mt-2">
-                        <button onclick="window.App.demoLogin('customer')" class="btn btn-outline btn-sm">Demo customer login</button>
-                        <button onclick="window.App.demoLogin('partner')" class="btn btn-outline btn-sm">Demo Partner</button>
+                        <button onclick="window.App.demoLogin('customer')" class="btn btn-outline btn-sm" data-i18n="demoCustomer">Demo customer login</button>
+                        <button onclick="window.App.demoLogin('partner')" class="btn btn-outline btn-sm" data-i18n="demoPartner">Demo Partner</button>
                     </div>
                 </div>
             </div>
         </div>
         <div class="footer-bottom">
             <div class="container">
-                &copy; <?= date('Y') ?> Ferry Telecom test environment. All rights reserved.
+                &copy; <?= date('Y') ?> Ferry Telecom <span data-i18n="testEnvironment">test environment</span>. <span data-i18n="rightsReserved">All rights reserved.</span>
             </div>
         </div>
     </footer>
 
+    <script src="/test-shop/assets/i18n.js?v=<?= $v_i18n ?>"></script>
     <script src="/test-shop/assets/core.js?v=<?= $v_core ?>"></script>
     <script src="/test-shop/assets/b2b-ordering.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-ordering.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/buyer-currency.js?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.js') ?: 1 ?>"></script>

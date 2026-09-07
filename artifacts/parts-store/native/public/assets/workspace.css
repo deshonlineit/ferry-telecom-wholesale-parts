@@ -65,6 +65,29 @@
     font-weight: 600;
 }
 
+@media (max-width: 768px) {
+    body:not(:has(.admin-shell)) .layout-sidebar {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+        width: 100%;
+        min-width: 0;
+    }
+    body:not(:has(.admin-shell)) .layout-sidebar > *,
+    body:not(:has(.admin-shell)) .layout-sidebar .card,
+    body:not(:has(.admin-shell)) .layout-sidebar form,
+    body:not(:has(.admin-shell)) .layout-sidebar .form-group,
+    body:not(:has(.admin-shell)) .layout-sidebar .grid-cols-2 {
+        min-width: 0;
+        max-width: 100%;
+    }
+    body:not(:has(.admin-shell)) .layout-sidebar aside .card {
+        position: static;
+    }
+    body:not(:has(.admin-shell)) .layout-sidebar .grid-cols-2 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 /* Dense Data Tables */
 .table-responsive {
     width: 100%;

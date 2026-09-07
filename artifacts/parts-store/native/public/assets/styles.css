@@ -1,3 +1,8 @@
+/* Storefront language switcher: deliberately independent from country/currency controls. */
+.language-control { display:flex; align-items:center; margin-left:.35rem; }
+.language-control select { appearance:auto; border:1px solid var(--border, #d7dce3); border-radius:6px; background:transparent; color:inherit; font:inherit; font-size:.75rem; font-weight:700; letter-spacing:.04em; padding:.38rem .25rem; cursor:pointer; }
+.language-control select:focus-visible { outline:2px solid var(--primary, #1769aa); outline-offset:2px; }
+@media (max-width: 768px) { .language-control { order:2; margin-left:auto; } .language-control select { min-height:34px; } }
 /* ==========================================================================
    Ferry Telecom - Native Frontend Styles (Tech Counter Aesthetic)
    ========================================================================== */

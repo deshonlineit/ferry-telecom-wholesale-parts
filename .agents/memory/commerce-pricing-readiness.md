@@ -12,6 +12,7 @@ price assignment. Treating catalogue-wide price completeness as a readiness
 condition caused that single item to return HTTP 503 for every customer's cart,
 including empty carts and carts containing only fully priced products.
 
-**How to apply:** keep strict null-price rejection at product resolution,
-cart-item pricing, quote, and checkout boundaries. Do not derive global
+**How to apply:** catalogue listings expose an individually missing price as
+null and keep rendering neighbouring products. Keep strict null-price rejection
+at cart-item pricing, quote, and checkout boundaries. Do not derive global
 commerce readiness from a count of all active products with null prices.

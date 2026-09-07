@@ -14,7 +14,7 @@ const context = vm.createContext({
     localStorage: { getItem() { return null; }, setItem() {} },
     URLSearchParams, Event: class Event { constructor(type) { this.type = type; } }, console
 });
-for (const file of ['model-search.js', 'discovery-controls.js', 'quick-finder.js', 'category-models.js']) {
+for (const file of ['i18n.js', 'model-search.js', 'discovery-controls.js', 'quick-finder.js', 'category-models.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets', file), 'utf8'), context, { filename: file });
 }
 const C = context.window.CategoryModels;
@@ -61,7 +61,7 @@ assert(html.includes('<details class="category-models"'));
 assert(html.includes('<details class="device-family-group"'), 'Families are disclosures so concrete models stay hidden until requested');
 assert(!html.includes('<details class="device-family-group" name="device-family-accordion" open'), 'No model family opens by itself');
 assert(!html.includes('category-model-brands'), 'No mandatory brand step');
-assert(html.includes('Choose a device'));
+assert(html.includes(context.window.I18n.t('chooseModel')));
 assert(html.includes('data-category-model-search="iphone"'));
 assert(html.includes('data-category-model="132"'));
 assert(C.links([catalog.models[3]], params).includes('&lt;unsafe &quot;name&quot;&gt;'));
@@ -69,9 +69,9 @@ assert(!html.includes('<unsafe'));
 const selectedHtml = C.render(catalog, new URLSearchParams('category=1&model=132'), 'Schermen');
 assert(selectedHtml.includes('<details class="device-family-group"'), 'Model families remain available after choosing');
 assert(!selectedHtml.includes('<details class="device-family-group" name="device-family-accordion" open'), 'Choosing a model does not expand the long model list');
-assert(selectedHtml.includes('Selected device · click to change'));
+assert(selectedHtml.includes(context.window.I18n.t('device')));
 assert(selectedHtml.includes('aria-current="page"'));
-assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes('No model with this name') || C.render({ ...catalog, models: [] }, new URLSearchParams(), 'LCD').includes('Choose a device'));
+assert(C.render({ ...catalog, models: [] }, params, 'LCD').includes(context.window.I18n.t('noModelInFamily', {label: 'iPhone'})) || C.render({ ...catalog, models: [] }, new URLSearchParams(), 'LCD').includes(context.window.I18n.t('chooseModel')));
 console.log('PASS: visible category-first model choices, contextual URLs, query preservation, counts, small groups, escaping, selection and empty state.');
 
 const detailEvents = new Map();
@@ -160,9 +160,9 @@ console.log('PASS: full-family rendering preserves newest-to-oldest order withou
 const familyParams = new URLSearchParams('category=1&family=iphone');
 const familyHtml = C.render(catalog, familyParams, 'LCD & schermen');
 assert(familyHtml.includes('<strong>iPhone</strong>'), 'A family page names the family the visitor is in');
-assert(familyHtml.includes('Search iPhone models'), 'The collapsed iPhone disclosure contains its own model search');
+assert(familyHtml.includes(context.window.I18n.t('searchModels')), 'The collapsed iPhone disclosure contains its own model search');
 assert(familyHtml.includes('data-family-models="iphone"'));
-assert(familyHtml.includes('View all iPhone parts'));
+assert(familyHtml.includes(context.window.I18n.t('allPartsFor', {label: 'iPhone'})));
 assert(!/<details[^>]*open/.test(familyHtml), 'Even the active family waits for a deliberate click before showing all models');
 console.log('PASS: a family page keeps every concrete model inside its closed, searchable disclosure.');
 

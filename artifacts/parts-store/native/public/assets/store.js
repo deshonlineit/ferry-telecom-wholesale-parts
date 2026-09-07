@@ -1,4 +1,5 @@
 const esc = window.Core.escapeHtml;
+const t = (key, values) => window.I18n.t(key, values);
 
 const categoryGroups = [
     { title: "Parts", keywords: ['screen', 'batter', 'charg', 'camera', 'hous', 'flex', 'audio', 'adhes'] },
@@ -38,7 +39,7 @@ window.App.renderProductCard = function(p) {
     const canBuy = window.App.canOrderProduct(p);
     
     let stockClass = p.stock > 0 ? 'stock-ok' : 'stock-out';
-    let stockText = p.stock > 0 ? `${p.stock} in stock` : 'Out of stock';
+    let stockText = p.stock > 0 ? `${window.I18n.number(p.stock)} ${window.I18n.t('inStock').toLocaleLowerCase()}` : window.I18n.t('outOfStock');
 
     let srcSetAttr = '';
     if (p.image_url && p.image_url.includes('-1280w.webp')) {
@@ -49,11 +50,11 @@ window.App.renderProductCard = function(p) {
     return `
         <div class="part-card">
             ${p.image_url ? `
-                <button type="button" class="part-img-link part-photo-preview" data-photo-url="${esc(p.image_url)}" data-photo-name="${esc(p.name)}" aria-label="Enlarge photo of ${esc(p.name)}">
+                <button type="button" class="part-img-link part-photo-preview" data-photo-url="${esc(p.image_url)}" data-photo-name="${esc(p.name)}" aria-label="${esc(t('enlargePhoto', {name: p.name}))}">
                     <img src="${esc(window.App.thumbnailUrl({url: p.image_url}))}" ${srcSetAttr} alt="${esc(p.name)}" loading="lazy" decoding="async">
                 </button>
             ` : `
-                <div class="part-img-link part-no-photo" aria-label="No photo available">
+                <div class="part-img-link part-no-photo" aria-label="${t('noPhoto')}">
                     <div class="img-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>
                 </div>
             `}
@@ -65,22 +66,22 @@ window.App.renderProductCard = function(p) {
                 <h3 class="part-name"><a href="${window.APP_BASE}products/${p.id}">${esc(p.name)}</a></h3>
                 <div class="part-stock ${stockClass}">
                     <span class="status-dot"></span>
-                    ${stockText} <span class="part-sku" title="SKU">· ${esc(p.sku)}</span>
+                    ${stockText} <span class="part-sku" title="${t('sku')}">· ${esc(p.sku)}</span>
                 </div>
-                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<small class="text-danger mt-1 d-block" style="color: #ff3b30; font-weight: 500;">Minimum quantity ${p.minimum_quantity}</small>` : ''}
+                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<small class="text-danger mt-1 d-block" style="color: #ff3b30; font-weight: 500;">${t('minimumQuantity', {count: window.I18n.number(p.minimum_quantity)})}</small>` : ''}
             </div>
             <div class="part-buy-area">
                 <div class="part-price">
-                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">Sign in for prices</a>`}
+                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">${t('signInPrices')}</a>`}
                 </div>
                 ${canBuy ? `
                 <div class="part-action">
-                    <input type="number" id="qty-${p.id}" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="part-qty form-control" aria-label="Quantity">
-                    <button type="button" class="btn btn-primary part-add-btn" onclick="window.App.addToCartWithQty(${p.id}, Number(this.parentElement.querySelector('input').value), this)" aria-label="Add" title="Add to cart">
-                        Add
+                    <input type="number" id="qty-${p.id}" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="part-qty form-control" aria-label="${t('quantity')}">
+                    <button type="button" class="btn btn-primary part-add-btn" onclick="window.App.addToCartWithQty(${p.id}, Number(this.parentElement.querySelector('input').value), this)" aria-label="${t('add')}" title="${t('addToCart')}">
+                        ${window.I18n.t('add')}
                     </button>
                 </div>
-                ` : (isStaff ? '<span class="text-muted small font-weight-bold">Manage</span>' : '')}
+                ` : (isStaff ? `<span class="text-muted small font-weight-bold">${t('manage')}</span>` : '')}
             </div>
         </div>
     `;
@@ -115,14 +116,14 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
     }
 
     const thumbnailsHtml = allImages.map((img, idx) => `
-        <button type="button" class="gallery-thumb" data-gallery-index="${idx}" aria-label="Show photo ${idx + 1} of ${allImages.length}">
-            <img src="${esc(window.App.thumbnailUrl(img))}" alt="Thumbnail ${idx + 1} of ${esc(p.name)}" loading="lazy">
+        <button type="button" class="gallery-thumb" data-gallery-index="${idx}" aria-label="${esc(t('showPhoto', {current: idx + 1, total: allImages.length}))}">
+            <img src="${esc(window.App.thumbnailUrl(img))}" alt="${esc(t('thumbnailPhoto', {current: idx + 1, name: p.name}))}" loading="lazy">
         </button>
     `).join('');
 
     const modelsHtml = data.models && data.models.length ? `
         <div class="product-section mt-4 pt-4 border-top">
-            <h4 class="section-heading mb-3">Compatible models</h4>
+            <h4 class="section-heading mb-3">${t('compatibleModels')}</h4>
             <div class="model-tags">
                 ${data.models.map(m => `<span class="model-tag">${esc(m.name)}</span>`).join('')}
             </div>
@@ -131,7 +132,7 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
     
     const relatedHtml = data.related && data.related.length ? `
         <div class="section-title mt-5">
-            <h2>Related products</h2>
+            <h2>${t('relatedProducts')}</h2>
         </div>
         ${window.App.renderProductTable(data.related)}
     ` : '';
@@ -143,13 +144,13 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
 
     root.innerHTML = `
         <div class="breadcrumb mb-4">
-            <a href="${window.APP_BASE}catalog" class="btn-link" style="color: var(--apple-muted); font-size: 0.9375rem; font-weight: 500;">&larr; Catalogue</a>
+            <a href="${window.APP_BASE}catalog" class="btn-link" style="color: var(--apple-muted); font-size: 0.9375rem; font-weight: 500;">&larr; ${t('catalogue')}</a>
         </div>
         
         <div class="product-detail-layout">
             <div class="product-gallery">
                 ${allImages.length ? `
-                    <button type="button" class="main-image-container part-photo-preview" data-photo-images="${esc(JSON.stringify(allImages))}" data-photo-name="${esc(p.name)}" aria-label="Enlarge photo of ${esc(p.name)}" title="Click to enlarge" style="position: relative;">
+                    <button type="button" class="main-image-container part-photo-preview" data-photo-images="${esc(JSON.stringify(allImages))}" data-photo-name="${esc(p.name)}" aria-label="${esc(t('enlargePhoto', {name: p.name}))}" title="${t('clickToEnlarge')}" style="position: relative;">
                         <img id="main-img" src="${esc(allImages[0].url)}" alt="${esc(p.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.05)); mix-blend-mode: multiply;">
                         <div class="zoom-hint" style="position: absolute; bottom: 1rem; right: 1rem; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); padding: 0.5rem; border-radius: 50%; color: #1d1d1f;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></div>
                     </button>
@@ -165,19 +166,19 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
                 <div class="product-meta mb-3" style="display: flex; gap: 0.5rem; align-items: center;">
                     ${p.quality ? `<span class="part-quality">${esc(p.quality)}</span>` : ''}
                     ${p.part_type?.name ? `<span class="part-type-badge">${esc(p.part_type.name)}</span>` : ''}
-                    <span class="part-sku" title="SKU" style="color: var(--apple-muted); font-size: 0.875rem; font-weight: 500;">· ${esc(p.sku)}</span>
+                    <span class="part-sku" title="${t('sku')}" style="color: var(--apple-muted); font-size: 0.875rem; font-weight: 500;">· ${esc(p.sku)}</span>
                 </div>
                 
                 <h1 class="product-title-lg mb-2">${esc(p.name)}</h1>
                 
                 <div class="product-stock-status ${p.stock > 0 ? 'stock-ok' : 'stock-out'} mb-4">
                     <span class="status-dot"></span>
-                    ${p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}
+                    ${p.stock > 0 ? t('stockCount', {count: window.I18n.number(p.stock)}) : t('outOfStock')}
                 </div>
                 
-                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<div class="alert warning mb-4">Minimum quantity: ${p.minimum_quantity} units. Only ${p.stock} are currently available, so this part cannot be ordered at present.</div>` : ''}
+                ${p.stock > 0 && p.stock < p.minimum_quantity ? `<div class="alert warning mb-4">${t('minimumUnavailable', {minimum: window.I18n.number(p.minimum_quantity), stock: window.I18n.number(p.stock)})}</div>` : ''}
                 <div class="product-price-lg mb-4">
-                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">Sign in for prices</a>`}
+                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">${t('signInPrices')}</a>`}
                 </div>
                 
                 ${canBuy ? `
@@ -185,12 +186,12 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
                         <div class="purchase-controls">
                             <input type="number" id="pd-qty" value="${p.minimum_quantity}" min="${p.minimum_quantity}" max="${p.stock}" class="form-control qty-input" style="width: 100px; text-align: center;">
                             <button type="button" class="btn btn-primary flex-1" style="font-weight: 600;" onclick="window.App.addToCartWithQty(${p.id}, Number(document.getElementById('pd-qty').value), this)">
-                                Add to cart
+                                ${t('addToCart')}
                             </button>
                         </div>
-                        ${p.minimum_quantity > 1 ? `<div class="qty-hint mt-3 text-muted small" style="font-weight: 500;">Minimum quantity: ${p.minimum_quantity} units</div>` : ''}
+                        ${p.minimum_quantity > 1 ? `<div class="qty-hint mt-3 text-muted small" style="font-weight: 500;">${t('minimumQuantityUnits', {count: window.I18n.number(p.minimum_quantity)})}</div>` : ''}
                     </div>
-                ` : (isStaff ? '<div class="alert warning mb-4">Staff members cannot place orders.</div>' : (!window.Core.user ? '<div class="alert warning mb-4"><a href="'+window.APP_BASE+'login">Sign in</a> to order this product.</div>' : ''))}
+                ` : (isStaff ? `<div class="alert warning mb-4">${t('staffCannotOrder')}</div>` : (!window.Core.user ? `<div class="alert warning mb-4"><a href="${window.APP_BASE}login">${t('signIn')}</a> ${t('signInToOrder')}</div>` : ''))}
                 
                 <div class="product-description text-muted">
                     ${esc(p.description).replace(/\n/g, '<br>')}
@@ -249,7 +250,7 @@ document.addEventListener('click', (event) => {
 window.Router.add(/^cart$/, async (match, root) => {
     if (window.Core.user && window.Core.user.role === 'staff') return window.Router.navigate(window.APP_BASE + 'catalog');
     if (!window.Core.user) {
-        root.innerHTML = `<div class="container mt-4"><div class="alert warning">You must <a href="${window.APP_BASE}login">sign in</a> to view your cart.</div></div>`;
+        root.innerHTML = `<div class="container mt-4"><div class="alert warning">${t('must')} <a href="${window.APP_BASE}login">${t('signIn').toLocaleLowerCase()}</a> ${t('toViewCart')}</div></div>`;
         return;
     }
     await window.Core.refreshCart();
@@ -258,12 +259,12 @@ window.Router.add(/^cart$/, async (match, root) => {
 
     if (!cart.items || cart.items.length === 0) {
         root.innerHTML = `
-            <div class="page-header mb-4"><h1>Cart</h1></div>
+            <div class="page-header mb-4"><h1>${t('cart')}</h1></div>
             <div class="empty-state card">
                 <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></div>
-                <h3>Your cart is empty</h3>
-                <p class="text-muted mt-2">Add products from the catalogue.</p>
-                <a href="${window.APP_BASE}catalog" class="btn btn-primary mt-4">View catalogue</a>
+                <h3>${t('cartEmpty')}</h3>
+                <p class="text-muted mt-2">${t('addProductsCatalogue')}</p>
+                <a href="${window.APP_BASE}catalog" class="btn btn-primary mt-4">${t('viewCatalogue')}</a>
             </div>
         `;
         return;
@@ -282,23 +283,23 @@ window.Router.add(/^cart$/, async (match, root) => {
                 <a href="${window.APP_BASE}products/${item.product_id}" class="line-item-name">${esc(item.name)}</a>
                 <div class="line-item-tags">
                     <span class="line-item-sku">${esc(item.sku)}</span>
-                    ${minQty > 1 ? `<span class="line-item-min">Min ${minQty}</span>` : ''}
-                    ${item.stock >= item.quantity ? `<span class="line-item-stock${item.stock <= 5 ? ' low' : ''}">${item.stock} in stock</span>` : ''}
+                    ${minQty > 1 ? `<span class="line-item-min">${t('minCount', {count: window.I18n.number(minQty)})}</span>` : ''}
+                    ${item.stock >= item.quantity ? `<span class="line-item-stock${item.stock <= 5 ? ' low' : ''}">${t('stockCount', {count: window.I18n.number(item.stock)})}</span>` : ''}
                 </div>
             </div>
             <div class="line-item-unit">${money(item.price_cents)}</div>
             <div class="line-item-qty">
                 <div class="stepper">
-                    <button type="button" class="stepper-btn" aria-label="One fewer" ${item.quantity <= minQty ? 'disabled' : ''} onclick="window.App.updateCartItem(${item.product_id}, ${Math.max(minQty, item.quantity - 1)})">&minus;</button>
-                    <input type="number" value="${item.quantity}" min="${minQty}" max="${item.stock}" class="stepper-input" aria-label="Quantity for ${esc(item.name)}" onchange="window.App.updateCartItem(${item.product_id}, this.value)">
-                    <button type="button" class="stepper-btn" aria-label="One more" ${item.quantity >= item.stock ? 'disabled' : ''} onclick="window.App.updateCartItem(${item.product_id}, ${item.quantity + 1})">+</button>
+                    <button type="button" class="stepper-btn" aria-label="${t('oneFewer')}" ${item.quantity <= minQty ? 'disabled' : ''} onclick="window.App.updateCartItem(${item.product_id}, ${Math.max(minQty, item.quantity - 1)})">&minus;</button>
+                    <input type="number" value="${item.quantity}" min="${minQty}" max="${item.stock}" class="stepper-input" aria-label="${esc(t('quantityFor', {name: item.name}))}" onchange="window.App.updateCartItem(${item.product_id}, this.value)">
+                    <button type="button" class="stepper-btn" aria-label="${t('oneMore')}" ${item.quantity >= item.stock ? 'disabled' : ''} onclick="window.App.updateCartItem(${item.product_id}, ${item.quantity + 1})">+</button>
                 </div>
             </div>
             <div class="line-item-total">${money(item.total_cents)}</div>
-            <button type="button" class="line-item-remove" aria-label="Remove ${esc(item.name)}" onclick="window.App.updateCartItem(${item.product_id}, 0)">
+            <button type="button" class="line-item-remove" aria-label="${esc(t('removeItem', {name: item.name}))}" onclick="window.App.updateCartItem(${item.product_id}, 0)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"></path></svg>
             </button>
-            ${item.stock < item.quantity ? `<div class="line-item-alert">Stock changed — only ${item.stock} available</div>` : ''}
+            ${item.stock < item.quantity ? `<div class="line-item-alert">${t('stockChanged', {count: window.I18n.number(item.stock)})}</div>` : ''}
         </article>
     `;
     }).join('');
@@ -309,43 +310,43 @@ window.Router.add(/^cart$/, async (match, root) => {
     root.innerHTML = `
         <section class="order-flow">
             <header class="order-flow-head">
-                <h1>Cart</h1>
-                <p class="order-flow-sub"><strong>${cart.items.length}</strong> product${cart.items.length === 1 ? '' : 's'} · delivery to <strong>${esc(cart.country || window.Core.country)}</strong> · billed in <strong>${esc(cartCurrency)}</strong></p>
+                <h1>${t('cart')}</h1>
+                <p class="order-flow-sub">${t('cartContext', {count: window.I18n.number(cart.items.length), country: esc(cart.country || window.Core.country), currency: esc(cartCurrency)})}</p>
             </header>
             <div class="order-grid">
                 <div class="order-main">
                     <div class="line-items">
                         <div class="line-items-head">
                             <span></span>
-                            <span>Product</span>
-                            <span class="num">Unit price</span>
-                            <span>Quantity</span>
-                            <span class="num">Total</span>
+                            <span>${t('product')}</span>
+                            <span class="num">${t('unitPrice')}</span>
+                            <span>${t('quantity')}</span>
+                            <span class="num">${t('total')}</span>
                             <span></span>
                         </div>
                         ${itemsHtml}
                     </div>
                     <div class="order-main-foot">
-                        <a href="${window.APP_BASE}catalog" class="order-link">&larr; Continue shopping</a>
-                        <button type="button" class="order-link danger" onclick="window.App.clearCart()">Empty cart</button>
+                        <a href="${window.APP_BASE}catalog" class="order-link">&larr; ${t('continueShopping')}</a>
+                        <button type="button" class="order-link danger" onclick="window.App.clearCart()">${t('emptyCart')}</button>
                     </div>
                 </div>
                 <aside class="order-rail">
                     <div class="summary-panel">
-                        <h2 class="summary-title">Order summary</h2>
+                        <h2 class="summary-title">${t('orderSummary')}</h2>
                         <dl class="summary-lines">
-                            <div class="summary-line"><dt>Subtotal</dt><dd>${money(cart.subtotal_cents)}</dd></div>
-                            <div class="summary-line"><dt>Shipping</dt>${cart.shipping_cents === 0 ? '<dd class="is-free">Free</dd>' : `<dd>${money(cart.shipping_cents)}</dd>`}</div>
-                            <div class="summary-line"><dt>VAT</dt><dd>${money(cart.tax_cents)}</dd></div>
+                            <div class="summary-line"><dt>${t('subtotal')}</dt><dd>${money(cart.subtotal_cents)}</dd></div>
+                            <div class="summary-line"><dt>${t('shipping')}</dt>${cart.shipping_cents === 0 ? `<dd class="is-free">${t('free')}</dd>` : `<dd>${money(cart.shipping_cents)}</dd>`}</div>
+                            <div class="summary-line"><dt>${t('vat')}</dt><dd>${money(cart.tax_cents)}</dd></div>
                         </dl>
                         <div class="summary-rule"></div>
-                        <div class="summary-total"><span>Total</span><strong>${money(cart.total_cents)}</strong></div>
-                        <a href="${window.APP_BASE}checkout" class="summary-cta">Checkout &rarr;</a>
-                        <p class="currency-context-note ${notice ? 'error' : ''}">${esc(notice || `Delivery ${cart.country || window.Core.country} · billed in ${cartCurrency}`)}</p>
+                        <div class="summary-total"><span>${t('total')}</span><strong>${money(cart.total_cents)}</strong></div>
+                        <a href="${window.APP_BASE}checkout" class="summary-cta">${t('checkout')} &rarr;</a>
+                        <p class="currency-context-note ${notice ? 'error' : ''}">${esc(notice || t('deliveryBilled', {country: cart.country || window.Core.country, currency: cartCurrency}))}</p>
                     </div>
                     <ul class="rail-notes">
-                        <li>${noteIcon}<span>Shipping and VAT follow the delivery country on your address.</span></li>
-                        <li>${noteIcon}<span>Test environment: no real orders, stock or payments.</span></li>
+                        <li>${noteIcon}<span>${t('shippingVatNote')}</span></li>
+                        <li>${noteIcon}<span>${t('testEnvironmentNote')}</span></li>
                     </ul>
                 </aside>
             </div>
@@ -360,7 +361,7 @@ window.Router.add(/^cart$/, async (match, root) => {
     };
     
     window.App.clearCart = async () => {
-        if(confirm('Are you sure you want to empty the cart?')) {
+        if(confirm(t('emptyCartConfirm'))) {
             try {
                 await window.Core.fetch('/cart', { method: 'DELETE' });
                 window.Router.route();
@@ -387,7 +388,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
         const addresses = addrRes.addresses;
         let addrHtml = '';
         if (addresses.length === 0) {
-            addrHtml = `<div class="alert warning">You have not saved any addresses yet. <a href="${window.APP_BASE}account/addresses">Add an address first</a>.</div>`;
+            addrHtml = `<div class="alert warning">${t('noSavedAddresses')} <a href="${window.APP_BASE}account/addresses">${t('addAddressFirst')}</a>.</div>`;
         } else {
             // One address is preselected: the default when there is one, otherwise the first.
             // The radio group and the .selected outline must agree on exactly that card.
@@ -396,7 +397,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 <label class="address-card ${a.id === preselected.id ? 'selected' : ''}">
                     <input type="radio" name="address_choice" value="${a.id}" ${a.id === preselected.id ? 'checked' : ''}>
                     <div class="address-header mb-2">
-                        <strong>${esc(a.label || 'Address')}</strong>
+                        <strong>${esc(a.label || t('address'))}</strong>
                         <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
                     <div class="text-sm">
@@ -420,8 +421,8 @@ window.Router.add(/^checkout$/, async (match, root) => {
         root.innerHTML = `
             <section class="order-flow">
                 <header class="order-flow-head">
-                    <h1>Checkout</h1>
-                    <p class="order-flow-sub">Delivery, payment and notes — the total re-quotes while you edit.</p>
+                    <h1>${t('checkout')}</h1>
+                    <p class="order-flow-sub">${t('checkoutIntro')}</p>
                 </header>
 
                 <div class="order-grid">
@@ -433,59 +434,59 @@ window.Router.add(/^checkout$/, async (match, root) => {
                             <div class="checkout-step">
                                 <div class="step-header">
                                     <div class="step-number">1</div>
-                                    <h3>Delivery address</h3>
+                                    <h3>${t('deliveryAddress')}</h3>
                                 </div>
                                 <div class="address-grid">
                                     ${addrHtml}
                                     <label class="address-card address-card-new ${addresses.length === 0 ? 'selected' : ''}">
                                         <input type="radio" name="address_choice" value="new" ${addresses.length === 0 ? 'checked' : ''}>
                                         <div class="address-header">
-                                            <strong>Different delivery address</strong>
+                                            <strong>${t('differentDeliveryAddress')}</strong>
                                             <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         </div>
-                                        <div class="text-muted text-sm mt-1">Enter a one-off address for this order.</div>
+                                        <div class="text-muted text-sm mt-1">${t('oneOffAddress')}</div>
                                     </label>
                                 </div>
                                 <div id="checkout-address-fields" class="checkout-address-fields mt-3" ${addresses.length ? 'hidden' : ''}>
-                                    <div class="form-group"><label>Address label</label><input class="form-control" name="address_label" placeholder="E.g. office"></div>
+                                    <div class="form-group"><label>${t('addressLabel')}</label><input class="form-control" name="address_label" placeholder="${t('addressLabelExample')}"></div>
                                     <div class="grid-cols-2">
-                                        <div class="form-group"><label>Name</label><input class="form-control" name="address_name"></div>
-                                        <div class="form-group"><label>Company</label><input class="form-control" name="address_company"></div>
+                                        <div class="form-group"><label>${t('name')}</label><input class="form-control" name="address_name"></div>
+                                        <div class="form-group"><label>${t('company')}</label><input class="form-control" name="address_company"></div>
                                     </div>
-                                    <div class="form-group"><label>Street and building number</label><input class="form-control" name="address_line1"></div>
-                                    <div class="form-group"><label>Address line 2</label><input class="form-control" name="address_line2"></div>
+                                    <div class="form-group"><label>${t('streetBuilding')}</label><input class="form-control" name="address_line1"></div>
+                                    <div class="form-group"><label>${t('addressLine2')}</label><input class="form-control" name="address_line2"></div>
                                     <div class="grid-cols-2">
-                                        <div class="form-group"><label>Postcode</label><input class="form-control" name="address_postal_code"></div>
-                                        <div class="form-group"><label>Town/city</label><input class="form-control" name="address_city"></div>
+                                        <div class="form-group"><label>${t('postcode')}</label><input class="form-control" name="address_postal_code"></div>
+                                        <div class="form-group"><label>${t('townCity')}</label><input class="form-control" name="address_city"></div>
                                     </div>
-                                    <div class="form-group mb-0"><label>Delivery country</label><select class="form-control" name="address_country">${window.BuyerCurrency.options(window.Core.country)}</select></div>
+                                    <div class="form-group mb-0"><label>${t('deliveryCountry')}</label><select class="form-control" name="address_country">${window.BuyerCurrency.options(window.Core.country)}</select></div>
                                 </div>
                                 <div class="mt-3">
-                                    <a href="${window.APP_BASE}account/addresses" class="order-link">Manage saved addresses</a>
+                                    <a href="${window.APP_BASE}account/addresses" class="order-link">${t('manageSavedAddresses')}</a>
                                 </div>
                             </div>
 
                             <div class="checkout-step">
                                 <div class="step-header">
                                     <div class="step-number">2</div>
-                                    <h3>Payment method</h3>
+                                    <h3>${t('paymentMethod')}</h3>
                                 </div>
                                 <div class="payment-grid">
                                     <label class="payment-card selected">
                                         <input type="radio" name="payment_method" value="test_invoice" checked onchange="document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected')); this.closest('.payment-card').classList.add('selected');">
                                         <div class="address-header">
-                                            <strong>On account (Test)</strong>
+                                            <strong>${t('onAccountTest')}</strong>
                                             <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         </div>
-                                        <div class="text-muted text-sm mt-1">Pay later by invoice (approved accounts only).</div>
+                                        <div class="text-muted text-sm mt-1">${t('payInvoice')}</div>
                                     </label>
                                     <label class="payment-card">
                                         <input type="radio" name="payment_method" value="test_card" onchange="document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected')); this.closest('.payment-card').classList.add('selected');">
                                         <div class="address-header">
-                                            <strong>Credit card (Test)</strong>
+                                            <strong>${t('creditCardTest')}</strong>
                                             <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         </div>
-                                        <div class="text-muted text-sm mt-1">Pay immediately in the secure test environment.</div>
+                                        <div class="text-muted text-sm mt-1">${t('payCard')}</div>
                                     </label>
                                 </div>
                             </div>
@@ -493,10 +494,10 @@ window.Router.add(/^checkout$/, async (match, root) => {
                             <div class="checkout-step">
                                 <div class="step-header">
                                     <div class="step-number">3</div>
-                                    <h3>Notes <span class="step-optional">optional</span></h3>
+                                    <h3>${t('notes')} <span class="step-optional">${t('optional')}</span></h3>
                                 </div>
                                 <div class="form-group mb-0">
-                                    <textarea name="notes" class="form-control" rows="3" placeholder="Reference or note for this order..."></textarea>
+                                    <textarea name="notes" class="form-control" rows="3" placeholder="${t('orderNotePlaceholder')}"></textarea>
                                 </div>
                             </div>
                         </form>
@@ -504,8 +505,8 @@ window.Router.add(/^checkout$/, async (match, root) => {
 
                     <aside class="order-rail">
                         <div class="summary-panel">
-                            <h2 class="summary-title">Order summary</h2>
-                            <div id="checkout-quote-status" class="summary-status">Calculating quote…</div>
+                            <h2 class="summary-title">${t('orderSummary')}</h2>
+                            <div id="checkout-quote-status" class="summary-status">${t('calculatingQuote')}</div>
                             <div id="checkout-summary">
                                 <div class="summary-items">
                                     ${cartRes.items.map(item => `
@@ -516,19 +517,19 @@ window.Router.add(/^checkout$/, async (match, root) => {
                                     `).join('')}
                                 </div>
                                 <dl class="summary-lines">
-                                    <div class="summary-line"><dt>Subtotal</dt><dd>${checkoutMoney(cartRes.subtotal_cents)}</dd></div>
-                                    <div class="summary-line"><dt>Shipping</dt>${cartRes.shipping_cents === 0 ? '<dd class="is-free">Free</dd>' : `<dd>${checkoutMoney(cartRes.shipping_cents)}</dd>`}</div>
-                                    <div class="summary-line"><dt>VAT</dt><dd>${checkoutMoney(cartRes.tax_cents)}</dd></div>
+                                    <div class="summary-line"><dt>${t('subtotal')}</dt><dd>${checkoutMoney(cartRes.subtotal_cents)}</dd></div>
+                                    <div class="summary-line"><dt>${t('shipping')}</dt>${cartRes.shipping_cents === 0 ? `<dd class="is-free">${t('free')}</dd>` : `<dd>${checkoutMoney(cartRes.shipping_cents)}</dd>`}</div>
+                                    <div class="summary-line"><dt>${t('vat')}</dt><dd>${checkoutMoney(cartRes.tax_cents)}</dd></div>
                                 </dl>
                                 <div class="summary-rule"></div>
-                                <div class="summary-total"><span>Total</span><strong>${checkoutMoney(cartRes.total_cents)}</strong></div>
-                                <p class="currency-context-note">Delivery ${esc(cartRes.country || window.Core.country)} · billed in ${esc(checkoutCurrency)}</p>
+                                <div class="summary-total"><span>${t('total')}</span><strong>${checkoutMoney(cartRes.total_cents)}</strong></div>
+                                <p class="currency-context-note">${t('deliveryBilled', {country: esc(cartRes.country || window.Core.country), currency: esc(checkoutCurrency)})}</p>
                             </div>
-                            <button id="checkout-submit" form="checkout-form" type="submit" class="summary-cta" disabled>Place order &rarr;</button>
+                            <button id="checkout-submit" form="checkout-form" type="submit" class="summary-cta" disabled>${t('placeOrder')} &rarr;</button>
                         </div>
                         <ul class="rail-notes">
-                            <li>${railIcon}<span>The amounts are re-quoted for the selected address before the order is placed.</span></li>
-                            <li>${railIcon}<span>Test environment: no real orders, stock or payments.</span></li>
+                            <li>${railIcon}<span>${t('requoteNote')}</span></li>
+                            <li>${railIcon}<span>${t('testEnvironmentNote')}</span></li>
                         </ul>
                     </aside>
                 </div>
@@ -569,16 +570,16 @@ window.Router.add(/^checkout$/, async (match, root) => {
                     ${(quote.items || []).map(item => `<div class="summary-item"><span class="summary-item-name"><span class="summary-item-qty">${item.quantity}&times;</span>${esc(item.name)}</span><span class="summary-item-value">${window.Core.formatMoney(item.total_cents, currency)}</span></div>`).join('')}
                 </div>
                 <dl class="summary-lines">
-                    <div class="summary-line"><dt>Subtotal</dt><dd>${window.Core.formatMoney(quote.subtotal_cents, currency)}</dd></div>
-                    <div class="summary-line"><dt>Shipping</dt>${quote.shipping_cents === 0 ? '<dd class="is-free">Free</dd>' : `<dd>${window.Core.formatMoney(quote.shipping_cents, currency)}</dd>`}</div>
-                    <div class="summary-line"><dt>VAT</dt><dd>${window.Core.formatMoney(quote.tax_cents, currency)}</dd></div>
+                    <div class="summary-line"><dt>${t('subtotal')}</dt><dd>${window.Core.formatMoney(quote.subtotal_cents, currency)}</dd></div>
+                    <div class="summary-line"><dt>${t('shipping')}</dt>${quote.shipping_cents === 0 ? `<dd class="is-free">${t('free')}</dd>` : `<dd>${window.Core.formatMoney(quote.shipping_cents, currency)}</dd>`}</div>
+                    <div class="summary-line"><dt>${t('vat')}</dt><dd>${window.Core.formatMoney(quote.tax_cents, currency)}</dd></div>
                 </dl>
                 <div class="summary-rule"></div>
-                <div class="summary-total"><span>Total</span><strong>${window.Core.formatMoney(quote.total_cents, currency)}</strong></div>
-                <p class="currency-context-note ${notice ? 'error' : ''}">Delivery ${esc(country)} · billed in ${esc(currency)}${notice ? ` · ${esc(notice)}` : ''}</p>
+                <div class="summary-total"><span>${t('total')}</span><strong>${window.Core.formatMoney(quote.total_cents, currency)}</strong></div>
+                <p class="currency-context-note ${notice ? 'error' : ''}">${t('deliveryBilled', {country: esc(country), currency: esc(currency)})}${notice ? ` · ${esc(notice)}` : ''}</p>
             `;
             quoteStatus.className = `summary-status ${notice ? 'error' : ''}`;
-            quoteStatus.textContent = message || notice || 'Quote is up to date.';
+            quoteStatus.textContent = message || notice || t('quoteUpToDate');
         };
 
         const applyAuthoritativeQuote = (quote, message = '') => {
@@ -590,10 +591,10 @@ window.Router.add(/^checkout$/, async (match, root) => {
 
         const requestQuote = async (sequence = quoteGate.begin()) => {
             quoteStatus.className = 'summary-status';
-            quoteStatus.textContent = 'Calculating quote…';
+            quoteStatus.textContent = t('calculatingQuote');
             const addressPayload = checkoutAddressPayload();
             if (!addressPayload) {
-                quoteStatus.textContent = 'Enter the full delivery address first.';
+                quoteStatus.textContent = t('enterFullAddress');
                 return;
             }
             try {
@@ -613,7 +614,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
             clearTimeout(quoteTimer);
             const sequence = quoteGate.begin();
             quoteStatus.className = 'summary-status';
-            quoteStatus.textContent = 'Calculating quote…';
+            quoteStatus.textContent = t('calculatingQuote');
             quoteTimer = setTimeout(() => requestQuote(sequence), 180);
         };
 
@@ -628,8 +629,8 @@ window.Router.add(/^checkout$/, async (match, root) => {
 
         window.App.submitCheckout = async (form) => {
             const addressPayload = checkoutAddressPayload();
-            if (!addressPayload) return alert('Select or enter a full delivery address');
-            if (!form.quote_token.value) return alert('Wait until the quote has been calculated');
+            if (!addressPayload) return alert(t('selectFullAddress'));
+            if (!form.quote_token.value) return alert(t('waitQuote'));
             const acceptedToken = form.quote_token.value;
             const data = {
                 ...addressPayload,
@@ -641,7 +642,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
             
             const btn = submitButton;
             const checkoutSequence = quoteGate.begin();
-            btn.textContent = 'Placing order...';
+            btn.textContent = t('placingOrder');
             
             try {
                 const res = await window.Core.fetch('/checkout', { method: 'POST', body: data });
@@ -649,7 +650,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 window.Router.navigate(window.APP_BASE + 'account/orders?success=' + res.order.id);
             } catch(e) {
                 if (!quoteGate.isCurrent(checkoutSequence)) {
-                    btn.textContent = 'Place order →';
+                    btn.textContent = `${t('placeOrder')} →`;
                     return;
                 }
                 if (e.status === 409) {
@@ -658,18 +659,18 @@ window.Router.add(/^checkout$/, async (match, root) => {
                         ? {...rawChangedQuote, quote_token: e.data?.quote_token || rawChangedQuote.quote_token}
                         : null;
                     if (changedQuote) {
-                        applyAuthoritativeQuote(changedQuote, 'The amounts have changed. Review the new quote and click again to place your order.');
+                        applyAuthoritativeQuote(changedQuote, t('amountsChangedReview'));
                         quoteGate.succeed(checkoutSequence, changedQuote.quote_token, !window.Core.currencyNotice(changedQuote));
                     } else {
                         await requestQuote();
                         quoteStatus.className = 'summary-status error';
-                        quoteStatus.textContent = 'The amounts have changed. Review the new quote and then click again.';
+                        quoteStatus.textContent = t('amountsChanged');
                     }
                 } else {
                     alert(e.message);
                     quoteGate.succeed(checkoutSequence, acceptedToken);
                 }
-                btn.textContent = 'Place order →';
+                btn.textContent = `${t('placeOrder')} →`;
             }
         };
 
@@ -683,26 +684,26 @@ window.Router.add(/^login$/, async (match, root) => {
             <div class="auth-card card">
                 <div class="auth-header mb-4 text-center">
                     <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
-                    <h2>Sign in</h2>
-                    <p class="text-muted">Welcome back to the test environment.</p>
+                    <h2>${t('signIn')}</h2>
+                    <p class="text-muted">${t('welcomeTest')}</p>
                 </div>
                 <form id="login-form" class="auth-form">
                     <div class="form-group">
-                        <label class="form-label">Email address</label>
+                        <label class="form-label">${t('emailAddress')}</label>
                         <input type="email" name="email" class="form-control" autocomplete="username" required autofocus>
                     </div>
                     <div class="form-group">
                         <label class="form-label d-flex justify-between">
-                            Password
-                            <a href="${window.APP_BASE}forgot" class="auth-link text-sm">Forgotten?</a>
+                            ${t('password')}
+                            <a href="${window.APP_BASE}forgot" class="auth-link text-sm">${t('forgotten')}</a>
                         </label>
                         <input type="password" name="password" class="form-control" autocomplete="current-password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">Sign in</button>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">${t('signIn')}</button>
                 </form>
                 <div id="login-error" class="alert error mt-4" style="display:none;"></div>
                 <div class="auth-footer mt-4 text-center text-sm text-muted">
-                    Not a customer yet? <a href="${window.APP_BASE}register" class="font-weight-bold">Apply for an account</a>
+                    ${t('notCustomerYet')} <a href="${window.APP_BASE}register" class="font-weight-bold">${t('applyAccount')}</a>
                 </div>
             </div>
         </div>
@@ -731,36 +732,36 @@ window.Router.add(/^register$/, async (match, root) => {
             <div class="auth-card card" style="max-width:500px;">
                 <div class="auth-header mb-4 text-center">
                     <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
-                    <h2>Become a customer</h2>
-                    <p class="text-muted">Apply for an account with our wholesale business.</p>
+                    <h2>${t('becomeCustomer')}</h2>
+                    <p class="text-muted">${t('registerIntro')}</p>
                 </div>
                 <form id="register-form" class="auth-form">
                     <div class="grid-cols-2 gap-3">
                         <div class="form-group">
-                            <label class="form-label">Name</label>
+                            <label class="form-label">${t('name')}</label>
                             <input type="text" name="name" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Company name</label>
+                            <label class="form-label">${t('companyName')}</label>
                             <input type="text" name="company" class="form-control" required>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Email address</label>
+                        <label class="form-label">${t('emailAddress')}</label>
                         <input type="email" name="email" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Password</label>
+                        <label class="form-label">${t('password')}</label>
                         <input type="password" name="password" class="form-control" required minlength="8">
-                        <small class="text-muted mt-1 d-block">At least 8 characters.</small>
+                        <small class="text-muted mt-1 d-block">${t('passwordMinimum')}</small>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">Apply for an account</button>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">${t('applyAccount')}</button>
                 </form>
                 <div id="reg-error" class="alert error mt-4" style="display:none;"></div>
                 <div id="reg-success" class="alert success mt-4" style="display:none;">
-                    <h4>Application received!</h4>
-                    <p class="mt-1">We will verify your company details. This is a test environment, so you can now sign in with your details.</p>
-                    <a href="${window.APP_BASE}login" class="btn btn-outline btn-sm mt-3">Go to sign in</a>
+                    <h4>${t('applicationReceived')}</h4>
+                    <p class="mt-1">${t('applicationReceivedCopy')}</p>
+                    <a href="${window.APP_BASE}login" class="btn btn-outline btn-sm mt-3">${t('goSignIn')}</a>
                 </div>
                 <div class="auth-footer mt-4 text-center text-sm text-muted">
                     Already registered? <a href="${window.APP_BASE}login" class="font-weight-bold">Sign in</a>
@@ -797,19 +798,19 @@ window.Router.add(/^forgot$/, async (match, root) => {
         <div class="auth-wrapper">
             <div class="auth-card card">
                 <div class="auth-header mb-4 text-center">
-                    <h2>Forgotten your password?</h2>
-                    <p class="text-muted">Enter your email address to receive a reset link.</p>
+                    <h2>${t('forgotPassword')}</h2>
+                    <p class="text-muted">${t('forgotPasswordCopy')}</p>
                 </div>
                 <form id="forgot-form" class="auth-form">
                     <div class="form-group">
-                        <label class="form-label">Email address</label>
+                        <label class="form-label">${t('emailAddress')}</label>
                         <input type="email" name="email" class="form-control" required autofocus>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">Request reset link</button>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">${t('requestReset')}</button>
                 </form>
                 <div id="forgot-msg" class="alert mt-4" style="display:none;"></div>
                 <div class="auth-footer mt-4 text-center text-sm">
-                    <a href="${window.APP_BASE}login" class="text-muted">&larr; Back to sign in</a>
+                    <a href="${window.APP_BASE}login" class="text-muted">&larr; ${t('backSignIn')}</a>
                 </div>
             </div>
         </div>
@@ -820,7 +821,7 @@ window.Router.add(/^forgot$/, async (match, root) => {
             await window.Core.fetch('/auth/forgot', { method: 'POST', body: { email: e.target.email.value } });
             const msg = document.getElementById('forgot-msg');
             msg.className = 'alert success mt-4';
-            msg.innerHTML = 'If this email address is recognised, a reset link has been sent to the internal test inbox.';
+            msg.textContent = t('resetSent');
             msg.style.display = 'block';
             e.target.style.display = 'none';
         } catch(err) {
@@ -839,16 +840,16 @@ window.Router.add(/^reset$/, async (match, root, qs) => {
         <div class="auth-wrapper">
             <div class="auth-card card">
                 <div class="auth-header mb-4 text-center">
-                    <h2>New password</h2>
-                    <p class="text-muted">Choose a new, secure password.</p>
+                    <h2>${t('newPassword')}</h2>
+                    <p class="text-muted">${t('newPasswordCopy')}</p>
                 </div>
                 <form id="reset-form" class="auth-form">
                     <input type="hidden" name="token" value="${esc(token)}">
                     <div class="form-group">
-                        <label class="form-label">New password</label>
+                        <label class="form-label">${t('newPassword')}</label>
                         <input type="password" name="password" class="form-control" required minlength="8" autofocus>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">Save and sign in</button>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">${t('saveSignIn')}</button>
                 </form>
                 <div id="reset-msg" class="alert error mt-4" style="display:none;"></div>
             </div>

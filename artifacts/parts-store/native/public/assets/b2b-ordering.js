@@ -24,7 +24,7 @@
                 window.UI.closeSuggestions();
                 return;
             }
-            O.searchMessage('Searching for products…');
+            O.searchMessage(window.I18n.t('loading'));
             app.searchTimer = setTimeout(async () => {
                 app.searchAbort = new AbortController();
                 try {
@@ -33,7 +33,7 @@
                     if (sequence === app.searchSequence) O.renderSuggestions(data, query);
                 } catch (error) {
                     if (sequence === app.searchSequence && error.name !== 'AbortError') {
-                        O.searchMessage('Search failed. Type again to retry.', true);
+                        O.searchMessage(window.I18n.t('retry'), true);
                     }
                 }
             }, 150);
@@ -63,13 +63,13 @@
                 });
             }
             if (!data.products?.length) {
-                O.searchMessage('No matching products yet. Try a model, SKU, part name or a broader term.');
+                O.searchMessage(window.I18n.t('noResults'));
                 return;
             }
             const esc = window.Core.escapeHtml;
             const partOptions = smartSurface && Array.isArray(data.part_options) && data.part_options.length > 1
-                ? `<div class="smart-search-parts" aria-label="Choose a part type">
-                    <p>What part do you need?</p>
+                ? `<div class="smart-search-parts" aria-label="${window.I18n.t('partChoice')}">
+                    <p>${window.I18n.t('partChoice')}</p>
                     <div class="smart-search-part-grid">${data.part_options.map(option => {
                         const params = new URLSearchParams({q: query, category: String(option.id)});
                         const thumbnail = option.image_url && window.App.thumbnailUrl
@@ -79,7 +79,7 @@
                             <span class="smart-search-part-media">${thumbnail
                                 ? `<img src="${esc(thumbnail)}" alt="" loading="lazy" decoding="async">`
                                 : '<span class="img-placeholder" aria-hidden="true"></span>'}</span>
-                            <span class="smart-search-part-copy"><strong>${esc(option.name)}</strong><small>${Number(option.count).toLocaleString('en-GB')} ${Number(option.count) === 1 ? 'part' : 'parts'}</small></span>
+                            <span class="smart-search-part-copy"><strong>${esc(option.name)}</strong><small>${window.I18n.number(Number(option.count))} ${window.I18n.t(Number(option.count) === 1 ? 'part' : 'parts')}</small></span>
                             <span aria-hidden="true">→</span>
                         </a>`;
                     }).join('')}</div>
@@ -87,12 +87,12 @@
                 : '';
             container.classList.add('b2b-search-results');
             container.setAttribute('role', 'dialog');
-            container.setAttribute('aria-label', 'Order products directly');
+            container.setAttribute('aria-label', window.I18n.t('orderDirectly'));
             input.setAttribute('aria-haspopup', 'dialog');
             input.removeAttribute('aria-activedescendant');
             window.App.searchIndex = -1;
-            container.innerHTML = `<div class="suggestion-group-title">Smart matches · fast order <span>${data.products.length} products</span></div>
-                ${smartSurface ? `<div class="smart-search-context"><span class="smart-search-understood">Understood as <strong>${esc(intent.label || 'Product match')}</strong></span><span>Choose quantity</span><span>Add to cart</span></div>${partOptions}` : ''}` +
+            container.innerHTML = `<div class="suggestion-group-title">${window.I18n.t('smartMatches')} <span>${window.I18n.number(data.products.length)} ${window.I18n.t('products')}</span></div>
+                ${smartSurface ? `<div class="smart-search-context"><span class="smart-search-understood">${window.I18n.t('understoodAs')} <strong>${esc(intent.label || window.I18n.t('productMatch'))}</strong></span><span>${window.I18n.t('chooseQuantity')}</span><span>${window.I18n.t('addCart')}</span></div>${partOptions}` : ''}` +
                 data.products.map((product, index) => {
                     const minimum = Math.max(1, Number(product.minimum_quantity) || 1);
                     const available = Number(product.stock) >= minimum && product.price_cents !== null;
@@ -105,18 +105,18 @@
                     return `<div class="b2b-suggestion" data-product-row="${product.id}">
                         <a id="${owner}-option-${index}" class="b2b-suggestion-link" data-search-option data-smart-product="${product.id}" href="${window.APP_BASE}products/${product.id}">
                             ${productThumb ? `<img src="${esc(productThumb)}" alt="" loading="${index < 6 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 6 ? 'high' : 'low'}" width="44" height="44">` : '<span class="img-placeholder" aria-label="No product photo"></span>'}
-                            <span class="b2b-suggestion-info"><strong>${esc(product.name)}</strong><small>${esc(info)}</small><small>${Number(product.stock) > 0 ? `${Number(product.stock)} in stock` : 'Out of stock'}</small></span>
+                            <span class="b2b-suggestion-info"><strong>${esc(product.name)}</strong><small>${esc(info)}</small><small>${Number(product.stock) > 0 ? `${window.I18n.number(Number(product.stock))} ${window.I18n.t('inStock').toLocaleLowerCase()}` : window.I18n.t('outOfStock')}</small></span>
                         </a>
-                        <div class="b2b-suggestion-price">${product.price_cents === null ? 'Sign in for prices' : esc(window.Core.formatMoney(product.price_cents, product.currency))}</div>
+                        <div class="b2b-suggestion-price">${product.price_cents === null ? window.I18n.t('signInPrices') : esc(window.Core.formatMoney(product.price_cents, product.currency))}</div>
                         <div class="b2b-suggestion-order">
-                            ${orderable ? `<label class="sr-only" for="${inputId}">Quantity of ${esc(product.name)}</label><input id="${inputId}" aria-label="Quantity of ${esc(product.sku)}" type="number" inputmode="numeric" min="${minimum}" max="${Number(product.stock)}" step="1" value="${minimum}"><button type="button" class="b2b-add btn btn-primary btn-sm" data-quick-add="${product.id}" aria-label="Add ${esc(product.name)}">Add</button>`
-                                : !window.Core.user ? `<a href="${window.APP_BASE}login" class="btn btn-outline btn-sm">Sign in</a>`
-                                : `<span class="text-muted">${available ? 'Cannot be ordered' : 'Unavailable'}</span>`}
+                            ${orderable ? `<label class="sr-only" for="${inputId}">${window.I18n.t('quantity')} ${esc(product.name)}</label><input id="${inputId}" aria-label="${window.I18n.t('quantity')} ${esc(product.sku)}" type="number" inputmode="numeric" min="${minimum}" max="${Number(product.stock)}" step="1" value="${minimum}"><button type="button" class="b2b-add btn btn-primary btn-sm" data-quick-add="${product.id}" aria-label="${window.I18n.t('add')} ${esc(product.name)}">${window.I18n.t('add')}</button>`
+                                : !window.Core.user ? `<a href="${window.APP_BASE}login" class="btn btn-outline btn-sm">${window.I18n.t('signIn')}</a>`
+                                : `<span class="text-muted">${window.I18n.t(available ? 'cannotOrder' : 'unavailable')}</span>`}
                         </div>
                         <span class="b2b-row-feedback" role="status" aria-live="polite"></span>
                     </div>`;
                 }).join('') +
-                `<a href="${window.APP_BASE}catalog?q=${encodeURIComponent(query)}" class="suggestion-footer" data-search-option>${data.has_more ? 'View all results' : 'View these products in the table'} &rarr;</a>`;
+                `<a href="${window.APP_BASE}catalog?q=${encodeURIComponent(query)}" class="suggestion-footer" data-search-option>${window.I18n.t(data.has_more ? 'viewAllResults' : 'viewProductsTable')} &rarr;</a>`;
             container.querySelectorAll('[data-quick-add]').forEach(button => {
                 button.addEventListener('click', event => {
                     event.preventDefault();
@@ -212,11 +212,11 @@
                 }
             };
             if (!O.canOrder()) {
-                tell('Sign in with an active customer account to order.', true);
+                tell(window.I18n.t('signInActive'), true);
                 return null;
             }
             if (!Number.isInteger(Number(id)) || !Number.isInteger(Number(quantity)) || Number(quantity) < 1) {
-                tell('Enter a valid whole quantity.', true);
+                tell(window.I18n.t('validWholeQuantity'), true);
                 return null;
             }
             if (button) {
@@ -224,7 +224,7 @@
                 button.disabled = true;
                 button.setAttribute('aria-busy', 'true');
             }
-            tell('Adding…');
+            tell(window.I18n.t('adding'));
             const currencySequence = window.Core.countryChangeSequence;
             const request = O.queue.then(() => window.Core.fetch('/cart/quick-add', {
                 method: 'POST', body: {product_id: Number(id), quantity: Number(quantity)}
@@ -236,7 +236,7 @@
                 if (currencySequence === window.Core.countryChangeSequence) window.Core.updateCurrencyContext(cart);
                 window.Core.updateCartCount();
                 const item = cart.items.find(product => product.product_id === Number(id));
-                tell(`Added · ${item?.quantity ?? quantity} in your cart`);
+                tell(window.I18n.t('addedCart', {count: item?.quantity ?? quantity}));
                 if ((window.App.searchOwner || '') === 'home-search') {
                     O.track('smart_search_added_to_cart', {
                         source: 'homepage',

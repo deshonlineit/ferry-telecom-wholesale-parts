@@ -312,6 +312,39 @@ body:not(:has(.admin-shell)) .store-mega-menu {
     position: relative;
     z-index: 900;
 }
+
+/* Route-owned header state prevents the full search from flashing during async navigation. */
+body:not(:has(.admin-shell))[data-header-search="compact"] .app-header .search-bar {
+    display: none;
+}
+body:not(:has(.admin-shell))[data-header-search="compact"] .app-header .page-search-jump {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+body:not(:has(.admin-shell))[data-header-search="compact"] .app-header .header-inner {
+    justify-content: flex-start;
+}
+body:not(:has(.admin-shell))[data-header-search="compact"] .app-header .user-nav {
+    margin-left: 4px;
+}
+body:not(:has(.admin-shell))[data-header-search="compact"] .app-header .page-search-jump:hover {
+    background: #edf5ff;
+    border-color: #b7cdea;
+}
+
+@media (max-width: 768px) {
+    body:not(:has(.admin-shell))[data-header-search="compact"] .app-header .page-search-jump {
+        width: 100%;
+        min-width: 0;
+        height: 42px;
+        justify-self: stretch;
+        border-color: transparent;
+        background:
+            linear-gradient(#f8fbff, #f8fbff) padding-box,
+            linear-gradient(102deg, #84aef7, #8ebcf0 42%, #c6a6ee 70%, #ef9b93) border-box;
+    }
+}
 body:not(:has(.admin-shell)) .store-mega-menu > .container {
     position: relative;
     width: calc(100% - 48px);

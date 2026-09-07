@@ -1,5 +1,6 @@
 (function () {
     const esc = window.Core.escapeHtml;
+    const t = (key, values) => window.I18n.t(key, values);
     const MOBILE_WIDTH = 768;
 
     const MODEL_LIMIT = 12;
@@ -127,7 +128,7 @@
         },
 
         renderLoading() {
-            Menu._container.innerHTML = '<div class="b2b-nav-skeleton" aria-label="Loading catalogue"><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div></div>';
+            Menu._container.innerHTML = `<div class="b2b-nav-skeleton" aria-label="${esc(t('loading'))}"><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div><div class="b2b-skeleton-item"></div></div>`;
         },
 
         load() {
@@ -143,11 +144,11 @@
             Menu._container.replaceChildren();
             const error = document.createElement('div');
             error.className = 'b2b-menu-error text-danger p-3';
-            error.textContent = 'Could not load menu. ';
+            error.textContent = t('loadMenuFailed') + ' ';
             const retry = document.createElement('button');
             retry.type = 'button';
             retry.className = 'b2b-menu-retry';
-            retry.textContent = 'Try again';
+            retry.textContent = t('retry');
             retry.addEventListener('click', () => {
                 Menu.renderLoading();
                 Menu.load();
@@ -259,7 +260,7 @@
                 item._b2bLink = anchor;
                 item.appendChild(anchor);
                 trigger.className = 'b2b-nav-caret';
-                trigger.setAttribute('aria-label', `Show ${label} models`);
+                trigger.setAttribute('aria-label', t('showModels', {label}));
                 trigger.innerHTML = chevron;
             } else {
                 trigger.className = 'b2b-nav-link';
@@ -321,17 +322,17 @@
             let status;
             if (term) {
                 status = ranked.length
-                    ? `${ranked.length} of ${total} models`
-                    : `No model with this name in ${label}`;
+                    ? t('modelsOfTotal', {shown: ranked.length, total})
+                    : t('noModelInFamily', {label});
             } else if (expanded) {
-                status = `All ${total} models · newest to oldest`;
+                status = t('allModelsNewest', {count: total});
             } else {
                 status = total > shown.length
-                    ? `${shown.length} newest of ${total} models`
-                    : `${total} ${total === 1 ? 'model' : 'models'}`;
+                    ? t('newestOfModels', {shown: shown.length, total})
+                    : `${window.I18n.number(total)} ${t(total === 1 ? 'model' : 'models')}`;
             }
             const toggle = !term && total > MODEL_LIMIT
-                ? `<button type="button" class="b2b-model-expand" data-model-expand aria-expanded="${expanded}">${expanded ? `Show newest ${MODEL_LIMIT}` : `Show all ${total} models`}<span aria-hidden="true">${expanded ? '↑' : '↓'}</span></button>`
+                ? `<button type="button" class="b2b-model-expand" data-model-expand aria-expanded="${expanded}">${expanded ? t('showNewest', {count: MODEL_LIMIT}) : t('showAllModels', {count: total})}<span aria-hidden="true">${expanded ? '↑' : '↓'}</span></button>`
                 : '';
             const modelLinks = expanded && !term
                 ? Menu.groupedModelLinks(entry, shown)
@@ -339,7 +340,7 @@
             return `<p class="b2b-model-status" role="status" aria-live="polite">${esc(status)}</p>
                 ${modelLinks}
                 ${toggle}
-                <a class="b2b-family-all" href="${esc(familyUrl(entry.family.id))}" data-family-id="${esc(entry.family.id)}">All parts for ${esc(label)}${parts ? ` <small>${parts.toLocaleString('en-GB')}</small>` : ''}</a>`;
+                <a class="b2b-family-all" href="${esc(familyUrl(entry.family.id))}" data-family-id="${esc(entry.family.id)}">${esc(t('allPartsFor', {label}))}${parts ? ` <small>${window.I18n.number(parts)}</small>` : ''}</a>`;
         },
 
         familyGrid(group, prefix, familyOffset = 0, groupActive = true, registry = null) {
@@ -371,7 +372,7 @@
             const brands = showBrands ? `<div class="b2b-mega-brands">${groups.map((group, index) =>
                 `<button type="button" class="b2b-brand-btn${index === 0 ? ' active' : ''}" data-brand-index="${index}" aria-expanded="${index === 0}" aria-controls="${prefix}-brand-families-${index}">${esc(group.brand.name)}</button>`
             ).join('')}</div>` : '';
-            return `<div class="b2b-mega-layout"><div class="b2b-mega-families">${brands}${familySections.join('')}</div><div class="b2b-mega-models"><div class="b2b-mega-heading"><span>Choose a model <small>Newest to oldest</small></span><button type="button" class="b2b-menu-close">Close menu</button></div><label class="b2b-model-search-wrap"><span>Search models</span><input type="search" class="b2b-model-search" placeholder="Enter a model name…" autocomplete="off"></label>${grids.join('')}<button type="button" class="b2b-menu-back">Back to catalogue</button></div></div>`;
+            return `<div class="b2b-mega-layout"><div class="b2b-mega-families">${brands}${familySections.join('')}</div><div class="b2b-mega-models"><div class="b2b-mega-heading"><span>${t('chooseModel')} <small>${t('newestToOldest')}</small></span><button type="button" class="b2b-menu-close">${t('close')}</button></div><label class="b2b-model-search-wrap"><span>${t('searchModels')}</span><input type="search" class="b2b-model-search" placeholder="${esc(t('enterModelName'))}" autocomplete="off"></label>${grids.join('')}<button type="button" class="b2b-menu-back">${t('backToCatalogue')}</button></div></div>`;
         },
 
         bindDropdown(item) {
@@ -482,7 +483,7 @@
             const links = categories.map(category =>
                 `<div class="b2b-acc-group"><a href="${esc(compatibilityUrl({category: category.id, part: '', family: '', model: ''}))}" class="b2b-acc-link fw-bold">${esc(category.name)}</a></div>`
             ).join('');
-            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">Close menu</button></div>`);
+            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">${t('close')}</button></div>`);
         },
 
         renderMegaMenu(container, catalog) {
@@ -495,7 +496,7 @@
             mobileToggle.className = 'b2b-mobile-toggle';
             mobileToggle.setAttribute('aria-expanded', 'false');
             mobileToggle.setAttribute('aria-controls', 'b2b-top-navigation');
-            mobileToggle.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>Catalogue</span>';
+            mobileToggle.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>${t('catalogue')}</span>`;
             const list = document.createElement('ul');
             list.id = 'b2b-top-navigation';
             list.className = 'b2b-top-nav';
@@ -511,7 +512,7 @@
 
             const allItem = document.createElement('li');
             allItem.className = 'b2b-nav-item';
-            allItem.innerHTML = `<a class="b2b-nav-link" href="${window.APP_BASE}catalog">All</a>`;
+            allItem.innerHTML = `<a class="b2b-nav-link" href="${window.APP_BASE}catalog">${t('all')}</a>`;
             list.appendChild(allItem);
             const deviceItem = (label, id, groups, prefix, showBrands, destination) => {
                 const registry = new Map();
@@ -522,16 +523,16 @@
             };
             top.forEach((group, index) => deviceItem(group.brand.name, `b2b-device-menu-${index}`, [group], `top-${index}`, false,
                 {href: brandUrl(group.brand.id), brandId: group.brand.id}));
-            if (other.length) deviceItem('Other brands', 'b2b-device-menu-other', other, 'other', true, null);
+            if (other.length) deviceItem(t('otherBrands'), 'b2b-device-menu-other', other, 'other', true, null);
 
             const grouped = window.App.groupCategories ? window.App.groupCategories(catalog.categories || []) : {parts: catalog.categories || [], supplies: []};
             if (grouped.parts.length) {
-                const item = Menu.categoryItem('Parts', grouped.parts, 'b2b-parts-menu');
+                const item = Menu.categoryItem(t('partsMenu'), grouped.parts, 'b2b-parts-menu');
                 Menu.bindDropdown(item);
                 list.appendChild(item);
             }
             if (grouped.supplies.length) {
-                const item = Menu.categoryItem('Accessories & Tools', grouped.supplies, 'b2b-supplies-menu');
+                const item = Menu.categoryItem(t('supplies'), grouped.supplies, 'b2b-supplies-menu');
                 Menu.bindDropdown(item);
                 list.appendChild(item);
             }

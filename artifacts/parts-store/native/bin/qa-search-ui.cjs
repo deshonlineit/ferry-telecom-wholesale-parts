@@ -18,7 +18,7 @@ const document = {
 const context = vm.createContext({window, document, console, setTimeout, clearTimeout, AbortController, URLSearchParams});
 // The search behaviour itself lives in the ordering module; loading only core.js
 // leaves App.handleSearchInput pointing at nothing.
-for (const file of ['core.js', 'b2b-ordering.js']) {
+for (const file of ['i18n.js', 'core.js', 'b2b-ordering.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/assets/' + file), 'utf8'), context);
 }
 const app = window.App;
