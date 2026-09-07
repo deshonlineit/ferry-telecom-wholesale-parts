@@ -41,3 +41,49 @@ for (const locale of ['nl', 'de', 'fr', 'it']) {
     }
 }
 console.log('store and account buyer locale regression passed');
+
+function loadI18n({languages = [], language = '', stored = null, cookie = '', query = ''} = {}) {
+    const writes = [];
+    const testDocument = {
+        cookie,
+        documentElement: {},
+        querySelectorAll: () => [],
+        getElementById: () => null,
+        dispatchEvent: () => {}
+    };
+    const testWindow = {
+        location: {search: query},
+        navigator: {languages, language}
+    };
+    const context = {
+        window: testWindow,
+        document: testDocument,
+        localStorage: {
+            getItem: () => stored,
+            setItem: (key, value) => writes.push([key, value])
+        },
+        URLSearchParams,
+        Intl,
+        CustomEvent: function () {}
+    };
+    testWindow.window = testWindow;
+    vm.runInNewContext(fs.readFileSync('public/assets/i18n.js', 'utf8'), context);
+    return {I18n: testWindow.I18n, writes, document: testDocument};
+}
+
+assert.strictEqual(loadI18n({languages: ['nl-NL', 'en-US']}).I18n.locale, 'nl',
+    'a first visit follows the browser language');
+assert.strictEqual(loadI18n({languages: ['de-CH'], stored: 'fr'}).I18n.locale, 'fr',
+    'a manually stored choice overrides the browser language');
+assert.strictEqual(loadI18n({languages: ['es-ES', 'it-IT']}).I18n.locale, 'it',
+    'the first supported browser preference is selected');
+assert.strictEqual(loadI18n({languages: ['es-ES']}).I18n.locale, 'en',
+    'unsupported browser languages fall back to English');
+const manual = loadI18n({languages: ['nl-NL']});
+manual.I18n.set('de', false);
+assert.strictEqual(manual.I18n.locale, 'de');
+assert.strictEqual(manual.I18n.explicit, true);
+assert.deepStrictEqual(manual.writes[0], ['ferry.storefront.locale', 'de']);
+assert(manual.document.cookie.includes('ferry_storefront_locale=de'));
+
+console.log('automatic and manual locale selection regression passed');
