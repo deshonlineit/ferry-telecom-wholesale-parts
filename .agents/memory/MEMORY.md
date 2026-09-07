@@ -30,3 +30,4 @@
 - [Landing visual tone](landing-visual-tone.md) — the front page opens light and quiet; dark saturated blocks and black buttons read as aggressive to the owner.
 - [Catalogue visual language](catalogue-visual-language.md) — image-led categories, collapsed model families, quiet blue surface, larger product images, and no title underlines.
 - [Client policy enforcement](client-policy-enforcement.md) — a shortened UI list is not a rule until PHP rejects the excluded values, with a QA check keeping both lists identical.
+- [Smart-search privacy boundary](smart-search-privacy.md) — learn from intent and outcomes, never send customers’ raw search text to analytics.

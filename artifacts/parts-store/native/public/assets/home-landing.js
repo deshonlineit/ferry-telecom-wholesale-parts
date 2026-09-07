@@ -42,18 +42,18 @@
                 <section class="lp-hero" aria-labelledby="lp-hero-title">
                     <div class="lp-hero-mesh" aria-hidden="true"></div>
                     <div class="lp-hero-body">
-                        <p class="lp-eyebrow">Wholesale · repair parts</p>
+                        <p class="lp-eyebrow">Smart search · fast order</p>
                         <h1 id="lp-hero-title">The right part,<br><span>first time.</span></h1>
                         <p class="lp-lead" data-lp-lead>Find your model, choose the right variant and order in one step.</p>
                         <form class="lp-search" role="search" data-search-root>
                             <label class="lp-sr-only" for="home-search">Search the catalogue</label>
                             <div class="lp-search-field">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.3-4.3"/></svg>
-                                <input type="search" id="home-search" name="q" placeholder="Search by product, SKU or model…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="home-search-suggestions" aria-describedby="home-search-hint">
-                                <button type="submit" class="lp-search-submit">Search</button>
+                                <input type="search" id="home-search" name="q" placeholder='Try “iPhone 13 OLED”, a SKU or “battery”…' autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-expanded="false" aria-controls="home-search-suggestions" aria-describedby="home-search-hint">
+                                <button type="submit" class="lp-search-submit">Smart search</button>
                             </div>
                             <div id="home-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" style="display:none;"></div>
-                            <p class="lp-search-hint" id="home-search-hint">Results appear as you type · add directly to your cart</p>
+                            <p class="lp-search-hint" id="home-search-hint"><strong>Understands</strong> SKU · device model · part name · common repair terms <span>Set quantity and add directly</span></p>
                         </form>
                         <nav class="lp-chips" data-lp-chips aria-label="Go straight to a device family"></nav>
                         <dl class="lp-stats" data-lp-stats></dl>

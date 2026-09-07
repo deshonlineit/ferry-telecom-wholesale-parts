@@ -1,6 +1,13 @@
 (function () {
     const O = window.B2BOrdering = {
         queue: Promise.resolve(),
+        track(name, data = {}) {
+            try {
+                window.umami?.track(name, data);
+            } catch (_) {
+                // Search and ordering must never depend on analytics.
+            }
+        },
         canOrder() {
             const user = window.Core.user;
             return Boolean(user && user.role === 'customer' && user.status === 'active');
@@ -21,7 +28,8 @@
             app.searchTimer = setTimeout(async () => {
                 app.searchAbort = new AbortController();
                 try {
-                    const data = await window.Core.fetch(`/search/products?q=${encodeURIComponent(query)}&limit=8`, {signal: app.searchAbort.signal});
+                    const hero = owner === 'home-search';
+                    const data = await window.Core.fetch(`/search/products?q=${encodeURIComponent(query)}&limit=${hero ? 12 : 8}`, {signal: app.searchAbort.signal});
                     if (sequence === app.searchSequence) O.renderSuggestions(data, query);
                 } catch (error) {
                     if (sequence === app.searchSequence && error.name !== 'AbortError') {
@@ -42,19 +50,30 @@
         renderSuggestions(data, query) {
             const {container, input} = window.App.searchElements();
             if (!container || !input?.isConnected) return;
+            const owner = window.App.searchOwner || 'search-input';
+            const hero = owner === 'home-search';
+            const intent = data.intent || {kind: 'product', label: 'Product match'};
+            if (hero) {
+                O.track(data.products?.length ? 'smart_search_results' : 'smart_search_zero_results', {
+                    source: 'homepage',
+                    intent: String(intent.kind || 'product'),
+                    result_count: Number(data.products?.length || 0),
+                    has_more: Boolean(data.has_more)
+                });
+            }
             if (!data.products?.length) {
-                O.searchMessage(`No products found for “${query}”. Try a SKU, model or part.`);
+                O.searchMessage('No matching products yet. Try a model, SKU, part name or a broader term.');
                 return;
             }
             const esc = window.Core.escapeHtml;
-            const owner = window.App.searchOwner || 'search-input';
             container.classList.add('b2b-search-results');
             container.setAttribute('role', 'dialog');
             container.setAttribute('aria-label', 'Order products directly');
             input.setAttribute('aria-haspopup', 'dialog');
             input.removeAttribute('aria-activedescendant');
             window.App.searchIndex = -1;
-            container.innerHTML = `<div class="suggestion-group-title">Order directly <span>${data.products.length} products</span></div>` +
+            container.innerHTML = `<div class="suggestion-group-title">${hero ? 'Smart matches · fast order' : 'Order directly'} <span>${data.products.length} products</span></div>
+                ${hero ? `<div class="smart-search-context"><span class="smart-search-understood">Understood as <strong>${esc(intent.label || 'Product match')}</strong></span><span>Choose quantity</span><span>Add to cart</span></div>` : ''}` +
                 data.products.map((product, index) => {
                     const minimum = Math.max(1, Number(product.minimum_quantity) || 1);
                     const available = Number(product.stock) >= minimum && product.price_cents !== null;
@@ -62,7 +81,7 @@
                     const inputId = `${owner}-quantity-${product.id}`;
                     const info = [product.sku, product.quality, product.brand_name].filter(Boolean).join(' · ');
                     return `<div class="b2b-suggestion" data-product-row="${product.id}">
-                        <a id="${owner}-option-${index}" class="b2b-suggestion-link" data-search-option href="${window.APP_BASE}products/${product.id}">
+                        <a id="${owner}-option-${index}" class="b2b-suggestion-link" data-search-option data-smart-product="${product.id}" href="${window.APP_BASE}products/${product.id}">
                             ${product.image_url ? `<img src="${esc(product.image_url)}" alt="" loading="lazy" width="44" height="44">` : '<span class="img-placeholder" aria-label="No product photo"></span>'}
                             <span class="b2b-suggestion-info"><strong>${esc(product.name)}</strong><small>${esc(info)}</small><small>${Number(product.stock) > 0 ? `${Number(product.stock)} in stock` : 'Out of stock'}</small></span>
                         </a>
@@ -82,6 +101,15 @@
                     event.stopPropagation();
                     const quantity = button.parentElement.querySelector('input');
                     if (quantity.reportValidity()) O.quickAdd(Number(button.dataset.quickAdd), Number(quantity.value), button);
+                });
+            });
+            container.querySelectorAll('[data-smart-product]').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (hero) O.track('smart_search_product_opened', {
+                        source: 'homepage',
+                        intent: String(intent.kind || 'product'),
+                        product_id: Number(link.dataset.smartProduct)
+                    });
                 });
             });
             container.onkeydown = event => {
@@ -179,6 +207,13 @@
                 window.Core.updateCartCount();
                 const item = cart.items.find(product => product.product_id === Number(id));
                 tell(`Added · ${item?.quantity ?? quantity} in your cart`);
+                if ((window.App.searchOwner || '') === 'home-search') {
+                    O.track('smart_search_added_to_cart', {
+                        source: 'homepage',
+                        product_id: Number(id),
+                        quantity: Number(quantity)
+                    });
+                }
                 document.dispatchEvent(new CustomEvent('cart:updated', {detail: cart}));
                 if (location.pathname === window.APP_BASE + 'cart') window.Router.route();
                 return cart;
