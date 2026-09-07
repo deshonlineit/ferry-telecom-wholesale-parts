@@ -333,26 +333,26 @@ try:
     tax_bps = settings["tax_bps"]
     customer.call("DELETE", "/cart")
     customer.call("POST", "/cart", {"product_id": products[0]["id"], "quantity": 1})
-    eur_quote = customer.call("POST", "/checkout/quote", {"address_id": nl["id"]})
-    eur_shipping = 0 if eur_quote["subtotal_cents"] >= settings["free_shipping_eur_cents"] else settings["shipping_eur_cents"]
+    eur_quote = customer.call("POST", "/checkout/quote", {"address_id": nl["id"], "shipping_method": "ups_standard"})
+    eur_shipping = 1500
     eur_tax = ((eur_quote["subtotal_cents"] + eur_shipping) * tax_bps + 5000) // 10000
     check(eur_quote["country"] == "NL" and eur_quote["currency"] == "EUR"
           and eur_quote["shipping_cents"] == eur_shipping and eur_quote["tax_cents"] == eur_tax,
           "NL quote uses canonical EUR and explicit EUR shipping")
     eur_order = customer.call("POST", "/checkout", {
         "address_id": nl["id"], "quote_token": eur_quote["quote_token"],
-        "payment_method": "test_invoice", "notes": "synthetic EUR QA",
+        "payment_method": "pay_later", "shipping_method": "ups_standard", "notes": "synthetic EUR QA",
         "idempotency_key": "qa-eur-" + unique,
     })["order"]
     fixture["order_ids"].append(eur_order["id"])
     check(eur_order["currency"] == "EUR", "NL checkout stores EUR")
 
     customer.call("POST", "/cart", {"product_id": products[1]["id"], "quantity": 1})
-    ch_quote = customer.call("POST", "/checkout/quote", {"address_id": ch["id"]})
+    ch_quote = customer.call("POST", "/checkout/quote", {"address_id": ch["id"], "shipping_method": "swiss_post_priority"})
     rate = int(local["rate"]["rate_ppm"])
     eur_unit = staff.call("GET", f"/admin/products/{products[1]['id']}")["product"]["list_price_eur_cents"]
     expected_chf_unit = (eur_unit * rate + 500000) // 1000000
-    ch_shipping = 0 if ch_quote["subtotal_cents"] >= settings["free_shipping_cents"] else settings["shipping_cents"]
+    ch_shipping = 600
     ch_tax = ((ch_quote["subtotal_cents"] + ch_shipping) * tax_bps + 5000) // 10000
     check(ch_quote["country"] == "CH" and ch_quote["currency"] == "CHF"
           and ch_quote["items"][0]["price_cents"] == expected_chf_unit
@@ -368,7 +368,7 @@ try:
     }]})
     customer.call("POST", "/checkout", {
         "address_id": ch["id"], "quote_token": ch_quote["quote_token"],
-        "payment_method": "test_invoice", "notes": "must reject",
+        "payment_method": "swiss_qr_invoice", "shipping_method": "swiss_post_priority", "notes": "must reject",
         "idempotency_key": "qa-drift-" + unique,
     }, expected=(409,))
     after_drift = staff.call("GET", f"/admin/products/{products[1]['id']}")["product"]
@@ -376,10 +376,10 @@ try:
     check(after_drift["stock"] == stock_before and len(own_orders) == 1,
           "quote drift rejection changes neither stock nor order count")
 
-    fresh_ch = customer.call("POST", "/checkout/quote", {"address_id": ch["id"]})
+    fresh_ch = customer.call("POST", "/checkout/quote", {"address_id": ch["id"], "shipping_method": "swiss_post_priority"})
     ch_order = customer.call("POST", "/checkout", {
         "address_id": ch["id"], "quote_token": fresh_ch["quote_token"],
-        "payment_method": "test_invoice", "notes": "synthetic CHF QA",
+        "payment_method": "swiss_qr_invoice", "shipping_method": "swiss_post_priority", "notes": "synthetic CHF QA",
         "idempotency_key": "qa-chf-" + unique,
     })["order"]
     fixture["order_ids"].append(ch_order["id"])
@@ -391,6 +391,9 @@ try:
           and pdf_eur.startswith(b"%PDF-") and pdf_chf.startswith(b"%PDF-"),
           "order detail and PDFs preserve stored order currency")
 
+    staff.call("PATCH", f"/admin/orders/{ch_order['id']}", {
+        "status": "processing", "note": "synthetic processing currency check",
+    })
     staff.call("PATCH", f"/admin/orders/{ch_order['id']}", {
         "status": "shipped", "tracking": "QA-CURRENCY", "note": "synthetic return currency check",
     })

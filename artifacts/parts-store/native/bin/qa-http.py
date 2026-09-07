@@ -135,10 +135,10 @@ try:
     aid = addresses[0]["id"]
     partner.call("PATCH", f"/addresses/{aid}", {"label": "Not mine"}, expected=(403, 404))
     check(True, "address ownership enforced")
-    quote = customer.call("POST", "/checkout/quote", {"address_id": aid})
+    quote = customer.call("POST", "/checkout/quote", {"address_id": aid, "shipping_method": "swiss_post_priority"})
     order_body = {
         "address_id": aid, "quote_token": quote["quote_token"],
-        "payment_method": "test_invoice", "notes": "QA only",
+        "payment_method": "swiss_qr_invoice", "shipping_method": "swiss_post_priority", "notes": "QA only",
         "idempotency_key": "qa-" + unique,
     }
     order = customer.call("POST", "/checkout", order_body)["order"]
@@ -183,6 +183,12 @@ try:
         and detail["order"]["subtotal_cents"] == cp["price_cents"] * 3,
         "immutable own-price order snapshot",
     )
+    check(
+        detail["order"]["shipping_method_code"] == "swiss_post_priority"
+        and detail["order"]["shipping_method_name"] == "Swiss Post Priority"
+        and detail["order"]["shipping_carrier"] == "Swiss Post",
+        "immutable shipping method snapshot",
+    )
     partner.call("GET", f"/orders/{oid}", expected=(403, 404))
     partner.call("GET", f"/documents/{oid}/invoice.pdf", expected=(403, 404))
     check(True, "order and PDF ownership enforced")
@@ -192,6 +198,7 @@ try:
     return_body = {"order_id": oid, "reason": "QA damaged screen", "items": [{"order_item_id": detail["items"][0]["id"], "quantity": 1}]}
     customer.call("POST", "/returns", return_body, expected=(409, 422))
     check(True, "unfulfilled orders cannot be returned")
+    staff.call("PATCH", f"/admin/orders/{oid}", {"status": "processing", "note": "Test processing only"})
     staff.call("PATCH", f"/admin/orders/{oid}", {"status": "shipped", "tracking": "QA-TRACK", "note": "Test shipment only"})
     credits = 0
     for _ in range(3):
@@ -220,7 +227,7 @@ try:
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 2, "damaged returns never restock automatically")
 
     customer.call("POST", "/cart", {"product_id": pid, "quantity": 2})
-    stale_quote = customer.call("POST", "/checkout/quote", {"address_id": aid})
+    stale_quote = customer.call("POST", "/checkout/quote", {"address_id": aid, "shipping_method": "swiss_post_priority"})
     staff.call("PATCH", f"/admin/products/{pid}", {"stock": 1})
     customer.call("POST", "/checkout", {
         **order_body, "quote_token": stale_quote["quote_token"],
@@ -229,7 +236,7 @@ try:
     check(True, "checkout catches changed stock")
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 1, "rejected checkout leaves stock intact")
     customer.call("POST", "/cart", {"product_id": pid, "quantity": 1})
-    cancellation_quote = customer.call("POST", "/checkout/quote", {"address_id": aid})
+    cancellation_quote = customer.call("POST", "/checkout/quote", {"address_id": aid, "shipping_method": "swiss_post_priority"})
     order2 = customer.call("POST", "/checkout", {
         **order_body, "quote_token": cancellation_quote["quote_token"],
         "idempotency_key": "cancel-" + unique,

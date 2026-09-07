@@ -399,6 +399,7 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
                 </select>
             </td>
             <td>${esc(adminPaymentMethodLabel(o.payment_method))}</td>
+            <td>${esc(o.shipping_method_name || '-')}</td>
             <td>${window.Core.formatMoney(o.total_cents, o.currency || 'CHF')}</td>
             <td><button type="button" class="btn btn-sm btn-outline action-track" data-id="${o.id}" data-tracking="${esc(o.tracking||'')}" data-status="${o.status}">T&T</button></td>
         </tr>
@@ -408,7 +409,7 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
         <div class="page-header">
             <h1>Order Management</h1>
         </div>
-        ${renderTable(['Order #', 'Date', 'Customer', 'Status', 'Payment method', 'Total', 'Action'], rows, 'No orders found.')}
+        ${renderTable(['Order #', 'Date', 'Customer', 'Status', 'Payment method', 'Shipping method', 'Total', 'Action'], rows, 'No orders found.')}
     `;
     root.innerHTML = adminLayout(content, 'orders');
 

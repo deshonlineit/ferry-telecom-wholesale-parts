@@ -52,6 +52,13 @@ const accountPaymentMethod = method => window.I18n.t({
     test_invoice: 'legacyTestInvoice',
     test_card: 'legacyTestCard'
 }[method] || method);
+const accountShippingMethod = order => window.I18n.t({
+    swiss_post_priority: 'swissPostPriority',
+    swiss_post_saturday: 'swissPostSaturday',
+    pickup: 'pickup',
+    ups_standard: 'upsStandard',
+    ups_express: 'upsExpress'
+}[order.shipping_method_code] || order.shipping_method_name || 'shipping');
 
 const accountLayout = (content, activeRoute) => `
     <div class="layout-sidebar">
@@ -328,6 +335,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                         <tr><td style="color:var(--wb-text-muted)">${accountT('status')}:</td><td>${window.Workbench.badge(o.status)}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('tracking')}:</td><td>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" style="font-weight:500;">${accountT('trackParcel')}</a>` : '-'}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('paymentMethod')}:</td><td>${esc(accountPaymentMethod(o.payment_method))}</td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">${accountT('shippingMethod')}:</td><td>${esc(accountShippingMethod(o))}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('currency')}:</td><td><strong>${esc(orderCurrency)}</strong></td></tr>
                     </table>
                 </div>
@@ -339,10 +347,10 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                     <tbody>${itemsHtml}</tbody>
                 </table>
                 <div style="padding:1.5rem; background:var(--wb-bg); text-align:right; border-top:1px solid var(--wb-border-light)">
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('subtotal')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.subtotal_cents, orderCurrency)}</span></div>
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('shipping')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.shipping_cents, orderCurrency)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('subtotalExVat')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.subtotal_cents, orderCurrency)}</span></div>
+                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('shippingExVat')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.shipping_cents, orderCurrency)}</span></div>
                     <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('vat')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.tax_cents, orderCurrency)}</span></div>
-                    <div style="font-size:1.125rem; font-weight:700; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--wb-border);">${accountT('total')} (${esc(orderCurrency)}): <span style="display:inline-block; width:100px;">${accountMoney(o.total_cents, orderCurrency)}</span></div>
+                    <div style="font-size:1.125rem; font-weight:700; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--wb-border);">${accountT('totalInclVat')} (${esc(orderCurrency)}): <span style="display:inline-block; width:100px;">${accountMoney(o.total_cents, orderCurrency)}</span></div>
                 </div>
             </div>
             

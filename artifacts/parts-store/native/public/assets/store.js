@@ -319,9 +319,9 @@ window.Router.add(/^cart$/, async (match, root) => {
                         <div class="line-items-head">
                             <span></span>
                             <span>${t('product')}</span>
-                            <span class="num">${t('unitPrice')}</span>
+                            <span class="num">${t('unitPriceExVat')}</span>
                             <span>${t('quantity')}</span>
-                            <span class="num">${t('total')}</span>
+                            <span class="num">${t('lineTotalExVat')}</span>
                             <span></span>
                         </div>
                         ${itemsHtml}
@@ -335,12 +335,12 @@ window.Router.add(/^cart$/, async (match, root) => {
                     <div class="summary-panel">
                         <h2 class="summary-title">${t('orderSummary')}</h2>
                         <dl class="summary-lines">
-                            <div class="summary-line"><dt>${t('subtotal')}</dt><dd>${money(cart.subtotal_cents)}</dd></div>
-                            <div class="summary-line"><dt>${t('shipping')}</dt>${cart.shipping_cents === 0 ? `<dd class="is-free">${t('free')}</dd>` : `<dd>${money(cart.shipping_cents)}</dd>`}</div>
+                            <div class="summary-line"><dt>${t('subtotalExVat')}</dt><dd>${money(cart.subtotal_cents)}</dd></div>
+                            <div class="summary-line"><dt>${t('shippingExVat')}</dt><dd>${money(cart.shipping_cents)}</dd></div>
                             <div class="summary-line"><dt>${t('vat')}</dt><dd>${money(cart.tax_cents)}</dd></div>
                         </dl>
                         <div class="summary-rule"></div>
-                        <div class="summary-total"><span>${t('total')}</span><strong>${money(cart.total_cents)}</strong></div>
+                        <div class="summary-total"><span>${t('totalInclVat')}</span><strong>${money(cart.total_cents)}</strong></div>
                         <a href="${window.APP_BASE}checkout" class="summary-cta">${t('checkout')} &rarr;</a>
                         <p class="currency-context-note ${notice ? 'error' : ''}">${esc(notice || t('deliveryBilled', {country: cart.country || window.Core.country, currency: cartCurrency}))}</p>
                     </div>
@@ -469,6 +469,14 @@ window.Router.add(/^checkout$/, async (match, root) => {
                             <div class="checkout-step">
                                 <div class="step-header">
                                     <div class="step-number">2</div>
+                                    <h3>${t('shippingMethod')}</h3>
+                                </div>
+                                <div id="checkout-shipping-methods" class="payment-grid"></div>
+                            </div>
+
+                            <div class="checkout-step">
+                                <div class="step-header">
+                                    <div class="step-number">3</div>
                                     <h3>${t('paymentMethod')}</h3>
                                 </div>
                                 <div id="checkout-payment-methods" class="payment-grid"></div>
@@ -476,7 +484,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
 
                             <div class="checkout-step">
                                 <div class="step-header">
-                                    <div class="step-number">3</div>
+                                    <div class="step-number">4</div>
                                     <h3>${t('notes')} <span class="step-optional">${t('optional')}</span></h3>
                                 </div>
                                 <div class="form-group mb-0">
@@ -544,6 +552,40 @@ window.Router.add(/^checkout$/, async (match, root) => {
                     <div class="text-muted text-sm mt-1">${t(swiss ? 'swissQrInvoiceHelp' : 'payLaterHelp')}</div>
                 </label>`;
         };
+        const shippingLabelKey = code => ({
+            swiss_post_priority: 'swissPostPriority',
+            swiss_post_saturday: 'swissPostSaturday',
+            pickup: 'pickup',
+            ups_standard: 'upsStandard',
+            ups_express: 'upsExpress'
+        })[code] || 'shipping';
+        const shippingHelpKey = code => ({
+            swiss_post_priority: 'swissPostPriorityHelp',
+            swiss_post_saturday: 'swissPostSaturdayHelp',
+            pickup: 'pickupHelp',
+            ups_standard: 'upsStandardHelp',
+            ups_express: 'upsExpressHelp'
+        })[code] || 'shippingVatNote';
+        const renderShippingMethods = (methods = [], selectedCode = '') => {
+            const container = root.querySelector('#checkout-shipping-methods');
+            if (!container) return;
+            container.innerHTML = methods.map((method, index) => {
+                const selected = method.code === selectedCode || (!selectedCode && index === 0);
+                return `<label class="payment-card ${selected ? 'selected' : ''}">
+                    <input type="radio" name="shipping_method" value="${esc(method.code)}" ${selected ? 'checked' : ''}>
+                    <div class="address-header">
+                        <strong>${t(shippingLabelKey(method.code))}</strong>
+                        <span>${window.Core.formatMoney(method.amount_cents, method.currency)}</span>
+                    </div>
+                    <div class="text-muted text-sm mt-1">${t(shippingHelpKey(method.code))}</div>
+                </label>`;
+            }).join('');
+            container.querySelectorAll('[name="shipping_method"]').forEach(input => input.addEventListener('change', () => {
+                container.querySelectorAll('.payment-card').forEach(card => card.classList.remove('selected'));
+                input.closest('.payment-card')?.classList.add('selected');
+                scheduleQuote();
+            }));
+        };
 
         const checkoutAddressPayload = () => {
             const choice = form.querySelector('[name="address_choice"]:checked')?.value;
@@ -567,17 +609,18 @@ window.Router.add(/^checkout$/, async (match, root) => {
             const currency = quote.currency || window.Core.currency;
             const country = quote.country || quote.delivery_country || checkoutAddressPayload()?.address?.country || window.Core.country;
             const notice = window.Core.currencyNotice(quote);
+            renderShippingMethods(quote.shipping_methods || [], quote.shipping_method?.code || '');
             root.querySelector('#checkout-summary').innerHTML = `
                 <div class="summary-items">
                     ${(quote.items || []).map(item => `<div class="summary-item"><span class="summary-item-name"><span class="summary-item-qty">${item.quantity}&times;</span>${esc(item.name)}</span><span class="summary-item-value">${window.Core.formatMoney(item.total_cents, currency)}</span></div>`).join('')}
                 </div>
                 <dl class="summary-lines">
-                    <div class="summary-line"><dt>${t('subtotal')}</dt><dd>${window.Core.formatMoney(quote.subtotal_cents, currency)}</dd></div>
-                    <div class="summary-line"><dt>${t('shipping')}</dt>${quote.shipping_cents === 0 ? `<dd class="is-free">${t('free')}</dd>` : `<dd>${window.Core.formatMoney(quote.shipping_cents, currency)}</dd>`}</div>
+                    <div class="summary-line"><dt>${t('subtotalExVat')}</dt><dd>${window.Core.formatMoney(quote.subtotal_cents, currency)}</dd></div>
+                    <div class="summary-line"><dt>${t('shippingExVat')}</dt><dd>${window.Core.formatMoney(quote.shipping_cents, currency)}</dd></div>
                     <div class="summary-line"><dt>${t('vat')}</dt><dd>${window.Core.formatMoney(quote.tax_cents, currency)}</dd></div>
                 </dl>
                 <div class="summary-rule"></div>
-                <div class="summary-total"><span>${t('total')}</span><strong>${window.Core.formatMoney(quote.total_cents, currency)}</strong></div>
+                <div class="summary-total"><span>${t('totalInclVat')}</span><strong>${window.Core.formatMoney(quote.total_cents, currency)}</strong></div>
                 <p class="currency-context-note ${notice ? 'error' : ''}">${t('deliveryBilled', {country: esc(country), currency: esc(currency)})}${notice ? ` · ${esc(notice)}` : ''}</p>
             `;
             quoteStatus.className = `summary-status ${notice ? 'error' : ''}`;
@@ -600,7 +643,11 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 return;
             }
             try {
-                const response = await window.Core.fetch('/checkout/quote', {method: 'POST', body: addressPayload});
+                const selectedShipping = form.querySelector('[name="shipping_method"]:checked')?.value;
+                const response = await window.Core.fetch('/checkout/quote', {
+                    method: 'POST',
+                    body: {...addressPayload, ...(selectedShipping ? {shipping_method: selectedShipping} : {})}
+                });
                 if (!quoteGate.isCurrent(sequence)) return;
                 const quote = response.cart ? {...response.cart, quote_token: response.quote_token || response.cart.quote_token} : response;
                 applyAuthoritativeQuote(quote);
@@ -625,25 +672,33 @@ window.Router.add(/^checkout$/, async (match, root) => {
             input.closest('.address-card')?.classList.add('selected');
             addressFields.hidden = input.value !== 'new';
             renderPaymentMethod();
+            renderShippingMethods();
             scheduleQuote();
         }));
         addressFields.querySelectorAll('input, select').forEach(input => input.addEventListener('input', () => {
-            if (input.name === 'address_country') renderPaymentMethod();
+            if (input.name === 'address_country') {
+                renderPaymentMethod();
+                renderShippingMethods();
+            }
             scheduleQuote();
         }));
         renderPaymentMethod();
+        renderShippingMethods(cartRes.shipping_methods || [], cartRes.shipping_method?.code || '');
         requestQuote();
 
         window.App.submitCheckout = async (form) => {
             const addressPayload = checkoutAddressPayload();
             if (!addressPayload) return alert(t('selectFullAddress'));
             if (!form.quote_token.value) return alert(t('waitQuote'));
+            const shippingMethod = form.querySelector('[name="shipping_method"]:checked')?.value;
+            if (!shippingMethod) return alert(t('selectShippingMethod'));
             const acceptedToken = form.quote_token.value;
             const data = {
                 ...addressPayload,
                 quote_token: acceptedToken,
                 idempotency_key: form.idempotency_key.value,
                 payment_method: form.payment_method.value,
+                shipping_method: shippingMethod,
                 notes: form.notes.value
             };
             

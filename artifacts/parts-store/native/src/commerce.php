@@ -45,21 +45,51 @@ function commerceSettings(PDO $pdo, string $currency = 'EUR'): array
     return $defaults;
 }
 
-function commerceTotals(int $subtotal, array $settings): array
+function commerceShippingMethods(string $country): array
 {
-    $shipping = $subtotal >= $settings['free_shipping_cents']
-        ? 0
-        : $settings['shipping_cents'];
+    $country = currencyDeliveryCountry($country);
+    if ($country === 'CH') {
+        return [
+            ['code' => 'swiss_post_priority', 'carrier' => 'Swiss Post', 'label' => 'Swiss Post Priority', 'amount_cents' => 600, 'currency' => 'CHF'],
+            ['code' => 'swiss_post_saturday', 'carrier' => 'Swiss Post', 'label' => 'Saturday Delivery', 'amount_cents' => 1500, 'currency' => 'CHF'],
+            ['code' => 'pickup', 'carrier' => 'Ferry Telecom', 'label' => 'Pick-up', 'amount_cents' => 0, 'currency' => 'CHF'],
+        ];
+    }
+    return [
+        ['code' => 'ups_standard', 'carrier' => 'UPS', 'label' => 'UPS Standard', 'amount_cents' => 1500, 'currency' => 'EUR'],
+        ['code' => 'ups_express', 'carrier' => 'UPS', 'label' => 'UPS Express', 'amount_cents' => 3000, 'currency' => 'EUR'],
+    ];
+}
+
+function commerceShippingMethod(string $country, ?string $requestedCode = null): array
+{
+    $methods = commerceShippingMethods($country);
+    $code = trim((string) $requestedCode);
+    if ($code === '') {
+        return $methods[0];
+    }
+    foreach ($methods as $method) {
+        if (hash_equals($method['code'], $code)) {
+            return $method;
+        }
+    }
+    throw new HttpError(422, 'Choose a shipping method available for the delivery country.');
+}
+
+function commerceTotals(int $subtotal, array $settings, array $shippingMethod): array
+{
+    $shipping = (int) $shippingMethod['amount_cents'];
     $tax = intdiv((($subtotal + $shipping) * $settings['tax_bps']) + 5000, 10000);
     return [
         'subtotal_cents' => $subtotal,
         'shipping_cents' => $shipping,
         'tax_cents' => $tax,
         'total_cents' => $subtotal + $shipping + $tax,
+        'shipping_method' => $shippingMethod,
     ];
 }
 
-function commerceCart(int $userId, int $groupId, ?string $country = null): array
+function commerceCart(int $userId, int $groupId, ?string $country = null, ?string $shippingMethodCode = null): array
 {
     $pdo = db();
     $context = currencyContext($country);
@@ -101,7 +131,10 @@ function commerceCart(int $userId, int $groupId, ?string $country = null): array
         ];
         $subtotal += $total;
     }
-    $result = ['items' => $items] + commerceTotals($subtotal, commerceSettings($pdo, $context['currency']));
+    $shippingMethods = commerceShippingMethods($context['country']);
+    $shippingMethod = commerceShippingMethod($context['country'], $shippingMethodCode);
+    $result = ['items' => $items] + commerceTotals($subtotal, commerceSettings($pdo, $context['currency']), $shippingMethod);
+    $result['shipping_methods'] = $shippingMethods;
     $result['country'] = $context['country'];
     $result['currency'] = $context['currency'];
     $result['base_currency'] = 'EUR';
@@ -199,6 +232,9 @@ function commerceOrderSummary(array $row, bool $includeCustomer = false): array
         'subtotal_cents' => (int) $row['subtotal_cents'],
         'tax_cents' => (int) $row['tax_cents'],
         'shipping_cents' => (int) $row['shipping_cents'],
+        'shipping_method_code' => $row['shipping_method_code'] ?? null,
+        'shipping_method_name' => $row['shipping_method_name'] ?? null,
+        'shipping_carrier' => $row['shipping_carrier'] ?? null,
         'total_cents' => (int) $row['total_cents'],
         'created_at' => $row['created_at'],
         'payment_method' => $row['payment_method'],
@@ -420,6 +456,7 @@ function commerceQuoteFingerprint(array $cart): string
         ], $cart['items']),
         'subtotal_cents' => $cart['subtotal_cents'],
         'shipping_cents' => $cart['shipping_cents'],
+        'shipping_method' => $cart['shipping_method'],
         'tax_cents' => $cart['tax_cents'],
         'total_cents' => $cart['total_cents'],
     ];
@@ -431,7 +468,13 @@ function commerceCheckoutQuote(): never
     $user = commerceActiveCustomer();
     $input = body();
     $address = commerceCheckoutAddress($input, (int) $user['id']);
-    $cart = commerceCart((int) $user['id'], (int) $user['group_id'], (string) $address['country']);
+    $shippingMethodCode = text($input['shipping_method'] ?? '', 40);
+    $cart = commerceCart(
+        (int) $user['id'],
+        (int) $user['group_id'],
+        (string) $address['country'],
+        $shippingMethodCode !== '' ? $shippingMethodCode : null
+    );
     if (!$cart['items']) {
         throw new HttpError(422, 'Your cart is empty.');
     }
@@ -447,6 +490,7 @@ function commerceCheckoutQuote(): never
         'user_id' => (int) $user['id'],
         'fingerprint' => commerceQuoteFingerprint($cart),
         'address' => $address,
+        'shipping_method' => $cart['shipping_method'],
         'expires' => time() + 600,
     ];
     $cart['quote_token'] = $token;
@@ -461,6 +505,7 @@ function commerceCheckout(): never
     $input = body();
     $quoteToken = text($input['quote_token'] ?? '', 128);
     $paymentMethod = text($input['payment_method'] ?? '', 30);
+    $shippingMethodCode = text($input['shipping_method'] ?? '', 40);
     if (!in_array($paymentMethod, ['swiss_qr_invoice', 'pay_later'], true)) {
         throw new HttpError(422, 'Choose a supported pay-later method.');
     }
@@ -530,6 +575,12 @@ function commerceCheckout(): never
         if ($paymentMethod !== $expectedPaymentMethod) {
             throw new HttpError(422, 'The payment method does not match the delivery country.');
         }
+        $acceptedShippingMethod = $acceptedQuote['shipping_method'] ?? null;
+        if (!is_array($acceptedShippingMethod)
+            || $shippingMethodCode === ''
+            || !hash_equals((string) ($acceptedShippingMethod['code'] ?? ''), $shippingMethodCode)) {
+            throw new HttpError(422, 'The shipping method does not match the accepted quote.');
+        }
         $context = currencyContext((string) $address['country']);
 
         $statement = $pdo->prepare(
@@ -586,7 +637,8 @@ function commerceCheckout(): never
         }
 
         $settings = commerceSettings($pdo, $context['currency']);
-        $totals = commerceTotals($subtotal, $settings);
+        $shippingMethod = commerceShippingMethod((string) $address['country'], $shippingMethodCode);
+        $totals = commerceTotals($subtotal, $settings, $shippingMethod);
         $recalculated = [
             'items' => $items, 'country' => $context['country'], 'currency' => $context['currency'],
             'exchange_rate' => $context['exchange_rate'],
@@ -600,9 +652,10 @@ function commerceCheckout(): never
             'INSERT INTO orders
              (number, user_id, status, subtotal_cents, tax_cents, shipping_cents,
                total_cents, tax_bps, currency, exchange_rate_ppm, exchange_rate_date,
-               base_currency, address_json, payment_method, notes,
+               base_currency, address_json, shipping_method_code, shipping_method_name,
+               shipping_carrier, payment_method, notes,
               tracking, idempotency_key, stock_restored)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
         );
         $statement->execute([
             $number, (int) $user['id'], 'on_hold',
@@ -612,7 +665,8 @@ function commerceCheckout(): never
             $context['currency'] === 'CHF' ? $context['exchange_rate']['rate_date'] : null,
             'EUR',
             json_encode($addressSnapshot, JSON_THROW_ON_ERROR),
-            $paymentMethod, $notes, '', $idempotencyKey,
+             $shippingMethod['code'], $shippingMethod['label'], $shippingMethod['carrier'],
+             $paymentMethod, $notes, '', $idempotencyKey,
         ]);
         $orderId = (int) $pdo->lastInsertId();
 
@@ -667,6 +721,7 @@ function commerceListOrders(): never
     $user = commerceActiveCustomer();
     $statement = db()->prepare(
         'SELECT id, number, status, subtotal_cents, tax_cents, shipping_cents,
+                 shipping_method_code, shipping_method_name, shipping_carrier,
                  total_cents, created_at, payment_method, currency
          FROM orders WHERE user_id = ? ORDER BY created_at DESC, id DESC'
     );
@@ -684,6 +739,7 @@ function commerceOrderDetail(int $orderId): never
     $pdo = db();
     $statement = $pdo->prepare(
         'SELECT id, number, status, subtotal_cents, tax_cents, shipping_cents,
+                shipping_method_code, shipping_method_name, shipping_carrier,
                 total_cents, tax_bps, currency, address_json, payment_method,
                 notes, tracking, created_at
          FROM orders WHERE id = ? AND user_id = ?'
@@ -888,7 +944,8 @@ function commerceAdminOrders(): never
     requireStaff();
     $statement = db()->prepare(
         'SELECT o.id, o.number, o.status, o.subtotal_cents, o.tax_cents,
-                o.shipping_cents, o.total_cents, o.created_at, o.payment_method,
+                o.shipping_cents, o.shipping_method_code, o.shipping_method_name,
+                o.shipping_carrier, o.total_cents, o.created_at, o.payment_method,
                  o.tracking, o.currency, u.name AS customer_name, u.email AS customer_email
          FROM orders o JOIN users u ON u.id = o.user_id
          ORDER BY o.created_at DESC, o.id DESC'
