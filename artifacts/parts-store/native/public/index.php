@@ -123,9 +123,16 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
             
             <div class="language-control">
                 <label class="sr-only" for="language-selector" data-i18n="language">Language</label>
+                <svg class="language-control__icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M3 12h18M12 3a14.7 14.7 0 0 1 0 18M12 3a14.7 14.7 0 0 0 0 18"></path>
+                </svg>
                 <select id="language-selector" aria-label="Select language" data-i18n-aria-label="selectLanguage">
                     <option value="en">EN</option><option value="nl">NL</option><option value="de">DE</option><option value="fr">FR</option><option value="it">IT</option>
                 </select>
+                <svg class="language-control__chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m7 10 5 5 5-5"></path>
+                </svg>
             </div>
             <nav class="user-nav" id="user-nav">
                 <!-- Nav populated by JS -->
