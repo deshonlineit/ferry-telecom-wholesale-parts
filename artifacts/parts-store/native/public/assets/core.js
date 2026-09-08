@@ -116,12 +116,10 @@ window.Core = {
 
     renderNav() {
         const nav = document.getElementById('user-nav');
-        if (!nav) return;
-        
         const count = this.cart.items ? this.cart.items.reduce((a,b)=>a+b.quantity,0) : 0;
         let html = '';
 
-        if (this.user) {
+        if (nav && this.user) {
             html += `<a href="${window.APP_BASE}account" class="nav-link nav-icon-action nav-account-action" aria-label="${window.I18n.t('account')}" title="${window.I18n.t('account')}">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             </a>`;
@@ -144,7 +142,7 @@ window.Core = {
             html += `<button type="button" onclick="window.App.logout()" class="nav-link nav-icon-action nav-signout-action" aria-label="${window.I18n.t('signOut')}" title="${window.I18n.t('signOut')}">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"></path></svg>
             </button>`;
-        } else {
+        } else if (nav) {
             html += `<a href="${window.APP_BASE}login" class="nav-link nav-signin" aria-label="${window.I18n.t('signIn')}">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 <span>${window.I18n.t('signIn')}</span>
@@ -152,7 +150,23 @@ window.Core = {
             html += `<a href="${window.APP_BASE}register" class="btn btn-primary btn-sm">${window.I18n.t('becomeCustomer')}</a>`;
         }
         
-        nav.innerHTML = html;
+        if (nav) nav.innerHTML = html;
+        this.renderFooterAccountLinks();
+    },
+
+    renderFooterAccountLinks() {
+        const footerLinks = document.getElementById('footer-account-links');
+        if (!footerLinks) return;
+
+        const accountLinks = this.user
+            ? `<a href="${window.APP_BASE}account">${window.I18n.t('account')}</a>
+               <a href="${window.APP_BASE}" onclick="window.App.logout(); return false;">${window.I18n.t('signOut')}</a>`
+            : `<a href="${window.APP_BASE}login">${window.I18n.t('signIn')}</a>
+               <a href="${window.APP_BASE}register">${window.I18n.t('requestAccount')}</a>`;
+
+        footerLinks.innerHTML = `<h4 data-i18n="navigation">${window.I18n.t('navigation')}</h4>
+            <a href="${window.APP_BASE}catalog">${window.I18n.t('catalogue')}</a>
+            ${accountLinks}`;
     },
 
     escapeHtml(unsafe) {

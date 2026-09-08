@@ -162,7 +162,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
                     <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo">
                     <p data-i18n="footerText">The standard for professional repairers. Precision, reliability and stock ready to ship.</p>
                 </div>
-                <div class="footer-links">
+                <div class="footer-links" id="footer-account-links">
                     <h4 data-i18n="navigation">Navigation</h4>
                     <a href="/test-shop/catalog" data-i18n="catalogue">Catalogue</a>
                     <a href="/test-shop/login" data-i18n="signIn">Sign in</a>
