@@ -512,6 +512,7 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
             <td class="customer-payment-controls">
                 ${['stripe', 'pay_later', 'swiss_qr_invoice'].map(method => `<label><input type="checkbox" class="action-payment-entitlement" data-id="${c.id}" data-method="${method}" ${c.payment_entitlements?.[method] ? 'checked' : ''}> ${esc(adminPaymentMethodLabel(method))}</label>`).join('')}
             </td>
+            <td><button type="button" class="btn btn-outline btn-sm action-customer-application" data-id="${c.id}">View application</button></td>
         </tr>
     `).join('');
 
@@ -519,9 +520,46 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
         <div class="page-header">
             <h1>Customer Management</h1>
         </div>
-        ${renderTable(['Customer', 'Company', 'Access Status', 'Price Group', 'Payment entitlements'], rows, 'No customers found.')}
+        ${renderTable(['Customer', 'Company', 'Access Status', 'Price Group', 'Payment entitlements', 'Application'], rows, 'No customers found.')}
     `;
     root.innerHTML = adminLayout(content, 'customers');
+
+    root.querySelectorAll('.action-customer-application').forEach(button => {
+        button.addEventListener('click', () => {
+            const customer = data.customers.find(item => item.id === parseInt(button.dataset.id, 10));
+            if (!customer) return;
+            const activityLabels = {repair_shop:'Repair shop',reseller:'Reseller / retailer',refurbisher:'Refurbisher',wholesaler:'Wholesaler',education:'Education / training',other:'Other'};
+            const value = candidate => candidate ? esc(String(candidate)) : '<span class="text-muted">Not provided</span>';
+            const address = [customer.line1, customer.line2, [customer.postal_code, customer.city].filter(Boolean).join(' '), customer.country].filter(Boolean).map(value).join('<br>');
+            const html = `
+                <div class="customer-application">
+                    <div class="customer-application-section">
+                        <h3>Contact</h3>
+                        <dl class="customer-application-grid">
+                            <div><dt>Name</dt><dd>${value(customer.name)}</dd></div>
+                            <div><dt>Email</dt><dd>${value(customer.email)}</dd></div>
+                            <div><dt>Phone</dt><dd>${value(customer.phone)}</dd></div>
+                            <div><dt>Website</dt><dd>${customer.website ? `<a href="${esc(customer.website)}" target="_blank" rel="noopener">${value(customer.website)}</a>` : value('')}</dd></div>
+                        </dl>
+                    </div>
+                    <div class="customer-application-section">
+                        <h3>Business verification</h3>
+                        <dl class="customer-application-grid">
+                            <div><dt>Company</dt><dd>${value(customer.company)}</dd></div>
+                            <div><dt>Main activity</dt><dd>${value(activityLabels[customer.business_activity] || customer.business_activity)}</dd></div>
+                            <div><dt>${customer.tax_registration_type === 'ch_uid' ? 'Swiss UID' : 'VAT / registration number'}</dt><dd>${value(customer.tax_registration_number)}</dd></div>
+                            <div><dt>Terms accepted</dt><dd>${value(customer.terms_accepted_at)}</dd></div>
+                        </dl>
+                    </div>
+                    <div class="customer-application-section">
+                        <h3>Billing address</h3>
+                        <div>${address || value('')}</div>
+                    </div>
+                    <div class="customer-application-note">${customer.newsletter_opt_in ? 'Newsletter consent given' : 'No newsletter consent'} · Application status: <strong>${value(customer.status)}</strong></div>
+                </div>`;
+            window.UI.showModal('Customer application', html);
+        });
+    });
 
     root.querySelectorAll('.action-cust-select').forEach(s => {
         s.addEventListener('change', async (e) => {

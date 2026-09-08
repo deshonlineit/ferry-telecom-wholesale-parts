@@ -818,6 +818,264 @@ body:not(:has(.admin-shell)) .auth-header h2 {
     font-size: 2.25rem;
 }
 
+body:not(:has(.admin-shell)) .auth-card-login {
+    max-width: 420px;
+    padding: 34px 36px 30px;
+    border: 1px solid #e1e7ef;
+    border-radius: 22px;
+    box-shadow: 0 18px 48px rgba(24, 39, 60, .09);
+}
+body:not(:has(.admin-shell)) .auth-login-header {
+    margin-bottom: 26px;
+}
+body:not(:has(.admin-shell)) .auth-brand-logo {
+    display: block;
+    width: auto;
+    height: 48px;
+    max-width: min(100%, 230px);
+    margin: 0 auto 24px;
+}
+body:not(:has(.admin-shell)) .auth-card-login .auth-header h2 {
+    margin: 0 0 7px;
+    font-size: 1.875rem;
+    line-height: 1.15;
+    letter-spacing: -.025em;
+}
+body:not(:has(.admin-shell)) .auth-card-login .auth-header p {
+    margin: 0;
+    font-size: .9375rem;
+    line-height: 1.45;
+}
+body:not(:has(.admin-shell)) .auth-card-login .auth-form {
+    display: grid;
+    gap: 18px;
+}
+body:not(:has(.admin-shell)) .auth-card-login .form-group {
+    margin: 0;
+}
+body:not(:has(.admin-shell)) .auth-card-login .form-label {
+    margin-bottom: 7px;
+    color: #46566c;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .055em;
+}
+body:not(:has(.admin-shell)) .auth-card-login .form-control {
+    min-height: 46px;
+    padding: 10px 13px;
+    border-color: #d5dde7;
+    border-radius: 10px;
+    background: #fff;
+    font-size: .9375rem;
+}
+body:not(:has(.admin-shell)) .auth-card-login .form-control:focus {
+    border-color: #6aa5e8;
+    box-shadow: 0 0 0 3px rgba(40, 120, 237, .12);
+}
+body:not(:has(.admin-shell)) .auth-card-login .auth-link {
+    font-size: .75rem;
+    letter-spacing: 0;
+    text-transform: none;
+}
+body:not(:has(.admin-shell)) .auth-card-login .auth-submit {
+    min-height: 46px;
+    margin-top: 4px;
+    border-radius: 10px;
+    font-size: .9375rem;
+    box-shadow: 0 5px 14px rgba(0, 113, 227, .18);
+}
+body:not(:has(.admin-shell)) .auth-login-footer {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #edf1f5;
+    line-height: 1.45;
+}
+@media (max-width: 520px) {
+    body:not(:has(.admin-shell)) .auth-wrapper {
+        align-items: flex-start;
+        padding: 20px 14px 32px;
+    }
+    body:not(:has(.admin-shell)) .auth-card-login {
+        padding: 28px 22px 24px;
+        border-radius: 18px;
+    }
+    body:not(:has(.admin-shell)) .auth-brand-logo {
+        height: 44px;
+        margin-bottom: 21px;
+    }
+}
+
+body:not(:has(.admin-shell)) .registration-wrapper {
+    align-items: flex-start;
+    padding-top: 42px;
+    padding-bottom: 64px;
+}
+body:not(:has(.admin-shell)) .registration-card {
+    max-width: 780px;
+    padding: 38px 42px 34px;
+    border: 1px solid #e1e7ef;
+    border-radius: 22px;
+    box-shadow: 0 18px 48px rgba(24, 39, 60, .08);
+}
+body:not(:has(.admin-shell)) .registration-header {
+    margin-bottom: 32px;
+}
+body:not(:has(.admin-shell)) .registration-header .auth-brand-logo {
+    height: 46px;
+    margin-bottom: 22px;
+}
+body:not(:has(.admin-shell)) .registration-header h2 {
+    margin: 0 0 7px;
+    font-size: 2rem;
+    letter-spacing: -.03em;
+}
+body:not(:has(.admin-shell)) .registration-header p {
+    margin: 0 0 8px;
+    font-size: .9375rem;
+}
+body:not(:has(.admin-shell)) .registration-header small {
+    color: #8290a3;
+    font-size: .75rem;
+}
+.registration-section {
+    padding: 24px 0;
+    border-top: 1px solid #e8edf3;
+}
+.registration-section-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+.registration-section-heading > span {
+    display: grid;
+    place-items: center;
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #eaf3ff;
+    color: #1768c5;
+    font-size: .75rem;
+    font-weight: 800;
+}
+.registration-section-heading h3 {
+    margin: 1px 0 3px;
+    color: #172033;
+    font-size: 1rem;
+}
+.registration-section-heading p {
+    margin: 0;
+    color: #718096;
+    font-size: .8125rem;
+    line-height: 1.45;
+}
+.registration-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 18px;
+}
+.registration-address-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(100px, .65fr) minmax(130px, 1fr);
+}
+.registration-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+.registration-field > span {
+    color: #46566c;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+.registration-field .form-control {
+    min-height: 44px;
+    margin: 0;
+    border-color: #d5dde7;
+    border-radius: 9px;
+    font-size: .875rem;
+}
+.registration-field small {
+    color: #77869a;
+    font-size: .75rem;
+    line-height: 1.4;
+}
+.registration-span-2 {
+    grid-column: span 2;
+}
+.registration-street {
+    grid-column: span 1;
+}
+.registration-city {
+    grid-column: span 2;
+}
+.registration-tax-field {
+    grid-column: 1 / -1;
+}
+.registration-country-help {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #f5f7fa;
+}
+.registration-country-help.swiss {
+    background: #eef6ff;
+    color: #245786;
+}
+.registration-consents {
+    display: grid;
+    gap: 12px;
+    padding: 20px 0 4px;
+    border-top: 1px solid #e8edf3;
+}
+.registration-consents label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #536176;
+    font-size: .8125rem;
+    line-height: 1.45;
+}
+.registration-consents input {
+    flex: 0 0 auto;
+    width: 17px;
+    height: 17px;
+    margin-top: 1px;
+    accent-color: #0878e5;
+}
+body:not(:has(.admin-shell)) .registration-submit {
+    min-height: 48px;
+    margin-top: 24px;
+    border-radius: 10px;
+    font-size: .9375rem;
+}
+body:not(:has(.admin-shell)) .registration-footer {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #edf1f5;
+}
+@media (max-width: 720px) {
+    body:not(:has(.admin-shell)) .registration-wrapper {
+        padding: 20px 12px 40px;
+    }
+    body:not(:has(.admin-shell)) .registration-card {
+        padding: 28px 20px 24px;
+        border-radius: 18px;
+    }
+    .registration-grid,
+    .registration-address-grid {
+        grid-template-columns: 1fr;
+    }
+    .registration-span-2,
+    .registration-street,
+    .registration-city,
+    .registration-tax-field {
+        grid-column: 1;
+    }
+}
+
 /* Tables & Standard Lists (Cart, Orders, etc) */
 body:not(:has(.admin-shell)) .table {
     width: 100%;

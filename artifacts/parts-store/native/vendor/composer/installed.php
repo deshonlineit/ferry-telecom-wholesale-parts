@@ -3,11 +3,11 @@
         'name' => 'ferry-telecom/native-store',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'fe612679d53ced74bf28f48219a1ceb4ea232b5d',
+        'reference' => '07e1a61900fdd067c626dc2bc196cad172ee0ccf',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
-        'dev' => true,
+        'dev' => false,
     ),
     'versions' => array(
         'bacon/bacon-qr-code' => array(
@@ -40,7 +40,7 @@
         'ferry-telecom/native-store' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'fe612679d53ced74bf28f48219a1ceb4ea232b5d',
+            'reference' => '07e1a61900fdd067c626dc2bc196cad172ee0ccf',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

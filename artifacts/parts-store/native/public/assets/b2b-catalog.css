@@ -33,27 +33,15 @@ body:not(:has(.admin-shell)) .filter-dialog .device-fields {
 
 body:not(:has(.admin-shell)) .discovery-filters .filter-step {
     position: relative;
-    padding: 10px 10px 11px 42px;
-    border: 1px solid #e4e9f0;
-    border-radius: 9px;
-    background: #fbfcfe;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
     transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
 }
 
 body:not(:has(.admin-shell)) .discovery-filters .filter-step::before {
-    content: attr(data-step);
-    position: absolute;
-    top: 11px;
-    left: 11px;
-    display: grid;
-    place-items: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #e9eef5;
-    color: #607087;
-    font-size: 0.6875rem;
-    font-weight: 700;
+    display: none;
 }
 
 body:not(:has(.admin-shell)) .discovery-filters .filter-step > label,
@@ -217,17 +205,18 @@ body:not(:has(.admin-shell)) .discovery-filters .model-show-all:hover {
     }
 }
 
-body:not(:has(.admin-shell)) .discovery-filters .filter-step:focus-within,
+body:not(:has(.admin-shell)) .discovery-filters .filter-step:focus-within {
+    border-color: #94a3b8;
+    box-shadow: inset 2px 0 0 #3b82f6;
+}
+
 body:not(:has(.admin-shell)) .discovery-filters .filter-step.has-value {
-    border-color: #afcaeb;
-    background: #f5f9ff;
-    box-shadow: inset 3px 0 0 #2878c7;
+    border-color: #cbd5e1;
+    background: #f8fafc;
 }
 
 body:not(:has(.admin-shell)) .discovery-filters .filter-step.has-value::before {
-    content: "✓";
-    background: #2878c7;
-    color: #fff;
+    display: none;
 }
 
 body:not(:has(.admin-shell)) .advanced-filters {

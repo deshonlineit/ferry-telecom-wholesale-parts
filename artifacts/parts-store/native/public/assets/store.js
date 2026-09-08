@@ -795,9 +795,9 @@ window.Router.add(/^checkout$/, async (match, root) => {
 window.Router.add(/^login$/, async (match, root) => {
     root.innerHTML = `
         <div class="auth-wrapper">
-            <div class="auth-card card">
-                <div class="auth-header mb-4 text-center">
-                    <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
+            <div class="auth-card auth-card-login card">
+                <div class="auth-header auth-login-header text-center">
+                    <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="auth-brand-logo">
                     <h2>${t('signIn')}</h2>
                     <p class="text-muted">${t('welcomeTest')}</p>
                 </div>
@@ -813,10 +813,10 @@ window.Router.add(/^login$/, async (match, root) => {
                         </label>
                         <input type="password" name="password" class="form-control" autocomplete="current-password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">${t('signIn')}</button>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg auth-submit">${t('signIn')}</button>
                 </form>
                 <div id="login-error" class="alert error mt-4" style="display:none;"></div>
-                <div class="auth-footer mt-4 text-center text-sm text-muted">
+                <div class="auth-footer auth-login-footer text-center text-sm text-muted">
                     ${t('notCustomerYet')} <a href="${window.APP_BASE}register" class="font-weight-bold">${t('applyAccount')}</a>
                 </div>
             </div>
@@ -841,35 +841,58 @@ window.Router.add(/^login$/, async (match, root) => {
 });
 
 window.Router.add(/^register$/, async (match, root) => {
+    const registrationCopy = {
+        en: {contact:'Contact person',contactHint:'Who should we contact about this account?',business:'Business details',businessHint:'We supply verified repair and resale businesses.',billing:'Billing address',billingHint:'Your country determines currency and registration requirements.',phone:'Business phone',website:'Website (optional)',activity:'Main business activity',choose:'Choose an activity',repair:'Repair shop',reseller:'Reseller / retailer',refurbisher:'Refurbisher',wholesaler:'Wholesaler',education:'Education / training',other:'Other',country:'Country',street:'Street',number:'Number',addition:'Address addition (optional)',postcode:'Postal code',city:'City',swissUid:'Swiss UID',otherTax:'VAT or company registration number',swissHelp:'Swiss businesses must provide their UID in CHE-123.456.789 format. Swiss orders are invoiced in CHF.',otherHelp:'Swiss rules do not apply. Provide the VAT or company registration number used in your country; orders are invoiced in EUR.',newsletter:'Send me useful product and stock updates',terms:'I confirm this is a business application and accept the terms and privacy policy.',required:'Required fields are marked with *.',already:'Already registered?',signIn:'Sign in'},
+        nl: {contact:'Contactpersoon',contactHint:'Met wie kunnen wij contact opnemen over dit account?',business:'Bedrijfsgegevens',businessHint:'Wij leveren aan gecontroleerde reparatie- en wederverkoopbedrijven.',billing:'Factuuradres',billingHint:'Uw land bepaalt de valuta en registratievereisten.',phone:'Zakelijk telefoonnummer',website:'Website (optioneel)',activity:'Hoofdactiviteit',choose:'Kies een activiteit',repair:'Reparatiebedrijf',reseller:'Wederverkoper / winkel',refurbisher:'Refurbisher',wholesaler:'Groothandel',education:'Onderwijs / opleiding',other:'Anders',country:'Land',street:'Straat',number:'Huisnummer',addition:'Toevoeging (optioneel)',postcode:'Postcode',city:'Plaats',swissUid:'Zwitsers UID-nummer',otherTax:'Btw- of handelsregisternummer',swissHelp:'Zwitserse bedrijven moeten hun UID opgeven als CHE-123.456.789. Zwitserse bestellingen worden in CHF gefactureerd.',otherHelp:'Zwitserse regels zijn niet van toepassing. Vul het btw- of handelsregisternummer van uw land in; bestellingen worden in EUR gefactureerd.',newsletter:'Stuur mij nuttige product- en voorraadupdates',terms:'Ik bevestig dat dit een zakelijke aanvraag is en accepteer de voorwaarden en het privacybeleid.',required:'Verplichte velden zijn gemarkeerd met *.',already:'Al geregistreerd?',signIn:'Inloggen'},
+        de: {contact:'Kontaktperson',contactHint:'Wen dürfen wir zu diesem Konto kontaktieren?',business:'Unternehmensdaten',businessHint:'Wir beliefern geprüfte Reparatur- und Wiederverkaufsunternehmen.',billing:'Rechnungsadresse',billingHint:'Ihr Land bestimmt Währung und Registrierungsanforderungen.',phone:'Geschäftliche Telefonnummer',website:'Website (optional)',activity:'Haupttätigkeit',choose:'Tätigkeit wählen',repair:'Reparaturbetrieb',reseller:'Händler / Einzelhandel',refurbisher:'Refurbisher',wholesaler:'Großhandel',education:'Bildung / Schulung',other:'Andere',country:'Land',street:'Straße',number:'Hausnummer',addition:'Adresszusatz (optional)',postcode:'Postleitzahl',city:'Ort',swissUid:'Schweizer UID',otherTax:'USt.- oder Handelsregisternummer',swissHelp:'Schweizer Unternehmen müssen ihre UID im Format CHE-123.456.789 angeben. Schweizer Bestellungen werden in CHF fakturiert.',otherHelp:'Schweizer Regeln gelten nicht. Geben Sie die USt.- oder Handelsregisternummer Ihres Landes an; Bestellungen werden in EUR fakturiert.',newsletter:'Produkt- und Bestandsupdates erhalten',terms:'Ich bestätige den geschäftlichen Antrag und akzeptiere AGB und Datenschutzrichtlinie.',required:'Pflichtfelder sind mit * markiert.',already:'Bereits registriert?',signIn:'Anmelden'},
+        fr: {contact:'Personne de contact',contactHint:'Qui pouvons-nous contacter au sujet de ce compte ?',business:'Informations sur l’entreprise',businessHint:'Nous fournissons les entreprises vérifiées de réparation et de revente.',billing:'Adresse de facturation',billingHint:'Votre pays détermine la devise et les exigences d’immatriculation.',phone:'Téléphone professionnel',website:'Site web (facultatif)',activity:'Activité principale',choose:'Choisissez une activité',repair:'Atelier de réparation',reseller:'Revendeur / détaillant',refurbisher:'Reconditionneur',wholesaler:'Grossiste',education:'Enseignement / formation',other:'Autre',country:'Pays',street:'Rue',number:'Numéro',addition:'Complément d’adresse (facultatif)',postcode:'Code postal',city:'Ville',swissUid:'IDE suisse',otherTax:'N° TVA ou d’immatriculation',swissHelp:'Les entreprises suisses doivent fournir leur IDE au format CHE-123.456.789. Les commandes suisses sont facturées en CHF.',otherHelp:'Les règles suisses ne s’appliquent pas. Indiquez le numéro de TVA ou d’immatriculation de votre pays ; les commandes sont facturées en EUR.',newsletter:'Recevoir les actualités produits et stocks',terms:'Je confirme qu’il s’agit d’une demande professionnelle et j’accepte les conditions et la politique de confidentialité.',required:'Les champs obligatoires sont marqués d’un *.',already:'Déjà inscrit ?',signIn:'Se connecter'},
+        it: {contact:'Persona di contatto',contactHint:'Chi possiamo contattare per questo account?',business:'Dati aziendali',businessHint:'Forniamo aziende verificate di riparazione e rivendita.',billing:'Indirizzo di fatturazione',billingHint:'Il paese determina valuta e requisiti di registrazione.',phone:'Telefono aziendale',website:'Sito web (facoltativo)',activity:'Attività principale',choose:'Scegli un’attività',repair:'Centro riparazioni',reseller:'Rivenditore / negozio',refurbisher:'Ricondizionatore',wholesaler:'Grossista',education:'Istruzione / formazione',other:'Altro',country:'Paese',street:'Via',number:'Numero',addition:'Aggiunta indirizzo (facoltativa)',postcode:'CAP',city:'Città',swissUid:'IDI svizzero',otherTax:'Partita IVA o numero registro imprese',swissHelp:'Le aziende svizzere devono indicare l’IDI nel formato CHE-123.456.789. Gli ordini svizzeri sono fatturati in CHF.',otherHelp:'Le regole svizzere non si applicano. Indica la partita IVA o il numero del registro imprese del tuo paese; gli ordini sono fatturati in EUR.',newsletter:'Inviatemi aggiornamenti utili su prodotti e scorte',terms:'Confermo che si tratta di una richiesta aziendale e accetto termini e informativa sulla privacy.',required:'I campi obbligatori sono contrassegnati con *.',already:'Già registrato?',signIn:'Accedi'}
+    };
+    const r = registrationCopy[window.I18n?.locale] || registrationCopy.en;
     root.innerHTML = `
-        <div class="auth-wrapper">
-            <div class="auth-card card" style="max-width:500px;">
-                <div class="auth-header mb-4 text-center">
-                    <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="mb-3" style="height:32px">
+        <div class="auth-wrapper registration-wrapper">
+            <div class="auth-card registration-card card">
+                <div class="auth-header registration-header text-center">
+                    <img src="${window.APP_BASE}?asset=brand-logo&v=${window.LOGO_V || ''}" alt="Ferry Telecom" class="auth-brand-logo">
                     <h2>${t('becomeCustomer')}</h2>
                     <p class="text-muted">${t('registerIntro')}</p>
+                    <small>${r.required}</small>
                 </div>
                 <form id="register-form" class="auth-form">
-                    <div class="grid-cols-2 gap-3">
-                        <div class="form-group">
-                            <label class="form-label">${t('name')}</label>
-                            <input type="text" name="name" class="form-control" required>
+                    <section class="registration-section">
+                        <div class="registration-section-heading"><span>1</span><div><h3>${r.contact}</h3><p>${r.contactHint}</p></div></div>
+                        <div class="registration-grid">
+                            <label class="registration-field"><span>${t('name')} *</span><input type="text" name="name" class="form-control" autocomplete="name" required></label>
+                            <label class="registration-field"><span>${t('emailAddress')} *</span><input type="email" name="email" class="form-control" autocomplete="email" required></label>
+                            <label class="registration-field"><span>${r.phone} *</span><input type="tel" name="phone" class="form-control" autocomplete="tel" required></label>
+                            <label class="registration-field"><span>${t('password')} *</span><input type="password" name="password" class="form-control" autocomplete="new-password" required minlength="12"><small>${t('passwordMinimum')}</small></label>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">${t('companyName')}</label>
-                            <input type="text" name="company" class="form-control" required>
+                    </section>
+                    <section class="registration-section">
+                        <div class="registration-section-heading"><span>2</span><div><h3>${r.business}</h3><p>${r.businessHint}</p></div></div>
+                        <div class="registration-grid">
+                            <label class="registration-field"><span>${t('companyName')} *</span><input type="text" name="company" class="form-control" autocomplete="organization" required></label>
+                            <label class="registration-field"><span>${r.activity} *</span><select name="business_activity" class="form-control" required><option value="">${r.choose}</option><option value="repair_shop">${r.repair}</option><option value="reseller">${r.reseller}</option><option value="refurbisher">${r.refurbisher}</option><option value="wholesaler">${r.wholesaler}</option><option value="education">${r.education}</option><option value="other">${r.other}</option></select></label>
+                            <label class="registration-field registration-span-2"><span>${r.website}</span><input type="url" name="website" class="form-control" placeholder="https://" autocomplete="url"></label>
                         </div>
+                    </section>
+                    <section class="registration-section">
+                        <div class="registration-section-heading"><span>3</span><div><h3>${r.billing}</h3><p>${r.billingHint}</p></div></div>
+                        <div class="registration-grid registration-address-grid">
+                            <label class="registration-field registration-span-2"><span>${r.country} *</span><select name="country" class="form-control" required>${window.BuyerCurrency.options('CH')}</select></label>
+                            <label class="registration-field registration-street"><span>${r.street} *</span><input type="text" name="street" class="form-control" autocomplete="address-line1" required></label>
+                            <label class="registration-field"><span>${r.number} *</span><input type="text" name="house_number" class="form-control" required></label>
+                            <label class="registration-field"><span>${r.addition}</span><input type="text" name="address_addition" class="form-control" autocomplete="address-line2"></label>
+                            <label class="registration-field"><span>${r.postcode} *</span><input type="text" name="postal_code" class="form-control" autocomplete="postal-code" required></label>
+                            <label class="registration-field registration-city"><span>${r.city} *</span><input type="text" name="city" class="form-control" autocomplete="address-level2" required></label>
+                            <label class="registration-field registration-span-2 registration-tax-field"><span id="registration-tax-label">${r.swissUid} *</span><input type="text" name="tax_registration_number" class="form-control" placeholder="CHE-123.456.789" required><small id="registration-country-help" class="registration-country-help swiss">${r.swissHelp}</small></label>
+                        </div>
+                    </section>
+                    <div class="registration-consents">
+                        <label><input type="checkbox" name="newsletter_opt_in"> <span>${r.newsletter}</span></label>
+                        <label><input type="checkbox" name="terms_accepted" required> <span>${r.terms} *</span></label>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">${t('emailAddress')}</label>
-                        <input type="email" name="email" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">${t('password')}</label>
-                        <input type="password" name="password" class="form-control" required minlength="8">
-                        <small class="text-muted mt-1 d-block">${t('passwordMinimum')}</small>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">${t('applyAccount')}</button>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg registration-submit">${t('applyAccount')}</button>
                 </form>
                 <div id="reg-error" class="alert error mt-4" style="display:none;"></div>
                 <div id="reg-success" class="alert success mt-4" style="display:none;">
@@ -877,13 +900,24 @@ window.Router.add(/^register$/, async (match, root) => {
                     <p class="mt-1">${t('applicationReceivedCopy')}</p>
                     <a href="${window.APP_BASE}login" class="btn btn-outline btn-sm mt-3">${t('goSignIn')}</a>
                 </div>
-                <div class="auth-footer mt-4 text-center text-sm text-muted">
-                    Already registered? <a href="${window.APP_BASE}login" class="font-weight-bold">Sign in</a>
+                <div class="auth-footer registration-footer text-center text-sm text-muted">
+                    ${r.already} <a href="${window.APP_BASE}login" class="font-weight-bold">${r.signIn}</a>
                 </div>
             </div>
         </div>
     `;
-    document.getElementById('register-form').onsubmit = async (e) => {
+    const form = document.getElementById('register-form');
+    const syncCountryRules = () => {
+        const swiss = form.country.value === 'CH';
+        document.getElementById('registration-tax-label').textContent = `${swiss ? r.swissUid : r.otherTax} *`;
+        const help = document.getElementById('registration-country-help');
+        help.textContent = swiss ? r.swissHelp : r.otherHelp;
+        help.classList.toggle('swiss', swiss);
+        form.tax_registration_number.placeholder = swiss ? 'CHE-123.456.789' : '';
+    };
+    form.country.addEventListener('change', syncCountryRules);
+    syncCountryRules();
+    form.onsubmit = async (e) => {
         e.preventDefault();
         try {
             await window.Core.fetch('/auth/register', {
@@ -892,7 +926,19 @@ window.Router.add(/^register$/, async (match, root) => {
                     name: e.target.name.value,
                     company: e.target.company.value,
                     email: e.target.email.value,
-                    password: e.target.password.value
+                    password: e.target.password.value,
+                    phone: e.target.phone.value,
+                    website: e.target.website.value,
+                    business_activity: e.target.business_activity.value,
+                    country: e.target.country.value,
+                    street: e.target.street.value,
+                    house_number: e.target.house_number.value,
+                    address_addition: e.target.address_addition.value,
+                    postal_code: e.target.postal_code.value,
+                    city: e.target.city.value,
+                    tax_registration_number: e.target.tax_registration_number.value,
+                    newsletter_opt_in: e.target.newsletter_opt_in.checked,
+                    terms_accepted: e.target.terms_accepted.checked
                 }
             });
             e.target.style.display = 'none';

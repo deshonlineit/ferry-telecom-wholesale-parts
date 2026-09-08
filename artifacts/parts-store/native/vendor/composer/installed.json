@@ -1020,6 +1020,6 @@
             "install-path": "../symfony/validator"
         }
     ],
-    "dev": true,
+    "dev": false,
     "dev-package-names": []
 }

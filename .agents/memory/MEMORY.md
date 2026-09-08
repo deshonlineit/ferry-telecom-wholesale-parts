@@ -50,3 +50,4 @@
 - [Bundled Stripe sync setup](bundled-stripe-sync-setup.md) — connector uses settings.secret; copy package migrations beside bundled server output so runMigrations finds them.
 - [Mobile zoom viewport](mobile-zoom-viewport.md) — page scaling can shrink Visual Viewport without changing CSS media-query width; zoom-safe headers must handle both.
 - [Native env allowlist](native-env-allowlist.md) — the PHP server starts under `env -i`; every required secret must be forwarded explicitly or valid config remains invisible.
+- [Customer account visual language](customer-account-visual-language.md) — account screens must feel like a purpose-built B2B workspace, never a generic CMS settings page.

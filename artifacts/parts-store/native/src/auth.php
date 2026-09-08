@@ -79,15 +79,55 @@ function handleAuth(string $method, string $path): bool
         $company = text($data['company'] ?? '', 190);
         $email = mb_strtolower(text($data['email'] ?? '', 190));
         $password = text($data['password'] ?? '', 1024);
-        if (!$name || !$company || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12) {
-            throw new HttpError(422, 'Enter your name, company, email address and a password of at least 12 characters.');
+        $phone = text($data['phone'] ?? '', 40);
+        $website = text($data['website'] ?? '', 255);
+        $activity = text($data['business_activity'] ?? '', 80);
+        $country = currencyDeliveryCountry(text($data['country'] ?? '', 2));
+        $street = text($data['street'] ?? '', 150);
+        $houseNumber = text($data['house_number'] ?? '', 30);
+        $addressAddition = text($data['address_addition'] ?? '', 80);
+        $postalCode = text($data['postal_code'] ?? '', 30);
+        $city = text($data['city'] ?? '', 100);
+        $taxNumber = strtoupper(text($data['tax_registration_number'] ?? '', 80));
+        $newsletter = filter_var($data['newsletter_opt_in'] ?? false, FILTER_VALIDATE_BOOL);
+        $termsAccepted = filter_var($data['terms_accepted'] ?? false, FILTER_VALIDATE_BOOL);
+        $activities = ['repair_shop', 'reseller', 'refurbisher', 'wholesaler', 'education', 'other'];
+        if (!$name || !$company || !$phone || !$street || !$houseNumber || !$postalCode || !$city
+            || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12
+            || !in_array($activity, $activities, true) || !$termsAccepted) {
+            throw new HttpError(422, 'Complete all required contact, company and billing details and accept the business terms.');
+        }
+        if ($website !== '' && !filter_var($website, FILTER_VALIDATE_URL)) {
+            throw new HttpError(422, 'Enter a complete website address, including https://.');
+        }
+        if ($country === 'CH') {
+            $taxType = 'ch_uid';
+            if (!preg_match('/^CHE[- .]?\d{3}[- .]?\d{3}[- .]?\d{3}(?:\\s+(?:MWST|TVA|IVA))?$/i', $taxNumber)) {
+                throw new HttpError(422, 'Enter a valid Swiss UID, for example CHE-123.456.789.');
+            }
+        } else {
+            $taxType = 'vat_or_company_registration';
+            if (!preg_match('/^[A-Z0-9][A-Z0-9 .\\/-]{2,31}$/i', $taxNumber)) {
+                throw new HttpError(422, 'Enter a valid VAT or company registration number.');
+            }
         }
         $query = db()->prepare('SELECT id FROM users WHERE email=?');
         $query->execute([$email]);
         if (!$query->fetch()) {
-            db()->prepare("INSERT INTO users(name,email,password_hash,company,role,group_id,status) VALUES(?,?,?,?,'customer',1,'pending')")
-                ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $company]);
-            enqueue('registration_review', ['user_id' => (int) db()->lastInsertId()]);
+            $pdo = db();
+            $pdo->beginTransaction();
+            try {
+                $pdo->prepare("INSERT INTO users(name,email,password_hash,company,phone,website,business_activity,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),'customer',1,'pending')")
+                    ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $company, $phone, $website, $activity, $taxType, $taxNumber, $newsletter ? 1 : 0]);
+                $userId = (int) $pdo->lastInsertId();
+                $pdo->prepare('INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,?,?,?,?,?,?,?,?,1)')
+                    ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), $addressAddition, $postalCode, $city, $country]);
+                $pdo->commit();
+                enqueue('registration_review', ['user_id' => $userId]);
+            } catch (Throwable $error) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                throw $error;
+            }
         }
         respond(['message' => 'If this address is not already registered, your application is awaiting approval. No email is sent from this test environment.'], 202);
     }

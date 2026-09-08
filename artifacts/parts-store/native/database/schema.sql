@@ -6,6 +6,11 @@ CREATE TABLE IF NOT EXISTS users (
  email VARCHAR(190) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL,
  company VARCHAR(190) NOT NULL DEFAULT '', role ENUM('customer','staff') NOT NULL DEFAULT 'customer',
  group_id INT UNSIGNED NOT NULL DEFAULT 1, status ENUM('active','pending','blocked') NOT NULL DEFAULT 'pending',
+ phone VARCHAR(40) NOT NULL DEFAULT '', website VARCHAR(255) NOT NULL DEFAULT '',
+ business_activity VARCHAR(80) NOT NULL DEFAULT '',
+ tax_registration_type VARCHAR(40) NOT NULL DEFAULT '',
+ tax_registration_number VARCHAR(80) NOT NULL DEFAULT '',
+ newsletter_opt_in TINYINT NOT NULL DEFAULT 0, terms_accepted_at DATETIME NULL,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
  FOREIGN KEY(group_id) REFERENCES customer_groups(id)
 ) ENGINE=InnoDB;

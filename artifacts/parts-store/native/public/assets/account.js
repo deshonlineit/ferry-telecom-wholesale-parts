@@ -68,19 +68,31 @@ const accountFulfillmentState = order => order.status === 'on_hold' && order.pay
     : window.Workbench.badge(order.status);
 
 const accountLayout = (content, activeRoute) => `
-    <div class="layout-sidebar">
-        <aside>
-            <div class="card">
-                <h3 class="form-section-title" style="margin-top:0.5rem; margin-bottom:1rem;">${accountT('myAccount')}</h3>
-                <div class="sidebar-nav">
-                    <a href="${window.APP_BASE}account" class="${activeRoute === 'profile' ? 'active' : ''}">${accountT('profile')}</a>
-                    <a href="${window.APP_BASE}account/addresses" class="${activeRoute === 'addresses' ? 'active' : ''}">${accountT('addresses')}</a>
-                    <a href="${window.APP_BASE}account/orders" class="${activeRoute === 'orders' ? 'active' : ''}">${accountT('orders')}</a>
-                    <a href="${window.APP_BASE}account/returns" class="${activeRoute === 'returns' ? 'active' : ''}">${accountT('returns')}</a>
-                </div>
-            </div>
+    <div class="b2b-account-wrapper container">
+        <aside class="b2b-account-sidebar">
+            <h2 class="b2b-account-title">${accountT('myAccount')}</h2>
+            <nav class="b2b-account-nav">
+                <a href="${window.APP_BASE}account" class="b2b-account-nav-link ${activeRoute === 'profile' ? 'active' : ''}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>${accountT('profile')}</span>
+                </a>
+                <a href="${window.APP_BASE}account/addresses" class="b2b-account-nav-link ${activeRoute === 'addresses' ? 'active' : ''}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <span>${accountT('addresses')}</span>
+                </a>
+                <a href="${window.APP_BASE}account/orders" class="b2b-account-nav-link ${activeRoute === 'orders' ? 'active' : ''}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    <span>${accountT('orders')}</span>
+                </a>
+                <a href="${window.APP_BASE}account/returns" class="b2b-account-nav-link ${activeRoute === 'returns' ? 'active' : ''}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    <span>${accountT('returns')}</span>
+                </a>
+            </nav>
         </aside>
-        <div>${content}</div>
+        <main class="b2b-account-main">
+            ${content}
+        </main>
     </div>
 `;
 
@@ -105,30 +117,50 @@ window.Router.add(/^account$/, async (match, root) => {
     const esc = window.Core.escapeHtml;
 
     const content = `
-        <div class="page-header">
-            <h1>${accountT('profile')}</h1>
-        </div>
-        <div class="card">
-            <form id="profile-form">
-                <div class="form-section">
-                    <h3 class="form-section-title">${accountT('personalDetails')}</h3>
-                    <div class="form-group">
-                        <label>${accountT('signInEmail')}</label>
-                        <input type="email" class="form-control" value="${esc(u.email)}" disabled style="background: var(--wb-bg); color: var(--wb-text-muted);">
-                        <small class="text-muted" style="display:block; margin-top:0.25rem;">${accountT('emailChangeSupport')}</small>
-                    </div>
-                    <div class="grid-cols-2">
-                        <div class="form-group">
-                            <label>${accountT('fullName')}</label>
-                            <input type="text" name="name" class="form-control" value="${esc(u.name)}" required>
+        <header class="b2b-account-header">
+            <div class="b2b-account-header-text">
+                <h1>${accountT('profile')}</h1>
+                <p>${accountT('personalDetails')}</p>
+            </div>
+        </header>
+        <div class="b2b-card">
+            <form id="profile-form" class="b2b-form">
+                <div class="b2b-form-section">
+                    <div class="b2b-form-row readonly-field">
+                        <div class="b2b-form-label-col">
+                            <label>${accountT('signInEmail')}</label>
                         </div>
-                        <div class="form-group">
-                            <label>${accountT('companyName')}</label>
-                            <input type="text" name="company" class="form-control" value="${esc(u.company)}" required>
+                        <div class="b2b-form-input-col">
+                            <div class="b2b-locked-input">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                <span>${esc(u.email)}</span>
+                            </div>
+                            <p class="b2b-form-help">${accountT('emailChangeSupport')}</p>
+                        </div>
+                    </div>
+
+                    <div class="b2b-form-row">
+                        <div class="b2b-form-label-col">
+                            <label for="profile-name">${accountT('fullName')}</label>
+                        </div>
+                        <div class="b2b-form-input-col">
+                            <input type="text" id="profile-name" name="name" class="b2b-input" value="${esc(u.name)}" required>
+                        </div>
+                    </div>
+
+                    <div class="b2b-form-row">
+                        <div class="b2b-form-label-col">
+                            <label for="profile-company">${accountT('companyName')}</label>
+                        </div>
+                        <div class="b2b-form-input-col">
+                            <input type="text" id="profile-company" name="company" class="b2b-input" value="${esc(u.company)}" required>
                         </div>
                     </div>
                 </div>
-                <button type="submit" class="btn">${accountT('saveChanges')}</button>
+
+                <div class="b2b-form-actions">
+                    <button type="submit" class="b2b-btn b2b-btn-primary">${accountT('saveChanges')}</button>
+                </div>
             </form>
         </div>
     `;
@@ -154,34 +186,43 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
     const esc = window.Core.escapeHtml;
     
     const addrHtml = data.addresses.map(a => `
-        <div class="card" style="margin-bottom:1rem">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start">
-                <div>
-                    <div class="data-value" style="font-weight:600; font-size:1rem; margin-bottom:0.25rem; display:flex; align-items:center; gap:0.5rem;">
-                        ${esc(a.label)} ${a.is_default ? '<span class="wb-badge wb-badge-success">' + accountT('default') + '</span>' : ''}
-                    </div>
-                    <div style="color:var(--wb-text-muted); font-size:0.875rem; line-height:1.5">
-                        ${a.company ? '<strong>' + esc(a.company) + '</strong><br>' : ''}
-                        ${accountT('attentionOf')} ${esc(a.name)}<br>
-                        ${esc(a.line1)} ${a.line2 ? esc(a.line2) : ''}<br>
-                        ${esc(a.postal_code)} ${esc(a.city)}<br>
-                        ${esc(a.country)}
-                    </div>
+        <div class="b2b-address-card">
+            <div class="b2b-address-card-content">
+                <div class="b2b-address-header">
+                    <h3 class="b2b-address-label">${esc(a.label)}</h3>
+                    ${a.is_default ? '<span class="b2b-badge b2b-badge-success">' + accountT('default') + '</span>' : ''}
                 </div>
-                <div style="display:flex; gap:0.5rem">
-                    <button type="button" class="btn btn-outline btn-sm action-edit-addr" data-id="${a.id}" aria-label="${accountT('editAddress')}">${accountT('edit')}</button>
-                    <button type="button" class="btn btn-danger btn-sm action-del-addr" data-id="${a.id}" aria-label="${accountT('removeAddress')}">${accountT('remove')}</button>
-                </div>
+                <address class="b2b-address-body">
+                    ${a.company ? '<strong class="b2b-address-company">' + esc(a.company) + '</strong><br>' : ''}
+                    <span class="b2b-address-name">${accountT('attentionOf')} ${esc(a.name)}</span><br>
+                    ${esc(a.line1)} ${a.line2 ? esc(a.line2) : ''}<br>
+                    ${esc(a.postal_code)} ${esc(a.city)}<br>
+                    ${esc(a.country)}
+                </address>
+            </div>
+            <div class="b2b-address-actions">
+                <button type="button" class="b2b-btn b2b-btn-outline action-edit-addr" data-id="${a.id}" aria-label="${accountT('editAddress')}">${accountT('edit')}</button>
+                <button type="button" class="b2b-btn b2b-btn-danger action-del-addr" data-id="${a.id}" aria-label="${accountT('removeAddress')}">${accountT('remove')}</button>
             </div>
         </div>
     `).join('');
 
     const content = `
-        <div class="page-header">
-            <h1>${accountT('addresses')}</h1>
-            <button type="button" class="btn action-new-addr">${accountT('addNewAddress')}</button>
+        <header class="b2b-account-header">
+            <div class="b2b-account-header-text">
+                <h1>${accountT('addresses')}</h1>
+                <p>${accountT('manageDeliveryAddresses') || 'Manage your delivery locations'}</p>
+            </div>
+            <div class="b2b-account-header-actions">
+                <button type="button" class="b2b-btn b2b-btn-primary action-new-addr">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    ${accountT('addNewAddress')}
+                </button>
+            </div>
+        </header>
+        <div class="b2b-address-grid">
+            ${data.addresses.length ? addrHtml : '<div class="b2b-empty-state">' + accountT('noAddresses') + '</div>'}
         </div>
-        ${data.addresses.length ? addrHtml : '<div class="alert">' + accountT('noAddresses') + '</div>'}
     `;
     
     root.innerHTML = accountLayout(content, 'addresses');
@@ -201,37 +242,58 @@ window.Router.add(/^account\/addresses$/, async (match, root) => {
         if (id) addr = data.addresses.find(a => a.id === id);
         
         const html = `
-            <form id="addr-form">
-                <div class="form-section" style="border:none; padding:0;">
-                    <div class="form-group"><label>${accountT('addressLabel')}</label><input type="text" name="label" value="${esc(addr.label)}" class="form-control" placeholder="${accountT('addressLabelPlaceholder')}" required></div>
-                    <div class="form-group"><label>${accountT('attentionContact')}</label><input type="text" name="name" value="${esc(addr.name)}" class="form-control" required></div>
-                    <div class="form-group"><label>${accountT('streetBuilding')}</label><input type="text" name="line1" value="${esc(addr.line1)}" class="form-control" required></div>
-                    <div class="grid-cols-2">
-                        <div class="form-group"><label>${accountT('postcode')}</label><input type="text" name="postal_code" value="${esc(addr.postal_code)}" class="form-control" required></div>
-                        <div class="form-group"><label>${accountT('townCity')}</label><input type="text" name="city" value="${esc(addr.city)}" class="form-control" required></div>
+            <form id="addr-form" class="b2b-form">
+                <div class="b2b-form-section" style="border:none; padding:0; margin-bottom: 0;">
+                    <div class="b2b-form-group">
+                        <label>${accountT('addressLabel')}</label>
+                        <input type="text" name="label" value="${esc(addr.label)}" class="b2b-input" placeholder="${accountT('addressLabelPlaceholder')}" required>
                     </div>
-                    <div class="form-group">
+                    <div class="b2b-form-group">
+                        <label>${accountT('attentionContact')}</label>
+                        <input type="text" name="name" value="${esc(addr.name)}" class="b2b-input" required>
+                    </div>
+                    <div class="b2b-form-group">
+                        <label>${accountT('streetBuilding')}</label>
+                        <input type="text" name="line1" value="${esc(addr.line1)}" class="b2b-input" required>
+                    </div>
+                    <div class="b2b-form-grid-2">
+                        <div class="b2b-form-group">
+                            <label>${accountT('postcode')}</label>
+                            <input type="text" name="postal_code" value="${esc(addr.postal_code)}" class="b2b-input" required>
+                        </div>
+                        <div class="b2b-form-group">
+                            <label>${accountT('townCity')}</label>
+                            <input type="text" name="city" value="${esc(addr.city)}" class="b2b-input" required>
+                        </div>
+                    </div>
+                    <div class="b2b-form-group">
                         <label>${accountT('deliveryCountry')}</label>
-                        <select name="country" class="form-control" required>${window.BuyerCurrency.options(addr.country)}</select>
-                        <small class="text-muted">${accountT('currencyCountryNote')}</small>
+                        <div class="b2b-select-wrapper">
+                            <select name="country" class="b2b-select" required>${window.BuyerCurrency.options(addr.country)}</select>
+                            <svg class="b2b-select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <p class="b2b-form-help">${accountT('currencyCountryNote')}</p>
                     </div>
                     
-                    <details class="wb-details" ${addr.company || addr.line2 ? 'open' : ''}>
+                    <details class="b2b-details" ${addr.company || addr.line2 ? 'open' : ''}>
                         <summary>${accountT('optionalAddressFields')}</summary>
-                        <div class="wb-details-content">
-                            <div class="form-group"><label>${accountT('companyName')}</label><input type="text" name="company" value="${esc(addr.company)}" class="form-control"></div>
-                            <div class="form-group" style="margin-bottom:0"><label>${accountT('addressLine2')}</label><input type="text" name="line2" value="${esc(addr.line2)}" class="form-control"></div>
+                        <div class="b2b-details-content">
+                            <div class="b2b-form-group"><label>${accountT('companyName')}</label><input type="text" name="company" value="${esc(addr.company)}" class="b2b-input"></div>
+                            <div class="b2b-form-group" style="margin-bottom:0"><label>${accountT('addressLine2')}</label><input type="text" name="line2" value="${esc(addr.line2)}" class="b2b-input"></div>
                         </div>
                     </details>
                     
-                    <div class="form-group" style="margin-top:1.5rem">
-                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-                            <input type="checkbox" name="is_default" value="1" ${addr.is_default ? 'checked' : ''}>
-                            ${accountT('setDefaultAddress')}
+                    <div class="b2b-form-group" style="margin-top:1.5rem">
+                        <label class="b2b-checkbox-label">
+                            <input type="checkbox" name="is_default" value="1" class="b2b-checkbox" ${addr.is_default ? 'checked' : ''}>
+                            <span>${accountT('setDefaultAddress')}</span>
                         </label>
                     </div>
                 </div>
-                <button type="submit" class="btn" style="width:100%; margin-top:1rem;">${accountT(id ? 'updateAddress' : 'addAddress')}</button>
+                <div class="b2b-modal-actions">
+                    <button type="button" class="b2b-btn b2b-btn-outline" onclick="window.UI.closeModal()">${accountT('cancel')}</button>
+                    <button type="submit" class="b2b-btn b2b-btn-primary">${accountT(id ? 'updateAddress' : 'addAddress')}</button>
+                </div>
             </form>
         `;
         const overlay = window.UI.showModal(accountT(id ? 'editAddress' : 'newAddress'), html);
@@ -264,24 +326,42 @@ window.Router.add(/^account\/orders$/, async (match, root) => {
     const esc = window.Core.escapeHtml;
     
     const cards = data.orders.map(o => `
-        <article class="buyer-order-card">
-            <div class="buyer-order-card-head">
-                <div><a href="${window.APP_BASE}account/orders/${o.id}" class="buyer-order-number">${esc(o.number)}</a><small>${accountDate(o.created_at)}</small></div>
-                <strong>${accountMoney(o.total_cents, o.currency || 'CHF')}</strong>
+        <article class="b2b-order-card">
+            <div class="b2b-order-card-id">
+                <a href="${window.APP_BASE}account/orders/${o.id}" class="b2b-order-number">${esc(o.number)}</a>
+                <time class="b2b-order-date">${accountDate(o.created_at)}</time>
             </div>
-            <dl class="buyer-order-states">
-                <div><dt>${accountT('fulfillment')}</dt><dd>${accountFulfillmentState(o)}</dd></div>
-                <div><dt>${accountT('payment')}</dt><dd>${accountPaymentState(o.payment_state)}</dd></div>
-                <div><dt>${accountT('paymentMethod')}</dt><dd>${esc(accountPaymentMethod(o.payment_method))}</dd></div>
+            <dl class="b2b-order-states">
+                <div class="b2b-order-state-item">
+                    <dt>${accountT('fulfillment')}</dt>
+                    <dd>${accountFulfillmentState(o)}</dd>
+                </div>
+                <div class="b2b-order-state-item">
+                    <dt>${accountT('payment')}</dt>
+                    <dd>${accountPaymentState(o.payment_state)}</dd>
+                </div>
+                <div class="b2b-order-state-item">
+                    <dt>${accountT('paymentMethod')}</dt>
+                    <dd>${esc(accountPaymentMethod(o.payment_method))}</dd>
+                </div>
             </dl>
-            <a href="${window.APP_BASE}account/orders/${o.id}" class="btn btn-sm btn-outline">${accountT('details')}</a>
+            <div class="b2b-order-card-total">${accountMoney(o.total_cents, o.currency || 'CHF')}</div>
+            <a href="${window.APP_BASE}account/orders/${o.id}" class="b2b-order-open">
+                <span>${accountT('details')}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+            </a>
         </article>`).join('');
 
     const content = `
-        <div class="page-header">
-            <h1>${accountT('orders')}</h1>
+        <header class="b2b-account-header">
+            <div class="b2b-account-header-text">
+                <h1>${accountT('orders')}</h1>
+                <p>${accountT('viewOrderHistory') || 'View and track your previous orders'}</p>
+            </div>
+        </header>
+        <div class="b2b-order-list">
+            ${cards || '<div class="b2b-empty-state">' + accountT('noOrders') + '</div>'}
         </div>
-        <div class="buyer-order-list">${cards || '<div class="alert">' + accountT('noOrders') + '</div>'}</div>
     `;
     root.innerHTML = accountLayout(content, 'orders');
 });
@@ -297,13 +377,16 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
         const orderCurrency = o.currency || 'CHF';
         
         const itemsHtml = data.items.map(i => `
-            <tr>
-                <td><div style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(i.sku)}</div><div style="font-weight:500">${esc(i.name)}</div></td>
-                <td>${accountMoney(i.price_cents, orderCurrency)}</td>
-                <td>${i.quantity}</td>
-                <td style="text-align:right">${accountMoney(i.total_cents, orderCurrency)}</td>
-                <td style="text-align:right">
-                    ${(o.status === 'shipped' || o.status === 'completed') ? `<button type="button" class="btn btn-sm btn-outline action-return" data-itemid="${i.id}" data-max="${i.quantity}" data-name="${esc(i.name)}">${accountT('return')}</button>` : ''}
+            <tr class="b2b-table-row">
+                <td class="b2b-table-cell">
+                    <div class="b2b-item-meta">${esc(i.sku)}</div>
+                    <div class="b2b-item-name">${esc(i.name)}</div>
+                </td>
+                <td class="b2b-table-cell b2b-text-right">${accountMoney(i.price_cents, orderCurrency)}</td>
+                <td class="b2b-table-cell b2b-text-center">${i.quantity}</td>
+                <td class="b2b-table-cell b2b-text-right b2b-font-medium">${accountMoney(i.total_cents, orderCurrency)}</td>
+                <td class="b2b-table-cell b2b-text-right">
+                    ${(o.status === 'shipped' || o.status === 'completed') ? `<button type="button" class="b2b-btn b2b-btn-sm b2b-btn-outline action-return" data-itemid="${i.id}" data-max="${i.quantity}" data-name="${esc(i.name)}">${accountT('return')}</button>` : ''}
                 </td>
             </tr>
         `).join('');
@@ -311,59 +394,118 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
         const addr = o.address_json ? JSON.parse(o.address_json) : {};
 
         const content = `
-            <div style="margin-bottom:1.5rem"><a href="${window.APP_BASE}account/orders" class="btn btn-outline btn-sm" aria-label="${accountT('backToOrders')}">&larr; ${accountT('backToOverview')}</a></div>
-            
-            <div class="page-header">
-                <h1>${accountT('order', {number: esc(o.number)})}</h1>
-                <div class="page-actions">
-                    ${(o.status === 'completed' || (o.payment_method === 'swiss_qr_invoice' && o.status === 'on_hold')) ? `<button class="btn btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">${accountT('invoicePdf')}</button>` : ''}
-                </div>
+            <div class="b2b-account-breadcrumb">
+                <a href="${window.APP_BASE}account/orders" class="b2b-back-link" aria-label="${accountT('backToOrders')}">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    ${accountT('backToOverview')}
+                </a>
             </div>
+
+            <header class="b2b-account-header">
+                <div class="b2b-account-header-text">
+                    <h1>${accountT('order', {number: esc(o.number)})}</h1>
+                    <p>${accountDate(o.created_at)}</p>
+                </div>
+                <div class="b2b-account-header-actions">
+                    ${(o.status === 'completed' || (o.payment_method === 'swiss_qr_invoice' && o.status === 'on_hold')) ? `<button class="b2b-btn b2b-btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        ${accountT('invoicePdf')}
+                    </button>` : ''}
+                </div>
+            </header>
             
-            <div class="grid-cols-2" style="margin-bottom:1.5rem">
-                <div class="card">
-                    <h3 class="form-section-title">${accountT('deliveryAddress')}</h3>
-                    <div style="font-size:0.875rem; line-height:1.6; color:var(--wb-text);">
-                        ${addr.company ? '<strong>'+esc(addr.company)+'</strong><br>' : ''}
-                        ${esc(addr.name)}<br>
+            <div class="b2b-order-meta-grid">
+                <div class="b2b-card">
+                    <div class="b2b-card-header">
+                        <h3 class="b2b-card-title">${accountT('deliveryAddress')}</h3>
+                    </div>
+                    <div class="b2b-card-body b2b-address-body">
+                        ${addr.company ? '<strong class="b2b-address-company">'+esc(addr.company)+'</strong><br>' : ''}
+                        <span class="b2b-address-name">${esc(addr.name)}</span><br>
                         ${esc(addr.line1)} ${addr.line2 ? esc(addr.line2) : ''}<br>
                         ${esc(addr.postal_code)} ${esc(addr.city)}<br>
                         ${esc(addr.country)}
                     </div>
                 </div>
-                <div class="card">
-                    <h3 class="form-section-title">${accountT('orderInformation')}</h3>
-                    <table style="width:100%; font-size:0.875rem; line-height:2;">
-                        <tr><td style="color:var(--wb-text-muted); width:120px;">${accountT('date')}:</td><td><strong>${accountDate(o.created_at)}</strong></td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('fulfillment')}:</td><td>${accountFulfillmentState(o)}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('payment')}:</td><td>${accountPaymentState(o.payment_state)}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('tracking')}:</td><td>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" style="font-weight:500;">${accountT('trackParcel')}</a>` : '-'}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('paymentMethod')}:</td><td>${esc(accountPaymentMethod(o.payment_method))}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('shippingMethod')}:</td><td>${esc(accountShippingMethod(o))}</td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('currency')}:</td><td><strong>${esc(orderCurrency)}</strong></td></tr>
+                <div class="b2b-card">
+                    <div class="b2b-card-header">
+                        <h3 class="b2b-card-title">${accountT('orderInformation')}</h3>
+                    </div>
+                    <div class="b2b-card-body b2b-dl-grid">
+                        <dt>${accountT('fulfillment')}</dt><dd>${accountFulfillmentState(o)}</dd>
+                        <dt>${accountT('payment')}</dt><dd>${accountPaymentState(o.payment_state)}</dd>
+                        <dt>${accountT('tracking')}</dt><dd>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" class="b2b-link">${accountT('trackParcel')}</a>` : '-'}</dd>
+                        <dt>${accountT('paymentMethod')}</dt><dd>${esc(accountPaymentMethod(o.payment_method))}</dd>
+                        <dt>${accountT('shippingMethod')}</dt><dd>${esc(accountShippingMethod(o))}</dd>
+                    </div>
+                </div>
+        </div>
+
+            ${o.payment_method === 'pay_later' && o.status === 'completed' ? `
+            <section class="b2b-card b2b-invoice-overview">
+                <div class="b2b-card-body b2b-flex-between">
+                    <div>
+                        <h3 class="b2b-card-title">${accountT('invoiceOverview')}</h3>
+                        <p class="b2b-text-muted mt-1">${accountT('invoiceReady')}</p>
+                    </div>
+                    ${o.pay_invoice_eligible ? `<button class="b2b-btn b2b-btn-primary" type="button" data-pay-invoice="${o.id}">${accountT('payInvoiceNow')}</button>` : ''}
+                </div>
+            </section>` : ''}
+            
+            <div class="b2b-card b2b-table-card">
+                <div class="b2b-table-responsive">
+                    <table class="b2b-table">
+                        <thead>
+                            <tr>
+                                <th>${accountT('product')}</th>
+                                <th class="b2b-text-right">${accountT('price')}</th>
+                                <th class="b2b-text-center">${accountT('quantity')}</th>
+                                <th class="b2b-text-right">${accountT('total')}</th>
+                                <th class="b2b-text-right">${accountT('action')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
                     </table>
                 </div>
-            </div>
-            
-            ${o.payment_method === 'pay_later' && o.status === 'completed' ? `<section class="card invoice-overview"><h3 class="form-section-title">${accountT('invoiceOverview')}</h3><p>${accountT('invoiceReady')}</p>${o.pay_invoice_eligible ? `<button class="btn" type="button" data-pay-invoice="${o.id}">${accountT('payInvoiceNow')}</button>` : ''}</section>` : ''}
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead><tr><th>${accountT('product')}</th><th>${accountT('price')}</th><th>${accountT('quantity')}</th><th style="text-align:right">${accountT('total')}</th><th style="text-align:right">${accountT('action')}</th></tr></thead>
-                    <tbody>${itemsHtml}</tbody>
-                </table>
-                <div style="padding:1.5rem; background:var(--wb-bg); text-align:right; border-top:1px solid var(--wb-border-light)">
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('subtotalExVat')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.subtotal_cents, orderCurrency)}</span></div>
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('shippingExVat')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.shipping_cents, orderCurrency)}</span></div>
-                    <div style="margin-bottom:0.25rem; font-size:0.875rem; color:var(--wb-text-muted)">${accountT('vat')}: <span style="display:inline-block; width:100px; color:var(--wb-text)">${accountMoney(o.tax_cents, orderCurrency)}</span></div>
-                    <div style="font-size:1.125rem; font-weight:700; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--wb-border);">${accountT('totalInclVat')} (${esc(orderCurrency)}): <span style="display:inline-block; width:100px;">${accountMoney(o.total_cents, orderCurrency)}</span></div>
+                <div class="b2b-order-totals">
+                    <div class="b2b-order-total-row">
+                        <span>${accountT('subtotalExVat')}</span>
+                        <span class="b2b-total-val">${accountMoney(o.subtotal_cents, orderCurrency)}</span>
+                    </div>
+                    <div class="b2b-order-total-row">
+                        <span>${accountT('shippingExVat')}</span>
+                        <span class="b2b-total-val">${accountMoney(o.shipping_cents, orderCurrency)}</span>
+                    </div>
+                    <div class="b2b-order-total-row">
+                        <span>${accountT('vat')}</span>
+                        <span class="b2b-total-val">${accountMoney(o.tax_cents, orderCurrency)}</span>
+                    </div>
+                    <div class="b2b-order-total-row b2b-total-grand">
+                        <span>${accountT('totalInclVat')} (${esc(orderCurrency)})</span>
+                        <span class="b2b-total-val">${accountMoney(o.total_cents, orderCurrency)}</span>
+                    </div>
                 </div>
             </div>
             
-            <div class="card" style="margin-top:2rem">
-                <h3 class="form-section-title">${accountT('orderHistory')}</h3>
-                <ul style="padding-left:1.5rem; font-size:0.875rem; margin-bottom:0;">
-                    ${data.events.map(e => `<li style="margin-bottom:0.5rem"><strong>${accountDateTime(e.created_at)}</strong> - ${accountT('statusChangedTo')}: <strong>${accountStatus(e.status)}</strong>. ${e.note ? `<br><span style="color:var(--wb-text-muted)">${esc(e.note)}</span>` : ''}</li>`).join('')}
-                </ul>
+            <div class="b2b-card" style="margin-top:2rem">
+                <div class="b2b-card-header">
+                    <h3 class="b2b-card-title">${accountT('orderHistory')}</h3>
+                </div>
+                <div class="b2b-card-body">
+                    <ul class="b2b-timeline">
+                        ${data.events.map(e => `
+                        <li class="b2b-timeline-item">
+                            <div class="b2b-timeline-point"></div>
+                            <div class="b2b-timeline-content">
+                                <time>${accountDateTime(e.created_at)}</time>
+                                <div class="b2b-timeline-desc">
+                                    ${accountT('statusChangedTo')} <strong>${accountStatus(e.status)}</strong>
+                                </div>
+                                ${e.note ? `<div class="b2b-timeline-note">${esc(e.note)}</div>` : ''}
+                            </div>
+                        </li>`).join('')}
+                    </ul>
+                </div>
             </div>
         `;
         root.innerHTML = accountLayout(content, 'orders');
@@ -386,19 +528,25 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
         
         const startReturn = (orderId, itemId, maxQty, itemName) => {
             const html = `
-                <form id="return-form">
-                    <p style="margin-bottom:1.5rem; padding:1rem; background:var(--wb-bg); border-radius:var(--wb-radius); font-size:0.875rem;">
-                        ${accountT('returnFor')}:<br><strong style="font-size:1rem">${itemName}</strong>
-                    </p>
-                    <div class="form-group">
-                        <label>${accountT('quantityToReturn', {count: maxQty})}</label>
-                        <input type="number" name="quantity" min="1" max="${maxQty}" value="${maxQty}" class="form-control" required>
+                <form id="return-form" class="b2b-form">
+                    <div class="b2b-form-section" style="border:0; padding:0;">
+                        <div class="b2b-return-item-info">
+                            <span class="b2b-return-item-label">${accountT('returnFor')}</span>
+                            <strong class="b2b-return-item-name">${itemName}</strong>
+                        </div>
+                        <div class="b2b-form-group">
+                            <label>${accountT('quantityToReturn', {count: maxQty})}</label>
+                            <input type="number" name="quantity" min="1" max="${maxQty}" value="${maxQty}" class="b2b-input" required>
+                        </div>
+                        <div class="b2b-form-group">
+                            <label>${accountT('returnReason')}</label>
+                            <textarea name="reason" class="b2b-input" rows="3" placeholder="${accountT('returnReasonPlaceholder')}" required></textarea>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>${accountT('returnReason')}</label>
-                        <textarea name="reason" class="form-control" rows="3" placeholder="${accountT('returnReasonPlaceholder')}" required></textarea>
+                    <div class="b2b-modal-actions">
+                        <button type="button" class="b2b-btn b2b-btn-outline" onclick="window.UI.closeModal()">${accountT('cancel')}</button>
+                        <button type="submit" class="b2b-btn b2b-btn-primary">${accountT('submitReturn')}</button>
                     </div>
-                    <button type="submit" class="btn" style="width:100%; margin-top:1rem;">${accountT('submitReturn')}</button>
                 </form>
             `;
             const overlay = window.UI.showModal(accountT('returnItem'), html);
@@ -437,27 +585,47 @@ window.Router.add(/^account\/returns$/, async (match, root) => {
     const esc = window.Core.escapeHtml;
     
     const rows = data.returns.map(r => `
-        <tr>
-            <td><a href="${window.APP_BASE}account/returns/${r.id}" style="font-weight:600">${esc(r.number)}</a></td>
-            <td>${accountDate(r.created_at)}</td>
-            <td><a href="${window.APP_BASE}account/orders/${r.order_id}">${accountT('order', {number: r.order_id})}</a></td>
-            <td>${window.Workbench.badge(r.status)}</td>
-            <td>${accountMoney(r.credit_cents, r.currency || r.order_currency || 'CHF')}<br><small class="text-muted">${esc(r.currency || r.order_currency || 'CHF')}</small></td>
-            <td><a href="${window.APP_BASE}account/returns/${r.id}" class="btn btn-sm btn-outline">${accountT('details')}</a></td>
+        <tr class="b2b-table-row">
+            <td class="b2b-table-cell"><a href="${window.APP_BASE}account/returns/${r.id}" class="b2b-link b2b-font-medium">${esc(r.number)}</a></td>
+            <td class="b2b-table-cell">${accountDate(r.created_at)}</td>
+            <td class="b2b-table-cell"><a href="${window.APP_BASE}account/orders/${r.order_id}" class="b2b-link">${accountT('order', {number: r.order_id})}</a></td>
+            <td class="b2b-table-cell">${window.Workbench.badge(r.status)}</td>
+            <td class="b2b-table-cell b2b-text-right">
+                <div class="b2b-return-credit-val">${accountMoney(r.credit_cents, r.currency || r.order_currency || 'CHF')}</div>
+                <div class="b2b-return-credit-cur">${esc(r.currency || r.order_currency || 'CHF')}</div>
+            </td>
+            <td class="b2b-table-cell b2b-text-right"><a href="${window.APP_BASE}account/returns/${r.id}" class="b2b-btn b2b-btn-sm b2b-btn-outline">${accountT('details')}</a></td>
         </tr>
     `).join('');
 
     const content = `
-        <div class="page-header">
-            <h1>${accountT('returns')} (RMA)</h1>
+        <header class="b2b-account-header">
+            <div class="b2b-account-header-text">
+                <h1>${accountT('returns')} (RMA)</h1>
+                <p>${accountT('manageReturns') || 'Manage your product returns and credits'}</p>
+            </div>
+        </header>
+
+        <div class="b2b-card b2b-table-card">
+            <div class="b2b-table-responsive">
+                <table class="b2b-table">
+                    <thead>
+                        <tr>
+                            <th>${accountT('rmaNumber')}</th>
+                            <th>${accountT('date')}</th>
+                            <th>${accountT('order')}</th>
+                            <th>${accountT('status')}</th>
+                            <th class="b2b-text-right">${accountT('credited')}</th>
+                            <th class="b2b-text-right">${accountT('action')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows || '<tr><td colspan="6" class="b2b-table-cell b2b-empty-state-cell"><div class="b2b-empty-state">' + accountT('noReturns') + '</div></td></tr>'}</tbody>
+                </table>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead><tr><th>${accountT('rmaNumber')}</th><th>${accountT('date')}</th><th>${accountT('order')}</th><th>${accountT('status')}</th><th>${accountT('credited')}</th><th>${accountT('action')}</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; padding:2rem;">' + accountT('noReturns') + '</td></tr>'}</tbody>
-            </table>
+        <div class="b2b-account-footer-note">
+            <p>${accountT('returnInstructions')}</p>
         </div>
-        <p class="text-muted" style="margin-top:1rem; font-size:0.875rem;">${accountT('returnInstructions')}</p>
     `;
     root.innerHTML = accountLayout(content, 'returns');
 });
@@ -471,52 +639,92 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
         const r = data.return;
         const returnCurrency = r.currency || r.order_currency || data.order?.currency || 'CHF';
         const itemsHtml = data.items.map(i => `
-            <tr>
-                <td style="font-weight:500">${esc(i.name)}</td>
-                <td>${accountMoney(i.price_cents, returnCurrency)}</td>
-                <td>${i.quantity}</td>
+            <tr class="b2b-table-row">
+                <td class="b2b-table-cell b2b-font-medium">${esc(i.name)}</td>
+                <td class="b2b-table-cell b2b-text-right">${accountMoney(i.price_cents, returnCurrency)}</td>
+                <td class="b2b-table-cell b2b-text-center">${i.quantity}</td>
             </tr>
         `).join('');
 
         const content = `
-            <div style="margin-bottom:1.5rem"><a href="${window.APP_BASE}account/returns" class="btn btn-outline btn-sm">&larr; ${accountT('backToOverview')}</a></div>
+            <div class="b2b-account-breadcrumb">
+                <a href="${window.APP_BASE}account/returns" class="b2b-back-link" aria-label="${accountT('backToOverview')}">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    ${accountT('backToOverview')}
+                </a>
+            </div>
             
-            <div class="page-header">
-                <h1>${accountT('returnNumber', {number: esc(r.number)})}</h1>
+            <header class="b2b-account-header">
+                <div class="b2b-account-header-text">
+                    <h1>${accountT('returnNumber', {number: esc(r.number)})}</h1>
+                </div>
                 ${r.status === 'credited' ? `
-                    <div class="page-actions">
-                        <button class="btn btn-outline" aria-label="${accountT('downloadCreditNote')}" onclick="downloadPdf('/documents/returns/${r.id}/credit-note.pdf')">${accountT('creditNotePdf')}</button>
+                    <div class="b2b-account-header-actions">
+                        <button class="b2b-btn b2b-btn-outline" aria-label="${accountT('downloadCreditNote')}" onclick="downloadPdf('/documents/returns/${r.id}/credit-note.pdf')">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            ${accountT('creditNotePdf')}
+                        </button>
                     </div>
+                ` : ''}
+            </header>
+            
+            <div class="b2b-card" style="margin-bottom:1.5rem">
+                <div class="b2b-card-body b2b-dl-grid b2b-dl-grid-2">
+                    <dt>${accountT('status')}</dt><dd>${window.Workbench.badge(r.status)}</dd>
+                    <dt>${accountT('applicationDate')}</dt><dd>${accountDate(r.created_at)}</dd>
+                </div>
+                <div class="b2b-card-footer">
+                    <dt>${accountT('reasonProvided')}</dt>
+                    <dd>${esc(r.reason)}</dd>
+                </div>
+                ${r.note ? `
+                <div class="b2b-card-footer b2b-card-footer-alt">
+                    <dt>${accountT('supportNote')}</dt>
+                    <dd>${esc(r.note)}</dd>
+                </div>
                 ` : ''}
             </div>
             
-            <div class="card" style="margin-bottom:1.5rem">
-                <div class="grid-cols-2" style="margin-bottom:1rem;">
-                    <div><div class="data-label">${accountT('status')}</div><div class="data-value">${window.Workbench.badge(r.status)}</div></div>
-                    <div><div class="data-label">${accountT('applicationDate')}</div><div class="data-value">${accountDate(r.created_at)}</div></div>
+            <div class="b2b-card b2b-table-card">
+                <div class="b2b-table-responsive">
+                    <table class="b2b-table">
+                        <thead>
+                            <tr>
+                                <th>${accountT('product')}</th>
+                                <th class="b2b-text-right">${accountT('price')}</th>
+                                <th class="b2b-text-center">${accountT('quantity')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
                 </div>
-                <div style="border-top:1px solid var(--wb-border-light); padding-top:1rem;">
-                    <div class="data-label">${accountT('reasonProvided')}</div>
-                    <div class="data-value" style="margin-bottom:0;">${esc(r.reason)}</div>
-                    ${r.note ? `<div class="data-label" style="margin-top:1rem;">${accountT('supportNote')}</div><div class="data-value" style="margin-bottom:0;">${esc(r.note)}</div>` : ''}
+                <div class="b2b-order-totals">
+                    <div class="b2b-order-total-row b2b-total-grand b2b-success-text">
+                        <span>${accountT('totalCredited', {currency: esc(returnCurrency)})}</span>
+                        <span class="b2b-total-val">${accountMoney(r.credit_cents, returnCurrency)}</span>
+                    </div>
                 </div>
             </div>
             
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead><tr><th>${accountT('product')}</th><th>${accountT('price')}</th><th>${accountT('quantity')}</th></tr></thead>
-                    <tbody>${itemsHtml}</tbody>
-                </table>
-                <div style="padding:1.5rem; background:var(--wb-bg); text-align:right; border-top:1px solid var(--wb-border-light);">
-                    <div style="font-size:1.125rem; font-weight:700; color:var(--wb-success)">${accountT('totalCredited', {currency: esc(returnCurrency)})}: ${accountMoney(r.credit_cents, returnCurrency)}</div>
+            <div class="b2b-card" style="margin-top:2rem">
+                <div class="b2b-card-header">
+                    <h3 class="b2b-card-title">${accountT('history')}</h3>
                 </div>
-            </div>
-            
-            <div class="card" style="margin-top:2rem">
-                <h3 class="form-section-title">${accountT('history')}</h3>
-                <ul style="padding-left:1.5rem; font-size:0.875rem; margin-bottom:0;">
-                    ${data.events.map(e => `<li style="margin-bottom:0.5rem"><strong>${accountDateTime(e.created_at)}</strong> - ${accountT('status')}: <strong>${accountStatus(e.status)}</strong>. ${e.note ? `<br><span style="color:var(--wb-text-muted)">${esc(e.note)}</span>` : ''}</li>`).join('')}
-                </ul>
+                <div class="b2b-card-body">
+                    <ul class="b2b-timeline">
+                        ${data.events.map(e => `
+                        <li class="b2b-timeline-item">
+                            <div class="b2b-timeline-point"></div>
+                            <div class="b2b-timeline-content">
+                                <time>${accountDateTime(e.created_at)}</time>
+                                <div class="b2b-timeline-desc">
+                                    ${accountT('status')}: <strong>${accountStatus(e.status)}</strong>
+                                </div>
+                                ${e.note ? `<div class="b2b-timeline-note">${esc(e.note)}</div>` : ''}
+                            </div>
+                        </li>`).join('')}
+                    </ul>
+                </div>
             </div>
         `;
         root.innerHTML = accountLayout(content, 'returns');

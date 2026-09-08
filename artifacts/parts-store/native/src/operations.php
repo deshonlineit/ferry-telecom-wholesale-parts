@@ -1019,9 +1019,15 @@ function opAdminGeneral(string $method, string $path): bool
     }
     if ($path === '/admin/customers' && $method === 'GET') {
         requireStaff();
-        $customers = opRows("SELECT id,name,email,company,group_id,status,created_at FROM users WHERE role='customer' ORDER BY id DESC");
+        $customers = opRows("SELECT u.id,u.name,u.email,u.company,u.phone,u.website,u.business_activity,
+            u.tax_registration_type,u.tax_registration_number,u.newsletter_opt_in,u.terms_accepted_at,
+            u.group_id,u.status,u.created_at,a.line1,a.line2,a.postal_code,a.city,a.country
+            FROM users u LEFT JOIN addresses a ON a.id=(
+                SELECT a2.id FROM addresses a2 WHERE a2.user_id=u.id ORDER BY a2.is_default DESC,a2.id LIMIT 1
+            ) WHERE u.role='customer' ORDER BY u.id DESC");
         foreach ($customers as &$customer) {
             $customer['id'] = (int)$customer['id']; $customer['group_id'] = (int)$customer['group_id'];
+            $customer['newsletter_opt_in'] = (bool)$customer['newsletter_opt_in'];
             $entitlements = opRows('SELECT payment_method,enabled FROM customer_payment_entitlements WHERE user_id=?', [$customer['id']]);
             $customer['payment_entitlements'] = array_column($entitlements, 'enabled', 'payment_method');
             foreach ($customer['payment_entitlements'] as &$enabled) $enabled = (bool)$enabled;
