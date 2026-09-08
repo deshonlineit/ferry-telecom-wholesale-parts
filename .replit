@@ -40,6 +40,10 @@ args = "profile-test"
 task = "workflow.run"
 args = "native-header-test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "generated-api-schema"
+
 [[workflows.workflow]]
 name = "isolation-test"
 author = "agent"
@@ -102,6 +106,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/parts-store run test:native-header"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "generated-api-schema"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm exec tsc -b lib/api-zod lib/api-client-react --force"
 
 [workflows.workflow.metadata]
 isValidation = true
