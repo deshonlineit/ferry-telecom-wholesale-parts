@@ -1264,6 +1264,140 @@ body:not(:has(.admin-shell)) .mobile-chevron {
     }
 }
 
+/* Reflow for a 320px mobile viewport at 200% browser zoom. */
+@media (max-width: 240px) {
+    body:not(:has(.admin-shell)) .app-header .header-inner,
+    body:not(:has(.admin-shell)):has(.lp) .app-header .header-inner,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .header-inner {
+        grid-template-rows: 40px auto auto;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .user-nav,
+    body:not(:has(.admin-shell)):has(.lp) .app-header .user-nav,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .user-nav {
+        flex-wrap: wrap;
+        overflow: visible;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .user-nav .btn-primary {
+        width: 100%;
+        max-width: none;
+        height: auto;
+        padding-block: 9px;
+        white-space: normal;
+        text-align: center;
+        text-overflow: clip;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .search-input-wrapper {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr);
+        min-height: 0;
+        padding: 8px;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .search-submit {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-height: 40px;
+        height: auto;
+        padding: 8px;
+        white-space: normal;
+    }
+}
+
+/* Pinch/page scaling keeps the layout viewport wide; mirror the visual viewport. */
+body[data-header-zoomed]:not(:has(.admin-shell)) .test-banner,
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header {
+    width: var(--header-visual-width);
+    max-width: var(--header-visual-width);
+    box-sizing: border-box;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .header-inner {
+    width: var(--header-visual-width);
+    margin-left: 0;
+    margin-right: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 40px auto auto;
+    gap: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .logo {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .logo img {
+    height: 40px;
+    max-width: min(100%, 170px);
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .user-nav {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px !important;
+    overflow: visible;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .nav-signin {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .nav-signin span {
+    display: none;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .user-nav .btn-primary {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 40px;
+    padding: 9px 8px;
+    white-space: normal;
+    text-align: center;
+    text-overflow: clip;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .page-search-jump,
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .search-bar {
+    grid-column: 1;
+    grid-row: 3;
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .search-input-wrapper {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    min-height: 0;
+    padding: 8px;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .app-header .search-submit {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 40px;
+    height: auto;
+    padding: 8px;
+    white-space: normal;
+}
+
+body[data-header-zoomed]:not(:has(.admin-shell)) .store-mega-menu > .container {
+    width: calc(100% - 24px);
+}
+
 
 /* 2. Compact Catalog Discovery Area */
 body:not(:has(.admin-shell)):has(.catalog-layout) .catalog-breadcrumb {

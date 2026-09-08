@@ -10,6 +10,18 @@ window.Core = {
     exchangeRate: null,
     pricingReady: true,
     cart: { items: [], total_cents: 0 },
+
+    syncHeaderViewport() {
+        const viewport = window.visualViewport;
+        if (!viewport) return;
+        const zoomedMobile = viewport.scale >= 1.75 && viewport.width <= 240;
+        document.body.toggleAttribute('data-header-zoomed', zoomedMobile);
+        if (zoomedMobile) {
+            document.documentElement.style.setProperty('--header-visual-width', `${viewport.width}px`);
+        } else {
+            document.documentElement.style.removeProperty('--header-visual-width');
+        }
+    },
     
     async fetch(url, options = {}) {
         const reqOptions = { ...options };
@@ -61,6 +73,8 @@ window.Core = {
     },
     
     async init() {
+        this.syncHeaderViewport();
+        window.visualViewport?.addEventListener('resize', () => this.syncHeaderViewport());
         try {
             const data = await this.fetch('/session');
             this.csrf = data.csrf;

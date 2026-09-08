@@ -48,3 +48,4 @@
 - [Compact model filter](compact-model-filter.md) — model pickers open with 8 recent choices; search is primary and the full grouped list requires an explicit action.
 - [Quick-add animation timing](quick-add-animation-timing.md) — measure cart motion from server success, not click time; the cart pulse should visibly outlast the flyer.
 - [Bundled Stripe sync setup](bundled-stripe-sync-setup.md) — connector uses settings.secret; copy package migrations beside bundled server output so runMigrations finds them.
+- [Mobile zoom viewport](mobile-zoom-viewport.md) — page scaling can shrink Visual Viewport without changing CSS media-query width; zoom-safe headers must handle both.

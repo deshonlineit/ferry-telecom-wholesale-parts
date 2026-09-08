@@ -6,6 +6,7 @@ const vm = require('vm');
 const nativeRoot = path.resolve(__dirname, '..');
 const indexSource = fs.readFileSync(path.join(nativeRoot, 'public', 'index.php'), 'utf8');
 const navigationCss = fs.readFileSync(path.join(nativeRoot, 'public', 'assets', 'b2b-navigation.css'), 'utf8');
+const coreSource = fs.readFileSync(path.join(nativeRoot, 'public', 'assets', 'core.js'), 'utf8');
 assert.strictEqual(
     (indexSource.match(/id="user-nav"/g) || []).length,
     1,
@@ -27,6 +28,26 @@ assert(/\.logo img[\s\S]*?max-width:\s*min\(100%, 170px\)/.test(narrowCss),
     'the logo must shrink with its grid track at narrow boundary widths');
 assert(/\.btn-primary[\s\S]*?max-width:\s*calc\(100% - 48px\)[\s\S]*?text-overflow:\s*ellipsis/.test(narrowCss),
     'long translated registration labels must stay inside the action row');
+
+const zoomHeaderRule = navigationCss.match(/@media \(max-width: 240px\) \{([\s\S]*?)\n\}\n\n\n\/\* 2\./);
+assert(zoomHeaderRule, 'a 320px viewport at 200% zoom must have a dedicated reflow layout');
+const zoomCss = zoomHeaderRule[1];
+assert(/grid-template-rows:\s*40px auto auto/.test(zoomCss),
+    'the zoom layout must let account actions and search grow vertically');
+assert(/\.user-nav[\s\S]*?flex-wrap:\s*wrap[\s\S]*?overflow:\s*visible/.test(zoomCss),
+    'zoomed account actions and their focus indicators must not be clipped');
+assert(/\.btn-primary[\s\S]*?width:\s*100%[\s\S]*?white-space:\s*normal[\s\S]*?text-overflow:\s*clip/.test(zoomCss),
+    'the zoomed registration action must show its complete translated label');
+assert(/\.search-input-wrapper[\s\S]*?display:\s*grid[\s\S]*?grid-template-columns:\s*18px minmax\(0, 1fr\)/.test(zoomCss),
+    'the zoomed search input must retain its own reflowing row');
+assert(/\.search-submit[\s\S]*?grid-column:\s*1 \/ -1[\s\S]*?width:\s*100%[\s\S]*?white-space:\s*normal/.test(zoomCss),
+    'the zoomed search action must remain visible and operable below the input');
+assert(/visualViewport[\s\S]*?viewport\.scale\s*>=\s*1\.75[\s\S]*?data-header-zoomed/.test(coreSource),
+    'page scaling must activate the visual-viewport header reflow');
+assert(/data-header-zoomed[\s\S]*?width:\s*var\(--header-visual-width\)[\s\S]*?grid-template-rows:\s*40px auto auto/.test(navigationCss),
+    'page-scaled headers must fit the visual viewport and preserve separate rows');
+assert(/data-header-zoomed[\s\S]*?\.test-banner[\s\S]*?\.app-header[\s\S]*?max-width:\s*var\(--header-visual-width\)/.test(navigationCss),
+    'the complete zoomed header zone must stay inside the visual viewport');
 
 const mobileNav = {innerHTML: ''};
 const document = {
