@@ -994,7 +994,10 @@ body:not(:has(.admin-shell)) .footer-grid {
 }
 
 body:not(:has(.admin-shell)) .footer-logo {
-    height: 32px;
+    display: block;
+    width: clamp(200px, 18vw, 240px);
+    max-width: 100%;
+    height: auto;
     margin-bottom: 1.25rem;
     filter: none;
     opacity: 1;
@@ -1079,5 +1082,9 @@ body:not(:has(.admin-shell)) .footer-bottom {
         grid-template-columns: 1fr;
         gap: 2.5rem;
         padding: 2.5rem 0;
+    }
+
+    body:not(:has(.admin-shell)) .footer-logo {
+        width: min(220px, 100%);
     }
 }
