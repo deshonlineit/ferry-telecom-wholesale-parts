@@ -41,6 +41,9 @@ export default defineConfig({
     },
   },
   zod: {
+    hooks: {
+      afterAllFilesWrite: "node ./postprocess-generated-zod.mjs",
+    },
     input: {
       target: "./openapi.yaml",
       override: {
@@ -57,6 +60,7 @@ export default defineConfig({
       prettier: true,
       override: {
         zod: {
+          version: 4,
           coerce: {
             query: ['boolean', 'number', 'string'],
             param: ['boolean', 'number', 'string'],

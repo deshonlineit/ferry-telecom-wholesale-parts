@@ -3247,3 +3247,4 @@ export const useAdminUpdateOrderStatus = <TError = ErrorType<void>,
       > => {
       return useMutation(getAdminUpdateOrderStatusMutationOptions(options));
     }
+

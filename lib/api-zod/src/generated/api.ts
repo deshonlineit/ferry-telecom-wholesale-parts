@@ -69,6 +69,7 @@ export const GetCatalogSummaryResponse = zod.object({
 export const listProductsQueryPageSizeMax = 100;
 
 
+
 export const ListProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
@@ -137,6 +138,9 @@ export const GetProductParams = zod.object({
 })
 
 export const getProductResponseTwoImagesMax = 12;
+
+
+
 export const GetProductResponse = zod.object({
   "id": zod.int(),
   "sku": zod.string(),
@@ -175,7 +179,12 @@ export const SetProductImageParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+
+
 export const setProductImageBodyTwoImageUrlsMax = 12;
+
+
+
 export const SetProductImageBody = zod.union([zod.object({
   "imageUrl": zod.string().min(1).describe('Set the cover image while retaining the other gallery images.')
 }),zod.object({
@@ -183,11 +192,15 @@ export const SetProductImageBody = zod.union([zod.object({
 })])
 
 export const setProductImageResponseImagesMax = 12;
+
+
+
 export const SetProductImageResponse = zod.object({
   "id": zod.int(),
   "imageUrl": zod.string().nullable(),
   "images": zod.array(zod.string()).max(setProductImageResponseImagesMax)
 })
+
 
 /**
  * Returns a presigned GCS URL for direct upload. The client sends JSON
@@ -196,13 +209,20 @@ export const SetProductImageResponse = zod.object({
  */
 
 export const requestUploadUrlBodySizeMax = 8388608;
+
+
+
 export const RequestUploadUrlBody = zod.object({
   "name": zod.string().min(1).describe('Original file name.'),
   "size": zod.int().min(1).max(requestUploadUrlBodySizeMax).describe('File size in bytes.'),
   "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']).describe('Supported product image MIME type.')
 })
 
+
 export const requestUploadUrlResponseMetadataSizeMax = 8388608;
+
+
+
 export const RequestUploadUrlResponse = zod.object({
   "uploadURL": zod.url().describe('Presigned GCS URL for PUT upload.'),
   "objectPath": zod.string().describe('Normalized object path (e.g. `\/objects\/uploads\/uuid`). Store this in your database.'),
@@ -282,6 +302,8 @@ export const GetCurrentCustomerResponse = zod.object({
  */
 
 
+
+
 export const UpdateCustomerProfileBody = zod.object({
   "companyName": zod.string().min(1),
   "contactName": zod.string().min(1),
@@ -325,6 +347,75 @@ export const ListCustomerAddressesResponseItem = zod.object({
   "shippingAddress": zod.string(),
   "isDefault": zod.boolean()
 })
+export const ListCustomerAddressesResponse = zod.array(ListCustomerAddressesResponseItem)
+
+
+/**
+ * @summary Save a shipping address for the current customer
+ */
+export const createCustomerAddressBodyLabelMax = 80;
+
+export const createCustomerAddressBodyShippingAddressMax = 2000;
+
+
+
+export const CreateCustomerAddressBody = zod.object({
+  "label": zod.string().min(1).max(createCustomerAddressBodyLabelMax),
+  "shippingAddress": zod.string().min(1).max(createCustomerAddressBodyShippingAddressMax),
+  "isDefault": zod.boolean().optional()
+})
+
+export const CreateCustomerAddressResponse = zod.object({
+  "id": zod.int(),
+  "label": zod.string(),
+  "shippingAddress": zod.string(),
+  "isDefault": zod.boolean()
+})
+
+
+/**
+ * @summary Update one of the current customer's saved shipping addresses
+ */
+
+
+
+export const UpdateCustomerAddressParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const updateCustomerAddressBodyLabelMax = 80;
+
+export const updateCustomerAddressBodyShippingAddressMax = 2000;
+
+
+
+export const UpdateCustomerAddressBody = zod.object({
+  "label": zod.string().min(1).max(updateCustomerAddressBodyLabelMax).optional(),
+  "shippingAddress": zod.string().min(1).max(updateCustomerAddressBodyShippingAddressMax).optional(),
+  "isDefault": zod.boolean().optional()
+})
+
+export const UpdateCustomerAddressResponse = zod.object({
+  "id": zod.int(),
+  "label": zod.string(),
+  "shippingAddress": zod.string(),
+  "isDefault": zod.boolean()
+})
+
+
+/**
+ * @summary Delete one of the current customer's saved shipping addresses
+ */
+
+
+
+export const DeleteCustomerAddressParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const DeleteCustomerAddressResponse = zod.void()
+
+
 /**
  * @summary All price tiers and their discount rules
  */
@@ -373,6 +464,7 @@ export const ClearCartResponse = zod.void()
  */
 
 
+
 export const AddCartItemBody = zod.object({
   "productId": zod.int(),
   "quantity": zod.int().min(1)
@@ -405,6 +497,8 @@ export const AddCartItemResponse = zod.object({
 export const UpdateCartItemParams = zod.object({
   "id": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateCartItemBody = zod.object({
@@ -477,6 +571,7 @@ export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
 /**
  * @summary One-step checkout from current cart
  */
+
 
 
 export const CreateOrderBody = zod.object({
@@ -616,6 +711,7 @@ export const GetDashboardSummaryResponse = zod.object({
 export const adminListProductsQueryPageSizeMax = 100;
 
 
+
 export const AdminListProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
@@ -626,7 +722,11 @@ export const AdminListProductsQueryParams = zod.object({
 })
 
 export const adminListProductsResponseItemsItemImagesMax = 12;
+
 export const adminListProductsResponseLowStockThresholdMin = 0;
+
+
+
 export const AdminListProductsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.int(),
@@ -659,9 +759,11 @@ export const AdminListProductsResponse = zod.object({
  */
 
 
+
 export const adminCreateProductBodyListPriceMin = 0;
 
 export const adminCreateProductBodyStockMin = 0;
+
 
 
 export const AdminCreateProductBody = zod.object({
@@ -679,6 +781,9 @@ export const AdminCreateProductBody = zod.object({
 })
 
 export const adminCreateProductResponseImagesMax = 12;
+
+
+
 export const AdminCreateProductResponse = zod.object({
   "id": zod.int(),
   "sku": zod.string(),
@@ -707,9 +812,12 @@ export const AdminUpdateProductParams = zod.object({
 })
 
 
+
+
 export const adminUpdateProductBodyListPriceMin = 0;
 
 export const adminUpdateProductBodyStockMin = 0;
+
 
 
 export const AdminUpdateProductBody = zod.object({
@@ -727,6 +835,9 @@ export const AdminUpdateProductBody = zod.object({
 })
 
 export const adminUpdateProductResponseImagesMax = 12;
+
+
+
 export const AdminUpdateProductResponse = zod.object({
   "id": zod.int(),
   "sku": zod.string(),
@@ -782,6 +893,8 @@ export const AdminImportProductsResponse = zod.object({
  */
 
 
+
+
 export const AdminCreateCategoryBody = zod.object({
   "name": zod.string().min(1),
   "slug": zod.string().min(1),
@@ -805,6 +918,9 @@ export const AdminUpdateCategoryParams = zod.object({
 })
 
 
+
+
+
 export const AdminUpdateCategoryBody = zod.object({
   "name": zod.string().min(1).optional(),
   "slug": zod.string().min(1).optional(),
@@ -825,6 +941,7 @@ export const AdminUpdateCategoryResponse = zod.object({
  */
 
 
+
 export const AdminCreateBrandBody = zod.object({
   "name": zod.string().min(1)
 })
@@ -843,6 +960,7 @@ export const AdminCreateBrandResponse = zod.object({
 /**
  * @summary Create a device model under a brand
  */
+
 
 
 export const AdminCreateModelBody = zod.object({
@@ -930,47 +1048,4 @@ export const AdminUpdateOrderStatusResponse = zod.object({
   "itemCount": zod.int(),
   "total": zod.number(),
   "createdAt": zod.string()
-})
-/**
- * @summary Save a shipping address for the current customer
- */
-export const createCustomerAddressBodyLabelMax = 80;
-
-export const CreateCustomerAddressResponse = zod.object({
-  "id": zod.int(),
-  "label": zod.string(),
-  "shippingAddress": zod.string(),
-  "isDefault": zod.boolean()
-})
-
-export const ListCustomerAddressesResponse = zod.array(ListCustomerAddressesResponseItem)
-export const UpdateCustomerAddressResponse = zod.object({
-  "id": zod.int(),
-  "label": zod.string(),
-  "shippingAddress": zod.string(),
-  "isDefault": zod.boolean()
-})
-export const CreateCustomerAddressBody = zod.object({
-  "label": zod.string().min(1).max(createCustomerAddressBodyLabelMax),
-  "shippingAddress": zod.string().min(1).max(createCustomerAddressBodyShippingAddressMax),
-  "isDefault": zod.boolean().optional()
-})
-export const updateCustomerAddressBodyLabelMax = 80;
-
-export const updateCustomerAddressBodyShippingAddressMax = 2000;
-
-export const DeleteCustomerAddressParams = zod.object({
-  "id": zod.coerce.number().int().min(1)
-})
-
-export const DeleteCustomerAddressResponse = zod.void()
-export const createCustomerAddressBodyShippingAddressMax = 2000;
-export const UpdateCustomerAddressBody = zod.object({
-  "label": zod.string().min(1).max(updateCustomerAddressBodyLabelMax).optional(),
-  "shippingAddress": zod.string().min(1).max(updateCustomerAddressBodyShippingAddressMax).optional(),
-  "isDefault": zod.boolean().optional()
-})
-
-export const UpdateCustomerAddressParams = zod.object({
-  "id": zod.coerce.number().int().min(1)
 })

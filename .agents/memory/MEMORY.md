@@ -1,4 +1,4 @@
-- [Orval zod codegen import fix](orval-zod-v4.md) — after every codegen run, sed the generated api-zod import from 'zod' to 'zod/v4' or typecheck fails on zod.int().
+- [Orval Zod postprocessing](orval-zod-v4.md) — keep the automatic codegen hook; it enforces zod/v4 and repairs constraint declarations emitted after their first use.
 - [Pricing model — assigned customer groups](pricing-model.md) — explicit per-product group prices via resolvePrice(); never price from discountPercent alone or show spend-based upgrades.
 - [Rebuild db types after schema changes](db-types-rebuild.md) — run `tsc -b lib/db` or new columns look missing; drizzle-kit push needs TTY, apply additive SQL via executeSql.
 - [Rebuild api-zod dist after codegen/merges](db-types-rebuild.md) — stale lib/api-zod dist .d.ts makes new spec fields invisible to consumers; run `tsc -b lib/api-zod lib/api-client-react --force` and re-typecheck.

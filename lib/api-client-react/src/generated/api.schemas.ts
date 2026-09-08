@@ -313,6 +313,35 @@ export interface CustomerAddress {
   shippingAddress: string;
   isDefault: boolean;
 }
+
+export interface CustomerAddressInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  shippingAddress: string;
+  isDefault?: boolean;
+}
+
+export interface CustomerAddressUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label?: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  shippingAddress?: string;
+  isDefault?: boolean;
+}
+
 export interface CartItem {
   id: number;
   productId: number;
@@ -351,6 +380,14 @@ export interface CartItemUpdate {
  * Supported product image MIME type.
  */
 export type UploadUrlRequestContentType = typeof UploadUrlRequestContentType[keyof typeof UploadUrlRequestContentType];
+
+
+export const UploadUrlRequestContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
 export interface UploadUrlRequest {
   /**
      * Original file name.
@@ -386,6 +423,18 @@ export interface ProductCoverImageChange {
      */
   imageUrl: string;
 }
+
+export interface ProductGalleryImagesChange {
+  /**
+     * Authoritative ordered gallery replacement; an empty array removes all images.
+     * @maxItems 12
+     * @items.minLength 1
+     */
+  imageUrls: string[];
+}
+
+export type ProductImageInput = ProductCoverImageChange | ProductGalleryImagesChange;
+
 export interface ProductImageResult {
   id: number;
   /** @nullable */
@@ -483,6 +532,7 @@ page?: number;
  */
 pageSize?: number;
 };
+
 export type ListProductsSort = typeof ListProductsSort[keyof typeof ListProductsSort];
 
 
@@ -517,47 +567,4 @@ page?: number;
  */
 pageSize?: number;
 };
-export interface CustomerAddressInput {
-  /**
-     * @minLength 1
-     * @maxLength 80
-     */
-  label: string;
-  /**
-     * @minLength 1
-     * @maxLength 2000
-     */
-  shippingAddress: string;
-  isDefault?: boolean;
-}
 
-export interface CustomerAddressUpdate {
-  /**
-     * @minLength 1
-     * @maxLength 80
-     */
-  label?: string;
-  /**
-     * @minLength 1
-     * @maxLength 2000
-     */
-  shippingAddress?: string;
-  isDefault?: boolean;
-}
-
-export const UploadUrlRequestContentType = {
-  'image/jpeg': 'image/jpeg',
-  'image/png': 'image/png',
-  'image/webp': 'image/webp',
-} as const;
-
-export interface ProductGalleryImagesChange {
-  /**
-     * Authoritative ordered gallery replacement; an empty array removes all images.
-     * @maxItems 12
-     * @items.minLength 1
-     */
-  imageUrls: string[];
-}
-
-export type ProductImageInput = ProductCoverImageChange | ProductGalleryImagesChange;
