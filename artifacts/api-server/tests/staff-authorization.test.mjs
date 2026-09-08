@@ -10,8 +10,12 @@
  */
 import assert from "node:assert/strict";
 import pg from "pg";
+import {
+  createClerkTestClient,
+  createSessionTokenCache,
+  createStaffUserFixtures,
+} from "./clerk-test-helper.mjs";
 
-const CLERK_API = "https://api.clerk.com/v1";
 const API = process.env.STAFF_AUTH_TEST_API_BASE ?? "http://localhost:80/api";
 const SECRET = process.env.CLERK_SECRET_KEY;
 
@@ -31,6 +35,13 @@ if (
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const users = [];
+const clerk = createClerkTestClient({ secret: SECRET });
+const tokenFor = createSessionTokenCache({ clerk });
+const staffFixtures = createStaffUserFixtures({
+  clerk,
+  pool,
+  emailPrefix: "staff-auth",
+});
 let failed = false;
 
 const deniedRoutes = [
@@ -53,29 +64,6 @@ const readRoutes = [
   "/admin/orders",
 ];
 
-async function clerk(method, path, body, attempt = 0) {
-  const res = await fetch(`${CLERK_API}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${SECRET}`,
-      "Content-Type": "application/json",
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (res.status === 429 && attempt < 2) {
-    const retryAfter = Number(res.headers.get("retry-after"));
-    const seconds = Number.isFinite(retryAfter) && retryAfter > 0
-      ? Math.min(retryAfter, 90)
-      : 30;
-    await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-    return clerk(method, path, body, attempt + 1);
-  }
-  if (!res.ok) {
-    throw new Error(`Clerk ${method} ${path} failed with status ${res.status}`);
-  }
-  return res.status === 204 ? null : res.json();
-}
-
 async function createTestUser(tag, metadata = {}) {
   const email = `staff-auth-${tag}-${crypto.randomUUID().slice(0, 12)}@example.com`;
   const user = await clerk("POST", "/users", {
@@ -94,14 +82,7 @@ async function createTestUser(tag, metadata = {}) {
 }
 
 async function api(user, method, path, body) {
-  // Reuse the short-lived test session token rather than exhausting the
-  // provider's request budget by minting a token for every assertion.
-  if (!user.jwt || Date.now() >= user.refreshAt) {
-    const { jwt } = await clerk("POST", `/sessions/${user.sessionId}/tokens`, {});
-    user.jwt = jwt;
-    user.refreshAt = Date.now() + 40_000;
-  }
-  return request(method, path, body, user.jwt);
+  return request(method, path, body, await tokenFor(user.sessionId));
 }
 
 async function request(method, path, body, jwt) {
@@ -144,12 +125,8 @@ try {
   const customer = await createTestUser("customer", {
     unsafe_metadata: { role: "admin" },
   });
-  const staff = await createTestUser("staff", {
-    public_metadata: { role: "staff" },
-  });
-  const admin = await createTestUser("admin", {
-    public_metadata: { role: "admin" },
-  });
+  const staff = await staffFixtures.create("staff");
+  const admin = await staffFixtures.create("admin", "admin");
 
   await assertAccess(customer, false, "customer with forged unsafeMetadata");
   for (const [method, path] of deniedRoutes) {
@@ -243,6 +220,12 @@ try {
       failed = true;
       console.error(`cleanup: failed to delete temporary Clerk user ${user.userId}:`, error.message);
     }
+  }
+  try {
+    await staffFixtures.cleanup();
+  } catch (error) {
+    failed = true;
+    console.error("cleanup: failed to remove staff fixtures:", error.message);
   }
   await pool.end();
   process.exit(failed ? 1 : 0);

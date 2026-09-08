@@ -9,8 +9,12 @@
  */
 import assert from "node:assert/strict";
 import pg from "pg";
+import {
+  createClerkTestClient,
+  createSessionTokenCache,
+  createStaffUserFixtures,
+} from "./clerk-test-helper.mjs";
 
-const CLERK_API = "https://api.clerk.com/v1";
 const API = process.env.LOW_STOCK_TEST_API_BASE ?? "http://localhost:80/api";
 const SECRET = process.env.CLERK_SECRET_KEY;
 
@@ -30,26 +34,18 @@ if (
 }
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-
-async function clerk(method, path, body) {
-  const res = await fetch(`${CLERK_API}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${SECRET}`,
-      "Content-Type": "application/json",
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(`Clerk ${method} ${path} failed with status ${res.status}`);
-  }
-  return res.status === 204 ? null : res.json();
-}
+const clerk = createClerkTestClient({ secret: SECRET });
+const tokenFor = createSessionTokenCache({ clerk });
+const staffFixtures = createStaffUserFixtures({
+  clerk,
+  pool,
+  emailPrefix: "low-stock",
+});
 
 async function api(sessionId, path) {
-  const token = await clerk("POST", `/sessions/${sessionId}/tokens`, {});
+  const token = await tokenFor(sessionId);
   const res = await fetch(`${API}${path}`, {
-    headers: { Authorization: `Bearer ${token.jwt}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   const text = await res.text();
   let json = null;
@@ -72,7 +68,6 @@ function assertSuccessfulPage(result, expected) {
 }
 
 const tag = `low-stock-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-let clerkUserId = null;
 let categoryIds = [];
 let brandId = null;
 let productIds = [];
@@ -115,27 +110,18 @@ try {
     productIds.push(inserted.rows[0].id);
   }
 
-  const user = await clerk("POST", "/users", {
-    email_address: [`${tag}@example.com`],
-    password: `Test-${crypto.randomUUID()}`,
-    first_name: "LowStock",
-    last_name: "Regression",
-    public_metadata: { role: "staff" },
-    skip_password_checks: true,
-  });
-  clerkUserId = user.id;
-  const session = await clerk("POST", "/sessions", { user_id: user.id });
+  const staff = await staffFixtures.create("regression");
 
   const search = encodeURIComponent(tag);
   const omitted = await api(
-    session.id,
+    staff.sessionId,
     `/admin/products?search=${search}&pageSize=2&page=1`,
   );
   assertSuccessfulPage(omitted, { total: 5, totalPages: 3, page: 1, pageSize: 2 });
   assert.equal(omitted.json.items.length, 2);
 
   const explicitFalse = await api(
-    session.id,
+    staff.sessionId,
     `/admin/products?search=${search}&lowStockOnly=false&pageSize=100`,
   );
   assertSuccessfulPage(explicitFalse, {
@@ -152,14 +138,14 @@ try {
   console.log("PASS omitted and false leave stock unfiltered");
 
   const lowPage1 = await api(
-    session.id,
+    staff.sessionId,
     `/admin/products?search=${search}&lowStockOnly=true&pageSize=2&page=1`,
   );
   assertSuccessfulPage(lowPage1, { total: 4, totalPages: 2, page: 1, pageSize: 2 });
   assert.deepEqual(lowPage1.json.items.map((item) => item.stock), [0, 4]);
 
   const lowPage2 = await api(
-    session.id,
+    staff.sessionId,
     `/admin/products?search=${search}&lowStockOnly=true&pageSize=2&page=2`,
   );
   assertSuccessfulPage(lowPage2, { total: 4, totalPages: 2, page: 2, pageSize: 2 });
@@ -174,7 +160,7 @@ try {
   console.log("PASS inclusive threshold, totals, totalPages, and pagination");
 
   const composed = await api(
-    session.id,
+    staff.sessionId,
     `/admin/products?search=${search}&categoryId=${categoryIds[0]}&featured=false&lowStockOnly=true&pageSize=100`,
   );
   assertSuccessfulPage(composed, {
@@ -196,7 +182,7 @@ try {
     "lowStockOnly=true&lowStockOnly=false",
   ];
   for (const query of invalidQueries) {
-    const invalid = await api(session.id, `/admin/products?${query}`);
+    const invalid = await api(staff.sessionId, `/admin/products?${query}`);
     assert.equal(invalid.status, 400, `expected 400 for ${query}`);
   }
   console.log("PASS empty, invalid, and duplicate boolean queries return 400");
@@ -223,16 +209,10 @@ try {
       console.error("cleanup: failed to delete brand:", error.message);
     });
   }
-  if (clerkUserId) {
-    await pool.query("DELETE FROM customers WHERE clerk_user_id = $1", [clerkUserId]).catch((error) => {
-      failed = true;
-      console.error("cleanup: failed to delete customer:", error.message);
-    });
-    await clerk("DELETE", `/users/${clerkUserId}`).catch((error) => {
-      failed = true;
-      console.error("cleanup: failed to delete Clerk test user:", error.message);
-    });
-  }
+  await staffFixtures.cleanup().catch((error) => {
+    failed = true;
+    console.error("cleanup: failed to remove staff fixture:", error.message);
+  });
   await pool.end();
 }
 

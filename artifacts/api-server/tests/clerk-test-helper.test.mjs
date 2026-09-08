@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createClerkTestClient,
   createSessionTokenCache,
+  createStaffUserFixtures,
   retryAfterMs,
 } from "./clerk-test-helper.mjs";
 
@@ -61,4 +62,46 @@ test("session tokens are reused per session and refreshed before expiry", async 
   now += 45_001;
   assert.notEqual(await tokenFor("session-a"), first);
   assert.equal(calls, 3);
+});
+
+test("staff fixtures set server-trusted metadata and own cleanup", async () => {
+  const calls = [];
+  const queries = [];
+  const clerk = async (method, path, body) => {
+    calls.push({ method, path, body });
+    if (method === "POST" && path === "/users") return { id: "user-1" };
+    if (method === "POST" && path === "/sessions") return { id: "session-1" };
+    return null;
+  };
+  const fixtures = createStaffUserFixtures({
+    clerk,
+    pool: { query: async (...args) => queries.push(args) },
+    emailPrefix: "fixture",
+  });
+
+  assert.deepEqual(await fixtures.create("reader"), {
+    email: calls[0].body.email_address[0],
+    userId: "user-1",
+    sessionId: "session-1",
+  });
+  assert.deepEqual(calls[0].body.public_metadata, { role: "staff" });
+  assert.equal("unsafe_metadata" in calls[0].body, false);
+
+  await fixtures.cleanup();
+  assert.deepEqual(queries, [
+    ["delete from customers where clerk_user_id = any($1)", [["user-1"]]],
+  ]);
+  assert.deepEqual(calls.at(-1), {
+    method: "DELETE",
+    path: "/users/user-1",
+    body: undefined,
+  });
+});
+
+test("staff fixtures reject ordinary customer roles", async () => {
+  const fixtures = createStaffUserFixtures({
+    clerk: async () => assert.fail("Clerk should not be called"),
+    pool: { query: async () => {} },
+  });
+  await assert.rejects(() => fixtures.create("customer", "customer"));
 });

@@ -14,32 +14,22 @@
  */
 import assert from "node:assert/strict";
 import pg from "pg";
+import {
+  createClerkTestClient,
+  createSessionTokenCache,
+} from "./clerk-test-helper.mjs";
 
-const CLERK_API = "https://api.clerk.com/v1";
 const API = process.env.ISOLATION_TEST_API_BASE ?? "http://localhost:80/api";
 const SECRET = process.env.CLERK_SECRET_KEY;
 if (!SECRET) throw new Error("CLERK_SECRET_KEY is required");
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-
-async function clerk(method, path, body) {
-  const res = await fetch(`${CLERK_API}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${SECRET}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    throw new Error(`Clerk ${method} ${path} -> ${res.status}: ${await res.text()}`);
-  }
-  return res.status === 204 ? null : res.json();
-}
+const clerk = createClerkTestClient({ secret: SECRET });
+const tokenFor = createSessionTokenCache({ clerk });
 
 async function api(sessionId, path) {
-  const { jwt } = await clerk("POST", `/sessions/${sessionId}/tokens`, {});
+  const jwt = await tokenFor(sessionId);
   const res = await fetch(`${API}${path}`, {
     headers: { Authorization: `Bearer ${jwt}` },
   });

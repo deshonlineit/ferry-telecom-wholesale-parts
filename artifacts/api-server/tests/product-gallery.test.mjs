@@ -1,31 +1,27 @@
 import assert from "node:assert/strict";
 import pg from "pg";
+import {
+  createClerkTestClient,
+  createSessionTokenCache,
+  createStaffUserFixtures,
+} from "./clerk-test-helper.mjs";
 
-const CLERK_API = "https://api.clerk.com/v1";
 const API = process.env.ISOLATION_TEST_API_BASE ?? "http://localhost:80/api";
 const SECRET = process.env.CLERK_SECRET_KEY;
 if (!SECRET) throw new Error("CLERK_SECRET_KEY is required");
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-
-async function clerk(method, path, body) {
-  const response = await fetch(`${CLERK_API}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${SECRET}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!response.ok) {
-    throw new Error(`Clerk ${method} ${path} -> ${response.status}: ${await response.text()}`);
-  }
-  return response.status === 204 ? null : response.json();
-}
+const clerk = createClerkTestClient({ secret: SECRET });
+const tokenFor = createSessionTokenCache({ clerk });
+const staffFixtures = createStaffUserFixtures({
+  clerk,
+  pool,
+  emailPrefix: "gallery-staff",
+});
 
 async function call(sessionId, method, path, body) {
-  const { jwt } = await clerk("POST", `/sessions/${sessionId}/tokens`, {});
+  const jwt = await tokenFor(sessionId);
   const response = await fetch(`${API}${path}`, {
     method,
     headers: {
@@ -86,14 +82,7 @@ try {
   createdUsers.push(buyer.id);
   const buyerSession = await clerk("POST", "/sessions", { user_id: buyer.id });
 
-  const staff = await clerk("POST", "/users", {
-    email_address: [`gallery-staff-${Date.now()}@example.com`],
-    password: `Test-${crypto.randomUUID()}`,
-    skip_password_checks: true,
-    public_metadata: { role: "staff" },
-  });
-  createdUsers.push(staff.id);
-  const staffSession = await clerk("POST", "/sessions", { user_id: staff.id });
+  const staff = await staffFixtures.create("gallery");
 
   const fallback = await call(buyerSession.id, "GET", `/products/${productId}`);
   assert.equal(fallback.status, 200);
@@ -104,24 +93,24 @@ try {
   });
   assert.equal(denied.status, 403);
 
-  const badUrl = await call(staffSession.id, "PUT", `/products/${productId}/image`, {
+  const badUrl = await call(staff.sessionId, "PUT", `/products/${productId}/image`, {
     imageUrl: "not-a-url",
   });
   assert.equal(badUrl.status, 400);
 
-  const missingUpload = await call(staffSession.id, "PUT", `/products/${productId}/image`, {
+  const missingUpload = await call(staff.sessionId, "PUT", `/products/${productId}/image`, {
     imageUrl: "/objects/uploads/does-not-exist",
   });
   assert.equal(missingUpload.status, 400);
 
-  const badUploadType = await call(staffSession.id, "POST", "/storage/uploads/request-url", {
+  const badUploadType = await call(staff.sessionId, "POST", "/storage/uploads/request-url", {
     name: "not-image.txt",
     size: 4,
     contentType: "text/plain",
   });
   assert.equal(badUploadType.status, 400);
 
-  const upload = await call(staffSession.id, "POST", "/storage/uploads/request-url", {
+  const upload = await call(staff.sessionId, "POST", "/storage/uploads/request-url", {
     name: "gallery.png",
     size: 68,
     contentType: "image/png",
@@ -140,7 +129,7 @@ try {
   uploadedObjectPath = upload.json.objectPath;
 
   const renderableObjectPath = `/api/storage${upload.json.objectPath}`;
-  const deduplicated = await call(staffSession.id, "PUT", `/products/${productId}/image`, {
+  const deduplicated = await call(staff.sessionId, "PUT", `/products/${productId}/image`, {
     imageUrls: [upload.json.objectPath, renderableObjectPath],
   });
   assert.equal(deduplicated.status, 200);
@@ -156,13 +145,13 @@ try {
   assert.equal(stored.image_url, renderableObjectPath);
   assert.deepEqual(stored.images, [upload.json.objectPath]);
 
-  const covered = await call(staffSession.id, "PUT", `/products/${productId}/image`, {
+  const covered = await call(staff.sessionId, "PUT", `/products/${productId}/image`, {
     imageUrl: renderableObjectPath,
   });
   assert.equal(covered.status, 200);
   assert.deepEqual(covered.json.images, [renderableObjectPath]);
 
-  const replaced = await call(staffSession.id, "PUT", `/products/${productId}/image`, {
+  const replaced = await call(staff.sessionId, "PUT", `/products/${productId}/image`, {
     imageUrls: [legacy, upload.json.objectPath],
   });
   assert.equal(replaced.status, 200);
@@ -170,16 +159,16 @@ try {
   assert.deepEqual(replaced.json.images, [legacy, renderableObjectPath]);
 
   const fullGallery = Array.from({ length: 12 }, (_, index) => `https://images.example.com/photo-${index}.jpg`);
-  const full = await call(staffSession.id, "PUT", `/products/${productId}/image`, { imageUrls: fullGallery });
+  const full = await call(staff.sessionId, "PUT", `/products/${productId}/image`, { imageUrls: fullGallery });
   assert.equal(full.status, 200);
-  const overflow = await call(staffSession.id, "PUT", `/products/${productId}/image`, {
+  const overflow = await call(staff.sessionId, "PUT", `/products/${productId}/image`, {
     imageUrl: "https://images.example.com/extra-cover.jpg",
   });
   assert.equal(overflow.status, 400);
   const preserved = await call(buyerSession.id, "GET", `/products/${productId}`);
   assert.deepEqual(preserved.json.images, fullGallery, "a full gallery must never silently discard a photo");
 
-  const cleared = await call(staffSession.id, "PUT", `/products/${productId}/image`, {
+  const cleared = await call(staff.sessionId, "PUT", `/products/${productId}/image`, {
     imageUrls: [],
   });
   assert.equal(cleared.status, 200);
@@ -198,5 +187,6 @@ try {
   for (const userId of createdUsers) {
     await clerk("DELETE", `/users/${userId}`);
   }
+  await staffFixtures.cleanup();
   await pool.end();
 }

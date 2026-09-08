@@ -78,3 +78,52 @@ export function createSessionTokenCache({
     return result.jwt;
   };
 }
+
+export function createStaffUserFixtures({
+  clerk,
+  pool,
+  emailPrefix = "staff-test",
+}) {
+  assert.equal(typeof clerk, "function", "Clerk test client is required");
+  assert.ok(pool, "database pool is required");
+  const users = [];
+
+  async function create(tag, role = "staff") {
+    assert.ok(
+      role === "staff" || role === "admin",
+      "staff fixture role must be staff or admin",
+    );
+    const email = `${emailPrefix}-${tag}-${crypto.randomUUID().slice(0, 12)}@example.com`;
+    const user = await clerk("POST", "/users", {
+      email_address: [email],
+      password: `Test-${crypto.randomUUID()}`,
+      first_name: "StaffFixture",
+      last_name: tag,
+      public_metadata: { role },
+      skip_password_checks: true,
+    });
+    const fixture = { email, userId: user.id, sessionId: null };
+    users.push(fixture);
+    const session = await clerk("POST", "/sessions", { user_id: user.id });
+    fixture.sessionId = session.id;
+    return fixture;
+  }
+
+  async function cleanup() {
+    const errors = [];
+    const userIds = users.map((user) => user.userId);
+    if (userIds.length) {
+      await pool
+        .query("delete from customers where clerk_user_id = any($1)", [userIds])
+        .catch((error) => errors.push(error));
+    }
+    for (const user of users.splice(0)) {
+      await clerk("DELETE", `/users/${user.userId}`).catch((error) => errors.push(error));
+    }
+    if (errors.length) {
+      throw new AggregateError(errors, "failed to clean up staff user fixtures");
+    }
+  }
+
+  return { create, cleanup };
+}
