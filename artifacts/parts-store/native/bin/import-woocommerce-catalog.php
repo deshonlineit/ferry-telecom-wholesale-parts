@@ -17,7 +17,9 @@ if ($csvPath === '' || !is_file($csvPath)) {
 function wcMoney(string $value): ?int
 {
     $value = trim(str_replace(',', '.', $value));
-    return $value !== '' && is_numeric($value) ? max(0, (int) round((float) $value * 100)) : null;
+    if ($value === '' || !is_numeric($value)) return null;
+    $cents = max(0, (int) round((float) $value * 100));
+    return $cents > 1 ? $cents : null;
 }
 
 function wcQuality(string $name): string

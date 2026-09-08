@@ -21,7 +21,9 @@
             
             const priceDisplay = p.price_cents !== null 
                 ? window.Core.formatMoney(p.price_cents, p.currency) 
-                : `<a href="${window.APP_BASE}login" class="b2b-login-link">${t('signInPrices')}</a>`;
+                : (window.Core.user
+                    ? `<span class="b2b-staff-note">${t('unavailable')}</span>`
+                    : `<a href="${window.APP_BASE}login" class="b2b-login-link">${t('signInPrices')}</a>`);
 
             let modelsStr = (p.models || []).map(m => m.name).join(', ');
             let fullModelsStr = modelsStr;

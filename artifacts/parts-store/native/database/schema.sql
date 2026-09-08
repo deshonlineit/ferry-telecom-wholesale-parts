@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS product_models (
  product_id INT UNSIGNED NOT NULL, model_id INT UNSIGNED NOT NULL, PRIMARY KEY(product_id,model_id),
  FOREIGN KEY(product_id) REFERENCES products(id), FOREIGN KEY(model_id) REFERENCES device_models(id)
 ) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS product_model_sources (
+ product_id INT UNSIGNED NOT NULL,model_id INT UNSIGNED NOT NULL,
+ source ENUM('source_taxonomy','product_title') NOT NULL,evidence VARCHAR(500) NOT NULL DEFAULT '',
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ PRIMARY KEY(product_id,model_id,source),
+ FOREIGN KEY(product_id,model_id) REFERENCES product_models(product_id,model_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS group_prices (
  product_id INT UNSIGNED NOT NULL, group_id INT UNSIGNED NOT NULL, price_cents INT UNSIGNED NOT NULL,
  price_eur_cents INT UNSIGNED NULL,

@@ -13,26 +13,26 @@
 
 | Measure | Count |
 |---|---:|
-| Existing native products | 7854 |
-| CSV data rows read | 12213 |
-| CSV rows matched by exact SKU | 7851 |
-| CSV rows with SKU absent from native catalog | 4322 |
+| Existing native products | 10815 |
+| CSV data rows read | 12273 |
+| CSV rows matched by exact SKU | 10777 |
+| CSV rows with SKU absent from native catalog | 1456 |
 | Repeated matched SKU rows merged | 0 |
-| Structurally irregular CSV rows padded/truncated | 0 |
-| Accepted many-to-many links | 4446 |
-| Products with at least one accepted model | 3851 |
-| Distinct accepted models | 291 |
-| Links supported by tags | 109 |
-| Links supported by model leaf categories | 4440 |
-| Links supported by both sources | 103 |
-| Products without conservative model evidence | 4003 |
-| Non-model/ambiguous tag occurrences skipped | 2517 |
-| Model-shaped tags conflicting with one exact category manufacturer skipped | 285 |
-| Recognized manufacturer branches with non-model/ambiguous leaves skipped | 82 |
-| Category branches outside the model-source policy skipped | 4316 |
-| Products with conflicting exact manufacturer evidence | 0 |
-| Product brand assignments refreshed from exact evidence | 3921 |
-| Prior unreferenced model records removed | 0 |
+| Structurally irregular CSV rows padded/truncated | 11700 |
+| Accepted many-to-many links | 8745 |
+| Products with at least one accepted model | 6609 |
+| Distinct accepted models | 547 |
+| Links supported by tags | 136 |
+| Links supported by model leaf categories | 8739 |
+| Links supported by both sources | 130 |
+| Products without conservative model evidence | 4206 |
+| Non-model/ambiguous tag occurrences skipped | 3092 |
+| Model-shaped tags conflicting with one exact category manufacturer skipped | 342 |
+| Recognized manufacturer branches with non-model/ambiguous leaves skipped | 679 |
+| Category branches outside the model-source policy skipped | 4512 |
+| Products with conflicting exact manufacturer evidence | 3 |
+| Product brand assignments refreshed from exact evidence | 6724 |
+| Prior unreferenced model records removed | 63 |
 
 ## Limitations
 

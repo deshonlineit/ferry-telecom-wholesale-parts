@@ -182,7 +182,9 @@
                     : `<span class="lp-product-placeholder" aria-hidden="true">${L.icon('other')}</span>`;
                 const price = product.price_cents !== null && product.price_cents !== undefined
                     ? `<span class="lp-product-price">${esc(window.Core.formatMoney(product.price_cents, product.currency))}</span>`
-                    : `<a class="lp-product-login" href="${window.APP_BASE}login">${t('signInPrices')}</a>`;
+                    : (window.Core.user
+                        ? `<span class="lp-product-login">${t('unavailable')}</span>`
+                        : `<a class="lp-product-login" href="${window.APP_BASE}login">${t('signInPrices')}</a>`);
                 const canBuy = typeof window.App.canOrderProduct === 'function' && window.App.canOrderProduct(product);
                 const quantity = Math.max(1, Number(product.minimum_quantity) || 1);
                 const action = canBuy

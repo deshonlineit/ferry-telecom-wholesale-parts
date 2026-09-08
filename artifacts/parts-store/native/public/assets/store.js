@@ -72,7 +72,7 @@ window.App.renderProductCard = function(p) {
             </div>
             <div class="part-buy-area">
                 <div class="part-price">
-                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">${t('signInPrices')}</a>`}
+                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : (window.Core.user ? t('unavailable') : `<a href="${window.APP_BASE}login" class="login-for-price">${t('signInPrices')}</a>`)}
                 </div>
                 ${canBuy ? `
                 <div class="part-action">
@@ -178,7 +178,7 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
                 
                 ${p.stock > 0 && p.stock < p.minimum_quantity ? `<div class="alert warning mb-4">${t('minimumUnavailable', {minimum: window.I18n.number(p.minimum_quantity), stock: window.I18n.number(p.stock)})}</div>` : ''}
                 <div class="product-price-lg mb-4">
-                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : `<a href="${window.APP_BASE}login" class="login-for-price">${t('signInPrices')}</a>`}
+                    ${p.price_cents !== null ? window.Core.formatMoney(p.price_cents) : (window.Core.user ? t('unavailable') : `<a href="${window.APP_BASE}login" class="login-for-price">${t('signInPrices')}</a>`)}
                 </div>
                 
                 ${canBuy ? `

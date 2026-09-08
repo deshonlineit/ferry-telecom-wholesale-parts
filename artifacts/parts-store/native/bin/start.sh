@@ -69,6 +69,8 @@ if [[ "$(mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isol
   mysql --no-defaults --socket="$STATE/mysql.sock" --user=root ferry_isolated_test -e \
     "INSERT INTO settings(name,value) VALUES('source_compatibility_imported','true')"
 fi
+php "$ROOT/bin/reconcile-product-model-links.php" --apply
+php "$ROOT/bin/reconcile-product-model-links.php" --check
 flock -u 9
 exec 9>&-
 env -i PATH="$PATH" HOME="$HOME" php "$ROOT/bin/sync-exchange-rates.php" \

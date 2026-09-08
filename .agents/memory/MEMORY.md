@@ -8,7 +8,7 @@
 - [Taxonomy sync](taxonomy-sync.md) — taxonomy is duplicated in reclassify script and API classifier; category moves must ship via idempotent split scripts in post-merge.sh, not dev-DB edits.
 - [Post-merge reconciliation](post-merge-reconciliation.md) — after task merges: rerun codegen + zod/v4 sed, apply new DB columns, pnpm install, restart workflows; check for dropped auth middleware.
 - [Hosting audit boundaries](hosting-audit-boundaries.md) — cPanel schema export may omit tables; source presence and database metadata do not prove live WordPress behavior.
-- [Compatibility provenance](catalog-source-provenance.md) — model tags are evidence, not proof; a compatible device does not imply a product-brand filter.
+- [Compatibility provenance](catalog-source-provenance.md) — keep source/title evidence separate; generic model families must not absorb specific generations.
 - [Native script verification](native-script-verification.md) — shared-scope and real pointer/focus checks catch failures hidden by per-file syntax and click-only tests.
 - [Native database lifecycle](native-database-lifecycle.md) — surviving socket/PID locks can block preview startup; verify actual ownership and preserve database contents.
 - [Inline ordering accessibility](inline-ordering-accessibility.md) — quantity/add controls need an interactive search dialog with real keyboard focus, not just highlighted listbox links.

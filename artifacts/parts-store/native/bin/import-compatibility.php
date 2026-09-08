@@ -8,9 +8,19 @@ if (PHP_SAPI !== 'cli') {
     throw new RuntimeException('This test-only importer must be run from the CLI.');
 }
 
-$csvPath = WORKSPACE_ROOT . '/attached_assets/0_product_export_2026-07-30-06-25-56_1785436150044.csv';
-if (!is_file($csvPath)) {
-    throw new RuntimeException('The fixed offline catalog export is missing: ' . $csvPath);
+$csvCandidates = [
+    WORKSPACE_ROOT . '/attached_assets/wc-product-export-7-9-2026-1788776855452_1788776961156.csv',
+    WORKSPACE_ROOT . '/attached_assets/0_product_export_2026-07-30-06-25-56_1785436150044.csv',
+];
+$csvPath = null;
+foreach ($csvCandidates as $candidatePath) {
+    if (is_file($candidatePath)) {
+        $csvPath = $candidatePath;
+        break;
+    }
+}
+if ($csvPath === null) {
+    throw new RuntimeException('No offline catalog export is available for compatibility import.');
 }
 
 /**
@@ -166,6 +176,15 @@ if (!is_array($headers)) {
     throw new RuntimeException('The offline catalog export has no header.');
 }
 $headers[0] = ltrim((string) $headers[0], "\xEF\xBB\xBF");
+$column = static function (array $possibilities) use ($headers): string {
+    foreach ($possibilities as $possibility) {
+        if (in_array($possibility, $headers, true)) return $possibility;
+    }
+    throw new RuntimeException('Compatibility export is missing: ' . implode(' or ', $possibilities));
+};
+$skuColumn = $column(['sku', 'SKU']);
+$categoriesColumn = $column(['tax:product_cat', 'Categories']);
+$tagsColumn = $column(['tax:product_tag', 'Tags']);
 
 $candidates = [];
 $categoryBrands = [];
@@ -195,7 +214,7 @@ while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
         $stats['malformed_rows']++;
         continue;
     }
-    $sku = trim((string) ($row['sku'] ?? ''));
+    $sku = trim((string) ($row[$skuColumn] ?? ''));
     if ($sku === '' || !isset($products[$sku])) {
         if ($sku !== '') {
             $stats['unmatched_skus']++;
@@ -210,7 +229,7 @@ while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
     $productId = $products[$sku];
 
     $rowCategoryBrands = [];
-    foreach (compatibilityTaxonomyValues((string) ($row['tax:product_cat'] ?? '')) as $path) {
+    foreach (compatibilityTaxonomyValues((string) ($row[$categoriesColumn] ?? '')) as $path) {
         $stats['category_branches_seen']++;
         $sourceBrand = compatibilityCategoryBrand($path);
         if ($sourceBrand === null) {
@@ -231,7 +250,7 @@ while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
         $candidates[$productId][$key]['category'] = true;
     }
 
-    foreach (compatibilityTaxonomyValues((string) ($row['tax:product_tag'] ?? '')) as $tag) {
+    foreach (compatibilityTaxonomyValues((string) ($row[$tagsColumn] ?? '')) as $tag) {
         $stats['tag_values_seen']++;
         $tag = compatibilityClean($tag);
         $brand = compatibilityTagBrand($tag);
@@ -261,9 +280,15 @@ try {
     $findModel = $pdo->prepare('SELECT id FROM device_models WHERE brand_id=? AND name=?');
     $insertModel = $pdo->prepare('INSERT INTO device_models(brand_id,name) VALUES(?,?)');
     $insertLink = $pdo->prepare('INSERT IGNORE INTO product_models(product_id,model_id) VALUES(?,?)');
+    $insertSource = $pdo->prepare(
+        "INSERT INTO product_model_sources(product_id,model_id,source,evidence)
+         VALUES(?,?,'source_taxonomy',?)
+         ON DUPLICATE KEY UPDATE evidence=VALUES(evidence)"
+    );
     $updateBrand = $pdo->prepare('UPDATE products SET brand_id=? WHERE id=?');
 
     $pdo->exec('DELETE FROM product_models');
+    $pdo->exec('DELETE FROM product_model_sources');
     $modelIds = [];
     $linkedProducts = [];
     $tagLinks = 0;
@@ -295,7 +320,12 @@ try {
                 $modelIds[$modelKey] = (int) $modelId;
             }
             $insertLink->execute([$productId, $modelIds[$modelKey]]);
-            if ($insertLink->rowCount() > 0) {
+            $linkInserted = $insertLink->rowCount() > 0;
+            $sourceEvidence = $candidate['tag'] && $candidate['category']
+                ? 'taxonomy tag and category'
+                : ($candidate['tag'] ? 'taxonomy tag' : 'taxonomy category');
+            $insertSource->execute([$productId, $modelIds[$modelKey], $sourceEvidence]);
+            if ($linkInserted) {
                 $links++;
                 $linkedProducts[$productId] = true;
                 $tagLinks += (int) $candidate['tag'];

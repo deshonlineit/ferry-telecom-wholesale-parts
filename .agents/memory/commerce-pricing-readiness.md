@@ -16,3 +16,14 @@ including empty carts and carts containing only fully priced products.
 null and keep rendering neighbouring products. Keep strict null-price rejection
 at cart-item pricing, quote, and checkout boundaries. Do not derive global
 commerce readiness from a count of all active products with null prices.
+
+Treat imported 0.00/0.01 catalogue prices as missing-price sentinels, never as
+commercial prices; stock availability is a separate concern.
+
+**Why:** WooCommerce exports use 0.01 for products awaiting pricing, including
+both stocked and out-of-stock items. Displaying it as CHF 0.01 misleads buyers
+and can make a sentinel-priced stocked product appear orderable.
+
+**How to apply:** normalize sentinel values to null at import and migration,
+preserve any independently assigned customer-group price, show an unavailable
+price state to signed-in buyers, and reject null-priced products at cart entry.

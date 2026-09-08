@@ -107,7 +107,9 @@
                             ${productThumb ? `<img src="${esc(productThumb)}" alt="" loading="${index < 6 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 6 ? 'high' : 'low'}" width="44" height="44">` : '<span class="img-placeholder" aria-label="No product photo"></span>'}
                             <span class="b2b-suggestion-info"><strong>${esc(product.name)}</strong><small>${esc(info)}</small><small>${Number(product.stock) > 0 ? `${window.I18n.number(Number(product.stock))} ${window.I18n.t('inStock').toLocaleLowerCase()}` : window.I18n.t('outOfStock')}</small></span>
                         </a>
-                        <div class="b2b-suggestion-price">${product.price_cents === null ? window.I18n.t('signInPrices') : esc(window.Core.formatMoney(product.price_cents, product.currency))}</div>
+                        <div class="b2b-suggestion-price">${product.price_cents === null
+                            ? window.I18n.t(window.Core.user ? 'unavailable' : 'signInPrices')
+                            : esc(window.Core.formatMoney(product.price_cents, product.currency))}</div>
                         <div class="b2b-suggestion-order">
                             ${orderable ? `<label class="sr-only" for="${inputId}">${window.I18n.t('quantity')} ${esc(product.name)}</label><input id="${inputId}" aria-label="${window.I18n.t('quantity')} ${esc(product.sku)}" type="number" inputmode="numeric" min="${minimum}" max="${Number(product.stock)}" step="1" value="${minimum}"><button type="button" class="b2b-add btn btn-primary btn-sm" data-quick-add="${product.id}" aria-label="${window.I18n.t('add')} ${esc(product.name)}">${window.I18n.t('add')}</button>`
                                 : !window.Core.user ? `<a href="${window.APP_BASE}login" class="btn btn-outline btn-sm">${window.I18n.t('signIn')}</a>`
