@@ -98,7 +98,15 @@ function productToApi(row: AdminProductRow) {
 
 router.get("/admin/products", async (req, res): Promise<void> => {
   const rawLowStockOnly = req.query.lowStockOnly;
-  const parsed = AdminCreateModelBody.safeParse(req.body);
+  if (
+    rawLowStockOnly !== undefined &&
+    rawLowStockOnly !== "true" &&
+    rawLowStockOnly !== "false"
+  ) {
+    res.status(400).json({ error: "lowStockOnly must be true or false" });
+    return;
+  }
+  const parsed = AdminListProductsQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -157,17 +165,17 @@ router.get("/admin/products", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/products", async (req, res): Promise<void> => {
-  const parsed = AdminCreateModelBody.safeParse(req.body);
+  const parsed = AdminCreateProductBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const b = body.data;
+  const b = parsed.data;
 
   const [existing] = await db
     .select({ id: productsTable.id })
     .from(productsTable)
-    .where(eq(productsTable.id, id));
+    .where(eq(productsTable.sku, b.sku));
   if (existing) {
     res.status(400).json({ error: `SKU "${b.sku}" already exists` });
     return;
@@ -188,20 +196,28 @@ router.post("/admin/products", async (req, res): Promise<void> => {
   }
 
   const [created] = await db
-    .insert(deviceModelsTable)
-    .values({ brandId: parsed.data.brandId, name: parsed.data.name })
-    .returning();
+    .insert(productsTable)
+    .values({
+      sku: b.sku,
+      name: b.name,
+      categoryId,
+      brandId: b.brandId,
+      modelId: b.modelId ?? null,
+      quality: b.quality,
+      listPrice: b.listPrice.toFixed(2),
+      stock: b.stock,
+      featured: b.featured ?? false,
+      imageUrl: b.imageUrl ?? null,
+      description: b.description ?? null,
+    })
+    .returning({ id: productsTable.id });
 
-  const [row] = await db
-    .select(adminOrderSelect)
-    .from(ordersTable)
-    .innerJoin(customersTable, eq(ordersTable.customerId, customersTable.id))
-    .where(eq(ordersTable.id, params.data.id));
+  const [row] = await adminProductSelect().where(eq(productsTable.id, created.id));
   res.status(201).json(AdminCreateProductResponse.parse(productToApi(row)));
 });
 
 router.post("/admin/products/import", async (req, res): Promise<void> => {
-  const body = AdminUpdateOrderStatusBody.safeParse(req.body);
+  const body = AdminImportProductsBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
     return;
@@ -253,8 +269,8 @@ router.post("/admin/products/import", async (req, res): Promise<void> => {
 });
 
 router.patch("/admin/products/:id", async (req, res): Promise<void> => {
-  const params = AdminUpdateOrderStatusParams.safeParse(req.params);
-  const body = AdminUpdateOrderStatusBody.safeParse(req.body);
+  const params = AdminUpdateProductParams.safeParse(req.params);
+  const body = AdminUpdateProductBody.safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: (params.success ? body : params).error?.message });
     return;
@@ -272,17 +288,17 @@ router.patch("/admin/products/:id", async (req, res): Promise<void> => {
   }
 
   if (b.sku !== undefined) {
-  const [dup] = await db
-    .select({ id: brandsTable.id })
-    .from(brandsTable)
-    .where(ilike(brandsTable.name, parsed.data.name));
+    const [dup] = await db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(eq(productsTable.sku, b.sku));
     if (dup && dup.id !== id) {
       res.status(400).json({ error: `SKU "${b.sku}" already exists` });
       return;
     }
   }
 
-  const update: Partial<typeof categoriesTable.$inferInsert> = {};
+  const update: Partial<typeof productsTable.$inferInsert> = {};
   if (b.sku !== undefined) update.sku = b.sku;
   if (b.name !== undefined) update.name = b.name;
   if (b.categoryId !== undefined) update.categoryId = b.categoryId;
@@ -299,31 +315,27 @@ router.patch("/admin/products/:id", async (req, res): Promise<void> => {
     await db.update(productsTable).set(update).where(eq(productsTable.id, id));
   }
 
-  const [row] = await db
-    .select(adminOrderSelect)
-    .from(ordersTable)
-    .innerJoin(customersTable, eq(ordersTable.customerId, customersTable.id))
-    .where(eq(ordersTable.id, params.data.id));
+  const [row] = await adminProductSelect().where(eq(productsTable.id, id));
   res.json(AdminUpdateProductResponse.parse(productToApi(row)));
 });
 
 router.post("/admin/categories", async (req, res): Promise<void> => {
-  const parsed = AdminCreateModelBody.safeParse(req.body);
+  const parsed = AdminCreateCategoryBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   const [dup] = await db
-    .select({ id: brandsTable.id })
-    .from(brandsTable)
-    .where(ilike(brandsTable.name, parsed.data.name));
+    .select({ id: categoriesTable.id })
+    .from(categoriesTable)
+    .where(eq(categoriesTable.slug, parsed.data.slug));
   if (dup) {
-    res.status(400).json({ error: `Brand "${parsed.data.name}" already exists` });
+    res.status(400).json({ error: `Category slug "${parsed.data.slug}" already exists` });
     return;
   }
   const [created] = await db
-    .insert(deviceModelsTable)
-    .values({ brandId: parsed.data.brandId, name: parsed.data.name })
+    .insert(categoriesTable)
+    .values(parsed.data)
     .returning();
   res.status(201).json(
     AdminCreateCategoryResponse.parse({ ...created, productCount: 0 }),
@@ -331,8 +343,8 @@ router.post("/admin/categories", async (req, res): Promise<void> => {
 });
 
 router.patch("/admin/categories/:id", async (req, res): Promise<void> => {
-  const params = AdminUpdateOrderStatusParams.safeParse(req.params);
-  const body = AdminUpdateOrderStatusBody.safeParse(req.body);
+  const params = AdminUpdateCategoryParams.safeParse(req.params);
+  const body = AdminUpdateCategoryBody.safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: (params.success ? body : params).error?.message });
     return;
@@ -345,11 +357,9 @@ router.patch("/admin/categories/:id", async (req, res): Promise<void> => {
   if (b.slug !== undefined) update.slug = b.slug;
   if ("description" in (req.body as object)) update.description = b.description ?? null;
 
-  const [updated] = await db
-    .update(ordersTable)
-    .set({ status: body.data.status })
-    .where(eq(ordersTable.id, params.data.id))
-    .returning({ id: ordersTable.id });
+  const [updated] = Object.keys(update).length
+    ? await db.update(categoriesTable).set(update).where(eq(categoriesTable.id, id)).returning()
+    : await db.select().from(categoriesTable).where(eq(categoriesTable.id, id));
   if (!updated) {
     res.status(404).json({ error: "Category not found" });
     return;
@@ -364,7 +374,7 @@ router.patch("/admin/categories/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/brands", async (req, res): Promise<void> => {
-  const parsed = AdminCreateModelBody.safeParse(req.body);
+  const parsed = AdminCreateBrandBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -378,8 +388,8 @@ router.post("/admin/brands", async (req, res): Promise<void> => {
     return;
   }
   const [created] = await db
-    .insert(deviceModelsTable)
-    .values({ brandId: parsed.data.brandId, name: parsed.data.name })
+    .insert(brandsTable)
+    .values({ name: parsed.data.name })
     .returning();
   res.status(201).json(AdminCreateBrandResponse.parse({ ...created, models: [] }));
 });
@@ -429,16 +439,16 @@ const customerSelect = {
 
 router.get("/admin/customers", async (_req, res): Promise<void> => {
   const rows = await db
-    .select(adminOrderSelect)
-    .from(ordersTable)
-    .innerJoin(customersTable, eq(ordersTable.customerId, customersTable.id))
-    .orderBy(desc(ordersTable.createdAt));
-  res.json(AdminListOrdersResponse.parse(rows.map(orderToApi)));
+    .select(customerSelect)
+    .from(customersTable)
+    .innerJoin(priceTiersTable, eq(customersTable.tierId, priceTiersTable.id))
+    .orderBy(asc(customersTable.companyName));
+  res.json(AdminListCustomersResponse.parse(rows.map(customerToApi)));
 });
 
-router.patch("/admin/orders/:id", async (req, res): Promise<void> => {
-  const params = AdminUpdateOrderStatusParams.safeParse(req.params);
-  const body = AdminUpdateOrderStatusBody.safeParse(req.body);
+router.patch("/admin/customers/:id", async (req, res): Promise<void> => {
+  const params = AdminUpdateCustomerTierParams.safeParse(req.params);
+  const body = AdminUpdateCustomerTierBody.safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: (params.success ? body : params).error?.message });
     return;
@@ -454,20 +464,20 @@ router.patch("/admin/orders/:id", async (req, res): Promise<void> => {
   }
 
   const [updated] = await db
-    .update(ordersTable)
-    .set({ status: body.data.status })
-    .where(eq(ordersTable.id, params.data.id))
-    .returning({ id: ordersTable.id });
+    .update(customersTable)
+    .set({ tierId: body.data.tierId })
+    .where(eq(customersTable.id, params.data.id))
+    .returning({ id: customersTable.id });
   if (!updated) {
-    res.status(404).json({ error: "Order not found" });
+    res.status(404).json({ error: "Customer not found" });
     return;
   }
 
   const [row] = await db
-    .select(adminOrderSelect)
-    .from(ordersTable)
-    .innerJoin(customersTable, eq(ordersTable.customerId, customersTable.id))
-    .where(eq(ordersTable.id, params.data.id));
+    .select(customerSelect)
+    .from(customersTable)
+    .innerJoin(priceTiersTable, eq(customersTable.tierId, priceTiersTable.id))
+    .where(eq(customersTable.id, params.data.id));
   res.json(AdminUpdateCustomerTierResponse.parse(customerToApi(row)));
 });
 
