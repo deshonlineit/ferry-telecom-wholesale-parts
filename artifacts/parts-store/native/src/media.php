@@ -196,6 +196,12 @@ function mediaOrderDocument(int $orderId, string $kind): never
     if ($order === null) {
         throw new HttpError(404, 'Order document not found.');
     }
+    if (($user['role'] ?? '') !== 'staff' && $kind === 'packing-slip') {
+        throw new HttpError(403, 'Packing slips are available to staff only.');
+    }
+    if ($kind === 'invoice' && (string) $order['status'] !== 'completed') {
+        throw new HttpError(409, 'The invoice is available after the order is completed.');
+    }
     $statement = db()->prepare('SELECT name,sku,quantity,price_cents,total_cents FROM order_items WHERE order_id = ? ORDER BY id');
     $statement->execute([$orderId]);
     $items = $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -241,6 +247,17 @@ function mediaOrderDocument(int $orderId, string $kind): never
         ];
         $pdf->line('Order status: ' . ((string) $order['status'] === 'on_hold' ? 'On hold - awaiting payment' : (string) $order['status']));
         $pdf->line('Payment method: ' . ($paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method']));
+        if ((string) $order['payment_method'] === 'pay_later') {
+            $terms = json_decode((string) ($order['payment_terms_json'] ?? ''), true);
+            if (is_array($terms)) {
+                $pdf->line('Pay Later terms: due ' . (string) ($terms['due_date'] ?? ('in ' . (string) ($terms['due_days'] ?? '') . ' days')));
+            }
+            $ledger = mediaFetchOne('SELECT verified,paid_cents FROM invoice_accounting WHERE order_id=?', [(int) $order['id']]);
+            $paid = $ledger === null ? 0 : (int) $ledger['paid_cents'];
+            $outstanding = max(0, (int) $order['total_cents'] - $paid);
+            $pdf->line('Outstanding amount: ' . mediaMoney($outstanding, (string) $order['currency']));
+            $pdf->line('Pay-invoice eligibility: contact staff to record a payment.');
+        }
         $pdf->line('No bank account, payment link, or live payment instructions are included in this isolated test document.');
         if ((string) $order['payment_method'] === 'swiss_qr_invoice') {
             $pdf->line('Swiss QR payment details are not yet included; no non-compliant QR code has been generated.');

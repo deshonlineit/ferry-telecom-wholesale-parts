@@ -17,7 +17,7 @@ function handleAuth(string $method, string $path): bool
         respond([
             'user' => currentUser(), 'csrf' => csrf(), 'test_mode' => true,
             'currency' => $context['currency'], 'currency_context' => $context,
-            'capabilities' => ['live_stock' => false, 'payments' => false, 'email' => false],
+            'capabilities' => ['live_stock' => false, 'payments' => true, 'email' => false],
         ]);
     }
     if (!str_starts_with($path, '/auth/') || $method !== 'POST') {

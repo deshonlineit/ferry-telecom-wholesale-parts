@@ -560,17 +560,39 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 ? form.address_country.value
                 : selected?.dataset.country || window.Core.country;
         };
-        const renderPaymentMethod = () => {
-            const swiss = String(selectedDeliveryCountry() || '').toUpperCase() === 'CH';
-            root.querySelector('#checkout-payment-methods').innerHTML = `
-                <label class="payment-card selected">
-                    <input type="radio" name="payment_method" value="${swiss ? 'swiss_qr_invoice' : 'pay_later'}" checked>
-                    <div class="address-header">
-                        <strong>${t(swiss ? 'swissQrInvoice' : 'payLater')}</strong>
-                        <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                    <div class="text-muted text-sm mt-1">${t(swiss ? 'swissQrInvoiceHelp' : 'payLaterHelp')}</div>
+        // The quote is the authority for payment availability.  Do not infer an
+        // entitlement from country or a stale cart: grants may change at any time.
+        const renderPaymentMethods = (methods = []) => {
+            const container = root.querySelector('#checkout-payment-methods');
+            if (!container) return;
+            const byCode = new Map((methods || []).map(method => [method.code || method.method, method]));
+            const codes = ['stripe', 'pay_later', 'swiss_qr_invoice'];
+            const current = container.querySelector('[name="payment_method"]:checked')?.value;
+            const choices = codes.map(code => {
+                const response = byCode.get(code);
+                if (response?.hidden) return '';
+                const enabled = Boolean(response && response.enabled !== false && response.available !== false);
+                const label = t({stripe: 'stripe', pay_later: 'payLater', swiss_qr_invoice: 'swissQrInvoice'}[code]);
+                const help = response?.reason || response?.message ||
+                    (enabled ? t({stripe: 'stripeHelp', pay_later: 'payLaterHelp', swiss_qr_invoice: 'swissQrInvoiceHelp'}[code]) : t('paymentUnavailable'));
+                return `<label class="payment-card ${enabled ? '' : 'disabled'}" data-payment-code="${code}">
+                    <input type="radio" name="payment_method" value="${code}" ${enabled ? '' : 'disabled'} aria-describedby="payment-help-${code}">
+                    <div class="address-header"><strong>${label}</strong>
+                    ${enabled ? '<svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}</div>
+                    <div id="payment-help-${code}" class="text-muted text-sm mt-1">${esc(help)}</div>
                 </label>`;
+            }).join('');
+            container.innerHTML = choices || `<div class="alert warning">${t('noPaymentMethods')}</div>`;
+            const inputs = [...container.querySelectorAll('[name="payment_method"]:not(:disabled)')];
+            const selected = inputs.find(input => input.value === current) || inputs[0];
+            if (selected) {
+                selected.checked = true;
+                selected.closest('.payment-card')?.classList.add('selected');
+            }
+            inputs.forEach(input => input.addEventListener('change', () => {
+                container.querySelectorAll('.payment-card').forEach(card => card.classList.remove('selected'));
+                input.closest('.payment-card')?.classList.add('selected');
+            }));
         };
         const shippingLabelKey = code => ({
             swiss_post_priority: 'swissPostPriority',
@@ -630,6 +652,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
             const country = quote.country || quote.delivery_country || checkoutAddressPayload()?.address?.country || window.Core.country;
             const notice = window.Core.currencyNotice(quote);
             renderShippingMethods(quote.shipping_methods || [], quote.shipping_method?.code || '');
+            renderPaymentMethods(quote.payment_methods || []);
             root.querySelector('#checkout-summary').innerHTML = `
                 <div class="summary-items">
                     ${(quote.items || []).map(item => `<div class="summary-item"><span class="summary-item-name"><span class="summary-item-qty">${item.quantity}&times;</span>${esc(item.name)}</span><span class="summary-item-value">${window.Core.formatMoney(item.total_cents, currency)}</span></div>`).join('')}
@@ -691,18 +714,16 @@ window.Router.add(/^checkout$/, async (match, root) => {
             root.querySelectorAll('.address-card').forEach(card => card.classList.remove('selected'));
             input.closest('.address-card')?.classList.add('selected');
             addressFields.hidden = input.value !== 'new';
-            renderPaymentMethod();
             renderShippingMethods();
             scheduleQuote();
         }));
         addressFields.querySelectorAll('input, select').forEach(input => input.addEventListener('input', () => {
             if (input.name === 'address_country') {
-                renderPaymentMethod();
                 renderShippingMethods();
             }
             scheduleQuote();
         }));
-        renderPaymentMethod();
+        renderPaymentMethods(cartRes.payment_methods || []);
         renderShippingMethods(cartRes.shipping_methods || [], cartRes.shipping_method?.code || '');
         requestQuote();
 
@@ -717,7 +738,7 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 ...addressPayload,
                 quote_token: acceptedToken,
                 idempotency_key: form.idempotency_key.value,
-                payment_method: form.payment_method.value,
+                payment_method: form.querySelector('[name="payment_method"]:checked')?.value,
                 shipping_method: shippingMethod,
                 notes: form.notes.value
             };
@@ -729,6 +750,17 @@ window.Router.add(/^checkout$/, async (match, root) => {
             try {
                 const res = await window.Core.fetch('/checkout', { method: 'POST', body: data });
                 await window.Core.refreshCart();
+                if (data.payment_method === 'stripe') {
+                    const redirect = res.payment_bridge_url || res.payment?.bridge_url || res.payment?.redirect_url ||
+                        res.stripe_checkout_url || res.checkout_url;
+                    if (!redirect) throw new Error(t('stripeRedirectMissing'));
+                    const target = new URL(redirect, window.location.origin);
+                    const isLocalBridge = target.origin === window.location.origin;
+                    const isStripeCheckout = target.protocol === 'https:' && target.hostname === 'checkout.stripe.com';
+                    if (!isLocalBridge && !isStripeCheckout) throw new Error(t('unsafePaymentRedirect'));
+                    window.location.assign(target.href);
+                    return;
+                }
                 window.Router.navigate(window.APP_BASE + 'account/orders?success=' + res.order.id);
             } catch(e) {
                 if (!quoteGate.isCurrent(checkoutSequence)) {

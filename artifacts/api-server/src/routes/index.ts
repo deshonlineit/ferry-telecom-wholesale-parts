@@ -8,6 +8,7 @@ import ordersRouter from "./orders";
 import smartSearchRouter from "./smart-search";
 import storageRouter from "./storage";
 import adminRouter from "./admin";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(ordersRouter);
 router.use(smartSearchRouter);
 router.use(storageRouter);
 router.use(adminRouter);
+router.use(stripeRouter);
 
 export default router;

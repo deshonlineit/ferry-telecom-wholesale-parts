@@ -66,6 +66,10 @@ const adminPaymentMethodLabel = method => ({
     test_invoice: 'Legacy test invoice',
     test_card: 'Legacy test card'
 }[method] || method);
+const adminPaymentStateLabel = state => ({
+    pending: 'Pending', authorized: 'Authorized', paid: 'Paid', failed: 'Failed',
+    cancelled: 'Cancelled', refunded: 'Refunded', open: 'Invoice open'
+}[state] || state || 'Pending');
 
 function renderTable(headers, rowsHtml, emptyMsg) {
     return `
@@ -398,7 +402,7 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
                     <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Cancelled</option>
                 </select>
             </td>
-            <td>${esc(adminPaymentMethodLabel(o.payment_method))}</td>
+            <td>${esc(adminPaymentMethodLabel(o.payment_method))}<br><span class="wb-badge wb-badge-neutral">${esc(adminPaymentStateLabel(o.payment_state))}</span></td>
             <td>${esc(o.shipping_method_name || '-')}</td>
             <td>${window.Core.formatMoney(o.total_cents, o.currency || 'CHF')}</td>
             <td><button type="button" class="btn btn-sm btn-outline action-track" data-id="${o.id}" data-tracking="${esc(o.tracking||'')}" data-status="${o.status}">T&T</button></td>
@@ -409,7 +413,7 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
         <div class="page-header">
             <h1>Order Management</h1>
         </div>
-        ${renderTable(['Order #', 'Date', 'Customer', 'Status', 'Payment method', 'Shipping method', 'Total', 'Action'], rows, 'No orders found.')}
+        ${renderTable(['Order #', 'Date', 'Customer', 'Fulfillment', 'Payment', 'Shipping method', 'Total', 'Action'], rows, 'No orders found.')}
     `;
     root.innerHTML = adminLayout(content, 'orders');
 
@@ -505,6 +509,9 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
                     ${data.groups.map(g => `<option value="${g.id}" ${c.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}
                 </select>
             </td>
+            <td class="customer-payment-controls">
+                ${['stripe', 'pay_later', 'swiss_qr_invoice'].map(method => `<label><input type="checkbox" class="action-payment-entitlement" data-id="${c.id}" data-method="${method}" ${c.payment_entitlements?.[method] ? 'checked' : ''}> ${esc(adminPaymentMethodLabel(method))}</label>`).join('')}
+            </td>
         </tr>
     `).join('');
 
@@ -512,7 +519,7 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
         <div class="page-header">
             <h1>Customer Management</h1>
         </div>
-        ${renderTable(['Customer', 'Company', 'Access Status', 'Price Group'], rows, 'No customers found.')}
+        ${renderTable(['Customer', 'Company', 'Access Status', 'Price Group', 'Payment entitlements'], rows, 'No customers found.')}
     `;
     root.innerHTML = adminLayout(content, 'customers');
 
@@ -529,6 +536,24 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
             } catch(err) { 
                 window.Workbench.toast(err.message, 'error'); 
                 window.Router.route(); 
+            }
+        });
+    });
+    root.querySelectorAll('.action-payment-entitlement').forEach(input => {
+        input.addEventListener('change', async (event) => {
+            const el = event.currentTarget;
+            el.disabled = true;
+            try {
+                await window.Core.fetch(`/admin/customers/${parseInt(el.dataset.id, 10)}`, {
+                    method: 'PATCH',
+                    body: {payment_entitlements: {[el.dataset.method]: el.checked}}
+                });
+                window.Workbench.toast('Payment entitlement updated', 'success');
+            } catch (err) {
+                el.checked = !el.checked;
+                window.Workbench.toast(err.message, 'error');
+            } finally {
+                el.disabled = false;
             }
         });
     });

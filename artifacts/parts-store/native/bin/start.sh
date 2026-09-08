@@ -75,11 +75,15 @@ env -i PATH="$PATH" HOME="$HOME" php "$ROOT/bin/sync-exchange-rates.php" \
   || echo "ECB reference unavailable; currency status remains visible in administration." >&2
 env -i PATH="$PATH" HOME="$HOME" php "$ROOT/bin/sync-exchange-rates.php" --watch &
 FX_PID=$!
-echo "Isolated PHP/MySQL test shop ready. Read-only ECB sync active; commerce external actions disabled."
-env -i PATH="$PATH" HOME="$HOME" \
+echo "Isolated PHP/MySQL test shop ready. Read-only ECB sync active; Stripe bridge restricted to authenticated checkout calls."
+BRIDGE_SECRET="${NATIVE_STRIPE_BRIDGE_SECRET:-}"
+if [[ -z "$BRIDGE_SECRET" && -n "${SESSION_SECRET:-}" ]]; then
+  BRIDGE_SECRET="$(node -e 'const c=require("node:crypto");process.stdout.write(c.createHash("sha256").update(`ferry-stripe-bridge-v1:${process.env.SESSION_SECRET}`).digest("hex"))')"
+fi
+env -i PATH="$PATH" HOME="$HOME" NATIVE_S2S_SECRET="$BRIDGE_SECRET" \
   php -d display_errors=0 -d log_errors=1 -d allow_url_fopen=0 -d allow_url_include=0 \
     -d ffi.enable=false -d upload_max_filesize=8M -d post_max_size=10M -d memory_limit=256M \
-    -d 'disable_functions=mail,curl_exec,curl_multi_exec,exec,shell_exec,system,passthru,popen,proc_open,fsockopen,pfsockopen,stream_socket_client,socket_connect' \
+    -d 'disable_functions=mail,curl_multi_exec,exec,shell_exec,system,passthru,popen,proc_open,fsockopen,pfsockopen,stream_socket_client,socket_connect' \
     -S "0.0.0.0:${PORT:?PORT is required}" -t "$ROOT/public" "$ROOT/router.php" &
 WEB_PID=$!
 wait "$WEB_PID"

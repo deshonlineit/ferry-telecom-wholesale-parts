@@ -722,6 +722,32 @@ body:not(:has(.admin-shell)) .order-flow .address-card-new {
     font-weight: 600;
     color: var(--text-muted);
 }
+.payment-card.disabled {
+    opacity: .6;
+    cursor: not-allowed;
+    background: var(--bg-body);
+}
+.payment-card.disabled input { cursor: not-allowed; }
+
+/* Buyer order history is deliberately card-based rather than an admin table. */
+.buyer-order-list { display: grid; gap: .75rem; }
+.buyer-order-card {
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-surface);
+}
+.buyer-order-card-head { display:flex; justify-content:space-between; gap:1rem; align-items:start; }
+.buyer-order-number { display:block; font-weight:700; color:var(--text-main); text-decoration:none; }
+.buyer-order-number:hover { color:var(--primary); }
+.buyer-order-card-head small { display:block; margin-top:.2rem; color:var(--text-muted); font-size:.75rem; }
+.buyer-order-card-head strong { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.buyer-order-states { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; margin:1rem 0; }
+.buyer-order-states div { min-width:0; }
+.buyer-order-states dt { margin-bottom:.3rem; color:var(--text-muted); font-size:.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.buyer-order-states dd { margin:0; font-size:.8125rem; overflow:hidden; text-overflow:ellipsis; }
+.invoice-overview { margin:0 0 1.5rem; }
+.invoice-overview p { color:var(--wb-text-muted); font-size:.875rem; }
 
 /* ---------- Responsive ---------- */
 
@@ -760,6 +786,9 @@ body:not(:has(.admin-shell)) .order-flow .address-card-new {
     body:not(:has(.admin-shell)) .order-flow .address-card-new-inline {
         min-width: 0;
     }
+}
+@media (max-width: 640px) {
+    .buyer-order-states { grid-template-columns:1fr 1fr; }
 }
 
 @media (max-width: 640px) {

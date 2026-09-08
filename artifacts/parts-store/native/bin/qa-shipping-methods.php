@@ -69,5 +69,9 @@ $base = ['country' => 'CH', 'currency' => 'CHF', 'exchange_rate' => [], 'items' 
 $priorityFingerprint = commerceQuoteFingerprint($base + $priority);
 $pickupFingerprint = commerceQuoteFingerprint($base + $pickup);
 shippingAssert(!hash_equals($priorityFingerprint, $pickupFingerprint), 'Shipping method is missing from the quote fingerprint.');
+$priorityAfterCutoff = commerceTotals(10000, $settings, commerceShippingMethod('CH', 'swiss_post_priority', $fridayAfterCutoff));
+$beforeCutoffFingerprint = commerceQuoteFingerprint($base + $priority + ['shipping_methods' => commerceShippingMethods('CH', $fridayBeforeCutoff)]);
+$afterCutoffFingerprint = commerceQuoteFingerprint($base + $priorityAfterCutoff + ['shipping_methods' => commerceShippingMethods('CH', $fridayAfterCutoff)]);
+shippingAssert(!hash_equals($beforeCutoffFingerprint, $afterCutoffFingerprint), 'Saturday cutoff availability is missing from the quote fingerprint.');
 
 printf("qa-shipping-methods: %d checks passed.\n", $checks);

@@ -774,6 +774,7 @@ function opBuyback(string $method, string $path): bool
         if (opRow('SELECT id FROM buyback_items WHERE id=?', [$id]) === null) throw new HttpError(404, 'Buyback item not found.');
         $input = body();
         $fields = [];
+        $entitlementsChanged = false;
         foreach (['model', 'grade', 'price_cents', 'active'] as $field) {
             if (!array_key_exists($field, $input)) continue;
             $fields[$field] = match ($field) {
@@ -1019,7 +1020,13 @@ function opAdminGeneral(string $method, string $path): bool
     if ($path === '/admin/customers' && $method === 'GET') {
         requireStaff();
         $customers = opRows("SELECT id,name,email,company,group_id,status,created_at FROM users WHERE role='customer' ORDER BY id DESC");
-        foreach ($customers as &$customer) { $customer['id'] = (int)$customer['id']; $customer['group_id'] = (int)$customer['group_id']; }
+        foreach ($customers as &$customer) {
+            $customer['id'] = (int)$customer['id']; $customer['group_id'] = (int)$customer['group_id'];
+            $entitlements = opRows('SELECT payment_method,enabled FROM customer_payment_entitlements WHERE user_id=?', [$customer['id']]);
+            $customer['payment_entitlements'] = array_column($entitlements, 'enabled', 'payment_method');
+            foreach ($customer['payment_entitlements'] as &$enabled) $enabled = (bool)$enabled;
+            unset($enabled);
+        }
         unset($customer);
         $groups = opRows('SELECT id,name FROM customer_groups ORDER BY id');
         foreach ($groups as &$group) $group['id'] = (int)$group['id'];
@@ -1044,13 +1051,35 @@ function opAdminGeneral(string $method, string $path): bool
             if (opRow('SELECT id FROM customer_groups WHERE id=?', [$groupId]) === null) throw new HttpError(422, 'Customer group not found.');
             $fields['group_id'] = $groupId;
         }
+        if (array_key_exists('payment_entitlements', $input)) {
+            if (!is_array($input['payment_entitlements'])) throw new HttpError(422, 'Payment entitlements must be an object.');
+            foreach ($input['payment_entitlements'] as $method => $enabled) {
+                if (!is_string($method) || !in_array($method, ['stripe', 'pay_later', 'swiss_qr_invoice'], true)
+                    || !is_bool($enabled)) throw new HttpError(422, 'Invalid payment entitlement.');
+                db()->prepare(
+                    'INSERT INTO customer_payment_entitlements(user_id,payment_method,enabled,granted_by,granted_at,revoked_by,revoked_at)
+                     VALUES(?,?,?,?,UTC_TIMESTAMP(),NULL,NULL)
+                     ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),
+                     granted_by=IF(VALUES(enabled)=1,VALUES(granted_by),granted_by),
+                     granted_at=IF(VALUES(enabled)=1,UTC_TIMESTAMP(),granted_at),
+                     revoked_by=IF(VALUES(enabled)=0,VALUES(granted_by),NULL),
+                     revoked_at=IF(VALUES(enabled)=0,UTC_TIMESTAMP(),NULL)'
+                )->execute([$id, $method, $enabled ? 1 : 0, (int)$staff['id']]);
+            }
+            $entitlementsChanged = true;
+        }
         if ($fields !== []) {
             $sets = implode(',', array_map(static fn(string $f): string => "$f=?", array_keys($fields)));
             db()->prepare("UPDATE users SET $sets WHERE id=?")->execute([...array_values($fields), $id]);
         }
-        audit('customer.updated', 'user', $id, ['fields' => array_keys($fields), 'by' => (int)$staff['id']]);
+        audit('customer.updated', 'user', $id, ['fields' => array_merge(array_keys($fields), $entitlementsChanged ? ['payment_entitlements'] : []), 'by' => (int)$staff['id']]);
         $updated = opRow('SELECT id,name,email,company,group_id,status,created_at FROM users WHERE id=?', [$id]) ?? [];
         $updated['id'] = (int)$updated['id']; $updated['group_id'] = (int)$updated['group_id'];
+        $updated['payment_entitlements'] = array_column(
+            opRows('SELECT payment_method,enabled FROM customer_payment_entitlements WHERE user_id=?', [$id]), 'enabled', 'payment_method'
+        );
+        foreach ($updated['payment_entitlements'] as &$enabled) $enabled = (bool)$enabled;
+        unset($enabled);
         respond(['customer' => $updated]);
     }
     if ($path === '/admin/settings' && $method === 'GET') {

@@ -1,4 +1,4 @@
-// Account area: Profile, Addresses, Orders, Returns, Buyback
+// Account area: Profile, Addresses, Orders, Returns
 
 (function initWorkbench() {
     window.Workbench = window.Workbench || {};
@@ -30,6 +30,9 @@
             'rejected': { label: 'rejected', badge: 'danger' }, 'credited': { label: 'credited', badge: 'success' },
             'active': { label: 'active', badge: 'success' }, 'pending': { label: 'pending', badge: 'warning' },
             'blocked': { label: 'blocked', badge: 'danger' }, 'isolated': { label: 'isolated', badge: 'success' }
+            ,'authorized': { label: 'paymentAuthorized', badge: 'info' }, 'paid': { label: 'paymentPaid', badge: 'success' },
+            'failed': { label: 'paymentFailed', badge: 'danger' }, 'refunded': { label: 'paymentRefunded', badge: 'neutral' },
+            'open': { label: 'invoiceOpen', badge: 'warning' }
         };
         
         window.Workbench.badge = (status, defaultLabel) => {
@@ -59,6 +62,10 @@ const accountShippingMethod = order => window.I18n.t({
     ups_standard: 'upsStandard',
     ups_express: 'upsExpress'
 }[order.shipping_method_code] || order.shipping_method_name || 'shipping');
+const accountPaymentState = state => window.Workbench.badge(state, accountT('paymentPending'));
+const accountFulfillmentState = order => order.status === 'on_hold' && order.payment_method === 'stripe'
+    ? window.Workbench.badge(null, accountT('orderReceived'))
+    : window.Workbench.badge(order.status);
 
 const accountLayout = (content, activeRoute) => `
     <div class="layout-sidebar">
@@ -70,7 +77,6 @@ const accountLayout = (content, activeRoute) => `
                     <a href="${window.APP_BASE}account/addresses" class="${activeRoute === 'addresses' ? 'active' : ''}">${accountT('addresses')}</a>
                     <a href="${window.APP_BASE}account/orders" class="${activeRoute === 'orders' ? 'active' : ''}">${accountT('orders')}</a>
                     <a href="${window.APP_BASE}account/returns" class="${activeRoute === 'returns' ? 'active' : ''}">${accountT('returns')}</a>
-                    <a href="${window.APP_BASE}account/buyback" class="${activeRoute === 'buyback' ? 'active' : ''}">${accountT('screenBuyback')}</a>
                 </div>
             </div>
         </aside>
@@ -141,6 +147,7 @@ window.Router.add(/^account$/, async (match, root) => {
     };
 });
 
+// End customer account routes.
 window.Router.add(/^account\/addresses$/, async (match, root) => {
     if (!window.Core.user) return window.Router.navigate(window.APP_BASE + 'login');
     const data = await window.Core.fetch('/addresses');
@@ -256,28 +263,25 @@ window.Router.add(/^account\/orders$/, async (match, root) => {
     const data = await window.Core.fetch('/orders');
     const esc = window.Core.escapeHtml;
     
-    const rows = data.orders.map(o => `
-        <tr>
-            <td><a href="${window.APP_BASE}account/orders/${o.id}" style="font-weight:600">${esc(o.number)}</a></td>
-            <td>${accountDate(o.created_at)}</td>
-            <td>${window.Workbench.badge(o.status)}</td>
-            <td>${accountMoney(o.total_cents, o.currency || 'CHF')}<br><small class="text-muted">${esc(o.currency || 'CHF')}</small></td>
-            <td>
-                <a href="${window.APP_BASE}account/orders/${o.id}" class="btn btn-sm btn-outline">${accountT('details')}</a>
-            </td>
-        </tr>
-    `).join('');
+    const cards = data.orders.map(o => `
+        <article class="buyer-order-card">
+            <div class="buyer-order-card-head">
+                <div><a href="${window.APP_BASE}account/orders/${o.id}" class="buyer-order-number">${esc(o.number)}</a><small>${accountDate(o.created_at)}</small></div>
+                <strong>${accountMoney(o.total_cents, o.currency || 'CHF')}</strong>
+            </div>
+            <dl class="buyer-order-states">
+                <div><dt>${accountT('fulfillment')}</dt><dd>${accountFulfillmentState(o)}</dd></div>
+                <div><dt>${accountT('payment')}</dt><dd>${accountPaymentState(o.payment_state)}</dd></div>
+                <div><dt>${accountT('paymentMethod')}</dt><dd>${esc(accountPaymentMethod(o.payment_method))}</dd></div>
+            </dl>
+            <a href="${window.APP_BASE}account/orders/${o.id}" class="btn btn-sm btn-outline">${accountT('details')}</a>
+        </article>`).join('');
 
     const content = `
         <div class="page-header">
             <h1>${accountT('orders')}</h1>
         </div>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead><tr><th>${accountT('orderNumber')}</th><th>${accountT('date')}</th><th>${accountT('status')}</th><th>${accountT('total')}</th><th>${accountT('action')}</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="5" style="text-align:center; padding: 2rem;">' + accountT('noOrders') + '</td></tr>'}</tbody>
-            </table>
-        </div>
+        <div class="buyer-order-list">${cards || '<div class="alert">' + accountT('noOrders') + '</div>'}</div>
     `;
     root.innerHTML = accountLayout(content, 'orders');
 });
@@ -312,8 +316,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
             <div class="page-header">
                 <h1>${accountT('order', {number: esc(o.number)})}</h1>
                 <div class="page-actions">
-                    <button class="btn btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">${accountT('invoicePdf')}</button>
-                    <button class="btn btn-outline" aria-label="${accountT('downloadPackingSlip')}" onclick="downloadPdf('/documents/${o.id}/packing-slip.pdf')">${accountT('packingSlipPdf')}</button>
+                    ${o.status === 'completed' ? `<button class="btn btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">${accountT('invoicePdf')}</button>` : ''}
                 </div>
             </div>
             
@@ -332,7 +335,8 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                     <h3 class="form-section-title">${accountT('orderInformation')}</h3>
                     <table style="width:100%; font-size:0.875rem; line-height:2;">
                         <tr><td style="color:var(--wb-text-muted); width:120px;">${accountT('date')}:</td><td><strong>${accountDate(o.created_at)}</strong></td></tr>
-                        <tr><td style="color:var(--wb-text-muted)">${accountT('status')}:</td><td>${window.Workbench.badge(o.status)}</td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">${accountT('fulfillment')}:</td><td>${accountFulfillmentState(o)}</td></tr>
+                        <tr><td style="color:var(--wb-text-muted)">${accountT('payment')}:</td><td>${accountPaymentState(o.payment_state)}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('tracking')}:</td><td>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" style="font-weight:500;">${accountT('trackParcel')}</a>` : '-'}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('paymentMethod')}:</td><td>${esc(accountPaymentMethod(o.payment_method))}</td></tr>
                         <tr><td style="color:var(--wb-text-muted)">${accountT('shippingMethod')}:</td><td>${esc(accountShippingMethod(o))}</td></tr>
@@ -341,6 +345,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                 </div>
             </div>
             
+            ${o.payment_method === 'pay_later' && o.status === 'completed' ? `<section class="card invoice-overview"><h3 class="form-section-title">${accountT('invoiceOverview')}</h3><p>${accountT('invoiceReady')}</p>${o.pay_invoice_eligible ? `<button class="btn" type="button" data-pay-invoice="${o.id}">${accountT('payInvoiceNow')}</button>` : ''}</section>` : ''}
             <div class="table-responsive">
                 <table class="data-table">
                     <thead><tr><th>${accountT('product')}</th><th>${accountT('price')}</th><th>${accountT('quantity')}</th><th style="text-align:right">${accountT('total')}</th><th style="text-align:right">${accountT('action')}</th></tr></thead>
@@ -362,6 +367,22 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
             </div>
         `;
         root.innerHTML = accountLayout(content, 'orders');
+
+        root.querySelector('[data-pay-invoice]')?.addEventListener('click', async event => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+                const result = await window.Core.fetch(`/orders/${button.dataset.payInvoice}/pay-invoice`, {method: 'POST', body: {}});
+                const target = new URL(result.stripe_checkout_url, window.location.origin);
+                if (!(target.protocol === 'https:' && target.hostname === 'checkout.stripe.com')) {
+                    throw new Error(accountT('unsafePaymentRedirect'));
+                }
+                window.location.assign(target.href);
+            } catch (error) {
+                window.Workbench?.toast(error.message, 'error');
+                button.disabled = false;
+            }
+        });
         
         const startReturn = (orderId, itemId, maxQty, itemName) => {
             const html = `
@@ -410,7 +431,6 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
         root.innerHTML = accountLayout(`<div class="alert error">${esc(err.message)}</div>`, 'orders');
     }
 });
-
 window.Router.add(/^account\/returns$/, async (match, root) => {
     if (!window.Core.user) return window.Router.navigate(window.APP_BASE + 'login');
     const data = await window.Core.fetch('/returns');
@@ -503,93 +523,4 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
     } catch(err) {
         root.innerHTML = accountLayout(`<div class="alert error">${esc(err.message)}</div>`, 'returns');
     }
-});
-
-window.Router.add(/^account\/buyback$/, async (match, root) => {
-    if (!window.Core.user) return window.Router.navigate(window.APP_BASE + 'login');
-    const data = await window.Core.fetch('/buyback/requests');
-    const esc = window.Core.escapeHtml;
-    
-    const rows = data.requests.map(r => `
-        <tr>
-            <td style="font-weight:600">${esc(r.number)}</td>
-            <td>${accountDate(r.created_at)}</td>
-            <td>${window.Workbench.badge(r.status)}</td>
-            <td>${accountMoney(r.total_cents, r.currency || data.currency || 'CHF')}</td>
-        </tr>
-    `).join('');
-
-    const content = `
-        <div class="page-header">
-            <h1>${accountT('screenBuyback')}</h1>
-            <button type="button" class="btn action-new-bb">${accountT('submitNewBuyback')}</button>
-        </div>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead><tr><th>${accountT('applicationNumber')}</th><th>${accountT('date')}</th><th>${accountT('status')}</th><th>${accountT('estimatedValue')}</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="4" style="text-align:center; padding:2rem;">' + accountT('noBuybacks') + '</td></tr>'}</tbody>
-            </table>
-        </div>
-    `;
-    root.innerHTML = accountLayout(content, 'buyback');
-    
-    const startBuyback = async () => {
-        try {
-            const bbData = await window.Core.fetch('/buyback');
-            const items = bbData.items;
-            
-            const tableRows = items.map(i => `
-                <tr>
-                    <td style="font-weight:500">${esc(i.model)}</td>
-                    <td>${esc(i.grade)}</td>
-                    <td>${accountMoney(i.price_cents, i.currency || bbData.currency || 'CHF')}</td>
-                    <td style="width:100px; padding:0.25rem 0.5rem;"><input type="number" class="form-control" name="qty_${i.id}" value="0" min="0" style="padding:0.25rem; font-size:0.875rem;"></td>
-                </tr>
-            `).join('');
-            
-            const html = `
-                <form id="bb-form">
-                    <p style="margin-bottom:1rem; font-size:0.875rem;">${accountT('buybackIntro')}</p>
-                    <div style="max-height:350px; overflow-y:auto; border:1px solid var(--wb-border-light); border-radius:var(--wb-radius); margin-bottom:1.5rem;">
-                        <table class="data-table" style="margin:0; border:none;">
-                            <thead style="position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);"><tr><th>${accountT('model')}</th><th>${accountT('grade')}</th><th>${accountT('unitPrice')}</th><th>${accountT('quantity')}</th></tr></thead>
-                            <tbody>${tableRows}</tbody>
-                        </table>
-                    </div>
-                    <details class="wb-details">
-                        <summary>${accountT('addOptionalNote')}</summary>
-                        <div class="wb-details-content">
-                            <textarea name="notes" class="form-control" rows="2" placeholder="${accountT('buybackNotePlaceholder')}"></textarea>
-                        </div>
-                    </details>
-                    <button type="submit" class="btn" style="width:100%; margin-top:1rem;">${accountT('submitApplication')}</button>
-                </form>
-            `;
-            const overlay = window.UI.showModal(accountT('newBuybackApplication'), html);
-            
-            document.getElementById('bb-form').onsubmit = async (e) => {
-                e.preventDefault();
-                const fd = new FormData(e.target);
-                const payloadItems = [];
-                items.forEach(i => {
-                    const qty = parseInt(fd.get(`qty_${i.id}`), 10);
-                    if (qty > 0) payloadItems.push({ item_id: i.id, quantity: qty });
-                });
-                if (payloadItems.length === 0) return window.Workbench.toast(accountT('buybackQuantityRequired'), 'warning');
-                
-                try {
-                    await window.Core.fetch('/buyback/requests', {
-                        method: 'POST',
-                        body: { items: payloadItems, notes: fd.get('notes') }
-                    });
-                    window.UI.closeModal(overlay);
-                    window.Workbench.toast(accountT('buybackSubmitted'), 'success');
-                    window.Router.route();
-                } catch(err) { window.Workbench.toast(err.message, 'error'); }
-            };
-
-        } catch(e) { window.Workbench.toast(e.message, 'error'); }
-    };
-    
-    root.querySelector('.action-new-bb').addEventListener('click', startBuyback);
-});
+}); // End customer account routes.

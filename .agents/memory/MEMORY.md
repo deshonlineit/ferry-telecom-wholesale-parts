@@ -47,3 +47,4 @@
 - [Immediate catalogue navigation](immediate-catalogue-navigation.md) — never block the top menu on cold catalogue metadata; render links or cached dropdowns first.
 - [Compact model filter](compact-model-filter.md) — model pickers open with 8 recent choices; search is primary and the full grouped list requires an explicit action.
 - [Quick-add animation timing](quick-add-animation-timing.md) — measure cart motion from server success, not click time; the cart pulse should visibly outlast the flyer.
+- [Bundled Stripe sync setup](bundled-stripe-sync-setup.md) — connector uses settings.secret; copy package migrations beside bundled server output so runMigrations finds them.

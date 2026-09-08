@@ -2,6 +2,8 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { backfillCustomerAddresses } from "./lib/backfillCustomerAddresses";
+import { runMigrations } from "stripe-replit-sync";
+import { getStripeSync } from "./stripeClient";
 
 const rawPort = process.env["PORT"];
 
@@ -19,6 +21,19 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start() {
   try {
+    const databaseUrl = process.env.DATABASE_URL;
+    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0];
+    if (!databaseUrl || !replitDomain) {
+      throw new Error("DATABASE_URL and REPLIT_DOMAINS are required for Stripe initialization.");
+    }
+    await runMigrations({ databaseUrl, logger });
+    const stripeSync = await getStripeSync();
+    await stripeSync.findOrCreateManagedWebhook(
+      `https://${replitDomain}/api/stripe/webhook`,
+    );
+    await stripeSync.syncBackfill();
+    logger.info("Stripe schema, managed webhook, and backfill ready");
+
     const migratedAddresses = await backfillCustomerAddresses(pool);
     logger.info({ migratedAddresses }, "Address book data ready");
   } catch (err) {

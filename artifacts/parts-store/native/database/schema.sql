@@ -72,10 +72,26 @@ CREATE TABLE IF NOT EXISTS orders (
  exchange_rate_ppm BIGINT UNSIGNED NULL,exchange_rate_date DATE NULL,base_currency CHAR(3) NULL,
  address_json JSON NOT NULL,shipping_method_code VARCHAR(40) NULL,
  shipping_method_name VARCHAR(100) NULL,shipping_carrier VARCHAR(60) NULL,
- payment_method VARCHAR(30) NOT NULL,notes TEXT NOT NULL,tracking VARCHAR(190) NOT NULL DEFAULT '',
+  payment_method VARCHAR(30) NOT NULL,payment_state VARCHAR(30) NOT NULL DEFAULT 'pending',
+  latest_payment_event_at BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  latest_payment_event_id VARCHAR(190) NOT NULL DEFAULT '',
+  payment_terms_json JSON NULL,checkout_snapshot JSON NULL,notes TEXT NOT NULL,tracking VARCHAR(190) NOT NULL DEFAULT '',
  idempotency_key VARCHAR(100) NOT NULL,stock_restored TINYINT NOT NULL DEFAULT 0,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id,idempotency_key),
  FOREIGN KEY(user_id) REFERENCES users(id),INDEX(status)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS customer_payment_entitlements (
+  user_id INT UNSIGNED NOT NULL,payment_method VARCHAR(30) NOT NULL,enabled TINYINT(1) NOT NULL DEFAULT 0,
+  granted_by INT UNSIGNED NULL,granted_at DATETIME NULL,revoked_by INT UNSIGNED NULL,revoked_at DATETIME NULL,
+  PRIMARY KEY(user_id,payment_method),FOREIGN KEY(user_id) REFERENCES users(id),
+  FOREIGN KEY(granted_by) REFERENCES users(id),FOREIGN KEY(revoked_by) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS payment_attempts (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,order_id INT UNSIGNED NOT NULL,payment_method VARCHAR(30) NOT NULL,
+  provider_id VARCHAR(190) NULL,provider_event_id VARCHAR(190) NULL,provider_event_created_at BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  state VARCHAR(30) NOT NULL,payload JSON NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE(provider_event_id),INDEX(order_id,state),INDEX(provider_id),FOREIGN KEY(order_id) REFERENCES orders(id)
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS order_items (
  id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,order_id INT UNSIGNED NOT NULL,product_id INT UNSIGNED NOT NULL,

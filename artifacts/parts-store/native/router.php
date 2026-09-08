@@ -41,7 +41,8 @@ try {
         $route = substr($path, 4);
         $method = $_SERVER['REQUEST_METHOD'];
         startSession();
-        if (!in_array($method, ['GET', 'HEAD'], true)) {
+        $internalRoute = in_array($route, ['/internal/checkout/validate-quote', '/internal/payments/callback'], true);
+        if (!in_array($method, ['GET', 'HEAD'], true) && !$internalRoute) {
             verifyCsrf();
         }
         foreach (['auth', 'catalog', 'commerce', 'operations', 'media'] as $module) {
