@@ -6,6 +6,7 @@ STATE="$WORKSPACE/.local/native-mysql"
 source "$ROOT/bin/lib/mysql-runtime.sh"
 mkdir -p "$STATE" "$ROOT/storage/sessions" "$ROOT/storage/originals" "$ROOT/public/media"
 chmod 700 "$STATE" "$ROOT/storage" "$ROOT/storage/sessions" "$ROOT/storage/originals"
+composer --working-dir="$ROOT" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 DB_PID=""
 WEB_PID=""
 FX_PID=""
@@ -83,6 +84,13 @@ if [[ -z "$BRIDGE_SECRET" && -n "${SESSION_SECRET:-}" ]]; then
   BRIDGE_SECRET="$(node -e 'const c=require("node:crypto");process.stdout.write(c.createHash("sha256").update(`ferry-stripe-bridge-v1:${process.env.SESSION_SECRET}`).digest("hex"))')"
 fi
 env -i PATH="$PATH" HOME="$HOME" NATIVE_S2S_SECRET="$BRIDGE_SECRET" \
+  SWISS_QR_CREDITOR_NAME="${SWISS_QR_CREDITOR_NAME:-}" \
+  SWISS_QR_CREDITOR_STREET="${SWISS_QR_CREDITOR_STREET:-}" \
+  SWISS_QR_CREDITOR_HOUSE_NUMBER="${SWISS_QR_CREDITOR_HOUSE_NUMBER:-}" \
+  SWISS_QR_CREDITOR_POSTAL_CODE="${SWISS_QR_CREDITOR_POSTAL_CODE:-}" \
+  SWISS_QR_CREDITOR_CITY="${SWISS_QR_CREDITOR_CITY:-}" \
+  SWISS_QR_CREDITOR_COUNTRY="${SWISS_QR_CREDITOR_COUNTRY:-}" \
+  SWISS_QR_CHF_IBAN="${SWISS_QR_CHF_IBAN:-}" \
   php -d display_errors=0 -d log_errors=1 -d allow_url_fopen=0 -d allow_url_include=0 \
     -d ffi.enable=false -d upload_max_filesize=8M -d post_max_size=10M -d memory_limit=256M \
     -d 'disable_functions=mail,curl_multi_exec,exec,shell_exec,system,passthru,popen,proc_open,fsockopen,pfsockopen,stream_socket_client,socket_connect' \

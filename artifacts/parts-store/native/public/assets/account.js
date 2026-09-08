@@ -316,7 +316,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
             <div class="page-header">
                 <h1>${accountT('order', {number: esc(o.number)})}</h1>
                 <div class="page-actions">
-                    ${o.status === 'completed' ? `<button class="btn btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">${accountT('invoicePdf')}</button>` : ''}
+                    ${(o.status === 'completed' || (o.payment_method === 'swiss_qr_invoice' && o.status === 'on_hold')) ? `<button class="btn btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">${accountT('invoicePdf')}</button>` : ''}
                 </div>
             </div>
             

@@ -66,6 +66,7 @@ fixtures = [
     {"email": "qa-api-" + secrets.token_hex(6) + "@test.invalid", "password": secrets.token_urlsafe(32), "role": role, "group_id": group}
     for role, group in [("staff", 1), ("customer", 1), ("customer", 3)]
 ]
+fixtures[1]["payment_entitlements"] = ["swiss_qr_invoice"]
 staff_email, staff_password = fixtures[0]["email"], fixtures[0]["password"]
 
 
@@ -78,7 +79,13 @@ fixture()
 try:
     guest = Client()
     session = guest.call("GET", "/session")
-    check(session["test_mode"] and not any(session["capabilities"].values()), "live capability flags disabled")
+    check(
+        session["test_mode"]
+        and session["capabilities"]["payments"]
+        and not session["capabilities"]["live_stock"]
+        and not session["capabilities"]["email"],
+        "payments enabled while remote stock and email capabilities stay disabled",
+    )
     guest.call("POST", "/auth/demo", {"persona": "staff"}, expected=(403,))
     check(True, "anonymous staff impersonation rejected")
     guest.call("POST", "/auth/demo", {"persona": "customer"}, csrf=False, expected=(403,))
@@ -146,6 +153,7 @@ try:
     check(order["id"] == repeated["id"], "checkout retry returns the same order")
     check(staff.call("GET", f"/admin/products/{pid}")["product"]["stock"] == 2, "isolated stock decremented exactly once")
     oid = order["id"]
+    check(order["status"] == "on_hold", "Swiss QR order waits for payment")
     detail = customer.call("GET", f"/orders/{oid}")
     initial_invoice = staff.call("GET", f"/admin/invoices?q={order['number']}&limit=1")["invoices"][0]
     check(initial_invoice["payment_status"] == "unverified" and initial_invoice["outstanding_cents"] is None
@@ -193,8 +201,12 @@ try:
     partner.call("GET", f"/documents/{oid}/invoice.pdf", expected=(403, 404))
     check(True, "order and PDF ownership enforced")
     invoice = customer.call("GET", f"/documents/{oid}/invoice.pdf", raw=True)
-    packing = customer.call("GET", f"/documents/{oid}/packing-slip.pdf", raw=True)
-    check(invoice.startswith(b"%PDF-") and packing.startswith(b"%PDF-"), "actual invoice and packing-slip PDFs")
+    check(
+        invoice.startswith(b"%PDF-") and b"Swiss QR payment section" in invoice,
+        "on-hold Swiss QR order exposes its owned payment PDF",
+    )
+    customer.call("GET", f"/documents/{oid}/packing-slip.pdf", expected=(403,))
+    check(True, "customer packing slip remains forbidden before fulfillment")
     return_body = {"order_id": oid, "reason": "QA damaged screen", "items": [{"order_item_id": detail["items"][0]["id"], "quantity": 1}]}
     customer.call("POST", "/returns", return_body, expected=(409, 422))
     check(True, "unfulfilled orders cannot be returned")

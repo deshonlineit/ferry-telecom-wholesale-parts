@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/SwissQrInvoice.php';
+
 /**
  * Cart, checkout, customer account, and staff order routes.
  *
@@ -100,14 +102,7 @@ function commercePaymentEligible(PDO $pdo, int $userId, string $paymentMethod): 
 
 function commerceQrProfile(PDO $pdo, string $currency): ?array
 {
-    $statement = $pdo->prepare('SELECT name,value FROM settings WHERE name IN (?,?)');
-    $statement->execute(['qr_' . strtolower($currency) . '_creditor', 'qr_' . strtolower($currency) . '_iban']);
-    $profile = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $profile[str_ends_with((string) $row['name'], '_iban') ? 'iban' : 'creditor'] = trim((string) $row['value']);
-    }
-    return isset($profile['creditor'], $profile['iban']) && $profile['creditor'] !== '' && $profile['iban'] !== ''
-        ? $profile + ['currency' => $currency] : null;
+    return strtoupper($currency) === 'CHF' ? swissQrEnvironmentProfile() : null;
 }
 
 function commercePaymentTerms(PDO $pdo, string $method, string $currency): ?array
@@ -116,7 +111,7 @@ function commercePaymentTerms(PDO $pdo, string $method, string $currency): ?arra
     if ($method === 'swiss_qr_invoice') {
         $profile = commerceQrProfile($pdo, $currency);
         if ($profile === null) throw new HttpError(503, 'QR invoice payment is unavailable until a creditor profile is configured.');
-        return ['kind' => 'qr_invoice', 'due_days' => 30, 'creditor' => $profile['creditor'], 'iban' => $profile['iban'], 'currency' => $currency];
+        return ['kind' => 'qr_invoice', 'due_days' => 14] + $profile;
     }
     $days = 30;
     $statement = $pdo->prepare("SELECT value FROM settings WHERE name='pay_later_terms_days'");

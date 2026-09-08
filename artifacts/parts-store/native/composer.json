@@ -1,0 +1,8 @@
+{
+    "name": "ferry-telecom/native-store",
+    "description": "Native storefront runtime",
+    "license": "proprietary",
+    "require": {
+        "sprain/swiss-qr-bill": "^4.0"
+    }
+}

@@ -55,6 +55,49 @@ final class PdfWriter
         $this->cursorY -= $points;
     }
 
+    public function qrSvg(string $svg, float $size = 150.0): void
+    {
+        $this->ensureSpace($size + 10.0);
+        if (!preg_match('/viewBox="0 0 ([\d.]+) ([\d.]+)"/', $svg, $view)
+            || !preg_match('/<path[^>]+d="([^"]+)"/', $svg, $path)) {
+            throw new RuntimeException('The generated QR image could not be embedded.');
+        }
+        $scale = $size / (float) $view[1];
+        $x = self::LEFT;
+        $y = $this->cursorY - $size;
+        $commands = html_entity_decode($path[1], ENT_QUOTES | ENT_XML1);
+        preg_match_all(
+            '/M([\d.]+),([\d.]+)L([\d.]+),([\d.]+)L([\d.]+),([\d.]+)L([\d.]+),([\d.]+)Z/i',
+            $commands,
+            $matches,
+            PREG_SET_ORDER
+        );
+        if ($matches === []) {
+            throw new RuntimeException('The generated QR image contains no drawable modules.');
+        }
+        $this->lines[] = 'q 0 g';
+        foreach ($matches as $match) {
+            $this->lines[] = sprintf(
+                '%.3F %.3F %.3F %.3F re f',
+                $x + ((float) $match[1] * $scale),
+                $y + ($size - ((float) $match[6] * $scale)),
+                ((float) $match[3] - (float) $match[1]) * $scale,
+                ((float) $match[6] - (float) $match[4]) * $scale
+            );
+        }
+        $cross = $size * (7 / 46);
+        $crossX = $x + (($size - $cross) / 2);
+        $crossY = $y + (($size - $cross) / 2);
+        $this->lines[] = sprintf('0 g %.3F %.3F %.3F %.3F re f', $crossX, $crossY, $cross, $cross);
+        $this->lines[] = sprintf(
+            '1 g %.3F %.3F %.3F %.3F re f %.3F %.3F %.3F %.3F re f',
+            $crossX + ($cross * .39), $crossY + ($cross * .18), $cross * .22, $cross * .64,
+            $crossX + ($cross * .18), $crossY + ($cross * .39), $cross * .64, $cross * .22
+        );
+        $this->lines[] = 'Q';
+        $this->cursorY -= $size + 10.0;
+    }
+
     public function output(): string
     {
         $this->finishPage();

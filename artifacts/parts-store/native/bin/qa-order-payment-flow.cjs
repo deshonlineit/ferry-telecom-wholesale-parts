@@ -22,6 +22,7 @@ assert.match(admin, /Fulfillment', 'Payment'/);
 assert.doesNotMatch(account, /account\/buyback/);
 assert.match(account, /accountFulfillmentState/);
 assert.match(account, /order\.status === 'on_hold' && order\.payment_method === 'stripe'/);
+assert.match(account, /o\.payment_method === 'swiss_qr_invoice' && o\.status === 'on_hold'/);
 assert.match(account, /buyer-order-card/);
 assert.match(account, /pay_invoice_eligible/);
 assert.doesNotMatch(account, /packing-slip\.pdf/);

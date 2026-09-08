@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/PdfWriter.php';
+require_once __DIR__ . '/SwissQrInvoice.php';
 
 const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
 const MEDIA_MAX_PIXELS = 20_000_000;
@@ -199,7 +200,10 @@ function mediaOrderDocument(int $orderId, string $kind): never
     if (($user['role'] ?? '') !== 'staff' && $kind === 'packing-slip') {
         throw new HttpError(403, 'Packing slips are available to staff only.');
     }
-    if ($kind === 'invoice' && (string) $order['status'] !== 'completed') {
+    $prepaymentQrInvoice = $kind === 'invoice'
+        && (string) $order['payment_method'] === 'swiss_qr_invoice'
+        && (string) $order['status'] === 'on_hold';
+    if ($kind === 'invoice' && (string) $order['status'] !== 'completed' && !$prepaymentQrInvoice) {
         throw new HttpError(409, 'The invoice is available after the order is completed.');
     }
     $statement = db()->prepare('SELECT name,sku,quantity,price_cents,total_cents FROM order_items WHERE order_id = ? ORDER BY id');
@@ -258,9 +262,25 @@ function mediaOrderDocument(int $orderId, string $kind): never
             $pdf->line('Outstanding amount: ' . mediaMoney($outstanding, (string) $order['currency']));
             $pdf->line('Pay-invoice eligibility: contact staff to record a payment.');
         }
-        $pdf->line('No bank account, payment link, or live payment instructions are included in this isolated test document.');
         if ((string) $order['payment_method'] === 'swiss_qr_invoice') {
-            $pdf->line('Swiss QR payment details are not yet included; no non-compliant QR code has been generated.');
+            $terms = json_decode((string) ($order['payment_terms_json'] ?? ''), true);
+            if (!is_array($terms)) {
+                throw new HttpError(503, 'The QR invoice creditor snapshot is unavailable.');
+            }
+            try {
+                $qrBill = swissQrCreate($terms, $order, $address);
+                $pdf->heading('Swiss QR payment section', 13);
+                $pdf->line('Account / Payable to: ' . (string) $terms['iban']);
+                $pdf->line((string) $terms['name'] . ', ' . (string) $terms['street'] . ' ' . (string) $terms['house_number']);
+                $pdf->line((string) $terms['postal_code'] . ' ' . (string) $terms['city'] . ', ' . (string) $terms['country']);
+                $pdf->line('Additional information: Order #' . (string) $order['number']);
+                $pdf->line('Currency / Amount: CHF ' . number_format(((int) $order['total_cents']) / 100, 2, '.', ''));
+                $pdf->qrSvg($qrBill->getQrCode()->getAsString('svg'));
+            } catch (Throwable $exception) {
+                throw new HttpError(503, 'The Swiss QR payment section could not be generated safely.');
+            }
+        } else {
+            $pdf->line('No bank account, payment link, or live payment instructions are included in this isolated test document.');
         }
     } else {
         $pdf->spacer();

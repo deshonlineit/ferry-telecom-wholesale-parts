@@ -24,6 +24,14 @@ if (strlen($password) < 16 || !in_array($role, ['customer', 'staff'], true) || !
 db()->prepare("INSERT INTO users(name,email,password_hash,company,role,group_id,status) VALUES('QA fixture',?,?, 'QA isolated test',?,?,'active')")
     ->execute([$email, password_hash($password, PASSWORD_DEFAULT), $role, $group]);
 $id = (int) db()->lastInsertId();
+$allowedEntitlements = ['stripe', 'pay_later', 'swiss_qr_invoice'];
+foreach (($input['payment_entitlements'] ?? []) as $paymentMethod) {
+    if (!is_string($paymentMethod) || !in_array($paymentMethod, $allowedEntitlements, true)) {
+        throw new RuntimeException('Invalid QA payment entitlement.');
+    }
+    db()->prepare('INSERT INTO customer_payment_entitlements(user_id,payment_method,enabled) VALUES(?,?,1)')
+        ->execute([$id, $paymentMethod]);
+}
 db()->prepare("INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,'QA address','QA fixture','QA isolated test','Example Street 1','','8000','Zürich','CH',1)")
     ->execute([$id]);
 echo json_encode(['id' => $id]) . "\n";
