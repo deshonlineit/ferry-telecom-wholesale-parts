@@ -3,8 +3,8 @@ name: Mobile zoom viewport
 description: Why zoom-safe mobile headers must account for both layout and Visual Viewport widths.
 ---
 
-Browser or page scaling can reduce the visible viewport without changing `innerWidth`, so a narrow CSS media query alone is not sufficient for zoom-safe header reflow.
+Browser zoom and page/pinch scaling are separate regression paths. Real browser zoom reduces the effective CSS layout width, raises `devicePixelRatio`, and leaves `visualViewport.scale` at 1; page scaling reduces only the Visual Viewport and raises its scale.
 
-**Why:** At 200% CDP page scale, the Visual Viewport measured half the layout width while the narrow media query did not activate, leaving controls outside the visible area.
+**Why:** CDP page-scale emulation can pass a 200% geometry check while never exercising browser-zoom media-query reflow. In Chromium, browser UI zoom must be driven separately and identified by its layout and pixel-ratio metrics.
 
-**How to apply:** For zoom-critical header work, verify both classic reflow at the effective CSS width and scaling where `visualViewport.width` shrinks while the layout viewport remains unchanged.
+**How to apply:** Verify browser zoom with `visualViewport.scale === 1`, a reduced layout width, and increased pixel ratio. Test page/pinch scaling independently where the Visual Viewport shrinks without layout reflow.

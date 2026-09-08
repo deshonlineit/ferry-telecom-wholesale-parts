@@ -44,6 +44,10 @@ args = "native-header-test"
 task = "workflow.run"
 args = "generated-api-schema"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "native-header-zoom"
+
 [[workflows.workflow]]
 name = "isolation-test"
 author = "agent"
@@ -117,6 +121,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm exec tsc -b lib/api-zod lib/api-client-react --force"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "native-header-zoom"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "HEADER_ZOOM_BASE_URL=\"https://${REPLIT_DEV_DOMAIN}/test-shop/\" pnpm --filter @workspace/parts-store run test:native-header-zoom"
 
 [workflows.workflow.metadata]
 isValidation = true
