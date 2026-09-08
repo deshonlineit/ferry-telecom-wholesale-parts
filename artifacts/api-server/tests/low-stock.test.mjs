@@ -120,6 +120,7 @@ try {
     password: `Test-${crypto.randomUUID()}`,
     first_name: "LowStock",
     last_name: "Regression",
+    public_metadata: { role: "staff" },
     skip_password_checks: true,
   });
   clerkUserId = user.id;
