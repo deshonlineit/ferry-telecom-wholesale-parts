@@ -5,11 +5,28 @@ const vm = require('vm');
 
 const nativeRoot = path.resolve(__dirname, '..');
 const indexSource = fs.readFileSync(path.join(nativeRoot, 'public', 'index.php'), 'utf8');
+const navigationCss = fs.readFileSync(path.join(nativeRoot, 'public', 'assets', 'b2b-navigation.css'), 'utf8');
 assert.strictEqual(
     (indexSource.match(/id="user-nav"/g) || []).length,
     1,
     'mobile navigation must have one account-action host'
 );
+
+const narrowHeaderRule = navigationCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}\n\n\n\/\* 2\./);
+assert(narrowHeaderRule, 'narrowest supported viewport must have a dedicated header layout');
+const narrowCss = narrowHeaderRule[1];
+assert(/grid-template-rows:\s*40px 40px auto/.test(narrowCss),
+    'narrow layout must reserve separate rows for the logo, actions, and search');
+assert(/\.user-nav[\s\S]*?grid-row:\s*2/.test(narrowCss),
+    'narrow account actions must not share the logo row');
+assert(/(?:\.page-search-jump|\.search-bar)[\s\S]*?grid-row:\s*3/.test(narrowCss),
+    'narrow search control must not share the account-action row');
+assert(/\.user-nav \.nav-link[\s\S]*?min-width:\s*40px[\s\S]*?min-height:\s*40px/.test(narrowCss),
+    'every narrow account action must retain a 40 by 40 pixel tap target');
+assert(/\.logo img[\s\S]*?max-width:\s*min\(100%, 170px\)/.test(narrowCss),
+    'the logo must shrink with its grid track at narrow boundary widths');
+assert(/\.btn-primary[\s\S]*?max-width:\s*calc\(100% - 48px\)[\s\S]*?text-overflow:\s*ellipsis/.test(narrowCss),
+    'long translated registration labels must stay inside the action row');
 
 const mobileNav = {innerHTML: ''};
 const document = {
@@ -90,6 +107,16 @@ function assertMobileActions({requiredHrefs, forbiddenHrefs, requiredClasses, fo
         assert(!new RegExp(`class="[^"]*\\b${className}\\b`).test(mobileNav.innerHTML),
             `${message}: contradictory mobile action class "${className}" is visible`);
     }
+    const actions = Array.from(mobileNav.innerHTML.matchAll(/<(a|button)\b([^>]*)>/g));
+    assert(actions.length > 0, `${message}: account actions must be rendered`);
+    for (const [, element, attributes] of actions) {
+        if (element === 'button') {
+            assert(/\btype="button"/.test(attributes), `${message}: buttons must not submit forms while keyboard navigating`);
+        } else {
+            assert(/\bhref="[^"]+"/.test(attributes), `${message}: links must remain keyboard focusable`);
+        }
+        assert(!/\btabindex="-1"/.test(attributes), `${message}: account actions must remain in the keyboard tab order`);
+    }
 }
 
 window.Core.user = null;
@@ -107,6 +134,14 @@ window.I18n.set('nl');
 assert(mobileNav.innerHTML.includes(window.I18n.t('signIn')), 'guest: sign-in label must refresh after language change');
 assert(mobileNav.innerHTML.includes(window.I18n.t('becomeCustomer')), 'guest: registration label must refresh after language change');
 assert(!mobileNav.innerHTML.includes('Become a customer'), 'guest: stale English registration label must be removed');
+
+for (const locale of ['en', 'nl', 'de', 'fr', 'it']) {
+    window.I18n.set(locale);
+    assert(mobileNav.innerHTML.includes(window.I18n.t('signIn')),
+        `guest ${locale}: translated sign-in action must remain rendered`);
+    assert(mobileNav.innerHTML.includes(window.I18n.t('becomeCustomer')),
+        `guest ${locale}: translated registration action must remain rendered`);
+}
 
 window.Core.user = {id: 42, role: 'customer'};
 window.Core.renderNav();

@@ -1197,15 +1197,34 @@ body:not(:has(.admin-shell)) .mobile-chevron {
 }
 
 @media (max-width: 480px) {
-    body:not(:has(.admin-shell)) .app-header .header-inner {
-        grid-template-columns: minmax(130px, 1fr) auto;
-        padding-left: 16px;
-        padding-right: 16px;
+    body:not(:has(.admin-shell)) .app-header .header-inner,
+    body:not(:has(.admin-shell)):has(.lp) .app-header .header-inner,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .header-inner {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 40px 40px auto;
+        gap: 8px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .logo {
+        grid-column: 1;
+        grid-row: 1;
     }
 
     body:not(:has(.admin-shell)) .app-header .logo img {
         height: 40px;
-        max-width: 170px;
+        max-width: min(100%, 170px);
+    }
+
+    body:not(:has(.admin-shell)) .app-header .user-nav,
+    body:not(:has(.admin-shell)):has(.lp) .app-header .user-nav,
+    body:not(:has(.admin-shell)):has(.catalog-smart-search) .app-header .user-nav {
+        grid-column: 1;
+        grid-row: 2;
+        width: 100%;
+        justify-content: flex-start;
+        overflow: hidden;
     }
 
     body:not(:has(.admin-shell)) .app-header .nav-signin {
@@ -1223,10 +1242,25 @@ body:not(:has(.admin-shell)) .mobile-chevron {
     }
 
     body:not(:has(.admin-shell)) .app-header .user-nav .btn-primary {
+        min-width: 0;
+        max-width: calc(100% - 48px);
         min-height: 38px;
         padding: 0 13px;
+        overflow: hidden;
         font-size: 12px;
         white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .user-nav .nav-link {
+        min-width: 40px;
+        min-height: 40px;
+    }
+
+    body:not(:has(.admin-shell)) .app-header .page-search-jump,
+    body:not(:has(.admin-shell)) .app-header .search-bar {
+        grid-column: 1;
+        grid-row: 3;
     }
 }
 
