@@ -36,6 +36,10 @@ args = "smartwatch-search-test"
 task = "workflow.run"
 args = "profile-test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "native-header-test"
+
 [[workflows.workflow]]
 name = "isolation-test"
 author = "agent"
@@ -87,6 +91,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/api-server run test:profile"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "native-header-test"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/parts-store run test:native-header"
 
 [workflows.workflow.metadata]
 isValidation = true
