@@ -140,3 +140,17 @@ mtime_ms = 1788949916943
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/4c4d643a-7fa0-4c23-b74b-740193e2edd8/cea15baa-5939-440d-aa97-575516230517"
 storage_version_token = "1788949954329317"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "1DfJ7hDHZPeMfST0IDP5Q"
+uri = "file://screenshots/iphone-17-pro-max-correct-battery.jpg"
+type = "image"
+title = "Correcte iPhone 17 Pro Max-batterij"
+description = "Browsercontrole van IPH17PRM010 na vervanging: losse batterij met voor- en achterzijde; de foutieve frameconstructie is verwijderd."
+logical_id = "3929e292-0dbf-4728-b388-d02d70fe2294"
+content_hash = "sha256:213f9ab6f33781a9279cc438ab47c47606800dbbc5344aff306c84676d9c67aa"
+size = 77493
+mtime_ms = 1788951477834
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/3929e292-0dbf-4728-b388-d02d70fe2294/69c08c88-134c-4342-8b20-0d48756e818b"
+storage_version_token = "1788951487508668"
+content_type = "image/jpeg"

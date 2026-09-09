@@ -26,3 +26,9 @@ The owner permits copying public supplier product photos into the catalogue when
 **Why:** Ferry’s WooCommerce catalogue can contain valid SKUs without source media, while specialist suppliers may have an accurate usable product photo.
 
 **How to apply:** Visually review every candidate, reject watermarks, badges and mismatched variants, store local responsive variants rather than hotlinking, and retain the source URL, retrieval date and processed-file hash.
+
+For battery products, an exact-model search title is not sufficient: the image must visibly show the loose battery pack and its correct geometry. Reject frame-mounted assemblies, shields, or larger modules even when a marketplace labels them as a battery.
+
+**Why:** A seller search result for an iPhone 17 Pro Max battery showed a chassis assembly containing a battery; accepting its title produced a materially misleading catalogue image.
+
+**How to apply:** Compare shape, flex connector and boundaries against multiple exact-model repair-part references before approval; prefer clean front/rear views of the loose part.
