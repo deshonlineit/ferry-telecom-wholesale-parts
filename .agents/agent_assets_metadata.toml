@@ -126,3 +126,17 @@ mtime_ms = 1788949512922
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/66b4cc3d-a260-4018-bcbf-f545e00d31b4/6608a6d7-7840-4339-93fe-26ad8839eb97"
 storage_version_token = "1788949655845902"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "PAk0fVV2Zed8wtjTzaLKO"
+uri = "file://screenshots/iphone-17-pro-max-real-product-images.jpg"
+type = "image"
+title = "iPhone 17 Pro Max — echte productfoto’s toegevoegd"
+description = "Browsercontrole na import: acht eerder lege SKU’s hebben nu lokale productfoto’s zonder watermerk, inclusief responsive WebP-varianten."
+logical_id = "4c4d643a-7fa0-4c23-b74b-740193e2edd8"
+content_hash = "sha256:525a4b789127c10db213deb2ce911bf8cd7ad8c4cf77d579f6bc863d5903fc89"
+size = 209915
+mtime_ms = 1788949916943
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/4c4d643a-7fa0-4c23-b74b-740193e2edd8/cea15baa-5939-440d-aa97-575516230517"
+storage_version_token = "1788949954329317"
+content_type = "image/jpeg"

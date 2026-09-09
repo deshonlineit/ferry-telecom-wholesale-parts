@@ -20,3 +20,9 @@ Publicly discovered catalogue photos require an exact semantic product match and
 **Why:** Search results can match the device family while differing in generation, color, part type, quality grade, frame/chip configuration, or side. Misleading imagery is worse than leaving a product photo empty.
 
 **How to apply:** Preserve the source page, direct image URL, retrieval date, content hash, and review decision. Require text and visual review, reject marketplace ads and ambiguous duplicates, and leave uncertain products without a photo.
+
+The owner permits copying public supplier product photos into the catalogue when they are an exact product/variant match and contain no watermark. Crop incidental branded packaging or manuals out before import when the product itself remains complete and accurate.
+
+**Why:** Ferry’s WooCommerce catalogue can contain valid SKUs without source media, while specialist suppliers may have an accurate usable product photo.
+
+**How to apply:** Visually review every candidate, reject watermarks, badges and mismatched variants, store local responsive variants rather than hotlinking, and retain the source URL, retrieval date and processed-file hash.
