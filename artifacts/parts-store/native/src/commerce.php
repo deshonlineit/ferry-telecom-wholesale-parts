@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/SwissQrInvoice.php';
+require_once __DIR__ . '/native-relay.php';
 
 /**
  * Cart, checkout, customer account, and staff order routes.
@@ -1405,6 +1406,7 @@ function commerceInternalPaymentCallback(): never
         $pdo->prepare('UPDATE orders SET payment_state=?,latest_payment_event_at=?,latest_payment_event_id=? WHERE id=?')
             ->execute([$state, $eventCreatedAt, $eventId, $orderId]);
         $pdo->prepare('UPDATE payment_attempts SET state=? WHERE id=?')->execute([$state, (int) $providerAttemptId]);
+         if ($state === 'paid') nativeRelayQueuePaidOrder($pdo, $orderId, $eventId);
         audit('payment.callback', 'order', $orderId, ['state' => $state, 'provider_id' => $providerId]);
         $pdo->commit();
         respond(['accepted' => true, 'idempotent' => false, 'payment_state' => $state]);

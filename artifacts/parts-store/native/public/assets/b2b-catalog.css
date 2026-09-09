@@ -377,9 +377,23 @@ body:not(:has(.admin-shell)) .catalog-main > .b2b-products .b2b-table th:last-ch
 }
 
 .b2b-img-wrap.no-img svg {
-    width: 24px;
-    height: 24px;
-    color: #c7c7cc;
+    width: 30px;
+    height: 30px;
+    color: #52799e;
+}
+
+.b2b-img-wrap.no-img {
+    background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.92), transparent 42%),
+        linear-gradient(145deg, #f2f7fb, #e7f0f8);
+    border-color: #d5e2ee;
+}
+
+.b2b-img-wrap.no-img:hover {
+    background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.96), transparent 42%),
+        linear-gradient(145deg, #edf5fb, #dceaf5);
+    border-color: #b9cee0;
 }
 
 /* Product Info */

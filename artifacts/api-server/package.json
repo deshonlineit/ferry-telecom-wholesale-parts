@@ -8,6 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "picqer-worker": "tsx src/bin/picqer-worker.ts",
+    "native-picqer-worker": "tsx src/bin/native-picqer-worker.ts",
+    "picqer-reconcile": "tsx src/bin/picqer-reconcile.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:profile": "node --test tests/profile.test.mjs",
     "test": "node tests/product-classification.test.mjs && vitest run src/lib/productCsvImport.test.ts"

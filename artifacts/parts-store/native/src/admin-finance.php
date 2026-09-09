@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/native-relay.php';
 
 /*
  * Local invoice control for the isolated test shop. This is an accounting
@@ -226,7 +227,7 @@ function financeUpdate(int $id): never
     $pdo = db();
     try {
         $pdo->beginTransaction();
-        $order = opRow('SELECT id FROM orders WHERE id=? FOR UPDATE', [$id]);
+        $order = opRow('SELECT id,total_cents FROM orders WHERE id=? FOR UPDATE', [$id]);
         if ($order === null) throw new HttpError(404, 'Invoice order not found.');
         $current = opRow(
             'SELECT verified,due_date,paid_cents,note,version FROM invoice_accounting WHERE order_id=? FOR UPDATE',
@@ -259,6 +260,12 @@ function financeUpdate(int $id): never
             'verified' => (bool)$verified, 'due_date' => $dueDate, 'paid_cents' => $paid,
             'note' => $note, 'version' => $newVersion,
         ];
+        // Verification by itself is never fulfillment approval. A newly
+        // fully covered, verified ledger is the sole invoice enqueue edge.
+        if ($verified && $paid >= (int)$order['total_cents'] && $paid > (int)$before['paid_cents']) {
+            $pdo->prepare("UPDATE orders SET payment_state='paid' WHERE id=?")->execute([$id]);
+            nativeRelayQueuePaidOrder($pdo, $id, 'invoice-payment-' . $id . '-' . $newVersion);
+        }
         audit('invoice.accounting_updated', 'order', $id, [
             'before' => $before, 'after' => $after, 'by' => (int)$staff['id'],
         ]);
@@ -355,6 +362,7 @@ function financeApplyPaymentImports(PDO $pdo, int $staffId, array $records): arr
                 }
                 $paymentState = $paid >= (int)$order['total_cents'] ? 'paid' : 'partial';
                 $pdo->prepare('UPDATE orders SET payment_state=? WHERE id=?')->execute([$paymentState, $orderId]);
+                 if ($paymentState === 'paid') nativeRelayQueuePaidOrder($pdo, $orderId, 'payment-import-' . $externalId);
                 $status = 'matched';
             } elseif ($order !== null) {
                 $status = 'currency_mismatch';

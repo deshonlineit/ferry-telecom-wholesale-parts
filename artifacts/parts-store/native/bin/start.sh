@@ -85,6 +85,7 @@ if [[ -z "$BRIDGE_SECRET" && -n "${SESSION_SECRET:-}" ]]; then
   BRIDGE_SECRET="$(node -e 'const c=require("node:crypto");process.stdout.write(c.createHash("sha256").update(`ferry-stripe-bridge-v1:${process.env.SESSION_SECRET}`).digest("hex"))')"
 fi
 env -i PATH="$PATH" HOME="$HOME" NATIVE_S2S_SECRET="$BRIDGE_SECRET" \
+  PICQER_CUTOVER_AT="${PICQER_CUTOVER_AT:-}" \
   SWISS_QR_CREDITOR_NAME="${SWISS_QR_CREDITOR_NAME:-}" \
   SWISS_QR_CREDITOR_STREET="${SWISS_QR_CREDITOR_STREET:-}" \
   SWISS_QR_CREDITOR_HOUSE_NUMBER="${SWISS_QR_CREDITOR_HOUSE_NUMBER:-}" \

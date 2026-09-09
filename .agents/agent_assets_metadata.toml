@@ -112,3 +112,17 @@ mtime_ms = 1788907971186
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/360260b7-f983-405d-8900-0b3086bbd908/e90d98dd-9ba4-4d0d-b620-9d37896a42b9"
 storage_version_token = "1788907987716065"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "-5n1C0ESto9yJ2BAkTu35"
+uri = "file://screenshots/iphone-17-pro-max-image-fallbacks.jpg"
+type = "image"
+title = "iPhone 17 Pro Max — verbeterde productafbeeldingen"
+description = "Visuele controle: bestaande echte productfoto’s blijven staan; ontbrekende Ferry-bronfoto’s tonen nu herkenbare onderdeelillustraties in plaats van lege vakken."
+logical_id = "66b4cc3d-a260-4018-bcbf-f545e00d31b4"
+content_hash = "sha256:d30df8e7fa0b8bc313ae2f548b217dccf6e55e74ee608b7dc27f739648fdfaad"
+size = 209381
+mtime_ms = 1788949512922
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/66b4cc3d-a260-4018-bcbf-f545e00d31b4/6608a6d7-7840-4339-93fe-26ad8839eb97"
+storage_version_token = "1788949655845902"
+content_type = "image/jpeg"
