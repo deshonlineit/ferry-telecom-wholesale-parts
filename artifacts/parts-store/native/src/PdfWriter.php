@@ -56,6 +56,167 @@ final class PdfWriter
         $this->cursorY -= $points;
     }
 
+    /**
+     * Draws a structured Ferry Telecom invoice page. The QR payment section is
+     * added separately through swissQrPaymentPart().
+     *
+     * @param array{
+     *   document_number:string,order_number:string,order_date:string,currency:string,
+     *   customer:list<string>,items:list<array{sku:string,name:string,quantity:int,unit:string,tax:string,total:string}>,
+     *   subtotal:string,shipping:string,tax_label:string,tax:string,total:string,
+     *   payment_method:string,payment_terms?:string,customer_note?:string
+     * } $data
+     */
+    public function invoiceLayout(array $data): void
+    {
+        $this->lines = ['0 g'];
+        $blue = '0.047 0.486 0.929 rg 0.047 0.486 0.929 RG';
+        $dark = '0.075 0.102 0.153 rg 0.075 0.102 0.153 RG';
+        $muted = '0.39 0.44 0.52 rg 0.39 0.44 0.52 RG';
+        $left = 42.0;
+        $right = 553.0;
+
+        // Compact vector brand mark plus wordmark.
+        $this->lines[] = $blue;
+        $this->lines[] = '1.8 w 48 786 m 63 801 l 68 796 l 58 786 l 68 776 l 63 771 l 48 786 l S';
+        $this->lines[] = '1.8 w 58 786 m 73 801 l 78 796 l 68 786 l 78 776 l 73 771 l 58 786 l S';
+        $this->lines[] = $dark;
+        $this->textAt('ferrytelecom', 91, 782, 20, true);
+        $this->textAt('WHOLESALE PARTS', 92, 768, 7, true);
+
+        $company = [
+            'ferrytelecom.com',
+            'Ferry Telecom AG',
+            'Industriestrasse 8',
+            '6203 Sempach Station',
+            'Switzerland',
+            'info@ferrytelecom.com',
+            'VAT CHE-254.271.185 MWST',
+            '+41 78 204 56 55',
+        ];
+        $y = 802.0;
+        foreach ($company as $index => $line) {
+            $this->textAt($line, 395, $y, $index === 1 ? 8.5 : 8, $index === 1);
+            $y -= 12;
+        }
+
+        $this->lines[] = $blue;
+        $this->textAt('INVOICE', $left, 694, 18, true);
+        $this->lines[] = $dark;
+        $this->textAt((string) $data['document_number'], $left, 676, 8);
+
+        $this->textAt('BILL TO', $left, 638, 7, true);
+        $y = 622;
+        foreach ($data['customer'] as $index => $line) {
+            $this->textAt($line, $left, $y, $index === 0 ? 10 : 9, $index === 0);
+            $y -= 14;
+        }
+
+        $metaX = 354.0;
+        $meta = [
+            ['Invoice number', (string) $data['document_number']],
+            ['Order number', (string) $data['order_number']],
+            ['Order date', (string) $data['order_date']],
+            ['Currency', (string) $data['currency']],
+            ['Payment method', (string) $data['payment_method']],
+        ];
+        $y = 638;
+        foreach ($meta as [$label, $value]) {
+            $this->lines[] = $muted;
+            $this->textAt($label, $metaX, $y, 7, true);
+            $this->lines[] = $dark;
+            foreach ($this->wrapToWidth($value, 28) as $valueLine) {
+                $this->textAt($valueLine, 444, $y, 8);
+                $y -= 11;
+            }
+            $y -= 4;
+        }
+
+        $tableTop = min(530.0, $y - 18);
+        $columns = [42, 108, 346, 390, 442, 491, 553];
+        $this->lines[] = $dark;
+        $this->lines[] = sprintf('%.2F %.2F %.2F 23 re f', $left, $tableTop, $right - $left);
+        $headers = [
+            ['SKU', 48], ['PRODUCT', 114], ['QTY', 351],
+            ['PRICE', 397], ['VAT', 449], ['TOTAL', 498],
+        ];
+        foreach ($headers as [$label, $x]) {
+            $this->lines[] = '1 1 1 rg';
+            $this->textAt($label, $x, $tableTop + 8, 7, true);
+        }
+        $this->lines[] = $dark;
+
+        $rowTop = $tableTop - 8;
+        foreach ($data['items'] as $item) {
+            $nameLines = $this->wrapToWidth((string) $item['name'], 44);
+            $skuLines = $this->wrapToWidth((string) $item['sku'], 11);
+            $rowLines = max(count($nameLines), count($skuLines), 1);
+            $rowHeight = max(30, 12 + ($rowLines * 11));
+            if ($rowTop - $rowHeight < 235) {
+                $this->textAt('Additional order lines continue in the order overview.', 114, $rowTop - 12, 8);
+                $rowTop -= 28;
+                break;
+            }
+            $textY = $rowTop - 11;
+            foreach ($skuLines as $index => $line) {
+                $this->textAt($line, 48, $textY - ($index * 11), 7.5, $index === 0);
+            }
+            foreach ($nameLines as $index => $line) {
+                $this->textAt($line, 114, $textY - ($index * 11), 8);
+            }
+            $this->textAt((string) $item['quantity'], 356, $textY, 8);
+            $this->textAt((string) $item['unit'], 397, $textY, 8);
+            $this->textAt((string) $item['tax'], 449, $textY, 8);
+            $this->textAt((string) $item['total'], 498, $textY, 8, true);
+            $rowBottom = $rowTop - $rowHeight;
+            $this->lines[] = sprintf('0.86 G 0.4 w %.2F %.2F m %.2F %.2F l S', $left, $rowBottom, $right, $rowBottom);
+            $rowTop = $rowBottom;
+        }
+
+        $summaryTop = $rowTop - 26;
+        $summary = [
+            ['Subtotal excl. VAT', (string) $data['subtotal'], false],
+            ['Shipping excl. VAT', (string) $data['shipping'], false],
+            [(string) $data['tax_label'], (string) $data['tax'], false],
+            ['Total incl. VAT', (string) $data['total'], true],
+        ];
+        $y = $summaryTop;
+        foreach ($summary as [$label, $value, $bold]) {
+            if ($bold) {
+                $this->lines[] = sprintf('0.047 0.486 0.929 RG 1.2 w 350 %.2F m 553 %.2F l S', $y + 9, $y + 9);
+            }
+            $this->textAt($label, 350, $y, $bold ? 10 : 8, $bold);
+            $this->textAt($value, 493, $y, $bold ? 10 : 8, true);
+            $y -= $bold ? 22 : 17;
+        }
+
+        $infoY = $summaryTop - 100;
+        $this->lines[] = '0.96 0.97 0.99 rg';
+        $this->lines[] = sprintf('42 %.2F 284 76 re f', $infoY - 55);
+        $this->lines[] = $dark;
+        $this->textAt('PAYMENT INFORMATION', 54, $infoY, 7, true);
+        $terms = trim((string) ($data['payment_terms'] ?? ''));
+        $note = trim((string) ($data['customer_note'] ?? ''));
+        $lineY = $infoY - 18;
+        if ($terms !== '') {
+            $this->textAt('Payment terms', 54, $lineY, 8, true);
+            $this->textAt($terms, 142, $lineY, 8);
+            $lineY -= 16;
+        }
+        if ($note !== '') {
+            $this->textAt('Customer note', 54, $lineY, 8, true);
+            foreach (array_slice($this->wrapToWidth($note, 46), 0, 2) as $noteLine) {
+                $this->textAt($noteLine, 142, $lineY, 8);
+                $lineY -= 12;
+            }
+        }
+
+        $this->lines[] = $muted;
+        $this->textAt('Thank you for your business.', $left, 70, 8);
+        $this->textAt('Ferry Telecom AG  |  ferrytelecom.com  |  info@ferrytelecom.com', $left, 54, 7);
+        $this->lines[] = $dark;
+    }
+
     public function qrSvg(string $svg, float $size = 150.0): void
     {
         $this->ensureSpace($size + 10.0);
@@ -314,6 +475,13 @@ final class PdfWriter
             array_push($lines, ...explode("\n", $wrapped));
         }
         return $lines;
+    }
+
+    /** @return list<string> */
+    private function wrapToWidth(string $text, int $characters): array
+    {
+        $wrapped = wordwrap(trim($text), max(1, $characters), "\n", true);
+        return $wrapped === '' ? [''] : explode("\n", $wrapped);
     }
 
     private function escape(string $text): string

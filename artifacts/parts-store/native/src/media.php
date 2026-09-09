@@ -220,60 +220,63 @@ function mediaOrderDocument(int $orderId, string $kind): never
     $prefix = $isInvoice ? 'TEST-INV-' : 'TEST-PACK-';
     $number = $prefix . (string) $order['number'];
     $pdf = new PdfWriter($number, $isInvoice ? 'INVOICE' : 'PACKING SLIP');
-    mediaDocumentIntro($pdf, $order, $address, $number);
-    $pdf->heading($isInvoice ? 'Items and original prices' : 'Items to pack', 13);
-    if (!empty($order['shipping_method_name'])) {
-        $pdf->line('Shipping method: ' . (string) $order['shipping_method_name']);
-    }
-    foreach ($items as $item) {
-        if ($isInvoice) {
-            $pdf->line(sprintf(
-                '%s | %s | %d x %s = %s',
-                (string) $item['sku'],
-                (string) $item['name'],
-                (int) $item['quantity'],
-                mediaMoney((int) $item['price_cents'], (string) $order['currency']),
-                mediaMoney((int) $item['total_cents'], (string) $order['currency'])
-            ));
-        } else {
+    if (!$isInvoice) {
+        mediaDocumentIntro($pdf, $order, $address, $number);
+        $pdf->heading('Items to pack', 13);
+        if (!empty($order['shipping_method_name'])) {
+            $pdf->line('Shipping method: ' . (string) $order['shipping_method_name']);
+        }
+        foreach ($items as $item) {
             $pdf->line(sprintf('[  ] %d x %s | %s', (int) $item['quantity'], (string) $item['sku'], (string) $item['name']));
         }
-    }
-    if ($isInvoice) {
-        $pdf->rule();
-        $pdf->line('Subtotal excl. VAT: ' . mediaMoney((int) $order['subtotal_cents'], (string) $order['currency']));
+        $pdf->spacer();
+        $pdf->line('Test fulfillment only. This slip does not authorize a real shipment.');
+    } else {
         $taxBps = (int) $order['tax_bps'];
         $taxLabel = $taxBps === 0
             ? 'Swiss export VAT 0% (Art. 23(2)(1) Swiss VAT Act)'
             : sprintf('Swiss VAT (snapshot %.2f%%)', $taxBps / 100);
-        $pdf->line($taxLabel . ': ' . mediaMoney((int) $order['tax_cents'], (string) $order['currency']));
-        if ($taxBps === 0) {
-            $pdf->line('Swiss VAT is 0% for export. Destination import VAT and duties may be charged separately.');
-        }
-        $pdf->line('Shipping excl. VAT: ' . mediaMoney((int) $order['shipping_cents'], (string) $order['currency']));
-        $pdf->heading('Total incl. VAT: ' . mediaMoney((int) $order['total_cents'], (string) $order['currency']), 13);
         $paymentLabels = [
             'stripe' => 'Card payment',
+            'twint' => 'TWINT',
             'swiss_qr_invoice' => 'Pay Later (Swiss QR Code)',
             'pay_later' => 'Pay Later (payment due)',
             'test_invoice' => 'Legacy test invoice',
             'test_card' => 'Legacy test card',
         ];
-        $pdf->line('Order status: ' . ((string) $order['status'] === 'on_hold' ? 'On hold - awaiting payment' : (string) $order['status']));
-        $pdf->line('Payment method: ' . ($paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method']));
-        if ((string) $order['payment_method'] === 'pay_later') {
-            $terms = json_decode((string) ($order['payment_terms_json'] ?? ''), true);
-            if (is_array($terms)) {
-                $pdf->line('Pay Later terms: due ' . (string) ($terms['due_date'] ?? ('in ' . (string) ($terms['due_days'] ?? '') . ' days')));
-            }
-            $ledger = mediaFetchOne('SELECT verified,paid_cents FROM invoice_accounting WHERE order_id=?', [(int) $order['id']]);
-            $paid = $ledger === null ? 0 : (int) $ledger['paid_cents'];
-            $outstanding = max(0, (int) $order['total_cents'] - $paid);
-            $pdf->line('Outstanding amount: ' . mediaMoney($outstanding, (string) $order['currency']));
-            $pdf->line('Pay-invoice eligibility: contact staff to record a payment.');
-        }
+        $terms = json_decode((string) ($order['payment_terms_json'] ?? ''), true);
+        $dueDays = is_array($terms) ? (int) ($terms['due_days'] ?? 0) : 0;
+        $customerLines = array_values(array_filter([
+            (string) ($address['company'] ?? ''),
+            (string) ($address['name'] ?? ''),
+            trim((string) ($address['line1'] ?? '') . ' ' . (string) ($address['line2'] ?? '')),
+            trim((string) ($address['postal_code'] ?? '') . ' ' . (string) ($address['city'] ?? '')),
+            (string) ($address['country'] ?? ''),
+        ], static fn(string $line): bool => trim($line) !== ''));
+        $pdf->invoiceLayout([
+            'document_number' => $number,
+            'order_number' => (string) $order['number'],
+            'order_date' => date('d-M-Y', strtotime((string) $order['created_at'])),
+            'currency' => (string) $order['currency'],
+            'customer' => $customerLines,
+            'items' => array_map(static fn(array $item): array => [
+                'sku' => (string) $item['sku'],
+                'name' => (string) $item['name'],
+                'quantity' => (int) $item['quantity'],
+                'unit' => mediaMoney((int) $item['price_cents'], (string) $order['currency']),
+                'tax' => number_format($taxBps / 100, 1) . '%',
+                'total' => mediaMoney((int) $item['total_cents'], (string) $order['currency']),
+            ], $items),
+            'subtotal' => mediaMoney((int) $order['subtotal_cents'], (string) $order['currency']),
+            'shipping' => mediaMoney((int) $order['shipping_cents'], (string) $order['currency']),
+            'tax_label' => $taxLabel,
+            'tax' => mediaMoney((int) $order['tax_cents'], (string) $order['currency']),
+            'total' => mediaMoney((int) $order['total_cents'], (string) $order['currency']),
+            'payment_method' => $paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method'],
+            'payment_terms' => $dueDays > 0 ? $dueDays . ' days' : '',
+            'customer_note' => (string) ($order['notes'] ?? ''),
+        ]);
         if ((string) $order['payment_method'] === 'swiss_qr_invoice') {
-            $terms = json_decode((string) ($order['payment_terms_json'] ?? ''), true);
             if (!is_array($terms)) {
                 throw new HttpError(503, 'The QR invoice creditor snapshot is unavailable.');
             }
@@ -306,9 +309,6 @@ function mediaOrderDocument(int $orderId, string $kind): never
         } else {
             $pdf->line('No bank account, payment link, or live payment instructions are included in this isolated test document.');
         }
-    } else {
-        $pdf->spacer();
-        $pdf->line('Test fulfillment only. This slip does not authorize a real shipment.');
     }
     mediaSendPdf($pdf->output(), strtolower($number) . '.pdf');
 }

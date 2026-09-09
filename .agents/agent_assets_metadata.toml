@@ -210,3 +210,45 @@ mtime_ms = 1788975112170
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/fa55aad6-9f70-48c3-a49e-c3d25f83a3e8/f76bae32-3054-425e-8ba8-eb221fd255b3"
 storage_version_token = "1788975140169374"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "ZI1JWIaXsxaMdMlKpXB4L"
+uri = "file://attached_assets/ferry-factuur-definitieve-layout-pagina-1.png"
+type = "image"
+title = "Nieuwe factuurlayout — pagina 1"
+description = "Vernieuwde Ferry Telecom-factuur met artikeltabel, totalen, betaaltermijn en klantopmerking."
+logical_id = "0d845a4a-55ee-438f-99c5-e962d835974b"
+content_hash = "sha256:4ed9afdb11e8d47f14e324e705786e7e0a26930cb375f2da9ba627a42dcf3437"
+size = 145776
+mtime_ms = 1788975608005
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/0d845a4a-55ee-438f-99c5-e962d835974b/eaaa4027-5121-40a3-87f1-44a07f6dfd69"
+storage_version_token = "1788975625602048"
+content_type = "image/png"
+
+[[outputs]]
+id = "EX8tXjPZ2y_PEVotBsQ-X"
+uri = "file://attached_assets/ferry-factuur-definitieve-layout-pagina-2.png"
+type = "image"
+title = "Nieuwe factuurlayout — QR-pagina"
+description = "Swiss QR-betaaldeel voor dezelfde testbestelling."
+logical_id = "e7ccb34c-d38f-412b-98cd-ab164486a27d"
+content_hash = "sha256:b59bf8fa702e6e822a0d2f51b375de19a7e836d4e6a6304ad75676423fc44d56"
+size = 85956
+mtime_ms = 1788975608229
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/e7ccb34c-d38f-412b-98cd-ab164486a27d/806dc8f8-b211-4061-8227-d34fa77929c7"
+storage_version_token = "1788975626324750"
+content_type = "image/png"
+
+[[outputs]]
+id = "I__gd38lrF3TWnrNgId29"
+uri = "file://attached_assets/ferry-factuur-definitieve-layout.pdf"
+type = "pdf"
+title = "Nieuwe volledige factuur (PDF)"
+description = "Definitieve tweepagina-testfactuur in de vernieuwde Ferry Telecom-layout."
+logical_id = "5f06dc4a-8b31-4c2f-b5cb-35237af822b6"
+content_hash = "sha256:5fb6e63684d2da24f44a051d7d87fa0a4b94cdf1aead59310993e0097e5b01cb"
+size = 39040
+mtime_ms = 1788975607771
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/5f06dc4a-8b31-4c2f-b5cb-35237af822b6/cbe7791f-5364-40a3-b545-0125927c4a75"
+storage_version_token = "1788975627216038"
+content_type = "application/pdf"
