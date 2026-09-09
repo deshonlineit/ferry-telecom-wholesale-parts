@@ -202,8 +202,8 @@ try:
     check(True, "order and PDF ownership enforced")
     invoice = customer.call("GET", f"/documents/{oid}/invoice.pdf", raw=True)
     check(
-        invoice.startswith(b"%PDF-") and b"Swiss QR payment section" in invoice,
-        "on-hold Swiss QR order exposes its owned payment PDF",
+        invoice.startswith(b"%PDF-") and b"(Receipt) Tj" in invoice and b"(Payment part) Tj" in invoice,
+        "on-hold Swiss QR order exposes its owned postal-counter payment PDF",
     )
     customer.call("GET", f"/documents/{oid}/packing-slip.pdf", expected=(403,))
     check(True, "customer packing slip remains forbidden before fulfillment")

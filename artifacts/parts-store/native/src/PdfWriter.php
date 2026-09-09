@@ -13,10 +13,11 @@ final class PdfWriter
     /** @var list<string> */
     private array $lines = [];
     private float $cursorY = 790.0;
-    private const PAGE_WIDTH = 595.0;
-    private const PAGE_HEIGHT = 842.0;
+    private const PAGE_WIDTH = 595.28;
+    private const PAGE_HEIGHT = 841.89;
     private const LEFT = 48.0;
     private const BOTTOM = 48.0;
+    private const MM = 72 / 25.4;
 
     public function __construct(
         private readonly string $documentNumber,
@@ -58,13 +59,88 @@ final class PdfWriter
     public function qrSvg(string $svg, float $size = 150.0): void
     {
         $this->ensureSpace($size + 10.0);
+        $this->drawQrSvg($svg, self::LEFT, $this->cursorY - $size, $size);
+        $this->cursorY -= $size + 10.0;
+    }
+
+    /**
+     * Adds the official 210 x 105 mm Swiss receipt/payment-part block as a
+     * dedicated final A4 page. Values are preformatted so the QR payload and
+     * the human-readable section are guaranteed to use the same snapshot.
+     *
+     * @param array{account:string,creditor:list<string>,debtor:list<string>,currency:string,amount:string,reference?:string,information?:string} $data
+     */
+    public function swissQrPaymentPart(string $svg, array $data): void
+    {
+        $this->finishPage();
+        $this->lines = [
+            'q',
+            '0.94 g',
+            'BT /F1 42 Tf 0.707 0.707 -0.707 0.707 105 510 Tm (TEST) Tj ET',
+            'Q',
+            '0 g',
+        ];
+
+        $mm = self::MM;
+        $sectionTop = 105 * $mm;
+        $receiptWidth = 62 * $mm;
+
+        // Official separation boundaries. Dashed marks are used because the
+        // document itself cannot know whether the printer perforates the page.
+        $this->lines[] = sprintf('[2.8 2.8] 0 d 0.5 w 0 G 0 %.3F m %.3F %.3F l S', $sectionTop, self::PAGE_WIDTH, $sectionTop);
+        $this->lines[] = sprintf('[2.8 2.8] 0 d 0.5 w 0 G %.3F 0 m %.3F %.3F l S [] 0 d', $receiptWidth, $receiptWidth, $sectionTop);
+        $this->drawScissors(3 * $mm, $sectionTop);
+        $this->drawScissors($receiptWidth, $sectionTop - (4 * $mm), true);
+
+        $this->textAt('Receipt', 5 * $mm, 100 * $mm, 11, true);
+        $this->textAt('Payment part', 67 * $mm, 100 * $mm, 11, true);
+
+        $this->labelAndLines('Account / Payable to', 5, 89, $data['account'], $data['creditor'], 6);
+        $this->labelAndLines('Payable by', 5, 54, '', $data['debtor'], 6);
+        $this->textAt('Currency', 5 * $mm, 18 * $mm, 6, true);
+        $this->textAt($data['currency'], 5 * $mm, 13 * $mm, 8);
+        $this->textAt('Amount', 18 * $mm, 18 * $mm, 6, true);
+        $this->textAt($data['amount'], 18 * $mm, 13 * $mm, 8);
+        $this->textAt('Acceptance point', 36 * $mm, 13 * $mm, 6, true);
+
+        // SIX placement uses top-origin coordinates: x=67 mm and y=17.5 mm
+        // within the 105 mm payment part. PDF coordinates start at the bottom,
+        // so the lower edge is 105 - 17.5 - 46 = 41.5 mm.
+        $qrX = 67 * $mm;
+        $qrY = (105 - 17.5 - 46) * $mm;
+        $this->drawQrSvg($svg, $qrX, $qrY, 46 * $mm);
+
+        $this->textAt('Currency', 67 * $mm, 13 * $mm, 6, true);
+        $this->textAt($data['currency'], 67 * $mm, 8 * $mm, 8);
+        $this->textAt('Amount', 80 * $mm, 13 * $mm, 6, true);
+        $this->textAt($data['amount'], 80 * $mm, 8 * $mm, 8);
+
+        $rightX = 118 * $mm;
+        $this->labelAndLines('Account / Payable to', 118, 89, $data['account'], $data['creditor'], 8);
+        $nextY = 55;
+        if (($data['reference'] ?? '') !== '') {
+            $this->textAt('Reference', $rightX, $nextY * $mm, 8, true);
+            $this->textAt((string) $data['reference'], $rightX, ($nextY - 5) * $mm, 10);
+            $nextY -= 14;
+        }
+        if (($data['information'] ?? '') !== '') {
+            $this->textAt('Additional information', $rightX, $nextY * $mm, 8, true);
+            $this->textAt((string) $data['information'], $rightX, ($nextY - 5) * $mm, 10);
+            $nextY -= 14;
+        }
+        $this->labelAndLines('Payable by', 118, $nextY, '', $data['debtor'], 8);
+
+        $this->pages[] = implode("\n", $this->lines);
+        $this->lines = [];
+    }
+
+    private function drawQrSvg(string $svg, float $x, float $y, float $size): void
+    {
         if (!preg_match('/viewBox="0 0 ([\d.]+) ([\d.]+)"/', $svg, $view)
             || !preg_match('/<path[^>]+d="([^"]+)"/', $svg, $path)) {
             throw new RuntimeException('The generated QR image could not be embedded.');
         }
         $scale = $size / (float) $view[1];
-        $x = self::LEFT;
-        $y = $this->cursorY - $size;
         $commands = html_entity_decode($path[1], ENT_QUOTES | ENT_XML1);
         preg_match_all(
             '/M([\d.]+),([\d.]+)L([\d.]+),([\d.]+)L([\d.]+),([\d.]+)L([\d.]+),([\d.]+)Z/i',
@@ -75,7 +151,7 @@ final class PdfWriter
         if ($matches === []) {
             throw new RuntimeException('The generated QR image contains no drawable modules.');
         }
-        $this->lines[] = 'q 0 g';
+        $this->lines[] = sprintf('q %.3F %.3F %.3F %.3F re W n 0 g', $x, $y, $size, $size);
         foreach ($matches as $match) {
             $this->lines[] = sprintf(
                 '%.3F %.3F %.3F %.3F re f',
@@ -95,7 +171,38 @@ final class PdfWriter
             $crossX + ($cross * .18), $crossY + ($cross * .39), $cross * .64, $cross * .22
         );
         $this->lines[] = 'Q';
-        $this->cursorY -= $size + 10.0;
+    }
+
+    /** @param list<string> $lines */
+    private function labelAndLines(string $label, float $xMm, float $yMm, string $first, array $lines, float $labelSize): void
+    {
+        $x = $xMm * self::MM;
+        $y = $yMm * self::MM;
+        $this->textAt($label, $x, $y, $labelSize, true);
+        $y -= 4 * self::MM;
+        foreach (array_filter(array_merge([$first], $lines), static fn(string $line): bool => trim($line) !== '') as $line) {
+            $this->textAt($line, $x, $y, $labelSize + 2);
+            $y -= 4 * self::MM;
+        }
+    }
+
+    private function textAt(string $text, float $x, float $y, float $size, bool $bold = false): void
+    {
+        $encoded = $this->escape($text);
+        $this->lines[] = sprintf('BT /F1 %.2F Tf 1 0 0 1 %.3F %.3F Tm (%s) Tj ET', $size, $x, $y, $encoded);
+        if ($bold) {
+            $this->lines[] = sprintf('BT /F1 %.2F Tf 1 0 0 1 %.3F %.3F Tm (%s) Tj ET', $size, $x + 0.2, $y, $encoded);
+        }
+    }
+
+    private function drawScissors(float $x, float $y, bool $vertical = false): void
+    {
+        $r = 1.2 * self::MM;
+        if ($vertical) {
+            $this->lines[] = sprintf('0.5 w %.3F %.3F m %.3F %.3F l S %.3F %.3F m %.3F %.3F l S', $x - $r, $y - $r, $x + $r, $y + $r, $x - $r, $y + $r, $x + $r, $y - $r);
+        } else {
+            $this->lines[] = sprintf('0.5 w %.3F %.3F m %.3F %.3F l S %.3F %.3F m %.3F %.3F l S', $x - $r, $y - $r, $x + $r, $y + $r, $x - $r, $y + $r, $x + $r, $y - $r);
+        }
     }
 
     public function output(): string
@@ -113,7 +220,7 @@ final class PdfWriter
             $kids[] = $pageId . ' 0 R';
             $stream = $this->pages[$i];
             $objects[$pageId] = sprintf(
-                '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.0F %.0F] /Resources << /Font << /F1 %d 0 R >> >> /Contents %d 0 R >>',
+                '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2F %.2F] /Resources << /Font << /F1 %d 0 R >> >> /Contents %d 0 R >>',
                 self::PAGE_WIDTH,
                 self::PAGE_HEIGHT,
                 $fontId,

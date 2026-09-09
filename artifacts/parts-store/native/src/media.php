@@ -279,13 +279,25 @@ function mediaOrderDocument(int $orderId, string $kind): never
             }
             try {
                 $qrBill = swissQrCreate($terms, $order, $address);
-                $pdf->heading('Swiss QR payment section', 13);
-                $pdf->line('Account / Payable to: ' . (string) $terms['iban']);
-                $pdf->line((string) $terms['name'] . ', ' . (string) $terms['street'] . ' ' . (string) $terms['house_number']);
-                $pdf->line((string) $terms['postal_code'] . ' ' . (string) $terms['city'] . ', ' . (string) $terms['country']);
-                $pdf->line('Additional information: Order #' . (string) $order['number']);
-                $pdf->line('Currency / Amount: CHF ' . number_format(((int) $order['total_cents']) / 100, 2, '.', ''));
-                $pdf->qrSvg($qrBill->getQrCode()->getAsString('svg'));
+                $debtorLines = array_values(array_filter([
+                    (string) ($address['name'] ?? ''),
+                    (string) ($address['line1'] ?? ''),
+                    trim((string) ($address['postal_code'] ?? '') . ' ' . (string) ($address['city'] ?? '')),
+                    (string) ($address['country'] ?? ''),
+                ], static fn(string $line): bool => trim($line) !== ''));
+                $pdf->swissQrPaymentPart($qrBill->getQrCode()->getAsString('svg'), [
+                    'account' => (string) $terms['iban'],
+                    'creditor' => [
+                        (string) $terms['name'],
+                        trim((string) $terms['street'] . ' ' . (string) $terms['house_number']),
+                        trim((string) $terms['postal_code'] . ' ' . (string) $terms['city']),
+                        (string) $terms['country'],
+                    ],
+                    'debtor' => $debtorLines,
+                    'currency' => 'CHF',
+                    'amount' => number_format(((int) $order['total_cents']) / 100, 2, '.', ''),
+                    'information' => 'Order #' . (string) $order['number'],
+                ]);
             } catch (Throwable $exception) {
                 throw new HttpError(503, 'The Swiss QR payment section could not be generated safely.');
             }
