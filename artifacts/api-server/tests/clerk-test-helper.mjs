@@ -2,6 +2,14 @@ import assert from "node:assert/strict";
 
 const DEFAULT_RETRY_MS = 1_000;
 
+export function assertDevelopmentClerkSecret(secret) {
+  assert.ok(secret, "test identity API secret is required");
+  assert.ok(
+    secret.startsWith("sk_test_"),
+    "Refusing to run with a non-development Clerk secret",
+  );
+}
+
 export function retryAfterMs(value, now = Date.now()) {
   if (value == null) return DEFAULT_RETRY_MS;
   const seconds = Number(value);
@@ -19,7 +27,7 @@ export function createClerkTestClient({
   max429Retries = 4,
   maxRetryAfterMs = 10_000,
 }) {
-  assert.ok(secret, "test identity API secret is required");
+  assertDevelopmentClerkSecret(secret);
 
   return async function clerk(method, path, body) {
     for (let attempt = 0; ; attempt += 1) {

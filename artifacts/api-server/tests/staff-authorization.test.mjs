@@ -20,9 +20,6 @@ const API = process.env.STAFF_AUTH_TEST_API_BASE ?? "http://localhost:80/api";
 const SECRET = process.env.CLERK_SECRET_KEY;
 
 if (!SECRET) throw new Error("CLERK_SECRET_KEY is required");
-if (!SECRET.startsWith("sk_test_")) {
-  throw new Error("Staff authorization tests require a Clerk development key");
-}
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 
 const apiUrl = new URL(API);

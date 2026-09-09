@@ -14,11 +14,13 @@
  */
 import assert from "node:assert/strict";
 import pg from "pg";
+import { assertDevelopmentClerkSecret } from "./clerk-test-helper.mjs";
 
 const CLERK_API = "https://api.clerk.com/v1";
 const API = process.env.ISOLATION_TEST_API_BASE ?? "http://localhost:80/api";
 const SECRET = process.env.CLERK_SECRET_KEY;
 if (!SECRET) throw new Error("CLERK_SECRET_KEY is required");
+assertDevelopmentClerkSecret(SECRET);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });

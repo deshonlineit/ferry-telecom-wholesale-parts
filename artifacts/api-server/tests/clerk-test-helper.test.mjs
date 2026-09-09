@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertDevelopmentClerkSecret,
   createClerkTestClient,
   createSessionTokenCache,
   createStaffUserFixtures,
@@ -28,6 +29,21 @@ test("Retry-After parsing supports seconds, dates, and a safe default", () => {
   assert.equal(retryAfterMs("invalid", now), 1_000);
 });
 
+test("Clerk test guard rejects missing and production-style secrets", () => {
+  assert.throws(
+    () => assertDevelopmentClerkSecret(),
+    /test identity API secret is required/,
+  );
+  assert.throws(
+    () => createClerkTestClient({ secret: "sk_live_production" }),
+    /Refusing to run with a non-development Clerk secret/,
+  );
+});
+
+test("Clerk test guard accepts development secrets", () => {
+  assert.doesNotThrow(() => assertDevelopmentClerkSecret("sk_test_development"));
+});
+
 test("Clerk test client bounds 429 retries and honors capped Retry-After", async () => {
   const responses = [
     response(429, null, { "retry-after": "20" }),
@@ -36,7 +52,7 @@ test("Clerk test client bounds 429 retries and honors capped Retry-After", async
   ];
   const delays = [];
   const clerk = createClerkTestClient({
-    secret: "test-secret",
+    secret: "sk_test_secret",
     fetchImpl: async () => responses.shift(),
     sleep: async (ms) => delays.push(ms),
     maxRetryAfterMs: 2_000,

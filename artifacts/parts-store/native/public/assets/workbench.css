@@ -1,6 +1,6 @@
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Ferry Telecom - Workbench 2035 Aesthetic (Engineered, Dense, Fast)
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 
 :root {
     --primary: #087ce7;
@@ -318,9 +318,9 @@ body {
 .app-header #search-input { padding: 0.375rem 0; font-size: 0.8125rem; }
 .app-header .search-submit { padding: 0.375rem 0.75rem; font-size: 0.75rem; border-radius: 3px; }
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Home 2035 (Ultra-Compact)
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 .ws-home-compact {
     padding-bottom: 2rem;
 }
@@ -467,9 +467,9 @@ body {
 .ws-featured-header a:hover { text-decoration: underline; }
 
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    FastFinder Compact (Used in Home & Modal)
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 .fast-finder {
     display: flex;
     flex-direction: column;
@@ -603,9 +603,9 @@ body {
 .finder-footer button, .finder-footer a { color: var(--primary); background: transparent; border: none; cursor: pointer; text-decoration: none; }
 
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Catalog Main View Redesign (Hyper-Dense)
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 .catalog-layout { display: block !important; margin-top: 0 !important; }
 
 .catalog-breadcrumb {
@@ -952,9 +952,9 @@ body {
 }
 .catalog-price-notice a { color: var(--primary); text-decoration: none; }
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Product List View Optimization (Ultra-Dense)
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 .view-list { display: flex; flex-direction: column; gap: 4px; }
 .view-list .part-card {
     display: flex; flex-direction: column; background: var(--bg-surface);
@@ -1014,9 +1014,9 @@ body {
 .stock-low { color: #956108; } .stock-low .status-dot { background: var(--warning); }
 .stock-out { color: var(--danger); } .stock-out .status-dot { background: var(--danger); }
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Modestly Enlarged Image Preview (Modals)
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 dialog.photo-preview-dialog {
     margin: auto; padding: 0; border: none; border-radius: 8px; background: var(--bg-surface);
     box-shadow: var(--shadow-float); width: 90vw; max-width: 600px; max-height: 85vh; overflow: hidden;
