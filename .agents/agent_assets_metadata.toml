@@ -168,3 +168,45 @@ mtime_ms = 1788953233462
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/45566f86-3e32-4bce-8133-4d4eaa38efdd/29956429-5695-4b51-8e82-daf103535872"
 storage_version_token = "1788953257199580"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "ZF0pAfyLRvh960ggqeZUb"
+uri = "file://attached_assets/ferry-testfactuur-109.png"
+type = "image"
+title = "Factuur — pagina 1"
+description = "De werkelijk gegenereerde testfactuur met adres, artikelen, btw, verzending en totaal."
+logical_id = "bdd3d181-effb-4f9f-84b1-45adafdcc748"
+content_hash = "sha256:c6c2e4ab3725929edca8a42d5a60fa10147cc2cf07c53d8d16f8656535e65cc4"
+size = 109401
+mtime_ms = 1788975112458
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/bdd3d181-effb-4f9f-84b1-45adafdcc748/7eea2e9f-e671-4c68-bee9-ada299fd62e2"
+storage_version_token = "1788975138694541"
+content_type = "image/png"
+
+[[outputs]]
+id = "a2d8JPB-NTiryodQestL3"
+uri = "file://attached_assets/ferry-testfactuur-109-pagina-2.png"
+type = "image"
+title = "Factuur — QR-betaaldeel"
+description = "Pagina 2 met de Swiss QR-betaalstrook voor dezelfde bestelling."
+logical_id = "493ec815-b10e-43f3-914e-78ad8c5cd717"
+content_hash = "sha256:388e67f744181a7deae0a517a5a2df854a82e0da67d6687d6bb7f6411977fdc9"
+size = 70464
+mtime_ms = 1788975131686
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/493ec815-b10e-43f3-914e-78ad8c5cd717/89b7efe5-6ff6-4528-aa08-2df0b3a2d371"
+storage_version_token = "1788975139537731"
+content_type = "image/png"
+
+[[outputs]]
+id = "msh2_CBfDtv__nkrNX4J7"
+uri = "file://attached_assets/ferry-testfactuur-109.pdf"
+type = "pdf"
+title = "Volledige testfactuur (PDF)"
+description = "De volledige tweepagina-PDF zoals een klant die kan downloaden."
+logical_id = "fa55aad6-9f70-48c3-a49e-c3d25f83a3e8"
+content_hash = "sha256:54b5fd7b652112ce03f503bd473ebbecf985e8dfb594ed65de98d7db30633bc3"
+size = 34844
+mtime_ms = 1788975112170
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/fa55aad6-9f70-48c3-a49e-c3d25f83a3e8/f76bae32-3054-425e-8ba8-eb221fd255b3"
+storage_version_token = "1788975140169374"
+content_type = "application/pdf"
