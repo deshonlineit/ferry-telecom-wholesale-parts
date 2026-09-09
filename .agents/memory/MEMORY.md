@@ -14,6 +14,7 @@
 - [Inline ordering accessibility](inline-ordering-accessibility.md) — quantity/add controls need an interactive search dialog with real keyboard focus, not just highlighted listbox links.
 - [Native test fixtures](native-test-fixtures.md) — synthetic carts can reference retained SKUs; clean owned customer dependencies, not every QA-labelled catalog record.
 - [Invoice payment provenance](invoice-payment-provenance.md) — legacy order PDFs do not establish payment; unknown balances and unset terms must not become confirmed debt.
+- [Swiss QR reference activation](swiss-qr-reference-activation.md) — keep NON active until the bank confirms SCOR on the classic IBAN or issues a QR-IBAN for QRR.
 - [Deferred-payment order lifecycle](deferred-payment-orders.md) — new invoice orders start on hold; payment records and manual fulfillment status remain separate.
 - [Nullable currency initialization](currency-initialization-semantics.md) — recurring initialization must not resurrect deliberately cleared group prices from retained CHF sources.
 - [Commerce pricing readiness](commerce-pricing-readiness.md) — an unpriced catalogue item must block only itself, never correctly priced products or empty carts.

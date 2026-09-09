@@ -270,6 +270,128 @@ function financeUpdate(int $id): never
     respond(['invoice' => financeFindInvoice($id)]);
 }
 
+function financeNormalizePaymentReference(mixed $value): string
+{
+    if (!is_string($value)) throw new HttpError(422, 'Payment reference must be text.');
+    $reference = strtoupper((string) preg_replace('/\s+/', '', trim($value)));
+    if ($reference === '' || strlen($reference) > 27 || !preg_match('/^[A-Z0-9]+$/D', $reference)) {
+        throw new HttpError(422, 'Payment reference is invalid.');
+    }
+    return $reference;
+}
+
+function financeApplyPaymentImports(PDO $pdo, int $staffId, array $records): array
+{
+    if (!is_array($records) || !$records || count($records) > 500) {
+        throw new HttpError(422, 'Provide between 1 and 500 payment records.');
+    }
+    $results = [];
+    $lockNames = [];
+    $acquiredLocks = [];
+    try {
+        foreach ($records as $raw) {
+            if (!is_array($raw)) throw new HttpError(422, 'Each payment record must be an object.');
+            $externalId = text($raw['external_id'] ?? '', 190);
+            if ($externalId === '') throw new HttpError(422, 'Each payment needs an external id.');
+            $lockNames['pi-' . substr(hash('sha256', $externalId), 0, 60)] = true;
+        }
+        $lockNames = array_keys($lockNames);
+        sort($lockNames, SORT_STRING);
+        $lockStatement = $pdo->prepare('SELECT GET_LOCK(?, 15)');
+        foreach ($lockNames as $lockName) {
+            $lockStatement->execute([$lockName]);
+            if ((int)$lockStatement->fetchColumn() !== 1) {
+                throw new HttpError(503, 'A payment import is already being processed. Retry shortly.');
+            }
+            $acquiredLocks[] = $lockName;
+        }
+        $pdo->beginTransaction();
+        foreach ($records as $raw) {
+            $externalId = text($raw['external_id'] ?? '', 190);
+            $reference = financeNormalizePaymentReference($raw['reference'] ?? null);
+            $amount = integer($raw['amount_cents'] ?? null, 1, 2147483647);
+            $currency = strtoupper(text($raw['currency'] ?? '', 3));
+            $bookedAt = financeValidDate($raw['booked_at'] ?? null);
+            if ($externalId === '' || $bookedAt === null || !in_array($currency, ['CHF', 'EUR'], true)) {
+                throw new HttpError(422, 'Each payment needs an external id, currency, booking date, reference, and positive amount.');
+            }
+            $existing = opRow(
+                'SELECT order_id,reference,amount_cents,currency,booked_at,status FROM imported_payments WHERE external_id=?',
+                [$externalId]
+            );
+            if ($existing !== null) {
+                if (!hash_equals((string)$existing['reference'], $reference)
+                    || (int)$existing['amount_cents'] !== $amount
+                    || !hash_equals((string)$existing['currency'], $currency)
+                    || !hash_equals((string)$existing['booked_at'], $bookedAt)) {
+                    throw new HttpError(409, 'A payment external id was reused with different details.');
+                }
+                $results[] = ['external_id' => $externalId, 'status' => 'already_imported',
+                    'original_status' => (string)$existing['status'],
+                    'order_id' => $existing['order_id'] === null ? null : (int)$existing['order_id']];
+                continue;
+            }
+            $order = opRow(
+                'SELECT id,total_cents,currency,status FROM orders WHERE payment_reference=? FOR UPDATE',
+                [$reference]
+            );
+            $orderId = $order === null ? null : (int)$order['id'];
+            $status = 'unmatched';
+            if ($order !== null && (string)$order['status'] === 'cancelled') {
+                $status = 'cancelled_order';
+            } elseif ($order !== null && hash_equals((string)$order['currency'], $currency)) {
+                $ledger = opRow('SELECT paid_cents,version FROM invoice_accounting WHERE order_id=? FOR UPDATE', [$orderId]);
+                $paid = ($ledger === null ? 0 : (int)$ledger['paid_cents']) + $amount;
+                $version = ($ledger === null ? 0 : (int)$ledger['version']) + 1;
+                if ($ledger === null) {
+                    $pdo->prepare(
+                        'INSERT INTO invoice_accounting(order_id,verified,due_date,paid_cents,note,version,updated_by)
+                         VALUES(?,1,NULL,?,?,?,?)'
+                    )->execute([$orderId, $paid, 'Automatically matched bank payment ' . $externalId, $version, $staffId]);
+                } else {
+                    $pdo->prepare(
+                        'UPDATE invoice_accounting SET verified=1,paid_cents=?,version=?,updated_by=? WHERE order_id=?'
+                    )->execute([$paid, $version, $staffId, $orderId]);
+                }
+                $paymentState = $paid >= (int)$order['total_cents'] ? 'paid' : 'partial';
+                $pdo->prepare('UPDATE orders SET payment_state=? WHERE id=?')->execute([$paymentState, $orderId]);
+                $status = 'matched';
+            } elseif ($order !== null) {
+                $status = 'currency_mismatch';
+            }
+            $pdo->prepare(
+                'INSERT INTO imported_payments(external_id,reference,amount_cents,currency,booked_at,order_id,status,imported_by)
+                 VALUES(?,?,?,?,?,?,?,?)'
+            )->execute([$externalId, $reference, $amount, $currency, $bookedAt, $orderId, $status, $staffId]);
+            audit('payment.imported', 'order', $orderId ?? 0, [
+                'external_id' => $externalId, 'status' => $status, 'amount_cents' => $amount, 'currency' => $currency,
+            ]);
+            $results[] = ['external_id' => $externalId, 'status' => $status, 'order_id' => $orderId];
+        }
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
+    } finally {
+        $releaseStatement = $pdo->prepare('SELECT RELEASE_LOCK(?)');
+        foreach (array_reverse($acquiredLocks) as $lockName) {
+            $releaseStatement->execute([$lockName]);
+        }
+    }
+    return $results;
+}
+
+function financeImportPayments(): never
+{
+    $staff = requireStaff();
+    $records = body()['payments'] ?? null;
+    if (!is_array($records)) {
+        throw new HttpError(422, 'Provide payment records.');
+    }
+    $results = financeApplyPaymentImports(db(), (int)$staff['id'], $records);
+    respond(['payments' => $results], 201);
+}
+
 function handleAdminFinance(string $method, string $path): bool
 {
     if ($path === '/admin/invoices' && $method === 'GET') {
@@ -277,6 +399,9 @@ function handleAdminFinance(string $method, string $path): bool
     }
     if (preg_match('#^/admin/invoices/(\d+)$#', $path, $match) && $method === 'PATCH') {
         financeUpdate(integer($match[1], 1, 2147483647));
+    }
+    if ($path === '/admin/payments/import' && $method === 'POST') {
+        financeImportPayments();
     }
     return false;
 }

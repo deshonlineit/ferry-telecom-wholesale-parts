@@ -296,6 +296,8 @@ function mediaOrderDocument(int $orderId, string $kind): never
                     'debtor' => $debtorLines,
                     'currency' => 'CHF',
                     'amount' => number_format(((int) $order['total_cents']) / 100, 2, '.', ''),
+                    'reference' => ($terms['reference_type'] ?? 'NON') === 'NON'
+                        ? '' : (string) ($terms['reference'] ?? ''),
                     'information' => 'Order #' . (string) $order['number'],
                 ]);
             } catch (Throwable $exception) {

@@ -96,13 +96,15 @@ CREATE TABLE IF NOT EXISTS orders (
  exchange_rate_ppm BIGINT UNSIGNED NULL,exchange_rate_date DATE NULL,base_currency CHAR(3) NULL,
  address_json JSON NOT NULL,shipping_method_code VARCHAR(40) NULL,
  shipping_method_name VARCHAR(100) NULL,shipping_carrier VARCHAR(60) NULL,
-  payment_method VARCHAR(30) NOT NULL,payment_state VARCHAR(30) NOT NULL DEFAULT 'pending',
+   payment_method VARCHAR(30) NOT NULL,payment_state VARCHAR(30) NOT NULL DEFAULT 'pending',
+   payment_reference_type VARCHAR(4) NULL,payment_reference VARCHAR(27) NULL,
   latest_payment_event_at BIGINT UNSIGNED NOT NULL DEFAULT 0,
   latest_payment_event_id VARCHAR(190) NOT NULL DEFAULT '',
   payment_terms_json JSON NULL,checkout_snapshot JSON NULL,notes TEXT NOT NULL,tracking VARCHAR(190) NOT NULL DEFAULT '',
  idempotency_key VARCHAR(100) NOT NULL,stock_restored TINYINT NOT NULL DEFAULT 0,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id,idempotency_key),
- FOREIGN KEY(user_id) REFERENCES users(id),INDEX(status)
+  FOREIGN KEY(user_id) REFERENCES users(id),INDEX(status),
+  UNIQUE INDEX orders_payment_reference_unique (payment_reference)
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS customer_payment_entitlements (
   user_id INT UNSIGNED NOT NULL,payment_method VARCHAR(30) NOT NULL,enabled TINYINT(1) NOT NULL DEFAULT 0,
@@ -133,6 +135,14 @@ CREATE TABLE IF NOT EXISTS invoice_accounting (
  updated_by INT UNSIGNED NOT NULL,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  FOREIGN KEY(order_id) REFERENCES orders(id),FOREIGN KEY(updated_by) REFERENCES users(id),
  INDEX(due_date),INDEX(verified)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS imported_payments (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,external_id VARCHAR(190) NOT NULL UNIQUE,
+  reference VARCHAR(27) NOT NULL,amount_cents BIGINT UNSIGNED NOT NULL,currency CHAR(3) NOT NULL,
+  booked_at DATE NOT NULL,order_id INT UNSIGNED NULL,status VARCHAR(30) NOT NULL,
+  imported_by INT UNSIGNED NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(order_id) REFERENCES orders(id),FOREIGN KEY(imported_by) REFERENCES users(id),
+  INDEX(reference),INDEX(order_id)
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS returns (
  id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,number VARCHAR(40) NOT NULL UNIQUE,

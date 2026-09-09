@@ -792,15 +792,19 @@ function commerceCheckout(): never
             throw new HttpError(409, 'Prices, quantities, country, or exchange rate changed. Request a new quote.');
         }
         $number = 'TS-' . gmdate('Ymd') . '-' . strtoupper(bin2hex(random_bytes(5)));
+        if ($paymentMethod === 'swiss_qr_invoice' && $paymentTerms !== null) {
+            $paymentTerms = swissQrTermsForOrder($paymentTerms, $number);
+        }
         $addressSnapshot = commerceAddressRow($address);
         $statement = $pdo->prepare(
             'INSERT INTO orders
              (number, user_id, status, subtotal_cents, tax_cents, shipping_cents,
                total_cents, tax_bps, currency, exchange_rate_ppm, exchange_rate_date,
                base_currency, address_json, shipping_method_code, shipping_method_name,
-               shipping_carrier, payment_method, payment_state, payment_terms_json, checkout_snapshot, notes,
+               shipping_carrier, payment_method, payment_state, payment_reference_type, payment_reference,
+               payment_terms_json, checkout_snapshot, notes,
               tracking, idempotency_key, stock_restored)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
         );
         $statement->execute([
             $number, (int) $user['id'], 'on_hold',
@@ -812,6 +816,7 @@ function commerceCheckout(): never
             json_encode($addressSnapshot, JSON_THROW_ON_ERROR),
              $shippingMethod['code'], $shippingMethod['label'], $shippingMethod['carrier'],
               $paymentMethod, $paymentMethod === 'stripe' ? 'pending' : 'open',
+              $paymentTerms['reference_type'] ?? null, $paymentTerms['reference'] ?? null,
               $paymentTerms === null ? null : json_encode($paymentTerms, JSON_THROW_ON_ERROR),
               json_encode([
                   'quote_fingerprint' => $acceptedQuote['fingerprint'],

@@ -92,6 +92,8 @@ env -i PATH="$PATH" HOME="$HOME" NATIVE_S2S_SECRET="$BRIDGE_SECRET" \
   SWISS_QR_CREDITOR_CITY="${SWISS_QR_CREDITOR_CITY:-}" \
   SWISS_QR_CREDITOR_COUNTRY="${SWISS_QR_CREDITOR_COUNTRY:-}" \
   SWISS_QR_CHF_IBAN="${SWISS_QR_CHF_IBAN:-}" \
+  SWISS_QR_REFERENCE_TYPE="${SWISS_QR_REFERENCE_TYPE:-NON}" \
+  SWISS_QR_QR_IBAN="${SWISS_QR_QR_IBAN:-}" \
   php -d display_errors=0 -d log_errors=1 -d allow_url_fopen=0 -d allow_url_include=0 \
     -d ffi.enable=false -d upload_max_filesize=8M -d post_max_size=10M -d memory_limit=256M \
     -d 'disable_functions=mail,curl_multi_exec,exec,shell_exec,system,passthru,popen,proc_open,fsockopen,pfsockopen,stream_socket_client,socket_connect' \
