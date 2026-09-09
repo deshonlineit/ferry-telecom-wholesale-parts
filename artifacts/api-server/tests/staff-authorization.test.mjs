@@ -9,6 +9,7 @@
  * local proxy at http://localhost:80/api.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import pg from "pg";
 import {
   createClerkTestClient,
@@ -41,19 +42,25 @@ const staffFixtures = createStaffUserFixtures({
 });
 let failed = false;
 
-const deniedRoutes = [
-  ["GET", "/admin/products"],
-  ["POST", "/admin/products"],
-  ["PATCH", "/admin/products/-2147483648"],
-  ["POST", "/admin/categories"],
-  ["PATCH", "/admin/categories/-2147483648"],
-  ["POST", "/admin/brands"],
-  ["POST", "/admin/models"],
-  ["GET", "/admin/customers"],
-  ["PATCH", "/admin/customers/-2147483648"],
-  ["GET", "/admin/orders"],
-  ["PATCH", "/admin/orders/-2147483648"],
-];
+function registeredAdminRoutes() {
+  const sourceUrl = new URL("../src/routes/admin.ts", import.meta.url);
+  const source = fs.readFileSync(sourceUrl, "utf8");
+  const routePattern = /\brouter\.(get|post|put|patch|delete)\(\s*["'](\/admin\/[^"']*)["']/g;
+  const routes = [...source.matchAll(routePattern)].map((match) => [
+    match[1].toUpperCase(),
+    match[2].replace(/:[^/]+/g, "-2147483648"),
+  ]);
+
+  assert.ok(routes.length > 0, "no registered admin routes found in admin.ts");
+  assert.equal(
+    new Set(routes.map(([method, path]) => `${method} ${path}`)).size,
+    routes.length,
+    "duplicate admin route registration found",
+  );
+  return routes;
+}
+
+const deniedRoutes = registeredAdminRoutes();
 
 const readRoutes = [
   "/admin/products?page=1&pageSize=1",
@@ -117,7 +124,7 @@ try {
     const res = await request(method, path, {});
     assert.equal(res.status, 401, `anonymous ${method} ${path} should be 401`);
   }
-  console.log("PASS anonymous callers denied on all 11 admin routes");
+  console.log(`PASS anonymous callers denied on all ${deniedRoutes.length} admin routes`);
 
   const customer = await createTestUser("customer", {
     unsafe_metadata: { role: "admin" },
@@ -130,7 +137,7 @@ try {
     const res = await api(customer, method, path, {});
     assert.equal(res.status, 403, `customer ${method} ${path} should be 403`);
   }
-  console.log("PASS ordinary customer denied on all 11 admin routes");
+  console.log(`PASS ordinary customer denied on all ${deniedRoutes.length} admin routes`);
 
   // A profile body may contain extra forged fields, but it cannot grant access.
   const profile = await api(customer, "PATCH", "/me", {
