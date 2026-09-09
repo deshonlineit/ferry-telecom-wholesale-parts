@@ -154,3 +154,17 @@ mtime_ms = 1788951477834
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/3929e292-0dbf-4728-b388-d02d70fe2294/69c08c88-134c-4342-8b20-0d48756e818b"
 storage_version_token = "1788951487508668"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "AimqLyC6Hw891hiqN1YGe"
+uri = "file://screenshots/iphone-17-pro-max-all-batteries-corrected.jpg"
+type = "image"
+title = "Alle iPhone 17 Pro Max-batterijen gecorrigeerd"
+description = "Gezamenlijke browsercontrole van IPH17PRM010–013: uitsluitend losse batterijpakken, zonder de eerder getoonde frame- of servicemodules."
+logical_id = "45566f86-3e32-4bce-8133-4d4eaa38efdd"
+content_hash = "sha256:ed858da18be0bc25c04ae78a880221a23c15dfb190f158bdf5aca43f443bd7ab"
+size = 120876
+mtime_ms = 1788953233462
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/45566f86-3e32-4bce-8133-4d4eaa38efdd/29956429-5695-4b51-8e82-daf103535872"
+storage_version_token = "1788953257199580"
+content_type = "image/jpeg"
