@@ -60,3 +60,4 @@
 - [Picqer fulfilment boundary](picqer-fulfilment-boundary.md) — live warehouse traffic belongs in the production API; the isolated PHP shop must never reach Picqer.
 - [Wallee payment authority](wallee-payment-authority.md) — default TWINT to PREVIEW; only an SDK reread in COMPLETED state proves payment.
 - [Dompdf invoice dimensions](dompdf-invoice-dimensions.md) — fixed A4 and Swiss QR blocks must subtract padding from CSS height or dompdf adds blank pages and clips footer fields.
+- [Swiss VAT invoice identity](swiss-vat-invoice-identity.md) — follow MWSTG Art. 26; show real supplier/recipient identities and optional customer registration, never invent customer numbers.

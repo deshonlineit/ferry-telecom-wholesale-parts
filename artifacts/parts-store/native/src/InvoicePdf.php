@@ -23,7 +23,8 @@ function invoiceDataUri(string $path, string $mime): string
 /**
  * @param array{
  *  invoice_number:string,order_number:string,invoice_date:string,due_date:string,currency:string,
- *  buyer:list<string>,items:list<array{sku:string,name:string,quantity:int,unit:string,tax:string,total:string}>,
+ *  buyer:list<string>,buyer_email:string,buyer_registration_label:string,buyer_registration_number:string,
+ *  items:list<array{sku:string,name:string,quantity:int,unit:string,tax:string,total:string}>,
  *  subtotal:string,shipping:string,tax_label:string,tax:string,total:string,payment_method:string,
  *  payment_terms:string,customer_note:string,test_mode:bool
  * } $invoice
@@ -36,7 +37,22 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
     $font = 'file://' . str_replace('\\', '/', $assetRoot . '/invoice-open-sans.ttf');
     $fontBold = 'file://' . str_replace('\\', '/', $assetRoot . '/invoice-open-sans-bold.ttf');
     $e = static fn(string $value): string => invoiceHtmlEscape($value);
-    $buyer = implode('<br>', array_map($e, $invoice['buyer']));
+    $buyerLines = array_map($e, $invoice['buyer']);
+    $buyer = $buyerLines === []
+        ? ''
+        : '<strong>' . array_shift($buyerLines) . '</strong>'
+            . ($buyerLines === [] ? '' : '<br>' . implode('<br>', $buyerLines));
+    $buyerDetails = '';
+    if (trim($invoice['buyer_email']) !== '') {
+        $buyerDetails .= '<div><span>Email</span>' . $e($invoice['buyer_email']) . '</div>';
+    }
+    if (trim($invoice['buyer_registration_label']) !== '' && trim($invoice['buyer_registration_number']) !== '') {
+        $buyerDetails .= '<div><span>' . $e($invoice['buyer_registration_label']) . '</span>'
+            . $e($invoice['buyer_registration_number']) . '</div>';
+    }
+    if ($buyerDetails !== '') {
+        $buyerDetails = '<div class="buyer-details">' . $buyerDetails . '</div>';
+    }
     $rows = '';
     foreach ($invoice['items'] as $item) {
         $rows .= '<tr>'
@@ -107,15 +123,15 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
     @font-face{font-family:OpenSans;src:url('{$font}') format('truetype');font-weight:400}
     @font-face{font-family:OpenSans;src:url('{$fontBold}') format('truetype');font-weight:700}
     @page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;font-family:OpenSans,DejaVu Sans,sans-serif;color:#172033;font-size:9pt;line-height:1.45}
-    .invoice-page{height:268mm;padding:15mm 16mm 13mm;position:relative}.watermark{position:absolute;top:127mm;left:58mm;transform:rotate(-42deg);font-size:60pt;color:#eef1f5;z-index:-1}
-    .header{display:table;width:100%;table-layout:fixed}.brand,.seller{display:table-cell;vertical-align:top}.brand{width:60%}.brand img{width:71mm;height:auto;margin-top:1mm}.seller{width:40%;padding-left:14mm;font-size:8.2pt;line-height:1.45}.seller strong{font-size:9pt}
-    .title{margin:18mm 0 8mm;border-bottom:1px solid #dce3ec;padding-bottom:4mm}.title h1{margin:0;color:#1683e8;font-size:25pt;letter-spacing:.4pt}.title .doc-id{margin-top:2mm;color:#687386;font-size:8pt}
-    .parties{display:table;width:100%;table-layout:fixed;margin-bottom:9mm}.bill,.meta{display:table-cell;vertical-align:top;width:50%}.bill{padding-right:10mm}.eyebrow{font-size:7pt;font-weight:700;color:#687386;text-transform:uppercase;letter-spacing:.7pt;margin-bottom:2.5mm}.buyer{font-size:9.2pt;line-height:1.55}.buyer strong{font-size:10.5pt}
-    .meta table{width:100%;border-collapse:collapse}.meta td{padding:1.2mm 0;vertical-align:top}.meta td:first-child{width:43%;color:#687386;font-size:7.5pt}.meta td:last-child{font-weight:700;font-size:8.2pt}
-    .items{width:100%;border-collapse:collapse;table-layout:fixed}.items thead{display:table-header-group}.items th{background:#111a2a;color:white;text-align:left;padding:3mm 2.5mm;font-size:7pt;text-transform:uppercase;letter-spacing:.55pt}.items td{padding:3.4mm 2.5mm;border-bottom:1px solid #dfe5ec;vertical-align:top;font-size:8pt}.items .sku{width:14%;font-weight:700}.items .product{width:40%}.items .number{width:9%;text-align:right}.items .money{width:14%;text-align:right;white-space:nowrap}.strong{font-weight:700}
-    .after-items{display:table;width:100%;table-layout:fixed;margin-top:7mm}.payment-info,.totals{display:table-cell;vertical-align:top}.payment-info{width:51%;padding-right:11mm}.info-box{background:#f4f7fb;border-left:3px solid #1683e8;padding:4mm 5mm}.info-box h3{font-size:7pt;text-transform:uppercase;letter-spacing:.6pt;margin:0 0 3mm}.info-row{display:table;width:100%;margin:1.7mm 0}.info-row span,.info-row strong{display:table-cell;vertical-align:top}.info-row span{width:38%;color:#687386;font-size:7.5pt}.info-row strong{font-size:8pt}
-    .totals{width:49%}.totals table{width:100%;border-collapse:collapse}.totals td{padding:1.7mm 0;border-bottom:1px solid #e5eaf0}.totals td:last-child{text-align:right;font-weight:700;white-space:nowrap}.totals tr.grand td{border-top:2px solid #1683e8;border-bottom:0;padding-top:2.6mm;font-size:11pt}
-    .footer{position:absolute;left:16mm;right:16mm;bottom:11mm;border-top:1px solid #dce3ec;padding-top:3mm;color:#778194;font-size:7pt}.footer strong{color:#172033}.footer-right{float:right}.test-note{color:#9a6500;font-weight:700}
+    .invoice-page{height:274mm;padding:12mm 15mm 11mm;position:relative}.watermark{position:absolute;top:127mm;left:58mm;transform:rotate(-42deg);font-size:60pt;color:#eef1f5;z-index:-1}
+    .header{display:table;width:100%;table-layout:fixed}.brand,.seller{display:table-cell;vertical-align:top}.brand{width:61%}.brand img{width:60mm;height:auto;margin-top:1mm}.seller{width:39%;padding-left:13mm;font-size:7.2pt;line-height:1.35}.seller strong{font-size:8pt}
+    .title{margin:9mm 0 5mm;border-bottom:1px solid #dce3ec;padding-bottom:2.5mm}.title h1{margin:0;color:#1683e8;font-size:21pt;letter-spacing:.3pt}.title .doc-id{margin-top:1mm;color:#687386;font-size:7pt}
+    .parties{display:table;width:100%;table-layout:fixed;margin-bottom:5mm}.bill,.meta{display:table-cell;vertical-align:top;width:50%}.bill{padding-right:10mm}.eyebrow{font-size:6.5pt;font-weight:700;color:#687386;text-transform:uppercase;letter-spacing:.6pt;margin-bottom:1.6mm}.buyer{font-size:8.2pt;line-height:1.35}.buyer strong{font-size:9pt}.buyer-details{margin-top:2.2mm;padding-top:1.8mm;border-top:1px solid #e2e7ee;font-size:6.7pt;color:#334055}.buyer-details div{margin:.5mm 0}.buyer-details span{display:inline-block;width:29mm;color:#7a8494}
+    .meta table{width:100%;border-collapse:collapse}.meta td{padding:.75mm 0;vertical-align:top}.meta td:first-child{width:43%;color:#687386;font-size:6.9pt}.meta td:last-child{font-weight:700;font-size:7.5pt}
+    .items{width:100%;border-collapse:collapse;table-layout:fixed}.items thead{display:table-header-group}.items th{background:#111a2a;color:white;text-align:left;padding:2.2mm 2mm;font-size:6.4pt;text-transform:uppercase;letter-spacing:.45pt}.items td{padding:2.35mm 2mm;border-bottom:1px solid #dfe5ec;vertical-align:top;font-size:7.2pt;line-height:1.3}.items .sku{width:14%;font-weight:700}.items .product{width:40%}.items .number{width:9%;text-align:right}.items .money{width:14%;text-align:right;white-space:nowrap}.strong{font-weight:700}
+    .after-items{display:table;width:100%;table-layout:fixed;margin-top:5mm}.payment-info,.totals{display:table-cell;vertical-align:top}.payment-info{width:51%;padding-right:10mm}.info-box{background:#f4f7fb;border-left:2px solid #1683e8;padding:3mm 4mm}.info-box h3{font-size:6.4pt;text-transform:uppercase;letter-spacing:.55pt;margin:0 0 2mm}.info-row{display:table;width:100%;margin:1.1mm 0}.info-row span,.info-row strong{display:table-cell;vertical-align:top}.info-row span{width:38%;color:#687386;font-size:6.8pt}.info-row strong{font-size:7.2pt}
+    .totals{width:49%;font-size:7.6pt}.totals table{width:100%;border-collapse:collapse}.totals td{padding:1.2mm 0;border-bottom:1px solid #e5eaf0}.totals td:last-child{text-align:right;font-weight:700;white-space:nowrap}.totals tr.grand td{border-top:2px solid #1683e8;border-bottom:0;padding-top:2mm;font-size:10pt}
+    .footer{position:absolute;left:15mm;right:15mm;bottom:8mm;border-top:1px solid #dce3ec;padding-top:2.2mm;color:#778194;font-size:6.5pt}.footer strong{color:#172033}.footer-right{float:right}.test-note{color:#9a6500;font-weight:700}
     .qr-page{height:297mm;position:relative}.qr-page .watermark{top:100mm}.separate{position:absolute;left:0;right:0;bottom:105mm;text-align:center;font-size:7pt;border-bottom:1px dashed #333;padding-bottom:1.5mm}
     .qr-part{position:absolute;left:0;bottom:0;width:210mm;height:105mm}.receipt,.payment{position:absolute;top:0;height:95mm;padding:5mm}.receipt{left:0;width:62mm;border-right:1px dashed #333}.payment{left:62mm;width:148mm}.qr-part h2{font-size:11pt;margin:0 0 4mm}.qr-label{font-size:6pt;font-weight:700;margin-top:2mm}.receipt{font-size:6.6pt;line-height:1.25}.payment{font-size:7.2pt;line-height:1.25}.qr-spacer{height:3mm}.amount-grid{display:table}.amount-grid>div{display:table-cell;padding-right:9mm}.amount-grid span,.amount-grid strong{display:block}.amount-grid span{font-size:6pt;font-weight:700}.amount-grid strong{font-size:8pt}.receipt .amount-grid{position:absolute;left:5mm;bottom:8mm}.acceptance{position:absolute;right:5mm;bottom:8mm;font-size:6pt}
     .qr-code-wrap{position:absolute;left:5mm;top:15mm;width:46mm;height:46mm}.qr-code{width:46mm;height:46mm}
@@ -127,7 +143,7 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
         info@ferrytelecom.com<br>VAT CHE-254.271.185 MWST<br>+41 78 204 56 55
       </div></div>
       <div class="title"><h1>INVOICE</h1><div class="doc-id">{$e($invoice['invoice_number'])}</div></div>
-      <div class="parties"><div class="bill"><div class="eyebrow">Bill to</div><div class="buyer">{$buyer}</div></div><div class="meta"><table>
+      <div class="parties"><div class="bill"><div class="eyebrow">Invoice recipient</div><div class="buyer">{$buyer}{$buyerDetails}</div></div><div class="meta"><table>
         <tr><td>Invoice number</td><td>{$e($invoice['invoice_number'])}</td></tr>
         <tr><td>Order number</td><td>{$e($invoice['order_number'])}</td></tr>
         <tr><td>Invoice date</td><td>{$e($invoice['invoice_date'])}</td></tr>

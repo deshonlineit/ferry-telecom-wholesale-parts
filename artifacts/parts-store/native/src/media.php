@@ -188,10 +188,11 @@ function mediaDelete(int $imageId): never
 function mediaOrderDocument(int $orderId, string $kind): never
 {
     $user = requireUser();
-    $sql = 'SELECT * FROM orders WHERE id = ?';
+    $sql = 'SELECT o.*,u.name AS account_name,u.company AS account_company,u.email AS customer_email,'
+        . 'u.tax_registration_type,u.tax_registration_number FROM orders o JOIN users u ON u.id=o.user_id WHERE o.id = ?';
     $parameters = [$orderId];
     if (($user['role'] ?? '') !== 'staff') {
-        $sql .= ' AND user_id = ?';
+        $sql .= ' AND o.user_id = ?';
         $parameters[] = (int) $user['id'];
     }
     $order = mediaFetchOne($sql, $parameters);
@@ -350,6 +351,13 @@ function mediaProfessionalInvoiceDocument(array $order, array $items, array $add
         'due_date' => $dueDate->format('d-M-Y'),
         'currency' => $currency,
         'buyer' => $buyer,
+        'buyer_email' => (string) ($order['customer_email'] ?? ''),
+        'buyer_registration_label' => match ((string) ($order['tax_registration_type'] ?? '')) {
+            'ch_uid' => 'Customer UID',
+            'vat_or_company_registration' => 'Customer VAT / registration',
+            default => '',
+        },
+        'buyer_registration_number' => (string) ($order['tax_registration_number'] ?? ''),
         'items' => array_map(static fn(array $item): array => [
             'sku' => (string) $item['sku'],
             'name' => (string) $item['name'],

@@ -1,0 +1,89 @@
+                                                                                                     ferrytelecom.com
+
+                                                                                                     Ferry Telecom AG
+                                                                                                     Industriestrasse 8
+
+                                                                                                     6203 Sempach Station
+
+                                                                                                     Switzerland
+
+                                                                                                     info@ferrytelecom.com
+
+                                                                                                     VAT CHE-254.271.185 MWST
+
+                                                                                                     +41 78 204 56 55
+
+
+
+
+INVOICE
+TEST-INV-MULTILINE-20260909
+
+
+
+
+INVOICE RECIPIENT                                                          Invoice number                 TEST-INV-MULTILINE-20260909
+
+Demo Repairshop                                                            Order number                   TS-20260907-8673B61A36
+Demo Repairshop
+                                                                           Invoice date                   09-Sep-2026
+Example Street 1
+                                                                           Due date                       23-Sep-2026
+8000 Zürich
+                                                                           Currency                       CHF
+CH
+
+
+
+
+                                                             T
+                                                                           Payment method                 Pay Later - Invoice (Swiss QR Code)
+Email                    customer@test.invalid
+
+
+
+
+ SKU                   PRODUCT
+
+
+
+
+                                                          E S                             QTY        UNIT PRICE           VAT               TOTAL
+
+
+
+
+                                                  T
+ IPH15003              iPhone 15 JK Incell LCD Assembly                                     1         CHF 110.05          8.1%          CHF 110.05
+
+
+ IPH15001              iPhone 15 KD Incell LCD Assembly                                     1          CHF 50.97          8.1%           CHF 50.97
+
+
+ IPH15054              iPhone 15 Pulled With Flex OLED Assembly                             1          CHF 56.19          8.1%           CHF 56.19
+
+
+ IPH15PL48             iPhone 15 Plus RJ Incell Diagnosable LCD Assembly                    1          CHF 19.11          8.1%           CHF 19.11
+
+
+ PRIPH12               iPhone 15 OLED Assembly with Sensor Flex (Diagnosable)               1          CHF 36.41          8.1%           CHF 36.41
+
+
+
+
+     PAYMENT INFORMATION                                                    Subtotal excl. VAT                                           CHF 272.73
+
+
+     Payment terms          14 days                                         Shipping excl. VAT                                             CHF 6.00
+
+     Customer note          Three-line and multi-line layout
+                                                                            Swiss VAT 8.1%                                                CHF 22.58
+                            test
+
+                                                                            Total incl. VAT                                          CHF 301.31
+
+
+
+
+Ferry Telecom AG · ferrytelecom.com · info@ferrytelecom.com                                      TEST-INV-MULTILINE-20260909 · Page 1 · TEST DOCUMENT
+

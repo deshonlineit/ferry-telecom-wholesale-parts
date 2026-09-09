@@ -294,3 +294,45 @@ mtime_ms = 1788976255990
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/31955264-dfa8-4415-9a17-5f3b7a58c3f0/67259e5f-f486-465e-8920-f336fce79613"
 storage_version_token = "1788976287581008"
 content_type = "image/png"
+
+[[outputs]]
+id = "x0UXoQXuNp6-geEP8H3XD"
+uri = "file://attached_assets/ferry-factuur-zwitsers-compact-definitief.pdf"
+type = "pdf"
+title = "Compacte Zwitserse factuur — definitief"
+description = "Actuele testfactuur met volledige ontvangergegevens, Art. 26 MWSTG-factuurvelden, ingebedde Open Sans-fonts en Swiss QR-betaaldeel."
+logical_id = "8319a988-cd9e-4e66-b7b0-83de6eb6474e"
+content_hash = "sha256:396d4434c07c2df3939f9c99c9c2879f64611a877cae2787894f8bf7ea6d6789"
+size = 64339
+mtime_ms = 1788976563849
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/8319a988-cd9e-4e66-b7b0-83de6eb6474e/ba55aede-8e99-4a78-a9ca-912ac9d3ff82"
+storage_version_token = "1788976571714165"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "XWMtIokPDciilPiMk6d5g"
+uri = "file://attached_assets/ferry-factuur-zwitsers-compact-pagina-1.png"
+type = "image"
+title = "Compacte factuur — klantgegevens"
+description = "Pagina 1 met duidelijk herkenbare ontvangersectie, factuurdata, btw-specificatie en betaalvoorwaarden."
+logical_id = "050541e0-1a35-4634-bb55-4c6fb7ba1438"
+content_hash = "sha256:58fe1997d0664086ba5aef9d4484ae4aacbe44d4a87341d664269b214509ca1b"
+size = 176398
+mtime_ms = 1788976563849
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/050541e0-1a35-4634-bb55-4c6fb7ba1438/469ce643-7289-4d38-88fa-0a23bc50d815"
+storage_version_token = "1788976572461125"
+content_type = "image/png"
+
+[[outputs]]
+id = "fCFG9UrVIGjBfE8kS3YMS"
+uri = "file://attached_assets/ferry-factuur-vijf-regels-layouttest-pagina-1.png"
+type = "image"
+title = "Bewijs: vijf regels op één pagina"
+description = "Layoutstresstest met vijf echte productregels, klantgegevens en totalen volledig op één A4-pagina."
+logical_id = "9e417a4c-d884-4f06-9630-24848e103a6a"
+content_hash = "sha256:fc6dc6eedccb7f8d16cde50ffbb8d288026b9a620bf9e26b6d4465a05b99b822"
+size = 214300
+mtime_ms = 1788976524742
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/9e417a4c-d884-4f06-9630-24848e103a6a/78036d02-cdac-4219-8372-329b712071dc"
+storage_version_token = "1788976573128757"
+content_type = "image/png"
