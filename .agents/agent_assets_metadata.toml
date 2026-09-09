@@ -336,3 +336,31 @@ mtime_ms = 1788976524742
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/9e417a4c-d884-4f06-9630-24848e103a6a/78036d02-cdac-4219-8372-329b712071dc"
 storage_version_token = "1788976573128757"
 content_type = "image/png"
+
+[[outputs]]
+id = "Y_mtIpps0P7hEzgmsnfzH"
+uri = "file://attached_assets/ferry-factuur-donkerblauw-definitief.pdf"
+type = "pdf"
+title = "Ferry Telecom-factuur — donkerblauw"
+description = "Definitieve compacte factuur met het INVOICE-opschrift in een donkerder blauw dat beter bij het logo past."
+logical_id = "faee57e1-f66c-4a3b-99a5-a9a7ec583a55"
+content_hash = "sha256:5468f8b5744c53f6949befeb5f2969f47e76d8641b2d59e0e21b928a24b7e7d3"
+size = 64345
+mtime_ms = 1788976781620
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/faee57e1-f66c-4a3b-99a5-a9a7ec583a55/ed68bd4e-0dea-4814-9969-ae65208dbad3"
+storage_version_token = "1788976795758435"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "D6BkMt8EFPMKi2Y7j76EI"
+uri = "file://attached_assets/ferry-factuur-donkerblauw-pagina-1.png"
+type = "image"
+title = "Voorbeeld donkerblauwe factuur"
+description = "Visuele controle van de aangepaste titelaccentkleur."
+logical_id = "c7498511-f38f-4665-b26a-f785a314c003"
+content_hash = "sha256:0d9254232700b4d40ddc5ebe9f522b57ef8f8ad100639dd87c54f5f9935f0a8e"
+size = 176555
+mtime_ms = 1788976782002
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/c7498511-f38f-4665-b26a-f785a314c003/e4d9f948-3cfb-42f0-9044-d28935cfc5fa"
+storage_version_token = "1788976796475550"
+content_type = "image/png"
