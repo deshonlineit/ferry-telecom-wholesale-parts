@@ -3,6 +3,7 @@
     "description": "Native storefront runtime",
     "license": "proprietary",
     "require": {
-        "sprain/swiss-qr-bill": "^4.0"
+        "sprain/swiss-qr-bill": "^4.0",
+        "dompdf/dompdf": "^3.1"
     }
 }

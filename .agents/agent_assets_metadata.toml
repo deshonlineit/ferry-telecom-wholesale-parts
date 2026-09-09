@@ -252,3 +252,45 @@ mtime_ms = 1788975607771
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/5f06dc4a-8b31-4c2f-b5cb-35237af822b6/cbe7791f-5364-40a3-b545-0125927c4a75"
 storage_version_token = "1788975627216038"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "OjmckaGPSKVVWvZJxWdwq"
+uri = "file://attached_assets/ferry-bexio-factuur-definitief.pdf"
+type = "pdf"
+title = "Professionele Ferry Telecom-factuur"
+description = "Definitieve tweepagina-PDF met origineel logo, ingebedde Open Sans-fonts, volledige factuurvelden en Swiss QR-betaaldeel."
+logical_id = "c01de05c-628e-4a02-b070-4aff45012a1a"
+content_hash = "sha256:2f8224b3c9187a5bb664e0a4f3ef9f0784908bdd787b0673c6ed94d390149eec"
+size = 64107
+mtime_ms = 1788976255363
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/c01de05c-628e-4a02-b070-4aff45012a1a/fd72a87b-a190-4462-8d77-46697c734537"
+storage_version_token = "1788976285997820"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "sW6rzuNRP9Sv_7HOGPKPq"
+uri = "file://attached_assets/ferry-bexio-factuur-definitief-pagina-1.png"
+type = "image"
+title = "Factuur — pagina 1"
+description = "Visuele controle van de professionele factuurpagina."
+logical_id = "9829c7e0-9d79-4996-8c8d-b2aa7236c86c"
+content_hash = "sha256:ecaa537f9993b2513267064538ad37cc9e864324adae6391e8fc2914588d046b"
+size = 174663
+mtime_ms = 1788976255750
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/9829c7e0-9d79-4996-8c8d-b2aa7236c86c/8c78f45d-ba98-47f2-834a-6c6d9aae6124"
+storage_version_token = "1788976286876211"
+content_type = "image/png"
+
+[[outputs]]
+id = "ZFEv8ZMtVhFusAN_G8lt8"
+uri = "file://attached_assets/ferry-bexio-factuur-definitief-pagina-2.png"
+type = "image"
+title = "Swiss QR-betaaldeel — pagina 2"
+description = "Visuele controle van het volledige ontvangstbewijs en betaaldeel, inclusief valuta en bedrag."
+logical_id = "31955264-dfa8-4415-9a17-5f3b7a58c3f0"
+content_hash = "sha256:888456129bc022ed0c03d85229674d1adda161e314451aeec82252da02b58344"
+size = 122345
+mtime_ms = 1788976255990
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/31955264-dfa8-4415-9a17-5f3b7a58c3f0/67259e5f-f486-465e-8920-f336fce79613"
+storage_version_token = "1788976287581008"
+content_type = "image/png"

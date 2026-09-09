@@ -1,0 +1,128 @@
+                                                                                         ferrytelecom.com
+
+                                                                                         Ferry Telecom AG
+
+                                                                                         Industriestrasse 8
+
+                                                                                         6203 Sempach Station
+
+                                                                                         Switzerland
+
+                                                                                         info@ferrytelecom.com
+
+                                                                                         VAT CHE-254.271.185 MWST
+
+                                                                                         +41 78 204 56 55
+
+
+
+
+INVOICE
+TEST-INV-TS-20260909-6DD1745CB6
+
+
+
+
+BILL TO
+                                                              Invoice number                  TEST-INV-TS-20260909-6DD1745CB6
+
+
+
+
+                                                        T
+QA isolated test                                              Order number                    TS-20260909-6DD1745CB6
+
+
+
+
+                                                       S
+QA fixture
+                                                              Invoice date                    09-Sep-2026
+
+
+
+
+                                                     E
+Example Street 1
+                                                              Due date                        23-Sep-2026
+
+
+
+
+                                              T
+8000 Zürich
+                                                              Currency                        CHF
+CH
+                                                              Payment method                  Pay Later - Invoice (Swiss QR Code)
+
+
+
+
+  SKU                 PRODUCT                                                QTY        UNIT PRICE            VAT           TOTAL
+
+
+
+
+  QA-                 QA isolated stock fixture 8441dfc4f9                      3          CHF 0.95         8.1%          CHF 2.85
+
+  8441dfc4f9
+
+
+
+
+     PAYMENT INFORMATION                                       Subtotal excl. VAT                                         CHF 2.85
+
+
+     Payment terms       14 days                               Shipping excl. VAT                                         CHF 6.00
+
+     Customer note       QA only
+                                                               Swiss VAT 8.1%                                             CHF 0.72
+
+
+
+                                                               Total incl. VAT                                          CHF 9.57
+
+
+
+
+Ferry Telecom AG · ferrytelecom.com · info@ferrytelecom.com                  TEST-INV-TS-20260909-6DD1745CB6 · Page 1 · TEST DOCUMENT
+                                                         ST
+                                                 T     E
+
+                                                          Separate before paying in
+
+
+
+
+Receipt                                     Payment part
+
+Account / Payable to                                                             Account / Payable to
+CH960020620684004901M                                                            CH960020620684004901M
+Ferry Telecom AG
+                                                                                 Ferry Telecom AG
+Industriestrasse 8
+                                                                                 Industriestrasse 8
+6203 Sempach Station
+                                                                                 6203 Sempach Station
+CH
+                                                                                 CH
+
+Payable by
+                                                                                 Additional information
+QA isolated test
+                                                                                 Order #TS-20260909-6DD1745CB6
+QA fixture
+Example Street 1
+                                                                                 Payable by
+8000 Zürich
+                                                                                 QA isolated test
+CH
+                                                                                 QA fixture
+                                                                                 Example Street 1
+                                                                                 8000 Zürich
+                                                                                 CH
+
+
+                            Acceptance point
+Currency           Amount                   Currency   Amount
+

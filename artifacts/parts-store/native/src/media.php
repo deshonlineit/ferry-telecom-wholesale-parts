@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/PdfWriter.php';
 require_once __DIR__ . '/SwissQrInvoice.php';
+require_once __DIR__ . '/InvoicePdf.php';
 
 const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
 const MEDIA_MAX_PIXELS = 20_000_000;
@@ -219,6 +220,9 @@ function mediaOrderDocument(int $orderId, string $kind): never
     $isInvoice = $kind === 'invoice';
     $prefix = $isInvoice ? 'TEST-INV-' : 'TEST-PACK-';
     $number = $prefix . (string) $order['number'];
+    if ($isInvoice) {
+        mediaProfessionalInvoiceDocument($order, $items, $address, $number);
+    }
     $pdf = new PdfWriter($number, $isInvoice ? 'INVOICE' : 'PACKING SLIP');
     if (!$isInvoice) {
         mediaDocumentIntro($pdf, $order, $address, $number);
@@ -311,6 +315,92 @@ function mediaOrderDocument(int $orderId, string $kind): never
         }
     }
     mediaSendPdf($pdf->output(), strtolower($number) . '.pdf');
+}
+
+/** @param list<array<string,mixed>> $items */
+function mediaProfessionalInvoiceDocument(array $order, array $items, array $address, string $number): never
+{
+    $currency = (string) $order['currency'];
+    $taxBps = (int) $order['tax_bps'];
+    $terms = json_decode((string) ($order['payment_terms_json'] ?? ''), true);
+    $dueDays = is_array($terms) ? max(0, (int) ($terms['due_days'] ?? 0)) : 0;
+    $createdAt = new DateTimeImmutable((string) $order['created_at']);
+    $dueDate = is_array($terms) && !empty($terms['due_date'])
+        ? new DateTimeImmutable((string) $terms['due_date'])
+        : $createdAt->modify('+' . $dueDays . ' days');
+    $paymentLabels = [
+        'stripe' => 'Card payment',
+        'twint' => 'TWINT',
+        'swiss_qr_invoice' => 'Pay Later - Invoice (Swiss QR Code)',
+        'pay_later' => 'Pay Later - Invoice',
+        'test_invoice' => 'Legacy test invoice',
+        'test_card' => 'Legacy test card',
+    ];
+    $buyer = array_values(array_filter([
+        (string) ($address['company'] ?? ''),
+        (string) ($address['name'] ?? ''),
+        trim((string) ($address['line1'] ?? '') . ' ' . (string) ($address['line2'] ?? '')),
+        trim((string) ($address['postal_code'] ?? '') . ' ' . (string) ($address['city'] ?? '')),
+        (string) ($address['country'] ?? ''),
+    ], static fn(string $line): bool => trim($line) !== ''));
+    $invoice = [
+        'invoice_number' => $number,
+        'order_number' => (string) $order['number'],
+        'invoice_date' => $createdAt->format('d-M-Y'),
+        'due_date' => $dueDate->format('d-M-Y'),
+        'currency' => $currency,
+        'buyer' => $buyer,
+        'items' => array_map(static fn(array $item): array => [
+            'sku' => (string) $item['sku'],
+            'name' => (string) $item['name'],
+            'quantity' => (int) $item['quantity'],
+            'unit' => mediaMoney((int) $item['price_cents'], $currency),
+            'tax' => number_format($taxBps / 100, 1) . '%',
+            'total' => mediaMoney((int) $item['total_cents'], $currency),
+        ], $items),
+        'subtotal' => mediaMoney((int) $order['subtotal_cents'], $currency),
+        'shipping' => mediaMoney((int) $order['shipping_cents'], $currency),
+        'tax_label' => $taxBps === 0 ? 'Swiss export VAT 0%' : 'Swiss VAT ' . number_format($taxBps / 100, 1) . '%',
+        'tax' => mediaMoney((int) $order['tax_cents'], $currency),
+        'total' => mediaMoney((int) $order['total_cents'], $currency),
+        'payment_method' => $paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method'],
+        'payment_terms' => $dueDays > 0 ? $dueDays . ' days' : 'Due immediately',
+        'customer_note' => (string) ($order['notes'] ?? ''),
+        'test_mode' => true,
+    ];
+    $qrData = null;
+    if ((string) $order['payment_method'] === 'swiss_qr_invoice') {
+        if (!is_array($terms)) {
+            throw new HttpError(503, 'The QR invoice creditor snapshot is unavailable.');
+        }
+        try {
+            $qrBill = swissQrCreate($terms, $order, $address);
+            $qrData = [
+                'svg' => $qrBill->getQrCode()->getAsString('svg'),
+                'account' => (string) $terms['iban'],
+                'creditor' => [
+                    (string) $terms['name'],
+                    trim((string) $terms['street'] . ' ' . (string) $terms['house_number']),
+                    trim((string) $terms['postal_code'] . ' ' . (string) $terms['city']),
+                    (string) $terms['country'],
+                ],
+                'debtor' => array_values(array_filter([
+                    (string) ($address['company'] ?? ''),
+                    (string) ($address['name'] ?? ''),
+                    trim((string) ($address['line1'] ?? '') . ' ' . (string) ($address['line2'] ?? '')),
+                    trim((string) ($address['postal_code'] ?? '') . ' ' . (string) ($address['city'] ?? '')),
+                    (string) ($address['country'] ?? ''),
+                ], static fn(string $line): bool => trim($line) !== '')),
+                'currency' => 'CHF',
+                'amount' => number_format(((int) $order['total_cents']) / 100, 2, '.', ''),
+                'reference' => ($terms['reference_type'] ?? 'NON') === 'NON' ? '' : (string) ($terms['reference'] ?? ''),
+                'information' => 'Order #' . (string) $order['number'],
+            ];
+        } catch (Throwable $exception) {
+            throw new HttpError(503, 'The Swiss QR payment section could not be generated safely.');
+        }
+    }
+    mediaSendPdf(renderProfessionalInvoicePdf($invoice, $qrData), strtolower($number) . '.pdf');
 }
 
 function mediaCreditDocument(int $returnId): never
