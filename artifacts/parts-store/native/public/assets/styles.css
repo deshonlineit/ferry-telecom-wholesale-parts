@@ -172,15 +172,24 @@ button, input, select, textarea { font: inherit; color: inherit; margin: 0; }
 .cart-flyer img { width: 100%; height: 100%; object-fit: contain; }
 .cart-flyer > span { color: var(--primary); font-size: 1.5rem; font-weight: 600; }
 .nav-cart.cart-receiving .cart-icon-wrapper {
-    animation: cart-receive-pulse .82s cubic-bezier(.2,.8,.25,1);
+    animation: cart-receive-pulse .56s cubic-bezier(.2,.8,.25,1);
 }
 @keyframes cart-receive-pulse {
     0%,100% { transform: scale(1); }
     42% { transform: scale(1.22) rotate(-4deg); }
     68% { transform: scale(.96) rotate(2deg); }
 }
+.part-add-btn {
+    transition: transform .14s ease, background-color .14s ease, opacity .14s ease;
+}
+.part-add-btn.is-adding,
+.part-add-btn[data-pending="true"] {
+    opacity: .82;
+    transform: scale(.93);
+}
 @media (prefers-reduced-motion: reduce) {
     .nav-cart.cart-receiving .cart-icon-wrapper { animation-duration: .01ms; }
+    .part-add-btn { transition-duration: .01ms; }
 }
 
 /* ==========================================================================

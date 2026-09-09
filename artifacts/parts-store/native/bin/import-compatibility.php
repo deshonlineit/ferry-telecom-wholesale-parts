@@ -285,7 +285,6 @@ try {
          VALUES(?,?,'source_taxonomy',?)
          ON DUPLICATE KEY UPDATE evidence=VALUES(evidence)"
     );
-    $updateBrand = $pdo->prepare('UPDATE products SET brand_id=? WHERE id=?');
 
     $pdo->exec('DELETE FROM product_models');
     $pdo->exec('DELETE FROM product_model_sources');
@@ -335,17 +334,10 @@ try {
             $candidateBrands[$brandName] = true;
         }
 
+        // Taxonomy brands describe compatible devices, not the manufacturer of
+        // the replacement part or accessory. Never overwrite products.brand_id.
         $exactBrands = $candidateBrands ?: ($categoryBrands[$productId] ?? []);
-        if (count($exactBrands) === 1) {
-            $brandName = array_key_first($exactBrands);
-            $brandKey = mb_strtolower((string) $brandName);
-            if (!isset($brandIds[$brandKey])) {
-                $insertBrand->execute([$brandName]);
-                $brandIds[$brandKey] = (int) $pdo->lastInsertId();
-            }
-            $updateBrand->execute([$brandIds[$brandKey], $productId]);
-            $brandUpdates++;
-        } elseif (count($exactBrands) > 1) {
+        if (count($exactBrands) > 1) {
             $brandAmbiguities++;
         }
     }

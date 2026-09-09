@@ -46,7 +46,9 @@
         if (family.includes('iphone')) {
             if (/\biphone\s+se\b/i.test(name)) return {key: 'iphone-se', label: 'iPhone SE Series', order: 80};
             if (/\biphone\s+(?:x|xr|xs)\b/i.test(name)) return {key: 'iphone-x', label: 'iPhone X · XR · XS Series', order: 40};
-            const generation = name.match(/\biphone\s+(\d{1,2})\b/i)?.[1];
+            // Numbered variants inherit their base generation. For example,
+            // iPhone 16e belongs in the iPhone 16 Series, not classic models.
+            const generation = name.match(/\biphone\s+(\d{1,2})(?:e)?\b/i)?.[1];
             if (generation) {
                 const number = Number(generation);
                 return {key: `iphone-${number}`, label: `iPhone ${number} Series`, order: 30 - number};
@@ -592,7 +594,7 @@
             const links = categories.map(category =>
                 `<div class="b2b-acc-group"><a href="${esc(compatibilityUrl({department, category: category.id, part: '', family: '', model: ''}))}" class="b2b-acc-link fw-bold">${esc(category.name)}</a></div>`
             ).join('');
-            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div><button type="button" class="b2b-menu-close">${t('close')}</button></div>`, {
+            return Menu.createDropdownItem(label, id, `<div class="b2b-mega-layout"><div class="b2b-mega-accessories">${links}</div></div>`, {
                 href: compatibilityUrl({department, family: '', model: ''}),
                 department,
             });

@@ -145,7 +145,7 @@ try:
     quote = customer.call("POST", "/checkout/quote", {"address_id": aid, "shipping_method": "swiss_post_priority"})
     order_body = {
         "address_id": aid, "quote_token": quote["quote_token"],
-        "payment_method": "swiss_qr_invoice", "shipping_method": "swiss_post_priority", "notes": "QA only",
+        "payment_method": "pay_later", "shipping_method": "swiss_post_priority", "notes": "QA only",
         "idempotency_key": "qa-" + unique,
     }
     order = customer.call("POST", "/checkout", order_body)["order"]
@@ -219,8 +219,18 @@ try:
         partner.call("GET", f"/admin/returns/{ret['id']}", expected=(403,))
         partner.call("GET", f"/returns/{ret['id']}", expected=(404,))
         staff.call("PATCH", f"/admin/returns/{ret['id']}", {"status": "approved", "note": "QA approved"})
-        credited = staff.call("PATCH", f"/admin/returns/{ret['id']}", {"status": "credited", "note": "QA local credit"})["return"]
-        credits += credited["credit_cents"]
+        return_detail = staff.call("GET", f"/admin/returns/{ret['id']}")
+        settled = staff.call("POST", f"/admin/returns/{ret['id']}/settle", {
+            "idempotency_key": f"qa-settle-{ret['id']}",
+            "lines": [{
+                "return_item_id": return_detail["items"][0]["return_item_id"],
+                "received_quantity": 1,
+                "restock_quantity": 0,
+                "disposition": "writeoff",
+            }],
+            "note": "QA local credit",
+        })
+        credits += settled["return"]["return"]["credit_cents"]
         pdf = customer.call("GET", f"/documents/returns/{ret['id']}/credit-note.pdf", raw=True)
         check(pdf.startswith(b"%PDF-"), "credited return generates owned PDF")
     original = detail["order"]
@@ -279,14 +289,12 @@ try:
         "preview": "0", "pricing_versions": json.dumps(preview["pricing_versions"]),
     })
     check(committed["created"] == 1 and len(customer.call("GET", f"/products?q=CSV-{unique}")["products"]) == 1, "CSV commit persists validated rows")
-    item = customer.call("GET", "/buyback")["items"][0]
-    request = customer.call("POST", "/buyback/requests", {"items": [{"item_id": item["id"], "quantity": 2}], "notes": "QA screens"})["request"]
-    check(request["total_cents"] == item["price_cents"] * 2, "buyback snapshots price and quantity")
-    staff.call("PATCH", f"/admin/buyback/requests/{request['id']}", {"status": "received", "note": "QA locally received"})
-    for path in ["/admin/dashboard", "/admin/customers", "/admin/settings", "/admin/messages", "/admin/audit", "/admin/returns", "/admin/buyback", "/admin/integrations"]:
+    for path in ["/admin/dashboard", "/admin/customers", "/admin/settings", "/admin/diagnostics", "/admin/audit", "/admin/returns", "/admin/integrations"]:
         check(bool(staff.call("GET", path)), path + " responds for staff")
-    staff.call("POST", "/admin/integrations/simulate", {"event": "shipment"})
-    check(len(staff.call("GET", "/admin/messages")["messages"]) > 0, "events captured locally without delivery")
+    customer.call("GET", "/admin/diagnostics", expected=(403,))
+    check(True, "diagnostics remain staff-only")
+    simulation = staff.call("POST", "/admin/integrations/simulate", {"event": "shipment"})
+    check(simulation["event"]["local_only"] is True, "simulation status is returned directly without a mailbox")
     print(json.dumps({"passed": len(checks), "checks": checks}, indent=2))
 finally:
     fixture("block")

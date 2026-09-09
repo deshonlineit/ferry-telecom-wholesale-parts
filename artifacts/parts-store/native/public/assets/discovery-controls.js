@@ -429,6 +429,7 @@
                         <div id="catalog-smart-search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="${t('smartSearchResults')}" style="display:none;"></div>
                     </form>
                 </section>
+                ${!window.Core.user ? `<div class="catalog-price-notice"><span>${t('wantPrices')}</span><a href="${window.APP_BASE}login">${t('signIn')} →</a></div>` : ''}
                 <div class="catalog-layout">
                     <aside class="catalog-sidebar" aria-label="${t('browseFilterCatalogue')}">
                         <div class="catalog-sidebar-heading"><span>${t('catalogue')}</span><h2>${t('findRightPart')}</h2></div>
@@ -447,7 +448,6 @@
                         <button type="button" class="stock-shortcut ${params.get('stock') === 'in_stock' ? 'active' : ''}" data-stock-toggle aria-pressed="${params.get('stock') === 'in_stock'}">${t('inStock')}</button>
                         <button type="button" class="btn btn-outline" id="open-catalog-filters">${t('allFilters')}${chips.length ? ` (${window.I18n.number(chips.length)})` : ''}</button></div>
                         ${chips.length ? `<div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">${t('clear')}</a></div>` : ''}
-                        ${!window.Core.user ? `<div class="catalog-price-notice"><span>${t('wantPrices')}</span><a href="${window.APP_BASE}login">${t('signIn')} →</a></div>` : ''}
                         ${result.products.length ? window.App.renderProductTable(result.products, {headerHtml: sortControl}) : `<div class="catalog-empty-surface"><div class="b2b-products-toolbar">${sortControl}</div><div class="empty-state"><h2>${part ? t('noPartSelection', {part: part.name}) : t('noPartsCombination')}</h2><p>${part ? `${escape(part.description)} ${t('changeModelHint')}` : t('removeFilterHint')}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${t(part ? 'viewOtherVariants' : 'viewAllParts')}</a></div></div>`}${pagination}
                     </section>
                 </div>

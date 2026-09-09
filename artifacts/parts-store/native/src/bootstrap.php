@@ -225,6 +225,67 @@ function enqueue(string $kind, array $payload): void
         ->execute([$kind, json_encode($payload, JSON_THROW_ON_ERROR), 'captured']);
 }
 
+/**
+ * Remove credentials and practical personal data before diagnostics are stored.
+ * This helper has no queue/mail dependency and accepts only already-selected
+ * metadata (never a request body or SQL text).
+ */
+function redactDiagnostic(mixed $value, string $key = '', int $depth = 0): mixed
+{
+    if ($depth > 8) return '[truncated]';
+    $sensitive = '/pass(word)?|hash|token|secret|api[_-]?key|authorization|cookie|payment|card|'
+        . 'session|csrf|email|e-mail|ip|phone|address|name|iban|cvv/i';
+    if ($key !== '' && preg_match($sensitive, $key)) return '[redacted]';
+    if (is_array($value)) {
+        $out = [];
+        $count = 0;
+        foreach ($value as $childKey => $childValue) {
+            if (++$count > 60) { $out['_truncated'] = true; break; }
+            $out[(string)$childKey] = redactDiagnostic($childValue, (string)$childKey, $depth + 1);
+        }
+        return $out;
+    }
+    if (is_object($value)) return '[object]';
+    if (is_string($value)) {
+        $value = preg_replace('/\b[\w.%+\-]+@[\w.\-]+\.[A-Za-z]{2,}\b/', '[redacted-email]', $value) ?? '';
+        $value = preg_replace('/\b(?:\d{1,3}\.){3}\d{1,3}\b/', '[redacted-ip]', $value) ?? '';
+        $value = preg_replace('/\b(password|pass|token|secret|api[_-]?key|csrf|session|hash|authorization|cookie)\s*'
+            . '([:=])\s*[^\s,&;]+/i', '$1$2[redacted]', $value) ?? '';
+        $value = preg_replace('/\b(?:Bearer\s+|Basic\s+)[A-Za-z0-9._~+\/=-]+/i', '[redacted-auth]', $value) ?? '';
+        $value = preg_replace('/\b(?:\d[ -]*?){13,19}\b/', '[redacted-card]', $value) ?? '';
+        return mb_substr($value, 0, 1000);
+    }
+    return is_scalar($value) || $value === null ? $value : '[unavailable]';
+}
+
+/** Best-effort only: a diagnostic failure must never alter the original request. */
+function recordDiagnostic(string $severity, string $category, string $summary, array $context = [], ?string $reference = null): ?string
+{
+    static $recording = false;
+    if ($recording) return null;
+    $recording = true;
+    try {
+        $severity = strtolower($severity);
+        if (!in_array($severity, ['debug', 'info', 'warning', 'error', 'critical'], true)) $severity = 'error';
+        $reference = $reference !== null && preg_match('/^[A-Za-z0-9_-]{8,32}$/', $reference)
+            ? $reference : bin2hex(random_bytes(8));
+        $safeContext = redactDiagnostic($context);
+        if (!is_array($safeContext)) $safeContext = ['context' => $safeContext];
+        db()->prepare('INSERT INTO diagnostics(reference,severity,category,summary,context_json,request_method,request_path)
+            VALUES(?,?,?,?,?,?,?)')->execute([
+            $reference, $severity, mb_substr($category, 0, 100), mb_substr(redactDiagnostic($summary), 0, 1000),
+            json_encode($safeContext, JSON_THROW_ON_ERROR),
+            mb_substr((string)($_SERVER['REQUEST_METHOD'] ?? ''), 0, 12),
+            mb_substr((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), 0, 500),
+        ]);
+        return $reference;
+    } catch (Throwable) {
+        return null;
+    } finally {
+        $recording = false;
+    }
+}
+
 function settings(): array
 {
     return db()->query('SELECT name,value FROM settings')->fetchAll(PDO::FETCH_KEY_PAIR);

@@ -3,6 +3,19 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/src/bootstrap.php';
 
+$fatalRecorded = false;
+register_shutdown_function(static function () use (&$fatalRecorded): void {
+    if ($fatalRecorded) return;
+    $fatal = error_get_last();
+    if (!$fatal || !in_array($fatal['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) return;
+    $fatalRecorded = true;
+    $reference = recordDiagnostic('critical', 'php.fatal', 'Unexpected server failure', [
+        'error_type' => $fatal['type'], 'file' => basename((string)$fatal['file']), 'line' => (int)$fatal['line'],
+        'message' => (string)$fatal['message'],
+    ]);
+    error_log('Native fatal failure' . ($reference ? ' [' . $reference . ']' : ''));
+});
+
 $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $base = rtrim(basePath(), '/');
 if ($uriPath !== $base && !str_starts_with($uriPath, $base . '/')) {
@@ -65,7 +78,13 @@ try {
     }
     respond(['error' => $error->getMessage()], $error->status);
 } catch (Throwable $error) {
-    $reference = bin2hex(random_bytes(4));
+    try { if (db()->inTransaction()) db()->rollBack(); } catch (Throwable) {}
+    $reference = bin2hex(random_bytes(8));
+    recordDiagnostic('error', 'request.unexpected', 'Unexpected server failure', [
+        'exception_class' => get_class($error),
+        'exception_message' => $error->getMessage(),
+        'stack' => mb_substr($error->getTraceAsString(), 0, 8000),
+    ], $reference);
     error_log('Native request failed [' . $reference . ']: ' . get_class($error));
     respond(['error' => 'Er ging iets mis. Probeer het opnieuw. Referentie: ' . $reference], 500);
 }

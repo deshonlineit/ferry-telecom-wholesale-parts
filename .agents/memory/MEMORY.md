@@ -23,7 +23,7 @@
 - [Native media isolation](native-media-isolation.md) — bulk PHP imports can exhaust a sibling preview's filesystem watchers; generated media is not JavaScript source.
 - [Account metadata updates](account-metadata-updates.md) — identity-provider metadata updates require the dedicated metadata endpoint; empty merges do not revoke roles.
 - [Authentication test rate limits](auth-test-rate-limits.md) — reuse short-lived tokens in API suites so shared provider limits do not block assertions or fixture cleanup.
-- [Catalog photo lifecycle](catalog-photo-lifecycle.md) — prototype gallery removal unlinks public photos; permanent erasure must account for order and shared references.
+- [Catalog photo lifecycle](catalog-photo-lifecycle.md) — public photos need exact-match provenance; removal, reuse, and permanent erasure must respect references.
 - [Catalogue thumbnail performance](catalogue-thumbnail-performance.md) — list views use eager 320px thumbnails and immutable hashed-media caching; lazy rows visibly lag while scrolling.
 - [Identity test rate limits](identity-test-rate-limits.md) — concurrent task checks share one development tenant; reuse session tokens and retry throttled cleanup.
 - [Device scope navigation](device-scope-navigation.md) — brand/family/model are one scope axis: a narrower pick must clear the wider one, and escape-hatch facets must exclude the whole axis.
@@ -51,3 +51,9 @@
 - [Mobile zoom viewport](mobile-zoom-viewport.md) — page scaling can shrink Visual Viewport without changing CSS media-query width; zoom-safe headers must handle both.
 - [Native env allowlist](native-env-allowlist.md) — the PHP server starts under `env -i`; every required secret must be forwarded explicitly or valid config remains invisible.
 - [Customer account visual language](customer-account-visual-language.md) — account screens must feel like a purpose-built B2B workspace, never a generic CMS settings page.
+- [Manufacturer versus compatibility](manufacturer-vs-compatibility.md) — maker brand is independent from compatible device brands/models; unknown makers stay Universal.
+- [Customer address boundaries](customer-address-boundaries.md) — billing is independent from the multi-location shipping book; historical orders keep immutable address snapshots.
+- [RMA settlement policy](rma-settlement-policy.md) — partial returns settle via original Stripe payment or invoice credit; stock moves only by explicit disposition.
+- [Swiss destination VAT](swiss-destination-vat.md) — CH deliveries use 8.1%; exports use 0% Swiss VAT, while historical documents keep their order snapshot.
+- [Admin diagnostics boundary](admin-diagnostics-boundary.md) — store redacted failures for staff; never route diagnostics through email, messages, or a local mailbox.
+- [Picqer fulfilment boundary](picqer-fulfilment-boundary.md) — live warehouse traffic belongs in the production API; the isolated PHP shop must never reach Picqer.

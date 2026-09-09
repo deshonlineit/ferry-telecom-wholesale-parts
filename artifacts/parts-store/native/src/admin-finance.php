@@ -13,8 +13,8 @@ function financeLoadInvoices(?string $currency = null): array
                 u.name customer_name,u.company,u.email,
                 f.verified,f.due_date,f.paid_cents,f.version,
                 COALESCE((
-                    SELECT SUM(r.credit_cents) FROM returns r
-                    WHERE r.order_id=o.id AND r.status IN ('approved','credited')
+                    SELECT SUM(ca.amount_cents) FROM credit_applications ca
+                    WHERE ca.target_order_id=o.id
                 ),0) credited_cents
          FROM orders o
          JOIN users u ON u.id=o.user_id

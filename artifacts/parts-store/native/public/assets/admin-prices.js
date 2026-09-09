@@ -23,6 +23,27 @@
 
     const esc = window.Core.escapeHtml;
 
+    function pricingGroupRank(group) {
+        const name = String(group?.name || '').toLowerCase();
+        if (name.includes('partner')) return 1;
+        if (name.includes('wholesale')) return 2;
+        if (name.includes('repair')) return 3;
+        return 10;
+    }
+
+    function pricingGroupLabel(group) {
+        const name = String(group?.name || '');
+        const normalized = name.toLowerCase();
+        if (normalized.includes('partner')) return 'Partner Price';
+        if (normalized.includes('wholesale')) return 'Wholesale Price';
+        if (normalized.includes('repair')) return 'Big Repair Shop Price';
+        return `${name} Price`;
+    }
+
+    function orderedPricingGroups(groups) {
+        return [...groups].sort((a, b) => pricingGroupRank(a) - pricingGroupRank(b) || a.id - b.id);
+    }
+
     function parseCents(val) {
         return window.Workbench.parseCentsStrict(val);
     }
@@ -167,7 +188,7 @@
         ]);
         
         currentProducts = data.products;
-        currentGroups = data.groups || [];
+        currentGroups = orderedPricingGroups(data.groups || []);
         
         const rate = data.exchange_rate;
         const rateBannerHtml = rate ? `
@@ -183,7 +204,7 @@
         ` : '';
 
         const catsHtml = catalogData.categories.map(c => `<option value="${c.id}" ${c.id == cat ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
-        const groupHeaders = currentGroups.map(g => `<th title="${esc(g.name)}">${esc(g.name)}</th>`).join('');
+        const groupHeaders = currentGroups.map(g => `<th title="${esc(g.name)}">${esc(pricingGroupLabel(g))}</th>`).join('');
 
         const content = `
             <div class="page-header">
@@ -211,8 +232,8 @@
                             <th style="width:40px; text-align:center"><input type="checkbox" id="select-all"></th>
                             <th>SKU</th>
                             <th>Name</th>
-                            <th>Purchase (Cost)</th>
-                            <th>Base</th>
+                            <th>Purchase Cost (EUR)</th>
+                            <th>EUR Price</th>
                             ${groupHeaders}
                         </tr>
                     </thead>
@@ -273,9 +294,9 @@
         document.getElementById('btn-import-excel').addEventListener('click', () => {
             const html = `
                 <div class="form-group">
-                    <label>Paste rows from Excel (Copy SKU, Cost, Base, Groups...)</label>
+                    <label>Paste rows from Excel (Copy SKU, Purchase Cost EUR, EUR Price, Customer Prices...)</label>
                     <textarea id="excel-paste-area" class="form-control" rows="8" placeholder="SKU123\\t5,50\\t12,00\\t..."></textarea>
-                    <small>Expected order per row (tab-separated): SKU, purchase price, base price${groups.length ? ', ' + groups.map(g=>g.name).join(', ') : ''}. Blank cells are ignored. A - (dash) clears the value.</small>
+                    <small>Expected order per row (tab-separated): SKU, purchase cost EUR, EUR price${groups.length ? ', ' + groups.map(pricingGroupLabel).join(', ') : ''}. Blank cells are ignored. A - (dash) clears the value.</small>
                 </div>
                 <div class="alert error" id="paste-error" hidden></div>
                 <button type="button" class="btn" id="btn-process-paste" style="width:100%">Analyse</button>
@@ -389,9 +410,9 @@
                     <div class="form-group">
                         <label>Field</label>
                         <select name="field" class="form-control">
-                            <option value="list_price_eur_cents">Base Selling Price</option>
-                            <option value="purchase_price_eur_cents">Purchase Price</option>
-                            ${groups.map(g => `<option value="group_${g.id}">Group Price: ${esc(g.name)}</option>`).join('')}
+                            <option value="list_price_eur_cents">EUR Price</option>
+                            <option value="purchase_price_eur_cents">Purchase Cost (EUR)</option>
+                            ${groups.map(g => `<option value="group_${g.id}">${esc(pricingGroupLabel(g))}</option>`).join('')}
                         </select>
                     </div>
                     <div class="grid-cols-2">
@@ -493,9 +514,9 @@
                     <div class="form-group">
                         <label>Field</label>
                         <select name="field" class="form-control">
-                            <option value="list_price_eur_cents">Base Selling Price</option>
-                            <option value="purchase_price_eur_cents">Purchase Price</option>
-                            ${groups.map(g => `<option value="group:${g.id}">Group Price: ${esc(g.name)}</option>`).join('')}
+                            <option value="list_price_eur_cents">EUR Price</option>
+                            <option value="purchase_price_eur_cents">Purchase Cost (EUR)</option>
+                            ${groups.map(g => `<option value="group:${g.id}">${esc(pricingGroupLabel(g))}</option>`).join('')}
                         </select>
                     </div>
                     <div class="grid-cols-2">

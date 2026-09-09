@@ -72,6 +72,18 @@ CREATE TABLE IF NOT EXISTS addresses (
  city VARCHAR(100) NOT NULL,country CHAR(2) NOT NULL DEFAULT 'CH', is_default TINYINT NOT NULL DEFAULT 0,
  FOREIGN KEY(user_id) REFERENCES users(id),INDEX(user_id)
 ) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS billing_addresses (
+ user_id INT UNSIGNED PRIMARY KEY,
+ label VARCHAR(100) NOT NULL, name VARCHAR(140) NOT NULL, company VARCHAR(190) NOT NULL DEFAULT '',
+ line1 VARCHAR(190) NOT NULL,line2 VARCHAR(190) NOT NULL DEFAULT '',postal_code VARCHAR(30) NOT NULL,
+ city VARCHAR(100) NOT NULL,country CHAR(2) NOT NULL DEFAULT 'CH',
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ FOREIGN KEY(user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO billing_addresses(user_id,label,name,company,line1,line2,postal_code,city,country)
+SELECT a.user_id,'Billing address',a.name,a.company,a.line1,a.line2,a.postal_code,a.city,a.country
+FROM addresses a
+WHERE a.id=(SELECT a2.id FROM addresses a2 WHERE a2.user_id=a.user_id ORDER BY a2.is_default DESC,a2.id ASC LIMIT 1);
 CREATE TABLE IF NOT EXISTS cart_items (
  user_id INT UNSIGNED NOT NULL,product_id INT UNSIGNED NOT NULL,quantity INT UNSIGNED NOT NULL,
  PRIMARY KEY(user_id,product_id), FOREIGN KEY(user_id) REFERENCES users(id),FOREIGN KEY(product_id) REFERENCES products(id)
@@ -134,13 +146,82 @@ CREATE TABLE IF NOT EXISTS return_items (
  quantity INT UNSIGNED NOT NULL,UNIQUE(return_id,order_item_id),
  FOREIGN KEY(return_id) REFERENCES returns(id),FOREIGN KEY(order_item_id) REFERENCES order_items(id)
 ) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS return_creation_keys (
+ idempotency_key VARCHAR(100) PRIMARY KEY,return_id INT UNSIGNED NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(return_id) REFERENCES returns(id)
+) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS return_events (
  id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,return_id INT UNSIGNED NOT NULL,status VARCHAR(30) NOT NULL,note TEXT NOT NULL,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(return_id) REFERENCES returns(id)
 ) ENGINE=InnoDB;
+/* Append-only RMA financial and inventory evidence.  These tables deliberately
+   do not retrofit mutable order rows: order_items and orders are the price,
+   tax and address snapshots used by the settlement code. */
+CREATE TABLE IF NOT EXISTS return_settlements (
+ id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,return_id INT UNSIGNED NOT NULL,
+ idempotency_key VARCHAR(100) NOT NULL,kind ENUM('stripe_refund','invoice_credit') NOT NULL,
+ status ENUM('pending','succeeded','failed') NOT NULL,amount_cents INT UNSIGNED NOT NULL,
+ currency CHAR(3) NOT NULL,provider_reference VARCHAR(190) NULL,error_message VARCHAR(1000) NULL,
+ snapshot JSON NOT NULL,created_by INT UNSIGNED NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ settled_at DATETIME NULL,UNIQUE(return_id),UNIQUE(idempotency_key),INDEX(status,created_at),
+ FOREIGN KEY(return_id) REFERENCES returns(id),FOREIGN KEY(created_by) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS customer_credit_notes (
+ id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,number VARCHAR(60) NOT NULL UNIQUE,
+ user_id INT UNSIGNED NOT NULL,order_id INT UNSIGNED NOT NULL,return_id INT UNSIGNED NOT NULL,
+ settlement_id BIGINT UNSIGNED NOT NULL,issued_cents INT UNSIGNED NOT NULL,
+ remaining_cents INT UNSIGNED NOT NULL,currency CHAR(3) NOT NULL,status ENUM('issued','void') NOT NULL DEFAULT 'issued',
+ snapshot JSON NOT NULL,created_by INT UNSIGNED NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(return_id),UNIQUE(settlement_id),INDEX(user_id,status),INDEX(order_id),
+ FOREIGN KEY(user_id) REFERENCES users(id),FOREIGN KEY(order_id) REFERENCES orders(id),
+ FOREIGN KEY(return_id) REFERENCES returns(id),FOREIGN KEY(settlement_id) REFERENCES return_settlements(id),
+ FOREIGN KEY(created_by) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS credit_applications (
+ id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,credit_note_id BIGINT UNSIGNED NOT NULL,
+ target_order_id INT UNSIGNED NOT NULL,amount_cents INT UNSIGNED NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(credit_note_id,target_order_id),INDEX(target_order_id),
+ FOREIGN KEY(credit_note_id) REFERENCES customer_credit_notes(id),FOREIGN KEY(target_order_id) REFERENCES orders(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS return_item_dispositions (
+ id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,return_item_id INT UNSIGNED NOT NULL,
+ received_quantity INT UNSIGNED NOT NULL,restock_quantity INT UNSIGNED NOT NULL DEFAULT 0,
+ disposition ENUM('restock','quarantine','writeoff') NOT NULL,recorded_by INT UNSIGNED NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,UNIQUE(return_item_id),
+ FOREIGN KEY(return_item_id) REFERENCES return_items(id),FOREIGN KEY(recorded_by) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS return_stock_movements (
+ id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,return_item_id INT UNSIGNED NOT NULL,
+ product_id INT UNSIGNED NOT NULL,quantity INT UNSIGNED NOT NULL,kind ENUM('restock') NOT NULL,
+ created_by INT UNSIGNED NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(return_item_id,kind),INDEX(product_id,created_at),
+ FOREIGN KEY(return_item_id) REFERENCES return_items(id),FOREIGN KEY(product_id) REFERENCES products(id),
+ FOREIGN KEY(created_by) REFERENCES users(id)
+) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS messages (
  id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,kind VARCHAR(100) NOT NULL,payload JSON NOT NULL,
  status VARCHAR(30) NOT NULL DEFAULT 'captured',created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+-- Diagnostics are deliberately separate from the captured account/business
+-- message queue.  Their context is redacted before it reaches this table.
+CREATE TABLE IF NOT EXISTS diagnostics (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  reference VARCHAR(32) NOT NULL UNIQUE,
+  severity VARCHAR(20) NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  summary VARCHAR(1000) NOT NULL,
+  context_json JSON NOT NULL,
+  request_method VARCHAR(12) NULL,
+  request_path VARCHAR(500) NULL,
+  occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolved_at DATETIME NULL,
+  resolved_by INT UNSIGNED NULL,
+  INDEX diagnostics_occurred_at (occurred_at),
+  INDEX diagnostics_severity_occurred (severity,occurred_at),
+  INDEX diagnostics_category_occurred (category,occurred_at),
+  INDEX diagnostics_reference (reference),
+  INDEX diagnostics_resolution_occurred (resolved_at,occurred_at),
+  FOREIGN KEY(resolved_by) REFERENCES users(id)
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS audit_events (
  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,user_id INT UNSIGNED NULL,action VARCHAR(100) NOT NULL,
@@ -154,14 +235,4 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
  base_currency CHAR(3) NOT NULL,quote_currency CHAR(3) NOT NULL,rate_ppm BIGINT UNSIGNED NOT NULL,
  rate_date DATE NOT NULL,fetched_at DATETIME NOT NULL,source_url VARCHAR(500) NOT NULL,
  PRIMARY KEY(base_currency,quote_currency),INDEX(rate_date)
-) ENGINE=InnoDB;
-CREATE TABLE IF NOT EXISTS buyback_items (
- id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,model VARCHAR(190) NOT NULL,grade VARCHAR(60) NOT NULL,
- price_cents INT UNSIGNED NOT NULL,active TINYINT NOT NULL DEFAULT 1,UNIQUE(model,grade)
-) ENGINE=InnoDB;
-CREATE TABLE IF NOT EXISTS buyback_requests (
- id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,number VARCHAR(40) NOT NULL UNIQUE,user_id INT UNSIGNED NOT NULL,
- status VARCHAR(30) NOT NULL DEFAULT 'submitted',items_json JSON NOT NULL,total_cents INT UNSIGNED NOT NULL,
- notes TEXT NOT NULL,note TEXT NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
- FOREIGN KEY(user_id) REFERENCES users(id)
 ) ENGINE=InnoDB;

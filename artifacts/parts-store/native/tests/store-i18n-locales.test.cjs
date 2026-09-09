@@ -17,7 +17,7 @@ const keys = ['checkoutIntro', 'deliveryAddress', 'differentDeliveryAddress', 'a
     'enlargePhoto', 'stockCount', 'cartContext',
     'myAccount', 'personalDetails', 'addressSaved', 'removeAddressConfirm', 'orderNumber',
     'invoicePdf', 'packingSlipPdf', 'orderHistory', 'returnSubmitted', 'creditNotePdf',
-    'totalCredited', 'screenBuyback', 'buybackIntro', 'buybackSubmitted', 'pdfDownloadFailed'];
+    'totalCredited', 'pdfDownloadFailed'];
 // Buyer chrome must be explicit in every locale: silently falling through to English
 // is especially easy to miss because I18n.t intentionally has an English fallback.
 const invariant = new Set(['sku', 'postcode']);

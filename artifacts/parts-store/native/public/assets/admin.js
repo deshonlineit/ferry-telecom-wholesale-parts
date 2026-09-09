@@ -1,4 +1,4 @@
-// Admin Dashboard: Products, Orders, Customers, Settings, Buyback
+// Admin Dashboard: Products, Orders, Customers and Settings
 
 (function initWorkbench() {
     window.Workbench = window.Workbench || {};
@@ -61,11 +61,16 @@
 
 const adminLayout = (content, activeRoute) => window.Admin.layout(content, activeRoute);
 const adminPaymentMethodLabel = method => ({
-    swiss_qr_invoice: 'Swiss QR Invoice',
+    stripe: 'Card payment',
+    swiss_qr_invoice: 'Pay Later (Swiss QR Code)',
     pay_later: 'Pay Later',
     test_invoice: 'Legacy test invoice',
     test_card: 'Legacy test card'
 }[method] || method);
+const adminPaymentMethodDefinitions = [
+    {code: 'stripe', label: 'Card payment', help: 'Secure online card checkout. The invoice becomes available after payment is confirmed.'},
+    {code: 'pay_later', label: 'Pay later', help: 'Switzerland uses the Swiss QR code on the invoice. Other European countries receive a normal invoice without Swiss QR.'}
+];
 const adminPaymentStateLabel = state => ({
     pending: 'Pending', authorized: 'Authorized', paid: 'Paid', failed: 'Failed',
     cancelled: 'Cancelled', refunded: 'Refunded', open: 'Invoice open'
@@ -177,11 +182,29 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
     const limit = searchParams.get('limit') || '50';
     const esc = window.Core.escapeHtml;
 
-    const [catalogData, data] = await Promise.all([
+    const [catalogData, data, pricingMeta] = await Promise.all([
         window.Core.fetch('/catalog'),
-        window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`)
+        window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`),
+        window.Core.fetch('/admin/prices?page=1&limit=1')
     ]);
     const stockThreshold = Number(data.stock_threshold ?? 5);
+    const pricingGroupRank = group => {
+        const name = String(group?.name || '').toLowerCase();
+        if (name.includes('partner')) return 1;
+        if (name.includes('wholesale')) return 2;
+        if (name.includes('repair')) return 3;
+        return 10;
+    };
+    const pricingGroupLabel = group => {
+        const name = String(group?.name || '');
+        const normalized = name.toLowerCase();
+        if (normalized.includes('partner')) return 'Partner Price';
+        if (normalized.includes('wholesale')) return 'Wholesale Price';
+        if (normalized.includes('repair')) return 'Big Repair Shop Price';
+        return `${name} Price`;
+    };
+    const customerGroups = [...(pricingMeta.groups || [])]
+        .sort((a, b) => pricingGroupRank(a) - pricingGroupRank(b) || a.id - b.id);
     
     const rows = data.products.map(p => `
         <tr class="${!p.active ? 'archived-row' : ''}">
@@ -261,20 +284,61 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         window.Router.navigate(window.APP_BASE + 'admin/products');
     });
 
-    root.querySelectorAll('.action-quick-edit').forEach(btn => btn.addEventListener('click', (e) => {
+    root.querySelectorAll('.action-quick-edit').forEach(btn => btn.addEventListener('click', async (e) => {
         const b = e.currentTarget;
         const id = parseInt(b.dataset.id, 10);
+        const buttonText = b.textContent;
+        b.disabled = true;
+        b.textContent = 'Loading...';
+        let detail;
+        try {
+            detail = await window.Core.fetch(`/admin/products/${id}`);
+        } catch (err) {
+            window.Workbench.toast(err.message, 'error');
+            b.disabled = false;
+            b.textContent = buttonText;
+            return;
+        }
+        b.disabled = false;
+        b.textContent = buttonText;
+        const product = detail.product;
+        const groupPrices = detail.group_prices || [];
+        const groupPriceFields = customerGroups.map(group => {
+            const existing = groupPrices.find(price => price.group_id === group.id);
+            const value = existing?.price_eur_cents == null ? '' : (existing.price_eur_cents / 100).toFixed(2);
+            const inherited = product.list_price_eur_cents == null ? 'No base price' : `Inherits ${(product.list_price_eur_cents / 100).toFixed(2)}`;
+            return `
+                <label class="quick-edit-group-price">
+                    <span>${esc(pricingGroupLabel(group))}</span>
+                    <div class="quick-edit-money-input">
+                        <span>€</span>
+                        <input type="text" inputmode="decimal" name="gp_eur_${group.id}" value="${value}" class="form-control" placeholder="${inherited}">
+                    </div>
+                </label>`;
+        }).join('');
         const html = `
             <form id="quick-edit-form" class="admin-quick-edit">
-                <input type="hidden" name="pricing_version" value="${b.dataset.version}">
-                <div class="form-group">
-                    <label>Current Stock</label>
-                    <input type="number" name="stock" value="${b.dataset.stock}" class="form-control" min="0" step="1" required>
+                <input type="hidden" name="pricing_version" value="${product.pricing_version}">
+                <div class="admin-quick-edit-main">
+                    <div class="form-group">
+                        <label>Current stock</label>
+                        <input type="number" name="stock" value="${product.stock}" class="form-control" min="0" step="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>EUR Price</label>
+                        <input type="text" inputmode="decimal" name="list_price_eur" value="${product.list_price_eur_cents == null ? '' : (product.list_price_eur_cents / 100).toFixed(2)}" class="form-control" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Base Price (EUR)</label>
-                    <input type="text" inputmode="decimal" name="list_price_eur" value="${b.dataset.priceEur ? (parseInt(b.dataset.priceEur,10)/100).toFixed(2) : ''}" class="form-control" required>
-                </div>
+                <section class="quick-edit-group-prices">
+                    <div class="quick-edit-section-head">
+                        <div>
+                            <h3>Customer group prices</h3>
+                            <p>Set a specific selling price per customer group. Leave blank to use the base price.</p>
+                        </div>
+                        <a href="${window.APP_BASE}admin/prices" class="text-sm">Open full price manager</a>
+                    </div>
+                    <div class="quick-edit-group-grid">${groupPriceFields || '<p class="text-muted">No customer groups configured.</p>'}</div>
+                </section>
                 <div class="form-group" style="margin-bottom:1.5rem">
                     <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
                         <input type="checkbox" name="featured" value="1" ${b.dataset.featured == '1' ? 'checked' : ''}> Featured (on homepage)
@@ -293,12 +357,18 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
             try {
                 const listPriceEurCents = window.Workbench.parseCentsStrict(fd.get('list_price_eur'));
                 if (Number.isNaN(listPriceEurCents) || listPriceEurCents === null) throw new Error("Invalid amount for base price");
+                const groupPricesPayload = customerGroups.map(group => {
+                    const price = window.Workbench.parseCentsStrict(fd.get(`gp_eur_${group.id}`));
+                    if (Number.isNaN(price)) throw new Error(`Invalid amount for ${group.name}`);
+                    return {group_id: group.id, price_eur_cents: price};
+                });
 
                 await window.Core.fetch(`/admin/products/${id}`, { 
                     method: 'PATCH', 
                     body: { 
                         stock: parseInt(fd.get('stock'), 10),
                         list_price_eur_cents: listPriceEurCents,
+                        group_prices: groupPricesPayload,
                         pricing_version: parseInt(fd.get('pricing_version'), 10),
                         featured: fd.get('featured') ? 1 : 0
                     } 
@@ -387,105 +457,300 @@ window.Router.add(/^admin\/orders$/, async (match, root) => {
     if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
     const data = await window.Core.fetch('/admin/orders');
     const esc = window.Core.escapeHtml;
-    
+
     const rows = data.orders.map(o => `
         <tr>
-            <td><strong style="font-size:0.9375rem">${esc(o.number)}</strong></td>
+            <td><button type="button" class="admin-order-number action-order-view" data-id="${o.id}">${esc(o.number)}</button></td>
             <td>${new Date(o.created_at).toLocaleDateString()}</td>
-            <td>${esc(o.customer_name)}</td>
-            <td>
-                <select class="form-control action-status-select" data-id="${o.id}" data-current="${o.status}" style="padding:0.25rem 0.5rem; font-size:0.8125rem; height:auto;">
-                    <option value="on_hold" ${o.status==='on_hold'?'selected':''}>On hold — awaiting payment</option>
-                    <option value="processing" ${o.status==='processing'?'selected':''}>Processing</option>
-                    <option value="shipped" ${o.status==='shipped'?'selected':''}>Shipped</option>
-                    <option value="completed" ${o.status==='completed'?'selected':''}>Completed</option>
-                    <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Cancelled</option>
-                </select>
-            </td>
+            <td><strong>${esc(o.customer_name)}</strong><br><span class="text-muted text-sm">${esc(o.customer_email || '')}</span></td>
+            <td>${window.Workbench.badge(o.status)}</td>
             <td>${esc(adminPaymentMethodLabel(o.payment_method))}<br><span class="wb-badge wb-badge-neutral">${esc(adminPaymentStateLabel(o.payment_state))}</span></td>
             <td>${esc(o.shipping_method_name || '-')}</td>
             <td>${window.Core.formatMoney(o.total_cents, o.currency || 'CHF')}</td>
-            <td><button type="button" class="btn btn-sm btn-outline action-track" data-id="${o.id}" data-tracking="${esc(o.tracking||'')}" data-status="${o.status}">T&T</button></td>
+            <td><div class="admin-order-actions"><button type="button" class="btn btn-sm btn-outline action-order-view" data-id="${o.id}">Quick view</button><button type="button" class="btn btn-sm btn-outline action-start-return" data-id="${o.id}">Start return</button><button type="button" class="btn btn-sm action-order-manage" data-id="${o.id}">Manage</button></div></td>
         </tr>
     `).join('');
 
     const content = `
         <div class="page-header">
-            <h1>Order Management</h1>
+            <div><h1>Order Management</h1><p class="text-muted">Open an order for products, address, payment and history. Use Manage to change fulfillment or tracking.</p></div>
         </div>
         ${renderTable(['Order #', 'Date', 'Customer', 'Fulfillment', 'Payment', 'Shipping method', 'Total', 'Action'], rows, 'No orders found.')}
     `;
     root.innerHTML = adminLayout(content, 'orders');
 
-    root.querySelectorAll('.action-status-select').forEach(s => {
-        s.addEventListener('change', (e) => {
-            const el = e.currentTarget;
-            const id = parseInt(el.dataset.id, 10);
-            const newStatus = el.value;
-            const oldStatus = el.dataset.current;
-            
-            const html = `
-                <form id="status-form">
-                    <p style="margin-bottom:1rem; font-size:0.875rem;">Change status to <strong>${window.Workbench.statusMap[newStatus]?.label || newStatus}</strong>?</p>
-                    <div class="form-group">
-                        <label>Optional Note</label>
-                        <textarea name="note" class="form-control" rows="2" placeholder="Reason or note for the customer..."></textarea>
-                    </div>
-                    <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
-                        <button type="submit" class="btn">Confirm</button>
-                        <button type="button" class="btn btn-outline" id="cancel-status">Cancel</button>
-                    </div>
-                </form>
-            `;
-            const overlay = window.UI.showModal('Change Order Status', html);
-            
-            document.getElementById('cancel-status').onclick = () => {
-                el.value = oldStatus;
-                window.UI.closeModal(overlay);
-            };
-            
-            document.getElementById('status-form').onsubmit = async (ev) => {
-                ev.preventDefault();
-                try {
-                    await window.Core.fetch(`/admin/orders/${id}`, { method: 'PATCH', body: { status: newStatus, note: ev.target.note.value } });
-                    window.UI.closeModal(overlay);
-                    window.Workbench.toast('Status updated successfully', 'success');
-                    window.Router.route();
-                } catch(err) { 
-                    window.Workbench.toast(err.message, 'error'); 
-                    el.value = oldStatus;
-                }
-            };
-        });
-    });
-    
-    root.querySelectorAll('.action-track').forEach(btn => btn.addEventListener('click', (e) => {
-        const b = e.currentTarget;
-        const id = parseInt(b.dataset.id, 10);
-        const row = b.closest('tr');
-        const statusSelect = row ? row.querySelector('.action-status-select') : null;
-        const currentStatus = statusSelect ? statusSelect.value : b.dataset.status;
-        
+    const statusLabel = status => window.Workbench.statusMap[status]?.label || status;
+    const allowedStatuses = {
+        on_hold: ['on_hold', 'processing', 'cancelled'],
+        processing: ['processing', 'shipped', 'cancelled'],
+        shipped: ['shipped', 'completed'],
+        completed: ['completed'],
+        cancelled: ['cancelled', 'on_hold']
+    };
+    const openManage = order => {
+        const options = (allowedStatuses[order.status] || [order.status]).map(status =>
+            `<option value="${status}" ${status === order.status ? 'selected' : ''}>${esc(statusLabel(status))}</option>`
+        ).join('');
         const html = `
-            <form id="tracking-form">
-                <div class="form-group">
-                    <label>Tracking URL</label>
-                    <input type="url" name="tracking" value="${b.dataset.tracking}" class="form-control" placeholder="https://...">
-                </div>
-                <button type="submit" class="btn" style="width:100%; margin-top:1rem;">Save</button>
-            </form>
-        `;
-        const overlay = window.UI.showModal('Update Tracking', html);
-        document.getElementById('tracking-form').onsubmit = async (ev) => {
-            ev.preventDefault();
+            <form id="order-manage-form" class="admin-order-manage-form">
+                <div class="admin-order-manage-summary"><span>${esc(order.number)}</span><strong>${window.Core.formatMoney(order.total_cents, order.currency || 'CHF')}</strong></div>
+                <label class="form-group"><span>Fulfillment status</span><select name="status" class="form-control">${options}</select></label>
+                <label class="form-group"><span>Tracking URL</span><input type="url" name="tracking" value="${esc(order.tracking || '')}" class="form-control" placeholder="https://..."></label>
+                <label class="form-group"><span>Reason or customer note</span><textarea name="note" class="form-control" rows="3" placeholder="Required when cancelling; otherwise optional"></textarea></label>
+                <div id="order-manage-warning" class="alert warning" style="display:none"></div>
+                <div class="admin-order-modal-actions"><button type="button" class="btn btn-outline action-start-return">Start return</button><button type="button" class="btn btn-outline action-modal-close">Keep unchanged</button><button type="submit" class="btn">Save order</button></div>
+            </form>`;
+        const overlay = window.UI.showModal('Manage order', html);
+        const form = document.getElementById('order-manage-form');
+        const warning = document.getElementById('order-manage-warning');
+        form.status.addEventListener('change', () => {
+            const cancelling = form.status.value === 'cancelled' && order.status !== 'cancelled';
+            const reopening = order.status === 'cancelled' && form.status.value === 'on_hold';
+            warning.textContent = cancelling
+                ? 'Cancelling restores the reserved stock. Add a reason before saving.'
+                : (reopening ? 'Reopening reserves the products again and only succeeds when enough stock is available.' : '');
+            warning.style.display = cancelling || reopening ? 'block' : 'none';
+        });
+        form.querySelector('.action-modal-close').onclick = () => window.UI.closeModal(overlay);
+        form.querySelector('.action-start-return').onclick = async () => {
+            const control = form.querySelector('.action-start-return');
+            control.disabled = true;
             try {
-                await window.Core.fetch(`/admin/orders/${id}`, { method: 'PATCH', body: { tracking: ev.target.tracking.value, status: currentStatus } });
                 window.UI.closeModal(overlay);
-                window.Workbench.toast('Tracking updated', 'success');
-                window.Router.route();
-            } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Save Changes'; }
+                openRmaWorkspace(await window.Core.fetch(`/admin/orders/${order.id}`));
+            } catch (error) {
+                window.Workbench.toast(error.message, 'error');
+                control.disabled = false;
+            }
         };
+        form.onsubmit = async event => {
+            event.preventDefault();
+            const cancelling = form.status.value === 'cancelled' && order.status !== 'cancelled';
+            if (cancelling && !form.note.value.trim()) {
+                warning.textContent = 'Enter a cancellation reason before saving.';
+                warning.style.display = 'block';
+                form.note.focus();
+                return;
+            }
+            const submit = form.querySelector('[type="submit"]');
+            submit.disabled = true;
+            try {
+                await window.Core.fetch(`/admin/orders/${order.id}`, {method:'PATCH', body:{status:form.status.value, tracking:form.tracking.value, note:form.note.value}});
+                window.UI.closeModal(overlay);
+                window.Workbench.toast('Order updated', 'success');
+                window.Router.route();
+            } catch (error) {
+                window.Workbench.toast(error.message, 'error');
+                submit.disabled = false;
+            }
+        };
+    };
+    const loadOrder = id => window.Core.fetch(`/admin/orders/${id}`);
+    root.querySelectorAll('.action-order-view').forEach(button => button.addEventListener('click', async () => {
+        const buttonText = button.textContent;
+        button.disabled = true;
+        try {
+            const detail = await loadOrder(parseInt(button.dataset.id, 10));
+            const o = detail.order;
+            const a = detail.address || {};
+            const itemRows = detail.items.map(item => `<tr><td><strong>${esc(item.name)}</strong><br><span class="text-muted text-sm">${esc(item.sku)}</span></td><td>${item.quantity}</td><td>${window.Core.formatMoney(item.price_cents, o.currency)}</td><td>${window.Core.formatMoney(item.total_cents, o.currency)}</td></tr>`).join('');
+            const history = detail.events.map(event => `<li><strong>${esc(statusLabel(event.status))}</strong><span>${new Date(event.created_at).toLocaleString()}</span>${event.note ? `<p>${esc(event.note)}</p>` : ''}</li>`).join('');
+            const address = [a.company, a.name, a.line1, a.line2, [a.postal_code, a.city].filter(Boolean).join(' '), a.country].filter(Boolean).map(esc).join('<br>');
+            const html = `
+                <div class="admin-order-quick">
+                    <div class="admin-order-quick-head"><div><span class="text-muted text-sm">Order</span><h3>${esc(o.number)}</h3><p>${esc(o.customer_name)} · ${esc(o.customer_email)}</p></div><div class="admin-order-quick-total">${window.Core.formatMoney(o.total_cents, o.currency)}</div></div>
+                    <div class="admin-order-facts"><div><span>Fulfillment</span>${window.Workbench.badge(o.status)}</div><div><span>Payment</span><strong>${esc(adminPaymentMethodLabel(o.payment_method))}</strong><small>${esc(adminPaymentStateLabel(o.payment_state))}</small></div><div><span>Shipping</span><strong>${esc(o.shipping_method_name || '-')}</strong><small>${o.tracking ? `<a href="${esc(o.tracking)}" target="_blank" rel="noopener">Track parcel</a>` : 'No tracking yet'}</small></div></div>
+                    <h4>Products</h4><div class="table-responsive"><table class="data-table"><thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>${itemRows}</tbody></table></div>
+                    <div class="admin-order-quick-grid"><section><h4>Billing / delivery address</h4><p>${address || 'No address recorded'}</p></section><section><h4>Totals</h4><dl><div><dt>Subtotal</dt><dd>${window.Core.formatMoney(o.subtotal_cents, o.currency)}</dd></div><div><dt>VAT</dt><dd>${window.Core.formatMoney(o.tax_cents, o.currency)}</dd></div><div><dt>Shipping</dt><dd>${window.Core.formatMoney(o.shipping_cents, o.currency)}</dd></div><div><dt>Total</dt><dd><strong>${window.Core.formatMoney(o.total_cents, o.currency)}</strong></dd></div></dl></section></div>
+                    ${o.notes ? `<section><h4>Customer note</h4><p>${esc(o.notes)}</p></section>` : ''}
+                    <section><h4>History</h4><ol class="admin-order-history">${history || '<li>No history recorded</li>'}</ol></section>
+                    <div class="admin-order-modal-actions"><button type="button" class="btn btn-outline action-modal-close">Close</button><button type="button" class="btn btn-outline action-quick-return">Start return</button><button type="button" class="btn action-quick-manage">Manage order</button></div>
+                </div>`;
+            const overlay = window.UI.showModal('Order details', html, {wide:true});
+            document.querySelector('.admin-order-quick .action-modal-close').onclick = () => window.UI.closeModal(overlay);
+            document.querySelector('.admin-order-quick .action-quick-manage').onclick = () => {
+                window.UI.closeModal(overlay);
+                openManage(o);
+            };
+            document.querySelector('.admin-order-quick .action-quick-return').onclick = () => {
+                window.UI.closeModal(overlay);
+                openRmaWorkspace(detail);
+            };
+        } catch (error) {
+            window.Workbench.toast(error.message, 'error');
+        } finally {
+            button.disabled = false;
+            button.textContent = buttonText;
+        }
     }));
+    root.querySelectorAll('.action-order-manage').forEach(button => button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+            const detail = await loadOrder(parseInt(button.dataset.id, 10));
+            openManage(detail.order);
+        } catch (error) {
+            window.Workbench.toast(error.message, 'error');
+        } finally {
+            button.disabled = false;
+        }
+    }));
+    root.querySelectorAll('.action-start-return').forEach(button => button.addEventListener('click', async () => {
+        const label = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Loading…';
+        try {
+            openRmaWorkspace(await loadOrder(parseInt(button.dataset.id, 10)));
+        } catch (error) {
+            window.Workbench.toast(error.message, 'error');
+        } finally {
+            button.disabled = false;
+            button.textContent = label;
+        }
+    }));
+});
+
+/* RMA workspace is kept here with order management so a return always begins
+   with the original order lines, rather than a blanket "return everything". */
+function rmaIdempotencyKey() {
+    return window.crypto?.randomUUID?.() || `rma-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function openRmaWorkspace(orderDetail, returnDetail) {
+    const esc = window.Core.escapeHtml;
+    const order = orderDetail.order || returnDetail?.order || {};
+    const rma = returnDetail?.return;
+    const settlement = returnDetail?.settlement || null;
+    const creditNote = returnDetail?.credit_note || null;
+    const creditApplications = returnDetail?.credit_applications || [];
+    const currency = rma?.currency || order.currency || 'CHF';
+    const sourceItems = returnDetail?.items || orderDetail.items || [];
+    const itemId = item => item.return_item_id || item.id;
+    const orderItemId = item => item.order_item_id || item.id;
+    const itemName = item => item.name || item.product_name || item.sku || `Item #${itemId(item)}`;
+    const available = item => Math.max(0, Number(item.available_quantity ?? item.returnable_quantity ?? ((item.ordered_quantity ?? item.quantity ?? 0) - (item.previously_returned_quantity ?? item.previously_returned ?? 0))));
+    const paidWithStripe = String(order.payment_method || '').toLowerCase() === 'stripe' && ['paid', 'authorized'].includes(String(order.payment_state || '').toLowerCase());
+    const creditFor = (item, qty) => Number(item.credit_cents ?? item.line_credit_cents ?? item.price_cents ?? 0) * qty;
+    const lineRows = sourceItems.map(item => {
+        const qty = rma ? Number(item.quantity ?? item.return_quantity ?? 0) : available(item);
+        const max = rma ? qty : available(item);
+        return `<tr data-rma-line data-credit="${Number(item.credit_cents ?? item.line_credit_cents ?? item.price_cents ?? 0)}">
+            <td><strong>${esc(itemName(item))}</strong><small>${esc(item.sku || '')}</small></td>
+            <td>${rma ? `${item.ordered_quantity ?? item.ordered ?? '—'} ordered<br><span class="text-muted">${item.previously_returned_quantity ?? item.previously_returned ?? 0} previously returned</span>` : `${max} available to return`}</td>
+            <td>${rma
+                ? `<input type="number" class="form-control rma-received" min="0" max="${qty}" value="${item.received_quantity ?? qty}"><span class="rma-of">of ${qty} requested</span>`
+                : `<label class="rma-select"><input type="checkbox" class="rma-selected"> <input type="number" class="form-control rma-quantity" min="1" max="${max}" value="${max}" ${max ? '' : 'disabled'}></label>`}</td>
+            ${rma ? `<td><input type="number" class="form-control rma-restock" min="0" max="${qty}" value="${item.restock_quantity ?? item.received_quantity ?? qty}"></td>
+                <td><select class="form-control rma-disposition"><option value="restock" ${(item.disposition || 'restock') === 'restock' ? 'selected' : ''}>Restock</option><option value="quarantine" ${item.disposition === 'quarantine' ? 'selected' : ''}>Quarantine</option><option value="writeoff" ${item.disposition === 'writeoff' ? 'selected' : ''}>Write off</option></select></td>` : ''}
+        </tr>`;
+    }).join('');
+    const timeline = (returnDetail?.events || rma?.events || []).map(event =>
+        `<li><strong>${esc(window.Workbench.statusMap[event.status]?.label || event.status || 'Update')}</strong><span>${event.created_at ? new Date(event.created_at).toLocaleString() : ''}</span>${event.note ? `<p>${esc(event.note)}</p>` : ''}</li>`
+    ).join('') || '<li><span>Return created; awaiting the next action.</span></li>';
+    const title = rma ? `Manage RMA ${esc(rma.number || `#${rma.id}`)}` : `Start return · ${esc(order.number || `Order #${order.id}`)}`;
+    const html = `<form class="rma-workspace" id="rma-workspace-form">
+        <header class="rma-summary">
+            <div><p class="rma-eyebrow">${rma ? 'Return merchandise authorization' : 'New return from order'}</p><h3>${esc(order.number || `Order #${order.id}`)}</h3><p>${esc(order.customer_name || returnDetail?.customer?.name || '')} · ${esc(order.customer_email || returnDetail?.customer?.email || '')}</p></div>
+            <div class="rma-summary-status">${rma ? window.Workbench.badge(rma.status) : '<span class="wb-badge wb-badge-warning">Draft selection</span>'}<strong>${window.Core.formatMoney(order.total_cents || 0, currency)}</strong><small>${esc(adminPaymentMethodLabel(order.payment_method))} · ${esc(adminPaymentStateLabel(order.payment_state))}</small></div>
+        </header>
+        <section class="rma-section"><div class="rma-section-head"><div><h4>${rma ? 'Inspection and disposition' : 'Select products and quantities'}</h4><p>${rma ? 'Received quantity is what arrived. Only Restock returns saleable units to stock.' : 'Choose only the lines and units being returned. Nothing is preselected.'}</p></div></div>
+        <div class="table-responsive"><table class="data-table rma-lines"><thead><tr><th>Product</th><th>${rma ? 'Order history' : 'Returnable'}</th><th>${rma ? 'Received' : 'Return quantity'}</th>${rma ? '<th>Restock</th><th>Disposition</th>' : ''}</tr></thead><tbody>${lineRows || '<tr><td colspan="5">No returnable items found.</td></tr>'}</tbody></table></div></section>
+        ${!rma ? `<section class="rma-section rma-create-fields"><label>Reason<select class="form-control" name="reason" required><option value="">Choose a reason…</option><option>Wrong item</option><option>Defective or damaged</option><option>Not needed</option><option>Other</option></select></label><label>Internal note <span>optional</span><textarea class="form-control" name="note" rows="2" placeholder="Context for the receiving team"></textarea></label><p class="rma-create-preview">Estimated line credit: <strong>${window.Core.formatMoney(0, currency)}</strong><br><span>Final credit is determined from the backend after inspection.</span></p></section>` : `
+        <section class="rma-section rma-finance"><div><h4>Credit / refund status</h4><p class="rma-credit-preview">${settlement ? 'Settled amount' : 'Credit preview'}: <strong>${window.Core.formatMoney(Number(settlement?.amount_cents ?? rma.credit_cents ?? 0), currency)}</strong></p><p>${paidWithStripe ? 'This paid card order is refunded through Stripe only after provider confirmation.' : 'This invoice / Pay Later order is settled as an invoice credit; it is not a Stripe refund.'}</p>${creditNote ? `<div class="rma-credit-note"><strong>Credit note ${esc(creditNote.number)}</strong><span>${window.Core.formatMoney(Number(creditNote.issued_cents || 0), currency)} issued</span><span>${window.Core.formatMoney(Number(creditApplications.reduce((sum, application) => sum + Number(application.amount_cents || 0), 0)), currency)} applied to invoice</span><span>${window.Core.formatMoney(Number(creditNote.remaining_cents || 0), currency)} available account credit</span></div>` : ''}${settlement?.provider_reference ? `<p><strong>Provider refund:</strong> ${esc(settlement.provider_reference)}</p>` : ''}${settlement?.error_message ? `<p class="rma-settlement-error">${esc(settlement.error_message)}</p>` : ''}</div><div>${window.Workbench.badge(settlement?.status, settlement ? settlement.status : 'Not settled')}</div></section>
+        <section class="rma-section"><label>Staff note<textarea class="form-control" name="note" rows="2" placeholder="Inspection findings or decision"></textarea></label></section>
+        <section class="rma-section"><h4>Timeline</h4><ol class="rma-timeline">${timeline}</ol></section>`}
+        <div class="rma-error" role="alert" hidden></div>
+        <div class="admin-order-modal-actions"><button type="button" class="btn btn-outline rma-close">${rma && ['credited', 'rejected'].includes(rma.status) ? 'Close' : 'Cancel'}</button>${rma ? `${['submitted', 'approved'].includes(rma.status) ? '<button type="button" class="btn btn-outline rma-reject">Reject RMA</button>' : ''}${rma.status === 'submitted' ? '<button type="button" class="btn rma-approve">Approve</button>' : ''}${rma.status === 'approved' && (!settlement || settlement.status === 'failed') ? `<button type="submit" class="btn rma-settle">${settlement?.status === 'failed' ? 'Retry refund' : 'Settle credit'}</button>` : ''}` : '<button type="submit" class="btn rma-create">Create RMA</button>'}</div>
+    </form>`;
+    const overlay = window.UI.showModal(title, html, {wide:true});
+    const form = overlay.querySelector('#rma-workspace-form');
+    const errorBox = form.querySelector('.rma-error');
+    const showError = error => { errorBox.textContent = error.message || error; errorBox.hidden = false; };
+    form.querySelector('.rma-close').onclick = () => window.UI.closeModal(overlay);
+    const setBusy = (button, busy, label) => { button.disabled = busy; if (busy) button.dataset.label = button.textContent; button.textContent = busy ? label : (button.dataset.label || button.textContent); };
+    if (!rma) {
+        const updatePreview = () => {
+            const cents = [...form.querySelectorAll('[data-rma-line]')].reduce((total, row) => {
+                if (!row.querySelector('.rma-selected')?.checked) return total;
+                return total + Number(row.dataset.credit || 0) * Number(row.querySelector('.rma-quantity').value || 0);
+            }, 0);
+            form.querySelector('.rma-create-preview strong').textContent = window.Core.formatMoney(cents, currency);
+        };
+        form.querySelectorAll('.rma-selected, .rma-quantity').forEach(control => control.addEventListener('input', () => {
+            const row = control.closest('tr'); const selected = row.querySelector('.rma-selected');
+            if (control.classList.contains('rma-quantity')) selected.checked = true;
+            updatePreview();
+        }));
+        form.onsubmit = async event => {
+            event.preventDefault();
+            const submit = form.querySelector('.rma-create');
+            const items = [...form.querySelectorAll('[data-rma-line]')].filter(row => row.querySelector('.rma-selected')?.checked).map(row => ({order_item_id: orderItemId(sourceItems[[...form.querySelectorAll('[data-rma-line]')].indexOf(row)]), quantity: Number(row.querySelector('.rma-quantity').value)})).filter(item => item.quantity > 0);
+            if (!items.length) return showError('Select at least one product and a quantity to create an RMA.');
+            setBusy(submit, true, 'Creating…'); errorBox.hidden = true;
+            try {
+                const result = await window.Core.fetch(`/admin/orders/${order.id}/returns`, {method:'POST', body:{items, reason:form.reason.value, note:form.note.value, idempotency_key:rmaIdempotencyKey()}});
+                window.UI.closeModal(overlay);
+                window.Workbench.toast(`RMA ${result.return?.number || 'created'}`, 'success');
+                if (result.return?.id) openRmaWorkspace({}, await window.Core.fetch(`/admin/returns/${result.return.id}`));
+            } catch (error) { showError(error); setBusy(submit, false); }
+        };
+        return;
+    }
+    const action = async (status, button) => {
+        if (!window.confirm(`${status === 'rejected' ? 'Reject' : 'Approve'} this RMA?`)) return;
+        setBusy(button, true, 'Saving…'); errorBox.hidden = true;
+        try { await window.Core.fetch(`/admin/returns/${rma.id}`, {method:'PATCH', body:{status, note:form.note.value}}); window.Workbench.toast('RMA updated', 'success'); window.UI.closeModal(overlay); window.Router.route(); } catch (error) { showError(error); setBusy(button, false); }
+    };
+    const approveButton = form.querySelector('.rma-approve');
+    const rejectButton = form.querySelector('.rma-reject');
+    if (approveButton) approveButton.onclick = () => action('approved', approveButton);
+    if (rejectButton) rejectButton.onclick = () => action('rejected', rejectButton);
+    form.querySelectorAll('.rma-disposition').forEach(select => {
+        const restock = select.closest('tr')?.querySelector('.rma-restock');
+        const syncRestock = () => {
+            if (!restock) return;
+            const canRestock = select.value === 'restock';
+            restock.disabled = !canRestock;
+            if (!canRestock) restock.value = '0';
+        };
+        select.addEventListener('change', syncRestock);
+        syncRestock();
+    });
+    form.onsubmit = async event => {
+        event.preventDefault();
+        const submit = form.querySelector('.rma-settle');
+        if (!submit) return;
+        if (!window.confirm(`Confirm financial settlement of this RMA. ${paidWithStripe ? 'A Stripe refund is only marked successful if the server confirms it.' : 'An invoice credit will be recorded.'}`)) return;
+        const items = [...form.querySelectorAll('[data-rma-line]')].map((row, index) => ({return_item_id:itemId(sourceItems[index]), received_quantity:Number(row.querySelector('.rma-received').value), restock_quantity:Number(row.querySelector('.rma-restock').value), disposition:row.querySelector('.rma-disposition').value}));
+        setBusy(submit, true, 'Settling…'); errorBox.hidden = true;
+        try {
+            const result = await window.Core.fetch(`/admin/returns/${rma.id}/settle`, {method:'POST', body:{lines:items, note:form.note.value, idempotency_key:settlement?.idempotency_key || rmaIdempotencyKey()}});
+            const outcome = result.settlement?.status || result.return?.settlement?.status;
+            window.Workbench.toast(outcome === 'succeeded' ? 'Settlement completed; Stripe refund succeeded.' : 'Settlement submitted. Review the returned credit/refund status.', outcome === 'succeeded' ? 'success' : 'info');
+            window.UI.closeModal(overlay); window.Router.route();
+        } catch (error) { showError(error); setBusy(submit, false); }
+    };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    /* admin-operations ships legacy routes; replace only those route entries,
+       leaving customer self-service returns entirely untouched. */
+    window.Router.routes = window.Router.routes.filter(route => !['^admin\\/returns$', '^admin\\/returns\\/(\\d+)$'].includes(route.pattern.source));
+    window.Router.add(/^admin\/returns$/, async (match, root, params) => {
+        if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
+        const data = await window.Core.fetch('/admin/returns');
+        const esc = window.Core.escapeHtml;
+        const status = params.get('status') || 'all';
+        const returns = (data.returns || []).filter(r => status === 'all' || r.status === status);
+        const counts = (data.returns || []).reduce((all, r) => { all[r.status] = (all[r.status] || 0) + 1; return all; }, {});
+        const filters = ['all', 'submitted', 'received', 'assessed', 'approved', 'credited', 'rejected'];
+        root.innerHTML = adminLayout(`<div class="page-header"><div><h1>Returns Management</h1><p class="text-muted">Review incoming RMAs, inspect inventory and settle credits with an auditable workflow.</p></div></div>
+            <div class="rma-status-summary">${filters.map(value => `<a href="${window.APP_BASE}admin/returns${value === 'all' ? '' : `?status=${value}`}" class="${status === value ? 'active' : ''}"><span>${esc(value === 'all' ? 'All RMAs' : (window.Workbench.statusMap[value]?.label || value))}</span><strong>${value === 'all' ? (data.returns || []).length : (counts[value] || 0)}</strong></a>`).join('')}</div>
+            ${renderTable(['RMA', 'Created', 'Customer / order', 'Status', 'Credit', 'Action'], returns.map(r => `<tr><td><strong>${esc(r.number)}</strong></td><td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td><td><strong>${esc(r.customer_name || '')}</strong><br><span class="text-muted text-sm">${esc(r.order_number || '')}</span></td><td>${window.Workbench.badge(r.status)}</td><td>${window.Core.formatMoney(r.credit_cents || 0, r.currency || 'CHF')}</td><td><button class="btn btn-sm action-rma-manage" data-id="${r.id}">Manage RMA</button></td></tr>`).join(''), 'No RMAs match this view.')}`, 'returns');
+        root.querySelectorAll('.action-rma-manage').forEach(button => button.onclick = async () => { button.disabled = true; try { openRmaWorkspace({}, await window.Core.fetch(`/admin/returns/${button.dataset.id}`)); } catch (error) { window.Workbench.toast(error.message, 'error'); button.disabled = false; } });
+    });
+    window.Router.add(/^admin\/returns\/(\d+)$/, async (match) => {
+        openRmaWorkspace({}, await window.Core.fetch(`/admin/returns/${match[1]}`));
+    });
 });
 
 window.Router.add(/^admin\/customers$/, async (match, root) => {
@@ -510,9 +775,13 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
                 </select>
             </td>
             <td class="customer-payment-controls">
-                ${['stripe', 'pay_later', 'swiss_qr_invoice'].map(method => `<label><input type="checkbox" class="action-payment-entitlement" data-id="${c.id}" data-method="${method}" ${c.payment_entitlements?.[method] ? 'checked' : ''}> ${esc(adminPaymentMethodLabel(method))}</label>`).join('')}
+                <div class="customer-payment-summary">
+                    ${adminPaymentMethodDefinitions.map(method => c.payment_entitlements?.[method.code]
+                        ? `<span class="wb-badge wb-badge-success">${esc(method.label)}</span>` : '').join('') || '<span class="text-muted">No payment options enabled</span>'}
+                </div>
+                <button type="button" class="btn btn-outline btn-sm action-payment-options" data-id="${c.id}">Manage payment options</button>
             </td>
-            <td><button type="button" class="btn btn-outline btn-sm action-customer-application" data-id="${c.id}">View application</button></td>
+            <td><button type="button" class="btn btn-outline btn-sm action-customer-application" data-id="${c.id}">Manage customer</button></td>
         </tr>
     `).join('');
 
@@ -520,44 +789,121 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
         <div class="page-header">
             <h1>Customer Management</h1>
         </div>
-        ${renderTable(['Customer', 'Company', 'Access Status', 'Price Group', 'Payment entitlements', 'Application'], rows, 'No customers found.')}
+        ${renderTable(['Customer', 'Company', 'Access Status', 'Price Group', 'Payment entitlements', 'Customer'], rows, 'No customers found.')}
     `;
     root.innerHTML = adminLayout(content, 'customers');
 
     root.querySelectorAll('.action-customer-application').forEach(button => {
-        button.addEventListener('click', () => {
-            const customer = data.customers.find(item => item.id === parseInt(button.dataset.id, 10));
-            if (!customer) return;
+        button.addEventListener('click', async () => {
+            const id = parseInt(button.dataset.id, 10);
+            const overlay = window.UI.showModal('Customer workspace', '<div class="customer-workspace-state">Loading customer details…</div>', {wide: true});
+            const body = overlay.querySelector('.modal-body');
             const activityLabels = {repair_shop:'Repair shop',reseller:'Reseller / retailer',refurbisher:'Refurbisher',wholesaler:'Wholesaler',education:'Education / training',other:'Other'};
             const value = candidate => candidate ? esc(String(candidate)) : '<span class="text-muted">Not provided</span>';
-            const address = [customer.line1, customer.line2, [customer.postal_code, customer.city].filter(Boolean).join(' '), customer.country].filter(Boolean).map(value).join('<br>');
-            const html = `
-                <div class="customer-application">
-                    <div class="customer-application-section">
-                        <h3>Contact</h3>
-                        <dl class="customer-application-grid">
-                            <div><dt>Name</dt><dd>${value(customer.name)}</dd></div>
-                            <div><dt>Email</dt><dd>${value(customer.email)}</dd></div>
-                            <div><dt>Phone</dt><dd>${value(customer.phone)}</dd></div>
-                            <div><dt>Website</dt><dd>${customer.website ? `<a href="${esc(customer.website)}" target="_blank" rel="noopener">${value(customer.website)}</a>` : value('')}</dd></div>
-                        </dl>
+            const addressLines = address => [
+                address?.name,
+                address?.company,
+                address?.line1,
+                address?.line2,
+                [address?.postal_code, address?.city].filter(Boolean).join(' '),
+                address?.country
+            ].filter(Boolean).map(line => esc(String(line))).join('<br>');
+            const addressForm = (address = {}, shipping = false) => `
+                <form class="customer-address-form" data-address-form>
+                    <p class="customer-form-help"><strong>* Required</strong> fields are needed to save this ${shipping ? 'shipping location' : 'billing address'}.</p>
+                    <div class="customer-address-grid">
+                        <label>Label <span aria-hidden="true">*</span><input class="form-control" name="label" value="${esc(address.label || (shipping ? '' : 'Billing address'))}" required placeholder="e.g. Head office"></label>
+                        <label>Contact name <span aria-hidden="true">*</span><input class="form-control" name="name" value="${esc(address.name || '')}" required autocomplete="name"></label>
+                        <label>Company <small>Optional</small><input class="form-control" name="company" value="${esc(address.company || '')}" autocomplete="organization"></label>
+                        <label>Address line 1 <span aria-hidden="true">*</span><input class="form-control" name="line1" value="${esc(address.line1 || '')}" required autocomplete="address-line1"></label>
+                        <label class="customer-address-wide">Address line 2 <small>Optional</small><input class="form-control" name="line2" value="${esc(address.line2 || '')}" autocomplete="address-line2"></label>
+                        <label>Postal code <span aria-hidden="true">*</span><input class="form-control" name="postal_code" value="${esc(address.postal_code || '')}" required autocomplete="postal-code"></label>
+                        <label>City <span aria-hidden="true">*</span><input class="form-control" name="city" value="${esc(address.city || '')}" required autocomplete="address-level2"></label>
+                        <label>Country <span aria-hidden="true">*</span><input class="form-control" name="country" value="${esc(address.country || '')}" required minlength="2" maxlength="2" pattern="[A-Za-z]{2}" placeholder="CH" autocomplete="country"></label>
                     </div>
-                    <div class="customer-application-section">
-                        <h3>Business verification</h3>
-                        <dl class="customer-application-grid">
-                            <div><dt>Company</dt><dd>${value(customer.company)}</dd></div>
-                            <div><dt>Main activity</dt><dd>${value(activityLabels[customer.business_activity] || customer.business_activity)}</dd></div>
-                            <div><dt>${customer.tax_registration_type === 'ch_uid' ? 'Swiss UID' : 'VAT / registration number'}</dt><dd>${value(customer.tax_registration_number)}</dd></div>
-                            <div><dt>Terms accepted</dt><dd>${value(customer.terms_accepted_at)}</dd></div>
-                        </dl>
-                    </div>
-                    <div class="customer-application-section">
-                        <h3>Billing address</h3>
-                        <div>${address || value('')}</div>
-                    </div>
-                    <div class="customer-application-note">${customer.newsletter_opt_in ? 'Newsletter consent given' : 'No newsletter consent'} · Application status: <strong>${value(customer.status)}</strong></div>
-                </div>`;
-            window.UI.showModal('Customer application', html);
+                    ${shipping ? `<label class="customer-default-choice"><input type="checkbox" name="is_default" ${address.is_default ? 'checked' : ''}> Set as primary shipping location</label>` : ''}
+                    <div class="modal-actions"><button type="button" class="btn btn-outline" data-form-cancel>Cancel</button><button type="submit" class="btn">Save ${shipping ? 'location' : 'billing address'}</button></div>
+                </form>`;
+            const formPayload = form => {
+                const fd = new FormData(form);
+                const payload = Object.fromEntries(fd.entries());
+                payload.country = payload.country.trim().toUpperCase();
+                if (form.elements.is_default) payload.is_default = fd.get('is_default') ? 1 : 0;
+                return payload;
+            };
+            const showAddressEditor = (address, shipping) => {
+                body.innerHTML = addressForm(address, shipping);
+                const form = body.querySelector('[data-address-form]');
+                form.querySelector('[data-form-cancel]').onclick = render;
+                form.onsubmit = async event => {
+                    event.preventDefault();
+                    const submit = form.querySelector('[type="submit"]');
+                    submit.disabled = true;
+                    try {
+                        const endpoint = shipping
+                            ? `/admin/customers/${id}/addresses${address?.id ? `/${address.id}` : ''}`
+                            : `/admin/customers/${id}/billing`;
+                        await window.Core.fetch(endpoint, {
+                            method: shipping ? (address?.id ? 'PATCH' : 'POST') : 'PUT',
+                            body: formPayload(form)
+                        });
+                        window.Workbench.toast('Address saved', 'success');
+                        await render();
+                    } catch (error) {
+                        window.Workbench.toast(error.message, 'error');
+                        submit.disabled = false;
+                    }
+                };
+            };
+            const render = async () => {
+                body.innerHTML = '<div class="customer-workspace-state">Refreshing customer details…</div>';
+                try {
+                    const detail = await window.Core.fetch(`/admin/customers/${id}/detail`);
+                    const customer = detail.customer || {};
+                    const shipping = detail.shipping_addresses || [];
+                    const billing = detail.billing_address || {};
+                    const recentOrders = detail.recent_orders || [];
+                    body.innerHTML = `
+                        <div class="customer-workspace">
+                            <header class="customer-workspace-summary">
+                                <div><p class="customer-workspace-eyebrow">Customer record</p><h3>${value(customer.company || customer.name)}</h3><p>${value(customer.name)} · ${value(customer.email)}</p></div>
+                                <div class="customer-workspace-status"><span class="wb-badge ${customer.status === 'active' ? 'wb-badge-success' : ''}">${value(customer.status)}</span><span>${value(customer.phone)}</span></div>
+                            </header>
+                            <section class="customer-workspace-section">
+                                <h4>Business verification</h4>
+                                <dl class="customer-workspace-facts">
+                                    <div><dt>Company</dt><dd>${value(customer.company)}</dd></div><div><dt>Main activity</dt><dd>${value(activityLabels[customer.business_activity] || customer.business_activity)}</dd></div>
+                                    <div><dt>${customer.tax_registration_type === 'ch_uid' ? 'Swiss UID' : 'VAT / registration number'}</dt><dd>${value(customer.tax_registration_number)}</dd></div><div><dt>Terms accepted</dt><dd>${value(customer.terms_accepted_at)}</dd></div>
+                                </dl>
+                            </section>
+                            <section class="customer-workspace-section">
+                                <div class="customer-section-heading"><div><h4>Billing address</h4><p>Used for invoices and account records.</p></div><button type="button" class="btn btn-outline btn-sm action-edit-billing">Edit billing</button></div>
+                                <div class="customer-address-card">${addressLines(billing) || '<span class="text-muted">No billing address on file.</span>'}</div>
+                            </section>
+                            <section class="customer-workspace-section">
+                                <div class="customer-section-heading"><div><h4>Shipping locations</h4><p>Choose the primary delivery location for this customer.</p></div><button type="button" class="btn btn-sm action-add-shipping">Add shipping location</button></div>
+                                <div class="customer-shipping-list">${shipping.length ? shipping.map(address => `<article class="customer-shipping-card"><div><div class="customer-shipping-title">${esc(address.label || 'Shipping location')} ${address.is_default ? '<span class="wb-badge wb-badge-success">Primary</span>' : ''}</div><p>${addressLines(address)}</p></div><div class="customer-shipping-actions"><button type="button" class="btn btn-outline btn-sm action-edit-shipping" data-id="${address.id}">Edit</button>${address.is_default ? '' : `<button type="button" class="btn btn-outline btn-sm action-primary-shipping" data-id="${address.id}">Set primary</button>`}<button type="button" class="btn btn-outline btn-sm action-delete-shipping" data-id="${address.id}">Delete</button></div></article>`).join('') : '<div class="customer-address-card text-muted">No shipping locations on file.</div>'}</div>
+                            </section>
+                            ${recentOrders.length ? `<section class="customer-workspace-section"><h4>Recent orders</h4><div class="customer-recent-orders">${recentOrders.slice(0, 5).map(order => `<div><strong>${esc(order.order_number || order.number || `#${order.id}`)}</strong><span>${esc(order.status || '')}</span></div>`).join('')}</div></section>` : ''}
+                        </div>`;
+                    body.querySelector('.action-edit-billing').onclick = () => showAddressEditor(billing, false);
+                    body.querySelector('.action-add-shipping').onclick = () => showAddressEditor({}, true);
+                    body.querySelectorAll('.action-edit-shipping').forEach(control => control.onclick = () => showAddressEditor(shipping.find(address => address.id === parseInt(control.dataset.id, 10)), true));
+                    body.querySelectorAll('.action-primary-shipping').forEach(control => control.onclick = async () => {
+                        control.disabled = true;
+                        try { await window.Core.fetch(`/admin/customers/${id}/addresses/${control.dataset.id}`, {method: 'PATCH', body: {is_default: 1}}); await render(); window.Workbench.toast('Primary shipping location updated', 'success'); } catch (error) { window.Workbench.toast(error.message, 'error'); control.disabled = false; }
+                    });
+                    body.querySelectorAll('.action-delete-shipping').forEach(control => control.onclick = async () => {
+                        if (!window.confirm('Delete this shipping location? This cannot be undone.')) return;
+                        control.disabled = true;
+                        try { await window.Core.fetch(`/admin/customers/${id}/addresses/${control.dataset.id}`, {method: 'DELETE'}); await render(); window.Workbench.toast('Shipping location deleted', 'success'); } catch (error) { window.Workbench.toast(error.message || 'This shipping location cannot be deleted.', 'error'); control.disabled = false; }
+                    });
+                } catch (error) {
+                    body.innerHTML = `<div class="customer-workspace-state customer-workspace-error">Could not load customer details. ${esc(error.message)} <button type="button" class="btn btn-outline btn-sm action-retry-customer">Try again</button></div>`;
+                    body.querySelector('.action-retry-customer').onclick = render;
+                }
+            };
+            await render();
         });
     });
 
@@ -577,22 +923,54 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
             }
         });
     });
-    root.querySelectorAll('.action-payment-entitlement').forEach(input => {
-        input.addEventListener('change', async (event) => {
-            const el = event.currentTarget;
-            el.disabled = true;
-            try {
-                await window.Core.fetch(`/admin/customers/${parseInt(el.dataset.id, 10)}`, {
-                    method: 'PATCH',
-                    body: {payment_entitlements: {[el.dataset.method]: el.checked}}
-                });
-                window.Workbench.toast('Payment entitlement updated', 'success');
-            } catch (err) {
-                el.checked = !el.checked;
-                window.Workbench.toast(err.message, 'error');
-            } finally {
-                el.disabled = false;
-            }
+    root.querySelectorAll('.action-payment-options').forEach(button => {
+        button.addEventListener('click', () => {
+            const customer = data.customers.find(item => item.id === parseInt(button.dataset.id, 10));
+            if (!customer) return;
+            const html = `
+                <form id="customer-payment-options-form" class="customer-payment-options-form">
+                    <p class="customer-payment-options-intro">Choose which payment methods <strong>${esc(customer.company || customer.name)}</strong> may use at checkout.</p>
+                    <div class="customer-payment-option-list">
+                        ${adminPaymentMethodDefinitions.map(method => `
+                            <label class="customer-payment-option">
+                                <span class="customer-payment-option-copy">
+                                    <strong>${esc(method.label)}</strong>
+                                    <small>${esc(method.help)}</small>
+                                </span>
+                                <input type="checkbox" name="${method.code}" ${customer.payment_entitlements?.[method.code] ? 'checked' : ''}>
+                                <span class="customer-payment-switch" aria-hidden="true"></span>
+                            </label>`).join('')}
+                    </div>
+                    <div class="customer-payment-options-note">Checkout always rechecks these permissions on the server. Swiss QR invoice also requires a Swiss delivery address.</div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline" data-modal-close>Cancel</button>
+                        <button type="submit" class="btn">Save payment options</button>
+                    </div>
+                </form>`;
+            const overlay = window.UI.showModal('Payment options', html);
+            const form = document.getElementById('customer-payment-options-form');
+            form.querySelector('[data-modal-close]').addEventListener('click', () => window.UI.closeModal(overlay));
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const submit = form.querySelector('[type="submit"]');
+                submit.disabled = true;
+                try {
+                    const payment_entitlements = Object.fromEntries(
+                        adminPaymentMethodDefinitions.map(method => [method.code, form.elements[method.code].checked])
+                    );
+                    const response = await window.Core.fetch(`/admin/customers/${customer.id}`, {
+                        method: 'PATCH',
+                        body: {payment_entitlements}
+                    });
+                    customer.payment_entitlements = response.customer.payment_entitlements;
+                    window.UI.closeModal(overlay);
+                    window.Workbench.toast('Payment options updated', 'success');
+                    window.Router.route();
+                } catch (err) {
+                    window.Workbench.toast(err.message, 'error');
+                    submit.disabled = false;
+                }
+            });
         });
     });
 });
@@ -609,26 +987,10 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
         <div class="card" style="max-width:800px">
             <form id="settings-form">
                 <div class="form-section">
-                    <h3 class="form-section-title">Finance & Logistics</h3>
-                    <div class="grid-cols-2">
-                        <div class="form-group">
-                            <label>Standard Shipping Cost (EUR)</label>
-                            <input type="text" inputmode="decimal" name="shipping_eur" value="${s.shipping_eur_cents != null ? (s.shipping_eur_cents/100).toFixed(2) : ''}" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Free Shipping From (EUR)</label>
-                            <input type="text" inputmode="decimal" name="free_shipping_eur" value="${s.free_shipping_eur_cents != null ? (s.free_shipping_eur_cents/100).toFixed(2) : ''}" class="form-control" required>
-                        </div>
-                    </div>
-                    <div class="grid-cols-2">
-                        <div class="form-group">
-                            <label>Standard VAT Rate (Basis Points, e.g. 2100 = 21%)</label>
-                            <input type="number" name="tax_bps" value="${s.tax_bps||''}" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Low Stock Threshold (Quantity)</label>
-                            <input type="number" name="low_stock_threshold" value="${s.low_stock_threshold ?? ''}" class="form-control" required>
-                        </div>
+                    <h3 class="form-section-title">Inventory</h3>
+                    <div class="form-group">
+                        <label>Low Stock Threshold (Quantity)</label>
+                        <input type="number" name="low_stock_threshold" value="${s.low_stock_threshold ?? ''}" class="form-control" required>
                     </div>
                 </div>
                 <button type="submit" class="btn">Save Settings</button>
@@ -639,18 +1001,7 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
     
     document.getElementById('settings-form').onsubmit = async (e) => {
         e.preventDefault();
-        const fd = new FormData(e.target);
-
-        const shippingEurCents = window.Workbench.parseCentsStrict(fd.get('shipping_eur'));
-        if (Number.isNaN(shippingEurCents) || shippingEurCents === null) return window.Workbench.toast('Invalid shipping amount', 'error');
-        const freeShippingEurCents = window.Workbench.parseCentsStrict(fd.get('free_shipping_eur'));
-        if (Number.isNaN(freeShippingEurCents) || freeShippingEurCents === null) return window.Workbench.toast('Invalid free shipping amount', 'error');
-
-        const payload = Object.fromEntries(fd.entries());
-        payload.shipping_eur_cents = shippingEurCents;
-        payload.free_shipping_eur_cents = freeShippingEurCents;
-        delete payload.shipping_eur;
-        delete payload.free_shipping_eur;
+        const payload = Object.fromEntries(new FormData(e.target).entries());
         for (let k in payload) payload[k] = parseInt(payload[k], 10);
         try {
             await window.Core.fetch('/admin/settings', { method: 'PATCH', body: payload });
@@ -668,10 +1019,6 @@ window.Router.add(/^admin\/integrations$/, async (match, root) => {
         <tr><td><strong>${esc(c.name)}</strong></td><td>${window.Workbench.badge(c.mode)}</td><td>${window.Workbench.badge(c.status)}</td></tr>
     `).join('');
     
-    const evRows = data.events.map(e => `
-        <tr><td>${new Date(e.created_at).toLocaleString()}</td><td><span style="font-weight:600">${esc(e.type || 'simulated')}</span></td><td><pre style="margin:0; font-size:0.75rem; background:var(--wb-bg); padding:0.5rem; border-radius:var(--wb-radius);">${esc(JSON.stringify(e.payload))}</pre></td></tr>
-    `).join('');
-
     const content = `
         <div class="page-header">
             <h1>System Integrations (Simulation)</h1>
@@ -699,8 +1046,7 @@ window.Router.add(/^admin\/integrations$/, async (match, root) => {
             </div>
         </div>
         
-        <h3 class="form-section-title">Intercepted Events Log</h3>
-        ${renderTable(['Date', 'Event Type', 'JSON Payload'], evRows, 'No logged events.')}
+        <p class="text-muted">Simulation results are returned directly by the simulation API and are not retained in a generic mailbox.</p>
     `;
     root.innerHTML = adminLayout(content, 'integrations');
     

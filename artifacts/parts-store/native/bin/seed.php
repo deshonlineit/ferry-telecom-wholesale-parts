@@ -22,10 +22,6 @@ if ((int) $pdo->query('SELECT COUNT(*) FROM customer_groups')->fetchColumn() ===
         foreach (['currency' => 'CHF', 'tax_bps' => '810', 'shipping_cents' => '950', 'free_shipping_cents' => '25000', 'low_stock_threshold' => '5', 'seed_version' => '1'] as $name => $value) {
             $insert->execute([$name, $value]);
         }
-        $insert = $pdo->prepare('INSERT INTO buyback_items(model,grade,price_cents) VALUES(?,?,?)');
-        foreach (['iPhone 13', 'iPhone 14', 'iPhone 15', 'iPhone 15 Pro', 'iPhone 16 Pro', 'Samsung Galaxy S24'] as $index => $model) {
-            $insert->execute([$model, 'Working OLED, broken glass — test', 1200 + $index * 650]);
-        }
         $pdo->commit();
     } catch (Throwable $error) {
         $pdo->rollBack();

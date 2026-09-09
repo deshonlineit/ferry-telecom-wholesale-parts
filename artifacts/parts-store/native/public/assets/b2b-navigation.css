@@ -724,9 +724,6 @@ body:not(:has(.admin-shell)) :is(.b2b-menu-close, .b2b-menu-back, .b2b-menu-retr
 body:not(:has(.admin-shell)) .b2b-menu-back {
     display: none;
 }
-body:not(:has(.admin-shell)) .b2b-mega-accessories + .b2b-menu-close {
-    margin: 24px;
-}
 body:not(:has(.admin-shell)) .b2b-model-search-wrap {
     display: block;
     position: relative;
@@ -1625,6 +1622,9 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
 /* Desktop layout constraints */
 @media (min-width: 1024px) {
     body:not(:has(.admin-shell)) .catalog-layout {
+        --catalog-header-surface: #f5f5f7;
+        --catalog-shell-border: var(--border-light);
+        --catalog-shell-shadow: 0 2px 8px rgba(15, 23, 42, 0.035);
         display: grid !important;
         grid-template-columns: 256px minmax(0, 1fr);
         gap: 18px;
@@ -1641,15 +1641,22 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
         overscroll-behavior: contain;
         padding: 14px;
         background: #fff;
-        border: 1px solid var(--border-light);
+        border: 1px solid var(--catalog-shell-border);
         border-radius: 10px;
+        box-shadow: var(--catalog-shell-shadow);
         scrollbar-width: thin;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar-heading {
-        margin-bottom: 14px;
-    }
-    body:not(:has(.admin-shell)) .catalog-sidebar-heading {
-        margin-bottom: 20px;
+        display: flex;
+        min-height: 86px;
+        margin: -14px -14px 18px;
+        padding: 14px;
+        flex-direction: column;
+        justify-content: center;
+        background: var(--catalog-header-surface);
+        border-bottom: 1px solid var(--catalog-shell-border);
+        border-radius: 9px 9px 0 0;
+        box-sizing: border-box;
     }
     body:not(:has(.admin-shell)) .catalog-sidebar-heading span,
     body:not(:has(.admin-shell)) .catalog-desktop-filters > h3,

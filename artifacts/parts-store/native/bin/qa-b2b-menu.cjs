@@ -259,6 +259,7 @@ app.window.Core.fetch = async url => {
         models: app.window.StoreMenu.orderedModels([
             {id: 51, name: 'iPhone 16 Pro Max', family: 'iphone', sort_order: 2024, order_known: true},
             {id: 52, name: 'iPhone 16', family: 'iphone', sort_order: 2024, order_known: true},
+            {id: 56, name: 'iPhone 16e', family: 'iphone', sort_order: 2025, order_known: true},
             {id: 53, name: 'iPhone 15 Pro', family: 'iphone', sort_order: 2023, order_known: true},
             {id: 54, name: 'iPhone SE 2022', family: 'iphone', sort_order: 2022, order_known: true},
             {id: 55, name: 'iPhone XS Max', family: 'iphone', sort_order: 2018, order_known: true}
@@ -267,6 +268,11 @@ app.window.Core.fetch = async url => {
     const groupedIphone = app.window.StoreMenu.modelsMarkup(iphoneEntry);
     assert.match(groupedIphone, /b2b-model-series/);
     assert(groupedIphone.indexOf('>iPhone 16 Series<') < groupedIphone.indexOf('>iPhone 15 Series<'));
+    assert(groupedIphone.indexOf('>iPhone 16 Series<') < groupedIphone.indexOf('>iPhone 16e<')
+        && groupedIphone.indexOf('>iPhone 16e<') < groupedIphone.indexOf('>iPhone 15 Series<'),
+        'iPhone 16e belongs inside the iPhone 16 generation');
+    assert(!groupedIphone.slice(groupedIphone.indexOf('>Eerdere iPhone-modellen<')).includes('>iPhone 16e<'),
+        'iPhone 16e must never fall back to earlier iPhone models');
     assert.match(groupedIphone, />iPhone X · XR · XS Series</);
     assert.match(groupedIphone, />iPhone SE Series</);
     assert.doesNotMatch(groupedIphone, /<h4[^>]*>[^<]*<small>/, 'Series headings never expose group counts');

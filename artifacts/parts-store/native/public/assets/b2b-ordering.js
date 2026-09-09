@@ -211,10 +211,10 @@
                 target.classList.remove('cart-receiving');
                 void target.offsetWidth;
                 target.classList.add('cart-receiving');
-                window.setTimeout(() => target.classList.remove('cart-receiving'), 1100);
+                window.setTimeout(() => target.classList.remove('cart-receiving'), 650);
             };
-            pulse();
             if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+                pulse();
                 return;
             }
             const source = row?.querySelector('img') || button;
@@ -244,11 +244,12 @@
             document.body.appendChild(flyer);
             const animation = flyer.animate([
                 {transform: 'translate3d(0,0,0) scale(1)', opacity: 1, offset: 0},
-                {transform: `translate3d(${(endX - startX) * .48}px,${(endY - startY) * .3 - 58}px,0) scale(.78)`, opacity: .98, offset: .48},
+                {transform: `translate3d(${(endX - startX) * .52}px,${(endY - startY) * .36 - 30}px,0) scale(.72)`, opacity: .96, offset: .46},
                 {transform: `translate3d(${endX - startX}px,${endY - startY}px,0) scale(.18)`, opacity: .25, offset: 1}
-            ], {duration: 900, easing: 'cubic-bezier(.18,.72,.22,1)', fill: 'forwards'});
+            ], {duration: 520, easing: 'cubic-bezier(.2,.78,.24,1)', fill: 'forwards'});
             animation.finished.then(() => {
                 flyer.remove();
+                pulse();
             }).catch(() => flyer.remove());
         },
         async quickAdd(id, quantity, button) {
@@ -275,6 +276,7 @@
             }
             if (button) {
                 button.dataset.pending = 'true';
+                button.classList.add('is-adding');
                 button.disabled = true;
                 button.setAttribute('aria-busy', 'true');
             }
@@ -314,6 +316,7 @@
             } finally {
                 if (button) {
                     button.dataset.pending = 'false';
+                    button.classList.remove('is-adding');
                     button.disabled = false;
                     button.removeAttribute('aria-busy');
                 }

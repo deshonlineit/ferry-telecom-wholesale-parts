@@ -1,4 +1,4 @@
-// admin-operations.js - Returns, Buyback, Messages, Audit
+// admin-operations.js - Returns, Messages, Audit
 
 (function initWorkbenchOps() {
     window.Workbench = window.Workbench || {};
@@ -129,173 +129,66 @@ window.Router.add(/^admin\/returns\/(\d+)$/, async (match, root) => {
     root.innerHTML = adminOpsLayout(content, 'returns');
 });
 
-window.Router.add(/^admin\/buyback$/, async (match, root) => {
+window.Router.add(/^admin\/diagnostics$/, async (match, root, query) => {
     if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
-    const data = await window.Core.fetch('/admin/buyback');
+    const params = new URLSearchParams();
+    ['page', 'limit', 'severity', 'status', 'search'].forEach(k => { if (query.get(k)) params.set(k, query.get(k)); });
+    let data;
+    try { data = await window.Core.fetch('/admin/diagnostics?' + params.toString()); }
+    catch (error) {
+        root.innerHTML = adminOpsLayout(`<div class="page-header"><h1>Diagnostics</h1></div><div class="alert error">Could not load diagnostics. Please try again.</div>`, 'diagnostics');
+        return;
+    }
     const esc = window.Core.escapeHtml;
-    
-    const itemsRows = data.items.map(i => `
+    const selected = key => esc(params.get(key) || '');
+    const rows = data.diagnostics.map(d => `
         <tr>
-            <td style="font-weight:500">${esc(i.model)}</td>
-            <td>${esc(i.grade)}</td>
-            <td>${window.Core.formatMoney(i.price_cents, 'CHF')}</td>
-            <td>${window.Workbench.badge(i.active ? 'active' : 'blocked', i.active ? 'Active' : 'Inactive')}</td>
-            <td><button type="button" class="btn btn-sm btn-outline action-edit-bb" data-id="${i.id}" data-model="${esc(i.model)}" data-grade="${esc(i.grade)}" data-price="${i.price_cents}" data-active="${i.active}">Edit</button></td>
+            <td><a href="${window.APP_BASE}admin/diagnostics?detail=${d.id}">${esc(d.reference)}</a></td>
+            <td>${new Date(d.occurred_at).toLocaleString()}</td>
+            <td>${window.Workbench.badge(d.severity)}</td>
+            <td>${esc(d.category)}</td><td>${esc(d.summary)}</td>
+            <td>${d.resolved_at ? window.Workbench.badge('resolved') : window.Workbench.badge('open')}</td>
         </tr>
     `).join('');
-
-    const reqRows = data.requests.map(r => `
-        <tr>
-            <td><strong style="font-size:0.9375rem">${esc(r.number)}</strong></td>
-            <td>${new Date(r.created_at).toLocaleDateString()}</td>
-            <td>
-                <select class="form-control action-status-select" data-id="${r.id}" data-current="${r.status}" style="padding:0.25rem 0.5rem; font-size:0.8125rem; height:auto;">
-                    <option value="submitted" ${r.status==='submitted'?'selected':''}>Submitted</option>
-                    <option value="received" ${r.status==='received'?'selected':''}>Received</option>
-                    <option value="assessed" ${r.status==='assessed'?'selected':''}>Assessed</option>
-                    <option value="completed" ${r.status==='completed'?'selected':''}>Completed</option>
-                    <option value="rejected" ${r.status==='rejected'?'selected':''}>Rejected</option>
-                </select>
-            </td>
-            <td>${window.Core.formatMoney(r.total_cents, r.currency || 'CHF')}</td>
-        </tr>
-    `).join('');
-
+    const countText = (data.counts || []).map(c => `${esc(c.severity)}: ${c.total} (${c.open_total} open)`).join(' · ') || 'No diagnostics recorded';
+    const detailId = query.get('detail');
     const content = `
         <div class="page-header">
-            <h1>Buyback Management</h1>
+            <h1>Diagnostics</h1>
         </div>
-        
-        <div class="page-header" style="margin-top:2rem;">
-            <h3 class="form-section-title" style="margin:0;">Configured Trade-in Prices</h3>
-            <button type="button" class="btn btn-sm action-edit-bb">Add New Model</button>
-        </div>
+        <p class="text-muted" style="margin-bottom:1rem">${countText}</p>
+        <form class="card" style="margin-bottom:1rem; display:flex; gap:.75rem; flex-wrap:wrap" method="get">
+          <select name="severity"><option value="">All severities</option>${['debug','info','warning','error','critical'].map(x => `<option ${selected('severity') === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
+          <select name="status"><option value="">All statuses</option><option value="open" ${selected('status') === 'open' ? 'selected' : ''}>Open</option><option value="resolved" ${selected('status') === 'resolved' ? 'selected' : ''}>Resolved</option></select>
+          <input name="search" value="${selected('search')}" placeholder="Reference, category or summary">
+          <button class="btn btn-primary">Filter</button>
+        </form>
         <div class="table-responsive">
             <table class="data-table">
-                <thead><tr><th>Model</th><th>Quality (Grade)</th><th>Price</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody>${itemsRows || '<tr><td colspan="5" style="text-align:center; padding:2rem;">No items configured.</td></tr>'}</tbody>
+                <thead><tr><th>Reference</th><th>Time</th><th>Severity</th><th>Category</th><th>Summary</th><th>Status</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; padding:2rem;">No diagnostics match these filters.</td></tr>'}</tbody>
             </table>
         </div>
-
-        <h3 class="form-section-title" style="margin-top:3rem;">Customer Trade-in Requests</h3>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead><tr><th>Request #</th><th>Date</th><th>Status</th><th>Estimated Value</th></tr></thead>
-                <tbody>${reqRows || '<tr><td colspan="4" style="text-align:center; padding:2rem;">No requests found.</td></tr>'}</tbody>
-            </table>
+        <div style="margin-top:1rem; display:flex; gap:1rem"><span>Page ${data.page} of ${data.pages}</span>
+          ${data.page > 1 ? `<a class="btn btn-outline btn-sm" href="${window.APP_BASE}admin/diagnostics?${new URLSearchParams({...Object.fromEntries(params), page:String(data.page - 1)}).toString()}">Previous</a>` : ''}
+          ${data.page < data.pages ? `<a class="btn btn-outline btn-sm" href="${window.APP_BASE}admin/diagnostics?${new URLSearchParams({...Object.fromEntries(params), page:String(data.page + 1)}).toString()}">Next</a>` : ''}
         </div>
+        <div id="diagnostic-detail" data-id="${detailId || ''}"></div>
     `;
-    root.innerHTML = adminOpsLayout(content, 'buyback');
-
-    const editBuybackItem = (id=null, m='', g='', p=0, a=1) => {
-        const html = `
-            <form id="bb-item-form">
-                <div class="form-section" style="border:none; padding:0;">
-                    <div class="form-group"><label>Device Model</label><input type="text" name="model" value="${m}" class="form-control" required placeholder="e.g. iPhone 13"></div>
-                    <div class="form-group"><label>Quality (Grade)</label><input type="text" name="grade" value="${g}" class="form-control" required placeholder="e.g. OEM, Grade A"></div>
-                    <div class="form-group"><label>Price (CHF)</label><input type="number" name="price_chf" value="${(p/100).toFixed(2)}" step="0.01" min="0" class="form-control" required placeholder="15.00"></div>
-                    <div class="form-group" style="margin-top:1.5rem">
-                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-                            <input type="checkbox" name="active" value="1" ${a?'checked':''}> Visible and active for customers
-                        </label>
-                    </div>
-                </div>
-                <button type="submit" class="btn" style="width:100%; margin-top:1rem;">Save</button>
-            </form>
-        `;
-        const overlay = window.UI.showModal(id ? 'Edit Model' : 'New Trade-in Model', html);
-        document.getElementById('bb-item-form').onsubmit = async(e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const payload = { model: fd.get('model'), grade: fd.get('grade'), price_cents: Math.round(parseFloat(fd.get('price_chf')) * 100), active: fd.get('active')?1:0 };
-            try {
-                await window.Core.fetch(id ? `/admin/buyback/${id}` : '/admin/buyback', { method: id ? 'PATCH':'POST', body: payload });
-                window.UI.closeModal(overlay);
-                window.Workbench.toast('Trade-in model saved', 'success');
-                window.Router.route();
-            } catch(err) { window.Workbench.toast(err.message, 'error'); }
-        };
-    };
-
-    root.querySelectorAll('.action-edit-bb').forEach(btn => btn.addEventListener('click', (e) => {
-        const b = e.currentTarget;
-        if(b.dataset.id) {
-            editBuybackItem(parseInt(b.dataset.id, 10), b.dataset.model, b.dataset.grade, parseInt(b.dataset.price, 10), parseInt(b.dataset.active, 10));
-        } else {
-            editBuybackItem();
-        }
-    }));
-
-    root.querySelectorAll('.action-status-select').forEach(s => {
-        s.addEventListener('change', (e) => {
-            const el = e.currentTarget;
-            const id = parseInt(el.dataset.id, 10);
-            const newStatus = el.value;
-            const oldStatus = el.dataset.current;
-            
-            const html = `
-                <form id="status-form">
-                    <p style="margin-bottom:1rem; font-size:0.875rem;">Change status to <strong>${window.Workbench.statusMap[newStatus]?.label || newStatus}</strong>?</p>
-                    <div class="form-group">
-                        <label>Note for Customer or Records</label>
-                        <textarea name="note" class="form-control" rows="2" placeholder="Findings after testing..."></textarea>
-                    </div>
-                    <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
-                        <button type="submit" class="btn">Confirm</button>
-                        <button type="button" class="btn btn-outline" id="cancel-status">Cancel</button>
-                    </div>
-                </form>
-            `;
-            const overlay = window.UI.showModal('Change Request Status', html);
-            
-            document.getElementById('cancel-status').onclick = () => {
-                el.value = oldStatus;
-                window.UI.closeModal(overlay);
+    root.innerHTML = adminOpsLayout(content, 'diagnostics');
+    if (detailId && /^\d+$/.test(detailId)) {
+        const panel = root.querySelector('#diagnostic-detail');
+        panel.innerHTML = '<p style="margin-top:1rem">Loading diagnostic…</p>';
+        try {
+            const result = await window.Core.fetch('/admin/diagnostics/' + detailId);
+            const d = result.diagnostic;
+            panel.innerHTML = `<div class="card" style="margin-top:1rem"><h3>${esc(d.reference)}</h3><p>${esc(d.summary)}</p><dl><dt>Request</dt><dd>${esc(d.request_method || '')} ${esc(d.request_path || '')}</dd><dt>Occurred</dt><dd>${esc(d.occurred_at)}</dd><dt>Category</dt><dd>${esc(d.category)}</dd></dl><pre style="white-space:pre-wrap;word-break:break-word">${esc(JSON.stringify(d.context_json, null, 2))}</pre><button class="btn btn-outline" id="diagnostic-toggle">${d.resolved_at ? 'Reopen' : 'Resolve'}</button></div>`;
+            panel.querySelector('#diagnostic-toggle').onclick = async () => {
+                await window.Core.fetch('/admin/diagnostics/' + d.id, {method:'PATCH', body:{status:d.resolved_at ? 'open' : 'resolved'}});
+                window.Router.navigate(window.APP_BASE + 'admin/diagnostics?detail=' + d.id);
             };
-            
-            document.getElementById('status-form').onsubmit = async (ev) => {
-                ev.preventDefault();
-                try {
-                    await window.Core.fetch(`/admin/buyback/requests/${id}`, { method: 'PATCH', body: { status: newStatus, note: ev.target.note.value } });
-                    window.UI.closeModal(overlay);
-                    window.Workbench.toast('Status updated successfully', 'success');
-                    window.Router.route();
-                } catch(err) { 
-                    window.Workbench.toast(err.message, 'error'); 
-                    el.value = oldStatus;
-                }
-            };
-        });
-    });
-});
-
-window.Router.add(/^admin\/messages$/, async (match, root) => {
-    if (!window.Core.user || window.Core.user.role !== 'staff') return window.Router.navigate(window.APP_BASE);
-    const data = await window.Core.fetch('/admin/messages');
-    const esc = window.Core.escapeHtml;
-    
-    const rows = data.messages.map(m => `
-        <tr>
-            <td>${new Date(m.created_at).toLocaleString()}</td>
-            <td><strong style="font-size:0.875rem">${esc(m.kind)}</strong></td>
-            <td>${window.Workbench.badge(m.status)}</td>
-            <td><pre style="margin:0; font-size:0.75rem; max-width:400px; overflow:hidden; text-overflow:ellipsis; background:var(--wb-bg); padding:0.25rem 0.5rem; border-radius:var(--wb-radius);">${esc(JSON.stringify(m.payload))}</pre></td>
-        </tr>
-    `).join('');
-
-    const content = `
-        <div class="page-header">
-            <h1>Local Messages (Emails)</h1>
-        </div>
-        <div class="alert warning" style="margin-bottom:2rem;">Emails are not actually sent in this development environment. They are recorded locally for checking and debugging purposes.</div>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead><tr><th>Sent On</th><th>Message Type</th><th>Status</th><th>Payload Data</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="4" style="text-align:center; padding:2rem;">No logged messages.</td></tr>'}</tbody>
-            </table>
-        </div>
-    `;
-    root.innerHTML = adminOpsLayout(content, 'messages');
+        } catch (_) { panel.innerHTML = '<div class="alert error">Could not load this diagnostic.</div>'; }
+    }
 });
 
 window.Router.add(/^admin\/audit$/, async (match, root) => {

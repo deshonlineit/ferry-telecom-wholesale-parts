@@ -1,5 +1,8 @@
 const esc = window.Core.escapeHtml;
 const t = (key, values) => window.I18n.t(key, values);
+const vatLabel = quote => Number(quote.tax_bps) === 0 ? t('swissExportVat0')
+    : (Number(quote.tax_bps) === 810 ? t('swissVat81') : `${t('vat')} ${(Number(quote.tax_bps) / 100).toFixed(2)}%`);
+const vatNote = quote => Number(quote.tax_bps) === 0 ? `<p class="currency-context-note">${t('swissExportVatNote')}</p>` : '';
 
 const categoryGroups = [
     { title: "Parts", keywords: ['screen', 'batter', 'charg', 'camera', 'hous', 'flex', 'audio', 'adhes', 'other'] },
@@ -347,12 +350,13 @@ window.Router.add(/^cart$/, async (match, root) => {
                         <dl class="summary-lines">
                             <div class="summary-line"><dt>${t('subtotalExVat')}</dt><dd>${money(cart.subtotal_cents)}</dd></div>
                             <div class="summary-line"><dt>${t('shippingExVat')}</dt><dd>${money(cart.shipping_cents)}</dd></div>
-                            <div class="summary-line"><dt>${t('vat')}</dt><dd>${money(cart.tax_cents)}</dd></div>
+                            <div class="summary-line"><dt>${vatLabel(cart)}</dt><dd>${money(cart.tax_cents)}</dd></div>
                         </dl>
                         <div class="summary-rule"></div>
                         <div class="summary-total"><span>${t('totalInclVat')}</span><strong>${money(cart.total_cents)}</strong></div>
                         <a href="${window.APP_BASE}checkout" class="summary-cta">${t('checkout')} &rarr;</a>
                         <p class="currency-context-note ${notice ? 'error' : ''}">${esc(notice || t('deliveryBilled', {country: cart.country || window.Core.country, currency: cartCurrency}))}</p>
+                        ${vatNote(cart)}
                         <ul class="rail-notes">
                             <li>${noteIcon}<span>${t('shippingVatNote')}</span></li>
                             <li>${noteIcon}<span>${t('testEnvironmentNote')}</span></li>
@@ -404,30 +408,22 @@ window.Router.add(/^checkout$/, async (match, root) => {
             // The radio group and the .selected outline must agree on exactly that card.
             const preselected = addresses.find(a => a.is_default) || addresses[0];
             addrHtml = addresses.map((a) => {
-                const compact = addresses.length === 1;
-                const addressText = [
-                    a.company || a.name,
-                    a.company ? a.name : '',
-                    a.line1,
-                    a.line2 || '',
-                    `${a.postal_code} ${a.city}`,
-                    a.country
-                ].filter(Boolean).map(esc).join(' · ');
+                const country = window.BuyerCurrency.countryName(a.country) || a.country;
                 return `
-                <label class="address-card ${compact ? 'address-card-compact' : ''} ${a.id === preselected.id ? 'selected' : ''}">
+                <label class="address-card ${a.id === preselected.id ? 'selected' : ''}">
                     <input type="radio" name="address_choice" value="${a.id}" data-country="${esc(a.country)}" ${a.id === preselected.id ? 'checked' : ''}>
-                    <div class="address-header ${compact ? '' : 'mb-2'}">
+                    <div class="address-header mb-2">
                         <strong>${esc(a.label || t('address'))}</strong>
                         <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
-                    ${compact ? `<div class="compact-address-line">${addressText}</div>` : `<div class="text-sm">
-                        ${a.company ? `<div>${esc(a.company)}</div>` : ''}
-                        <div>${esc(a.name)}</div>
+                    <address class="checkout-postal-address">
+                        ${a.company ? `<div class="checkout-address-company">${esc(a.company)}</div>` : ''}
+                        ${a.name ? `<div class="checkout-address-person">${esc(a.name)}</div>` : ''}
                         <div>${esc(a.line1)}</div>
                         ${a.line2 ? `<div>${esc(a.line2)}</div>` : ''}
                         <div>${esc(a.postal_code)} ${esc(a.city)}</div>
-                        <div class="text-muted mt-1">${esc(a.country)}</div>
-                    </div>`}
+                        <div>${esc(country)}</div>
+                    </address>
                 </label>
             `}).join('');
         }
@@ -530,11 +526,12 @@ window.Router.add(/^checkout$/, async (match, root) => {
                                 <dl class="summary-lines">
                                     <div class="summary-line"><dt>${t('subtotal')}</dt><dd>${checkoutMoney(cartRes.subtotal_cents)}</dd></div>
                                     <div class="summary-line"><dt>${t('shipping')}</dt>${cartRes.shipping_cents === 0 ? `<dd class="is-free">${t('free')}</dd>` : `<dd>${checkoutMoney(cartRes.shipping_cents)}</dd>`}</div>
-                                    <div class="summary-line"><dt>${t('vat')}</dt><dd>${checkoutMoney(cartRes.tax_cents)}</dd></div>
+                                    <div class="summary-line"><dt>${vatLabel(cartRes)}</dt><dd>${checkoutMoney(cartRes.tax_cents)}</dd></div>
                                 </dl>
                                 <div class="summary-rule"></div>
                                 <div class="summary-total"><span>${t('total')}</span><strong>${checkoutMoney(cartRes.total_cents)}</strong></div>
                                 <p class="currency-context-note">${t('deliveryBilled', {country: esc(cartRes.country || window.Core.country), currency: esc(checkoutCurrency)})}</p>
+                                ${vatNote(cartRes)}
                             </div>
                             <button id="checkout-submit" form="checkout-form" type="submit" class="summary-cta" disabled>${t('placeOrder')} &rarr;</button>
                         </div>
@@ -566,15 +563,15 @@ window.Router.add(/^checkout$/, async (match, root) => {
             const container = root.querySelector('#checkout-payment-methods');
             if (!container) return;
             const byCode = new Map((methods || []).map(method => [method.code || method.method, method]));
-            const codes = ['stripe', 'pay_later', 'swiss_qr_invoice'];
+            const codes = ['stripe', 'pay_later'];
             const current = container.querySelector('[name="payment_method"]:checked')?.value;
             const choices = codes.map(code => {
                 const response = byCode.get(code);
                 if (response?.hidden) return '';
                 const enabled = Boolean(response && response.enabled !== false && response.available !== false);
-                const label = t({stripe: 'stripe', pay_later: 'payLater', swiss_qr_invoice: 'swissQrInvoice'}[code]);
+                const label = response?.variant === 'swiss_qr' ? t('payLaterSwissQr') : t({stripe: 'stripe', pay_later: 'payLater'}[code]);
                 const help = response?.reason || response?.message ||
-                    (enabled ? t({stripe: 'stripeHelp', pay_later: 'payLaterHelp', swiss_qr_invoice: 'swissQrInvoiceHelp'}[code]) : t('paymentUnavailable'));
+                    (enabled ? t(response?.variant === 'swiss_qr' ? 'payLaterSwissQrHelp' : {stripe: 'stripeHelp', pay_later: 'payLaterHelp'}[code]) : t('paymentUnavailable'));
                 return `<label class="payment-card ${enabled ? '' : 'disabled'}" data-payment-code="${code}">
                     <input type="radio" name="payment_method" value="${code}" ${enabled ? '' : 'disabled'} aria-describedby="payment-help-${code}">
                     <div class="address-header"><strong>${label}</strong>
@@ -660,11 +657,12 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 <dl class="summary-lines">
                     <div class="summary-line"><dt>${t('subtotalExVat')}</dt><dd>${window.Core.formatMoney(quote.subtotal_cents, currency)}</dd></div>
                     <div class="summary-line"><dt>${t('shippingExVat')}</dt><dd>${window.Core.formatMoney(quote.shipping_cents, currency)}</dd></div>
-                    <div class="summary-line"><dt>${t('vat')}</dt><dd>${window.Core.formatMoney(quote.tax_cents, currency)}</dd></div>
+                    <div class="summary-line"><dt>${vatLabel(quote)}</dt><dd>${window.Core.formatMoney(quote.tax_cents, currency)}</dd></div>
                 </dl>
                 <div class="summary-rule"></div>
                 <div class="summary-total"><span>${t('totalInclVat')}</span><strong>${window.Core.formatMoney(quote.total_cents, currency)}</strong></div>
                 <p class="currency-context-note ${notice ? 'error' : ''}">${t('deliveryBilled', {country: esc(country), currency: esc(currency)})}${notice ? ` · ${esc(notice)}` : ''}</p>
+                ${vatNote(quote)}
             `;
             quoteStatus.className = `summary-status ${notice ? 'error' : ''}`;
             quoteStatus.textContent = message || notice || t('quoteUpToDate');

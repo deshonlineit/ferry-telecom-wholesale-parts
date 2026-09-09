@@ -9,6 +9,7 @@ import smartSearchRouter from "./smart-search";
 import storageRouter from "./storage";
 import adminRouter from "./admin";
 import stripeRouter from "./stripe";
+import picqerRouter from "./picqer";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(smartSearchRouter);
 router.use(storageRouter);
 router.use(adminRouter);
 router.use(stripeRouter);
+router.use(picqerRouter);
 
 export default router;

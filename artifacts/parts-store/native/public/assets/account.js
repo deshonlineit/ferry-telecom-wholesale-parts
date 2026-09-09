@@ -45,12 +45,15 @@
 })();
 
 const accountT = (key, values) => window.I18n.t(key, values);
+const accountVatLabel = order => Number(order.tax_bps) === 0 ? accountT('swissExportVat0')
+    : (Number(order.tax_bps) === 810 ? accountT('swissVat81') : `${accountT('vat')} ${(Number(order.tax_bps) / 100).toFixed(2)}%`);
+const accountVatNote = order => Number(order.tax_bps) === 0 ? `<p class="b2b-text-muted mt-1">${accountT('swissExportVatNote')}</p>` : '';
 const accountDate = value => window.I18n.date(value);
 const accountDateTime = value => window.I18n.date(value, {dateStyle: 'medium', timeStyle: 'short'});
 const accountMoney = (cents, currency) => window.I18n.formatMoney(cents, currency);
 const accountStatus = status => window.I18n.t(window.Workbench.statusMap[status]?.label || status);
 const accountPaymentMethod = method => window.I18n.t({
-    swiss_qr_invoice: 'swissQrInvoice',
+    swiss_qr_invoice: 'payLaterSwissQr',
     pay_later: 'payLater',
     test_invoice: 'legacyTestInvoice',
     test_card: 'legacyTestCard'
@@ -407,7 +410,7 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                     <p>${accountDate(o.created_at)}</p>
                 </div>
                 <div class="b2b-account-header-actions">
-                    ${(o.status === 'completed' || (o.payment_method === 'swiss_qr_invoice' && o.status === 'on_hold')) ? `<button class="b2b-btn b2b-btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">
+                    ${(o.status === 'completed' || o.payment_method === 'swiss_qr_invoice' || o.payment_method === 'pay_later' || (o.payment_method === 'stripe' && o.payment_state === 'paid')) ? `<button class="b2b-btn b2b-btn-outline" aria-label="${accountT('downloadInvoice')}" onclick="downloadPdf('/documents/${o.id}/invoice.pdf')">
                         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                         ${accountT('invoicePdf')}
                     </button>` : ''}
@@ -477,13 +480,14 @@ window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
                         <span class="b2b-total-val">${accountMoney(o.shipping_cents, orderCurrency)}</span>
                     </div>
                     <div class="b2b-order-total-row">
-                        <span>${accountT('vat')}</span>
+                        <span>${accountVatLabel(o)}</span>
                         <span class="b2b-total-val">${accountMoney(o.tax_cents, orderCurrency)}</span>
                     </div>
                     <div class="b2b-order-total-row b2b-total-grand">
                         <span>${accountT('totalInclVat')} (${esc(orderCurrency)})</span>
                         <span class="b2b-total-val">${accountMoney(o.total_cents, orderCurrency)}</span>
                     </div>
+                    ${accountVatNote(o)}
                 </div>
             </div>
             

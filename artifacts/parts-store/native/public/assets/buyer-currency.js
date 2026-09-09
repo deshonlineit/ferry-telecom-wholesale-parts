@@ -28,6 +28,9 @@
 
     window.BuyerCurrency = {
         countries,
+        countryName(code) {
+            return countryName(String(code || '').toUpperCase());
+        },
         options(selected = 'CH') {
             const value = String(selected || 'CH').toUpperCase();
             const escape = text => (window.Core ? window.Core.escapeHtml(text) : text);

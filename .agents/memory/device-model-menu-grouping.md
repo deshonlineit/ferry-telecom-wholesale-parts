@@ -21,3 +21,6 @@ is Apple then Samsung. Other device brands belong after the part departments
 under the final other-brands menu, not as competing top-level items. A downward
 scroll gesture in a collapsed family is also an implicit “show all models”
 action; do not force visitors to stop and press the expansion button first.
+Numbered suffix variants inherit their base generation (for example, iPhone
+16e belongs to iPhone 16). When placement is uncertain, follow the established
+grouping in the previous shop rather than inventing a new hierarchy.

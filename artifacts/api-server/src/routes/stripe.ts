@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { isNativeBridgeAuthorized } from "../lib/nativePaymentCallback";
 import { getUncachableStripeClient } from "../stripeClient";
 
@@ -19,6 +20,19 @@ type NativeCheckoutQuote = {
   totalCents: number;
   lines: NativeLine[];
 };
+
+const nativeRefundRequest = z
+  .object({
+    returnId: z.string().trim().min(1).max(128),
+    settlementId: z.string().trim().min(1).max(128),
+    orderId: z.string().trim().min(1).max(128),
+    orderNumber: z.string().trim().min(1).max(128),
+    amount: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    currency: z.string().regex(/^[a-z]{3}$/),
+    paymentIntentId: z.string().regex(/^pi_[A-Za-z0-9]+$/).max(255),
+    idempotencyKey: z.string().trim().min(1).max(255),
+  })
+  .strict();
 
 function parseQuote(value: unknown): NativeCheckoutQuote | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -147,6 +161,89 @@ router.post("/stripe/native/checkout-session", async (req, res): Promise<void> =
   );
   if (!session.url) throw new Error("Stripe did not return a Checkout Session URL.");
   res.status(201).json({ id: session.id, url: session.url });
+});
+
+router.post("/stripe/native/refund", async (req, res): Promise<void> => {
+  const secret = req.get("X-Native-Stripe-Bridge-Secret");
+  if (!isNativeBridgeAuthorized(secret)) {
+    req.log.warn("Rejected unauthenticated native Stripe bridge refund request");
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const parsed = nativeRefundRequest.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid native refund request" });
+    return;
+  }
+
+  const refundRequest = parsed.data;
+  const stripe = await getUncachableStripeClient();
+  const paymentIntent = await stripe.paymentIntents.retrieve(refundRequest.paymentIntentId);
+
+  if (
+    paymentIntent.status !== "succeeded" ||
+    paymentIntent.amount_received < 1 ||
+    paymentIntent.currency !== refundRequest.currency ||
+    paymentIntent.metadata.native_order_id !== refundRequest.orderId ||
+    paymentIntent.metadata.native_order_number !== refundRequest.orderNumber
+  ) {
+    req.log.warn(
+      { paymentIntentId: refundRequest.paymentIntentId, orderId: refundRequest.orderId },
+      "Rejected native Stripe refund that did not match its PaymentIntent",
+    );
+    res.status(409).json({ error: "PaymentIntent is not refundable for this order" });
+    return;
+  }
+
+  let priorRefundedAmount = 0;
+  await stripe.refunds
+    .list({ payment_intent: paymentIntent.id, limit: 100 })
+    .autoPagingEach((refund) => {
+      // Failed and cancelled refunds do not consume the captured balance.
+      if (refund.status !== "failed" && refund.status !== "canceled") {
+        priorRefundedAmount += refund.amount;
+      }
+    });
+
+  const refundableAmount = paymentIntent.amount_received - priorRefundedAmount;
+  if (
+    !Number.isSafeInteger(priorRefundedAmount) ||
+    !Number.isSafeInteger(refundableAmount) ||
+    refundableAmount < refundRequest.amount
+  ) {
+    req.log.warn(
+      {
+        paymentIntentId: paymentIntent.id,
+        orderId: refundRequest.orderId,
+        amount: refundRequest.amount,
+      },
+      "Rejected native Stripe refund exceeding captured balance",
+    );
+    res.status(409).json({ error: "Requested amount exceeds the refundable balance" });
+    return;
+  }
+
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: paymentIntent.id,
+      amount: refundRequest.amount,
+      metadata: {
+        native_return_id: refundRequest.returnId,
+        native_settlement_id: refundRequest.settlementId,
+        native_order_id: refundRequest.orderId,
+        native_order_number: refundRequest.orderNumber,
+      },
+    },
+    { idempotencyKey: refundRequest.idempotencyKey },
+  );
+
+  res.status(201).json({
+    id: refund.id,
+    status: refund.status,
+    amount: refund.amount,
+    currency: refund.currency,
+  });
 });
 
 export default router;

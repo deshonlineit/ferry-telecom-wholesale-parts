@@ -12,6 +12,7 @@ $check = in_array('--check', $argv, true);
 $pdo = db();
 
 $modelsByBrand = [];
+$allModels = [];
 foreach ($pdo->query(
     'SELECT dm.id,dm.brand_id,dm.name,b.name brand_name
      FROM device_models dm JOIN brands b ON b.id=dm.brand_id
@@ -19,12 +20,15 @@ foreach ($pdo->query(
 ) as $model) {
     $name = trim((string) $model['name']);
     if ($name === '' || mb_strlen($name) < 4) continue;
-    $modelsByBrand[(int) $model['brand_id']][] = [
+    $normalizedModel = [
         'id' => (int) $model['id'],
         'name' => $name,
         'brand' => (string) $model['brand_name'],
     ];
+    $modelsByBrand[(int) $model['brand_id']][] = $normalizedModel;
+    $allModels[] = $normalizedModel;
 }
+$titleModels = titleEligibleModels($allModels);
 
 $existing = [];
 foreach ($pdo->query('SELECT product_id,model_id FROM product_models') as $link) {
@@ -142,13 +146,14 @@ $matchedProducts = [];
 $products = $pdo->query(
     'SELECT p.id,p.sku,p.name,p.brand_id,c.name category
      FROM products p LEFT JOIN categories c ON c.id=p.category_id
-     WHERE p.active=1 AND p.brand_id IS NOT NULL
+     WHERE p.active=1
      ORDER BY p.id'
 );
 foreach ($products as $product) {
     $productId = (int) $product['id'];
-    $models = titleEligibleModels($modelsByBrand[(int) $product['brand_id']] ?? []);
-    $matches = titleModelMatches((string) $product['name'], $models);
+    // A product manufacturer and its compatible device brand are independent.
+    // Match model names across all device brands, never through p.brand_id.
+    $matches = titleModelMatches((string) $product['name'], $titleModels);
     if ($matches !== []) $matchedProducts[$productId] = true;
     foreach ($matches as $model) {
         $inferred[$productId][$model['id']] = true;

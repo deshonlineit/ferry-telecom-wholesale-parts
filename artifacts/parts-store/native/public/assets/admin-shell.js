@@ -6,7 +6,7 @@
                 <button type="button" class="admin-mobile-menu-toggle" aria-expanded="false" aria-controls="admin-sidebar" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'); document.getElementById('admin-sidebar').classList.toggle('open');">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     <span>${{
-                        'dashboard': 'Dashboard', 'products': 'Products', 'orders': 'Orders', 'invoices': 'Invoices', 'customers': 'Customers', 'returns': 'Returns', 'buyback': 'Buyback', 'settings': 'Settings', 'messages': 'Local Messages', 'integrations': 'Integrations', 'audit': 'Audit Log'
+                        'dashboard': 'Dashboard', 'products': 'Products', 'orders': 'Orders', 'invoices': 'Invoices', 'customers': 'Customers', 'returns': 'Returns', 'settings': 'Settings', 'diagnostics': 'Diagnostics', 'integrations': 'Integrations', 'audit': 'Audit Log'
                     }[activeRoute] || 'Administration Menu'}</span>
                 </button>
                 <aside id="admin-sidebar" class="admin-sidebar">
@@ -27,9 +27,8 @@
                         <a href="${window.APP_BASE}admin/invoices" class="${activeRoute === 'invoices' ? 'active' : ''}" ${activeRoute === 'invoices' ? 'aria-current="page"' : ''}>Invoices</a>
                         <a href="${window.APP_BASE}admin/customers" class="${activeRoute === 'customers' ? 'active' : ''}" ${activeRoute === 'customers' ? 'aria-current="page"' : ''}>Customers</a>
                         <a href="${window.APP_BASE}admin/returns" class="${activeRoute === 'returns' ? 'active' : ''}" ${activeRoute === 'returns' ? 'aria-current="page"' : ''}>Returns</a>
-                        <a href="${window.APP_BASE}admin/buyback" class="${activeRoute === 'buyback' ? 'active' : ''}" ${activeRoute === 'buyback' ? 'aria-current="page"' : ''}>Buyback</a>
                         <a href="${window.APP_BASE}admin/settings" class="${activeRoute === 'settings' ? 'active' : ''}" ${activeRoute === 'settings' ? 'aria-current="page"' : ''}>Settings</a>
-                        <a href="${window.APP_BASE}admin/messages" class="${activeRoute === 'messages' ? 'active' : ''}" ${activeRoute === 'messages' ? 'aria-current="page"' : ''}>Local Messages</a>
+                        <a href="${window.APP_BASE}admin/diagnostics" class="${activeRoute === 'diagnostics' ? 'active' : ''}" ${activeRoute === 'diagnostics' ? 'aria-current="page"' : ''}>Diagnostics</a>
                         <a href="${window.APP_BASE}admin/integrations" class="${activeRoute === 'integrations' ? 'active' : ''}" ${activeRoute === 'integrations' ? 'aria-current="page"' : ''}>Integrations</a>
                         <a href="${window.APP_BASE}admin/audit" class="${activeRoute === 'audit' ? 'active' : ''}" ${activeRoute === 'audit' ? 'aria-current="page"' : ''}>Audit Log</a>
                     </nav>

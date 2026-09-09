@@ -84,3 +84,31 @@ mtime_ms = 1788698618952
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/34af937c-0f2e-4a41-871b-63efd5d14490/8a575da2-2a85-443e-a072-a465f9000102"
 storage_version_token = "1788698731142556"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "TMPWiqP-YSM9_MqrRwz78"
+uri = "file://screenshots/catalog-discovered-photo-check.jpg"
+type = "image"
+title = "Live catalogue photo verification"
+description = "Running Ferry Telecom catalogue after the discovered-photo import; thumbnails render through the native 320/640/1280 media pipeline."
+logical_id = "415ece58-06fa-4fc8-bc51-647970b824ba"
+content_hash = "sha256:2f2e26d94191705486d20b5fb34b5df57aef0758e6ff7f5d9f58e71ff3d7db0a"
+size = 132597
+mtime_ms = 1788907014342
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/415ece58-06fa-4fc8-bc51-647970b824ba/908f1836-9ce9-42b7-b55a-919b120e064b"
+storage_version_token = "1788907065970980"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "m7yX04RBz1xA0vPlNTLU8"
+uri = "file://screenshots/payment-access-final-preview.jpg"
+type = "image"
+title = "Payment access final preview"
+description = "Final health-check screenshot of the running Ferry Telecom storefront after the payment-access and invoice updates."
+logical_id = "360260b7-f983-405d-8900-0b3086bbd908"
+content_hash = "sha256:660eec79aac3f21276d369cc6b13862b9e1a3292b1e9322abedb6b0a23909830"
+size = 81322
+mtime_ms = 1788907971186
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/360260b7-f983-405d-8900-0b3086bbd908/e90d98dd-9ba4-4d0d-b620-9d37896a42b9"
+storage_version_token = "1788907987716065"
+content_type = "image/jpeg"

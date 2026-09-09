@@ -49,6 +49,34 @@ $filtered = catalogProductList(['category' => $screens, 'family' => 'ipad', 'lim
 check($filtered['total'] > 0, 'Family predicate should find related products');
 $predicate = catalogProductCondition(['family' => 'iphone']);
 check(!str_contains($predicate['condition'], 'p.brand_id'), 'A device family must never become a product brand filter');
+$joyroomSkus = ['JRP005', 'JRP029', 'JRP050', 'JRP060'];
+$marks = implode(',', array_fill(0, count($joyroomSkus), '?'));
+$statement = db()->prepare(
+    "SELECT p.sku,b.name brand FROM products p JOIN brands b ON b.id=p.brand_id WHERE p.sku IN ($marks)"
+);
+$statement->execute($joyroomSkus);
+$joyroomRows = array_column($statement->fetchAll(PDO::FETCH_ASSOC), 'brand', 'sku');
+foreach ($joyroomSkus as $sku) {
+    check(($joyroomRows[$sku] ?? null) === 'Joyroom', "{$sku} manufacturer must remain Joyroom, not its compatible device brand");
+}
+$appleId = db()->query("SELECT id FROM brands WHERE LOWER(name)='apple' LIMIT 1")->fetchColumn();
+if ($appleId !== false) {
+    $statement = db()->prepare(
+        "SELECT COUNT(*) FROM products
+         WHERE brand_id=? AND (UPPER(sku) LIKE 'JRP%' OR LOWER(name) LIKE 'joyroom %')"
+    );
+    $statement->execute([(int)$appleId]);
+    check((int)$statement->fetchColumn() === 0, 'Apple manufacturer filter must exclude Joyroom products');
+    $statement = db()->prepare(
+        "SELECT COUNT(*) FROM products
+         WHERE brand_id=? AND (
+            UPPER(sku) LIKE 'PANZ%' OR LOWER(name) LIKE 'panzerglass %'
+            OR LOWER(name) LIKE 'dosdude1 %'
+         )"
+    );
+    $statement->execute([(int)$appleId]);
+    check((int)$statement->fetchColumn() === 0, 'Apple manufacturer filter must exclude other third-party makers');
+}
 try {
     catalogProductList(['family' => 'not-a-family'], null);
     throw new RuntimeException('Unknown family was not rejected');

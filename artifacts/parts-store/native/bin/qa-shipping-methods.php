@@ -57,19 +57,18 @@ shippingAssert(!in_array('swiss_post_saturday', array_column(commerceShippingMet
 shippingAssert(shippingRejects(static fn() => commerceShippingMethod('CH', 'swiss_post_saturday', $fridayAfterCutoff)), 'Saturday Delivery can be forced after cutoff.');
 shippingAssert(shippingRejects(static fn() => commerceShippingMethod('CH', 'swiss_post_saturday', $thursday)), 'Saturday Delivery can be forced on a non-Friday.');
 
-$settings = ['tax_bps' => 810];
-$priority = commerceTotals(10000, $settings, commerceShippingMethod('CH', 'swiss_post_priority', $fridayBeforeCutoff));
-$pickup = commerceTotals(10000, $settings, commerceShippingMethod('CH', 'pickup'));
-$express = commerceTotals(10000, $settings, commerceShippingMethod('DE', 'ups_express'));
+$priority = commerceTotals(10000, 'CH', commerceShippingMethod('CH', 'swiss_post_priority', $fridayBeforeCutoff));
+$pickup = commerceTotals(10000, 'CH', commerceShippingMethod('CH', 'pickup'));
+$express = commerceTotals(10000, 'DE', commerceShippingMethod('DE', 'ups_express'));
 shippingAssert($priority['shipping_cents'] === 600 && $priority['tax_cents'] === 859 && $priority['total_cents'] === 11459, 'Swiss Priority VAT arithmetic is wrong.');
 shippingAssert($pickup['shipping_cents'] === 0 && $pickup['tax_cents'] === 810 && $pickup['total_cents'] === 10810, 'Pickup VAT arithmetic is wrong.');
-shippingAssert($express['shipping_cents'] === 3000 && $express['tax_cents'] === 1053 && $express['total_cents'] === 14053, 'UPS Express VAT arithmetic is wrong.');
+shippingAssert($express['shipping_cents'] === 3000 && $express['tax_bps'] === 0 && $express['tax_cents'] === 0 && $express['total_cents'] === 13000, 'Export UPS VAT arithmetic is wrong.');
 
 $base = ['country' => 'CH', 'currency' => 'CHF', 'exchange_rate' => [], 'items' => [], 'subtotal_cents' => 10000];
 $priorityFingerprint = commerceQuoteFingerprint($base + $priority);
 $pickupFingerprint = commerceQuoteFingerprint($base + $pickup);
 shippingAssert(!hash_equals($priorityFingerprint, $pickupFingerprint), 'Shipping method is missing from the quote fingerprint.');
-$priorityAfterCutoff = commerceTotals(10000, $settings, commerceShippingMethod('CH', 'swiss_post_priority', $fridayAfterCutoff));
+$priorityAfterCutoff = commerceTotals(10000, 'CH', commerceShippingMethod('CH', 'swiss_post_priority', $fridayAfterCutoff));
 $beforeCutoffFingerprint = commerceQuoteFingerprint($base + $priority + ['shipping_methods' => commerceShippingMethods('CH', $fridayBeforeCutoff)]);
 $afterCutoffFingerprint = commerceQuoteFingerprint($base + $priorityAfterCutoff + ['shipping_methods' => commerceShippingMethods('CH', $fridayAfterCutoff)]);
 shippingAssert(!hash_equals($beforeCutoffFingerprint, $afterCutoffFingerprint), 'Saturday cutoff availability is missing from the quote fingerprint.');

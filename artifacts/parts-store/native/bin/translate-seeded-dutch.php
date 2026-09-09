@@ -42,11 +42,6 @@ const ADDRESS_VALUES = [
     'line1' => ['Voorbeeldstraat 1' => 'Example Street 1'],
 ];
 
-/** Seeded trade-in grade, visible on the buyback page. */
-const BUYBACK_GRADES = [
-    'Werkende OLED, gebroken glas — test' => 'Working OLED, broken glass — test',
-];
-
 try {
     $db = db();
 } catch (Throwable $error) {
@@ -85,24 +80,16 @@ foreach (ADDRESS_VALUES as $column => $values) {
     }
 }
 
-$renamedGrades = 0;
-foreach (BUYBACK_GRADES as $dutch => $english) {
-    $stmt = $db->prepare('UPDATE buyback_items SET grade = ? WHERE grade = ?');
-    $stmt->execute([$english, $dutch]);
-    $renamedGrades += $stmt->rowCount();
-}
-
 $leftover = $db->query(
     "SELECT name FROM categories WHERE name REGEXP '(Batterij|Laadpoort|Behuizing|Flexkabel|afdichting|Reparatiegereedschap|Hoesje|accessoire|Overige)'"
 )->fetchAll(PDO::FETCH_COLUMN);
 
 printf(
-    "seeded Dutch: %d categories, %d quality labels, %d descriptions, %d address fields and %d buyback grades translated; %d Dutch category names left.\n",
+    "seeded Dutch: %d categories, %d quality labels, %d descriptions, %d address fields; %d Dutch category names left.\n",
     $renamedCategories,
     $renamedQualities,
     $rewrittenDescriptions,
     $renamedAddresses,
-    $renamedGrades,
     count($leftover)
 );
 

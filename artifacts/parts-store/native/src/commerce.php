@@ -21,30 +21,13 @@ function commerceActiveCustomer(): array
     return $user;
 }
 
-function commerceSettings(PDO $pdo, string $currency = 'EUR'): array
+/**
+ * Swiss VAT is determined exclusively from the validated delivery country.
+ * Settings and client-provided tax values must never affect a quote or order.
+ */
+function commerceVatBps(string $country): int
 {
-    $defaults = [
-        'tax_bps' => 810,
-        'shipping_cents' => null,
-        'free_shipping_cents' => null,
-    ];
-    $shippingName = $currency === 'EUR' ? 'shipping_eur_cents' : 'shipping_cents';
-    $freeName = $currency === 'EUR' ? 'free_shipping_eur_cents' : 'free_shipping_cents';
-    $statement = $pdo->prepare(
-        'SELECT name, value FROM settings WHERE name IN (?,?,?)'
-    );
-    $statement->execute(['tax_bps', $shippingName, $freeName]);
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $target = $row['name'] === $shippingName ? 'shipping_cents'
-            : ($row['name'] === $freeName ? 'free_shipping_cents' : 'tax_bps');
-        if (ctype_digit((string) $row['value'])) {
-            $defaults[$target] = (int) $row['value'];
-        }
-    }
-    if ($defaults['shipping_cents'] === null || $defaults['free_shipping_cents'] === null) {
-        throw new HttpError(503, 'Shipping prices are not configured for the selected currency.');
-    }
-    return $defaults;
+    return currencyDeliveryCountry($country) === 'CH' ? 810 : 0;
 }
 
 function commerceSaturdayDeliveryAvailable(?DateTimeImmutable $now = null): bool
@@ -93,11 +76,24 @@ function commercePaymentEligible(PDO $pdo, int $userId, string $paymentMethod): 
     if (!in_array($paymentMethod, ['stripe', 'pay_later', 'swiss_qr_invoice'], true)) {
         return false;
     }
+    $methods = $paymentMethod === 'pay_later' ? ['pay_later', 'swiss_qr_invoice'] : [$paymentMethod];
+    $placeholders = implode(',', array_fill(0, count($methods), '?'));
     $statement = $pdo->prepare(
-        'SELECT enabled FROM customer_payment_entitlements WHERE user_id=? AND payment_method=?'
+        "SELECT MAX(enabled) FROM customer_payment_entitlements WHERE user_id=? AND payment_method IN ($placeholders)"
     );
-    $statement->execute([$userId, $paymentMethod]);
+    $statement->execute([$userId, ...$methods]);
     return (bool) $statement->fetchColumn();
+}
+
+function commercePaymentAvailableForCountry(string $paymentMethod, string $country): bool
+{
+    return $paymentMethod !== 'swiss_qr_invoice' || strtoupper($country) === 'CH';
+}
+
+function commerceResolvePayLaterMethod(string $requestedMethod, string $country): string
+{
+    if ($requestedMethod !== 'pay_later') return $requestedMethod;
+    return strtoupper($country) === 'CH' ? 'swiss_qr_invoice' : 'pay_later';
 }
 
 function commerceQrProfile(PDO $pdo, string $currency): ?array
@@ -193,15 +189,17 @@ function commerceStripeBridge(int $orderId, bool $allowPayLaterInvoice = false):
     return ['stripe_checkout_id' => (string) $response['id'], 'stripe_checkout_url' => (string) $response['url']];
 }
 
-function commerceTotals(int $subtotal, array $settings, array $shippingMethod): array
+function commerceTotals(int $subtotal, string $country, array $shippingMethod): array
 {
+    $taxBps = commerceVatBps($country);
     $shipping = (int) $shippingMethod['amount_cents'];
-    $tax = intdiv((($subtotal + $shipping) * $settings['tax_bps']) + 5000, 10000);
+    $tax = intdiv((($subtotal + $shipping) * $taxBps) + 5000, 10000);
     return [
         'subtotal_cents' => $subtotal,
         'shipping_cents' => $shipping,
         'tax_cents' => $tax,
         'total_cents' => $subtotal + $shipping + $tax,
+        'tax_bps' => $taxBps,
         'shipping_method' => $shippingMethod,
     ];
 }
@@ -250,7 +248,7 @@ function commerceCart(int $userId, int $groupId, ?string $country = null, ?strin
     }
     $shippingMethods = commerceShippingMethods($context['country']);
     $shippingMethod = commerceShippingMethod($context['country'], $shippingMethodCode);
-    $result = ['items' => $items] + commerceTotals($subtotal, commerceSettings($pdo, $context['currency']), $shippingMethod);
+    $result = ['items' => $items] + commerceTotals($subtotal, $context['country'], $shippingMethod);
     $result['shipping_methods'] = $shippingMethods;
     $result['country'] = $context['country'];
     $result['currency'] = $context['currency'];
@@ -602,13 +600,18 @@ function commerceCheckoutQuote(): never
         throw new HttpError(422, 'Your cart is empty.');
     }
     $methods = [];
-    foreach (['stripe', 'pay_later', 'swiss_qr_invoice'] as $method) {
+    foreach (['stripe', 'pay_later'] as $method) {
         if (commercePaymentEligible(db(), (int) $user['id'], $method)) {
             try {
-                $terms = commercePaymentTerms(db(), $method, (string) $cart['currency']);
-                $methods[] = ['code' => $method, 'terms' => $terms];
+                $resolvedMethod = commerceResolvePayLaterMethod($method, (string) $address['country']);
+                $terms = commercePaymentTerms(db(), $resolvedMethod, (string) $cart['currency']);
+                $methods[] = [
+                    'code' => $method,
+                    'variant' => $resolvedMethod === 'swiss_qr_invoice' ? 'swiss_qr' : $method,
+                    'terms' => $terms,
+                ];
             } catch (HttpError) {
-                // A QR grant never bypasses the required configured creditor profile.
+                // Swiss Pay Later never bypasses the required configured creditor profile.
             }
         }
     }
@@ -641,7 +644,7 @@ function commerceCheckout(): never
     $quoteToken = text($input['quote_token'] ?? '', 128);
     $paymentMethod = text($input['payment_method'] ?? '', 30);
     $shippingMethodCode = text($input['shipping_method'] ?? '', 40);
-    if (!in_array($paymentMethod, ['stripe', 'swiss_qr_invoice', 'pay_later'], true)) {
+    if (!in_array($paymentMethod, ['stripe', 'pay_later'], true)) {
         throw new HttpError(422, 'Choose a supported payment method.');
     }
     $notes = text($input['notes'] ?? '', 4000);
@@ -715,6 +718,7 @@ function commerceCheckout(): never
         if (!commercePaymentEligible($pdo, (int) $user['id'], $paymentMethod)) {
             throw new HttpError(403, 'This payment method is not enabled for your account.');
         }
+        $paymentMethod = commerceResolvePayLaterMethod($paymentMethod, (string) $address['country']);
         $paymentTerms = commercePaymentTerms($pdo, $paymentMethod, (string) currencyContext((string) $address['country'])['currency']);
         $acceptedShippingMethod = $acceptedQuote['shipping_method'] ?? null;
         if (!is_array($acceptedShippingMethod)
@@ -777,9 +781,8 @@ function commerceCheckout(): never
             $subtotal += $lineTotal;
         }
 
-        $settings = commerceSettings($pdo, $context['currency']);
         $shippingMethod = commerceShippingMethod((string) $address['country'], $shippingMethodCode);
-        $totals = commerceTotals($subtotal, $settings, $shippingMethod);
+        $totals = commerceTotals($subtotal, $context['country'], $shippingMethod);
         $recalculated = [
             'items' => $items, 'country' => $context['country'], 'currency' => $context['currency'],
             'exchange_rate' => $context['exchange_rate'],
@@ -800,9 +803,9 @@ function commerceCheckout(): never
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
         );
         $statement->execute([
-            $number, (int) $user['id'], $paymentMethod === 'pay_later' ? 'processing' : 'on_hold',
+            $number, (int) $user['id'], 'on_hold',
             $totals['subtotal_cents'], $totals['tax_cents'], $totals['shipping_cents'],
-            $totals['total_cents'], $settings['tax_bps'], $context['currency'],
+            $totals['total_cents'], $totals['tax_bps'], $context['currency'],
             $context['currency'] === 'CHF' ? $context['exchange_rate']['rate_ppm'] : null,
             $context['currency'] === 'CHF' ? $context['exchange_rate']['rate_date'] : null,
             'EUR',
@@ -841,8 +844,10 @@ function commerceCheckout(): never
         $statement = $pdo->prepare(
             'INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)'
         );
-        $initialStatus = $paymentMethod === 'pay_later' ? 'processing' : 'on_hold';
-        $label = $paymentMethod === 'stripe' ? 'Order received; awaiting payment confirmation.' : 'Order received.';
+        $initialStatus = 'on_hold';
+        $label = $paymentMethod === 'stripe'
+            ? 'Order received; awaiting card payment confirmation.'
+            : 'Order received; awaiting payment.';
         $statement->execute([$orderId, $initialStatus, $label]);
         $pdo->prepare(
             'INSERT INTO payment_attempts(order_id,payment_method,state,payload) VALUES(?,?,?,?)'
@@ -1138,7 +1143,7 @@ function commerceAdminOrders(): never
     $statement = db()->prepare(
         'SELECT o.id, o.number, o.status, o.subtotal_cents, o.tax_cents,
                 o.shipping_cents, o.shipping_method_code, o.shipping_method_name,
-                o.shipping_carrier, o.total_cents, o.created_at, o.payment_method,
+                o.shipping_carrier, o.total_cents, o.created_at, o.payment_method, o.payment_state,
                  o.tracking, o.currency, u.name AS customer_name, u.email AS customer_email
          FROM orders o JOIN users u ON u.id = o.user_id
          ORDER BY o.created_at DESC, o.id DESC'
@@ -1149,6 +1154,48 @@ function commerceAdminOrders(): never
         $statement->fetchAll(PDO::FETCH_ASSOC)
     );
     respond(['orders' => $orders]);
+}
+
+function commerceAdminOrderDetail(int $orderId): never
+{
+    requireStaff();
+    $pdo = db();
+    $statement = $pdo->prepare(
+        'SELECT o.id,o.number,o.status,o.subtotal_cents,o.tax_cents,o.shipping_cents,
+                o.shipping_method_code,o.shipping_method_name,o.shipping_carrier,o.total_cents,
+                o.tax_bps,o.currency,o.address_json,o.payment_method,o.payment_state,o.notes,
+                o.tracking,o.created_at,u.name customer_name,u.email customer_email,u.company customer_company
+         FROM orders o JOIN users u ON u.id=o.user_id WHERE o.id=?'
+    );
+    $statement->execute([$orderId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$row) throw new HttpError(404, 'Order not found.');
+    $order = commerceOrderSummary($row, true);
+    foreach (['tax_bps'] as $field) $order[$field] = (int)$row[$field];
+    foreach (['currency','notes','tracking','customer_name','customer_email','customer_company'] as $field) {
+        $order[$field] = $row[$field];
+    }
+    $statement = $pdo->prepare(
+        "SELECT oi.id,oi.product_id,oi.name,oi.sku,oi.quantity,oi.price_cents,oi.total_cents,
+                COALESCE((SELECT SUM(ri.quantity) FROM return_items ri JOIN returns r ON r.id=ri.return_id
+                          WHERE ri.order_item_id=oi.id AND r.status<>'rejected'),0) previously_returned_quantity
+         FROM order_items oi WHERE oi.order_id=? ORDER BY oi.id"
+    );
+    $statement->execute([$orderId]);
+    $items = $statement->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($items as &$item) {
+        foreach (['id','product_id','quantity','price_cents','total_cents','previously_returned_quantity'] as $field) $item[$field] = (int)$item[$field];
+        $item['available_quantity'] = max(0, $item['quantity'] - $item['previously_returned_quantity']);
+    }
+    unset($item);
+    $statement = $pdo->prepare('SELECT status,note,created_at FROM order_events WHERE order_id=? ORDER BY id DESC');
+    $statement->execute([$orderId]);
+    respond([
+        'order' => $order,
+        'items' => $items,
+        'address' => json_decode((string)$row['address_json'], true, 16, JSON_THROW_ON_ERROR),
+        'events' => $statement->fetchAll(PDO::FETCH_ASSOC),
+    ]);
 }
 
 function commerceAdminUpdateOrder(int $orderId): never
@@ -1178,7 +1225,7 @@ function commerceAdminUpdateOrder(int $orderId): never
             'processing' => ['processing', 'shipped', 'cancelled'],
             'shipped' => ['shipped', 'completed'],
             'completed' => ['completed'],
-            'cancelled' => ['cancelled'],
+            'cancelled' => ['cancelled', 'on_hold'],
         ];
         if (!in_array($newStatus, $allowed[$oldStatus] ?? [], true)) {
             throw new HttpError(409, 'That order status transition is not allowed.');
@@ -1205,6 +1252,25 @@ function commerceAdminUpdateOrder(int $orderId): never
             }
             $statement = $pdo->prepare('UPDATE orders SET stock_restored = 1 WHERE id = ?');
             $statement->execute([$orderId]);
+        }
+        if ($oldStatus === 'cancelled' && $newStatus === 'on_hold' && (bool) $order['stock_restored']) {
+            $statement = $pdo->prepare(
+                'SELECT product_id, quantity FROM order_items
+                 WHERE order_id = ? ORDER BY product_id'
+            );
+            $statement->execute([$orderId]);
+            $items = $statement->fetchAll(PDO::FETCH_ASSOC);
+            $productLock = $pdo->prepare('SELECT stock FROM products WHERE id = ? FOR UPDATE');
+            $reserve = $pdo->prepare('UPDATE products SET stock = stock - ? WHERE id = ?');
+            foreach ($items as $item) {
+                $productLock->execute([(int)$item['product_id']]);
+                $stock = $productLock->fetchColumn();
+                if ($stock === false || (int)$stock < (int)$item['quantity']) {
+                    throw new HttpError(409, 'This cancelled order cannot be reopened because a product no longer has enough stock.');
+                }
+                $reserve->execute([(int)$item['quantity'], (int)$item['product_id']]);
+            }
+            $pdo->prepare('UPDATE orders SET stock_restored = 0 WHERE id = ?')->execute([$orderId]);
         }
 
         $statement = $pdo->prepare(
@@ -1280,6 +1346,7 @@ function commerceInternalPaymentCallback(): never
     $orderNumber = text($input['order_number'] ?? '', 40);
     $state = text($input['state'] ?? '', 30);
     $providerId = text($input['checkout_session_id'] ?? '', 190);
+    $paymentIntentId = text($input['payment_intent_id'] ?? '', 190);
     $eventId = text($input['event_id'] ?? '', 190);
     $eventCreatedAt = integer($input['event_created_at'] ?? null, 1);
     if (!in_array($state, ['paid', 'failed', 'expired'], true)
@@ -1321,14 +1388,14 @@ function commerceInternalPaymentCallback(): never
                 'INSERT INTO payment_attempts(order_id,payment_method,provider_id,provider_event_id,provider_event_created_at,state,payload)
                  VALUES(?,?,?,?,?,?,?)'
             )->execute([$orderId, 'stripe', $providerId, $eventId, $eventCreatedAt, $state,
-                json_encode(['source' => 'internal_callback', 'ignored' => $isPaidTerminal ? 'paid_terminal' : 'stale'], JSON_THROW_ON_ERROR)]);
+                 json_encode(['source' => 'internal_callback', 'payment_intent_id' => $paymentIntentId, 'ignored' => $isPaidTerminal ? 'paid_terminal' : 'stale'], JSON_THROW_ON_ERROR)]);
             $pdo->commit();
             respond(['accepted' => true, 'idempotent' => false, 'ignored' => $isPaidTerminal ? 'paid_terminal' : 'stale', 'payment_state' => $order['payment_state']]);
         }
         $pdo->prepare(
             'INSERT INTO payment_attempts(order_id,payment_method,provider_id,provider_event_id,provider_event_created_at,state,payload) VALUES(?,?,?,?,?,?,?)'
         )->execute([$orderId, $order['payment_method'], $providerId, $eventId, $eventCreatedAt, $state,
-            json_encode(['source' => 'internal_callback'], JSON_THROW_ON_ERROR)]);
+            json_encode(['source' => 'internal_callback', 'payment_intent_id' => $paymentIntentId], JSON_THROW_ON_ERROR)]);
         // Callbacks intentionally update payment facts only; fulfillment status is staff-owned.
         $pdo->prepare('UPDATE orders SET payment_state=?,latest_payment_event_at=?,latest_payment_event_id=? WHERE id=?')
             ->execute([$state, $eventCreatedAt, $eventId, $orderId]);
@@ -1397,6 +1464,9 @@ function handleCommerce(string $method, string $path): bool
     }
     if ($method === 'GET' && $path === '/admin/orders') {
         commerceAdminOrders();
+    }
+    if ($method === 'GET' && preg_match('#^/admin/orders/([1-9][0-9]*)$#', $path, $matches)) {
+        commerceAdminOrderDetail((int) $matches[1]);
     }
     if ($method === 'PATCH' && preg_match('#^/admin/orders/([1-9][0-9]*)$#', $path, $matches)) {
         commerceAdminUpdateOrder((int) $matches[1]);

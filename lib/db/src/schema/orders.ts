@@ -36,6 +36,7 @@ export const ordersTable = pgTable("orders", {
     .default("0"),
   shippingAddress: text("shipping_address").notNull(),
   notes: text("notes"),
+  tracking: text("tracking"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

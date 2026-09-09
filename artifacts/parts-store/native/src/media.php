@@ -200,11 +200,13 @@ function mediaOrderDocument(int $orderId, string $kind): never
     if (($user['role'] ?? '') !== 'staff' && $kind === 'packing-slip') {
         throw new HttpError(403, 'Packing slips are available to staff only.');
     }
-    $prepaymentQrInvoice = $kind === 'invoice'
-        && (string) $order['payment_method'] === 'swiss_qr_invoice'
-        && (string) $order['status'] === 'on_hold';
-    if ($kind === 'invoice' && (string) $order['status'] !== 'completed' && !$prepaymentQrInvoice) {
-        throw new HttpError(409, 'The invoice is available after the order is completed.');
+    $invoiceAvailable = $kind !== 'invoice'
+        || (string) $order['payment_method'] === 'swiss_qr_invoice'
+        || (string) $order['payment_method'] === 'pay_later'
+        || ((string) $order['payment_method'] === 'stripe' && (string) $order['payment_state'] === 'paid')
+        || (string) $order['status'] === 'completed';
+    if (!$invoiceAvailable) {
+        throw new HttpError(409, 'The invoice is available after card payment is confirmed.');
     }
     $statement = db()->prepare('SELECT name,sku,quantity,price_cents,total_cents FROM order_items WHERE order_id = ? ORDER BY id');
     $statement->execute([$orderId]);
@@ -240,11 +242,19 @@ function mediaOrderDocument(int $orderId, string $kind): never
     if ($isInvoice) {
         $pdf->rule();
         $pdf->line('Subtotal excl. VAT: ' . mediaMoney((int) $order['subtotal_cents'], (string) $order['currency']));
-        $pdf->line(sprintf('Tax (snapshot %.2f%%): %s', ((int) $order['tax_bps']) / 100, mediaMoney((int) $order['tax_cents'], (string) $order['currency'])));
+        $taxBps = (int) $order['tax_bps'];
+        $taxLabel = $taxBps === 0
+            ? 'Swiss export VAT 0% (Art. 23(2)(1) Swiss VAT Act)'
+            : sprintf('Swiss VAT (snapshot %.2f%%)', $taxBps / 100);
+        $pdf->line($taxLabel . ': ' . mediaMoney((int) $order['tax_cents'], (string) $order['currency']));
+        if ($taxBps === 0) {
+            $pdf->line('Swiss VAT is 0% for export. Destination import VAT and duties may be charged separately.');
+        }
         $pdf->line('Shipping excl. VAT: ' . mediaMoney((int) $order['shipping_cents'], (string) $order['currency']));
         $pdf->heading('Total incl. VAT: ' . mediaMoney((int) $order['total_cents'], (string) $order['currency']), 13);
         $paymentLabels = [
-            'swiss_qr_invoice' => 'Swiss QR Invoice (payment due)',
+            'stripe' => 'Card payment',
+            'swiss_qr_invoice' => 'Pay Later (Swiss QR Code)',
             'pay_later' => 'Pay Later (payment due)',
             'test_invoice' => 'Legacy test invoice',
             'test_card' => 'Legacy test card',
@@ -303,17 +313,25 @@ function mediaCreditDocument(int $returnId): never
     if ($return === null) {
         throw new HttpError(404, 'Return not found.');
     }
-    if (!in_array((string) $return['status'], ['approved', 'credited'], true) || (int) $return['credit_cents'] <= 0) {
-        throw new HttpError(409, 'Credit note is unavailable until the return has an approved credit amount.');
+    $settlement = mediaFetchOne('SELECT * FROM return_settlements WHERE return_id=?', [$returnId]);
+    if ($settlement === null || (string)$settlement['status'] !== 'succeeded') {
+        throw new HttpError(409, 'Credit note is unavailable until the return settlement succeeds.');
     }
-    $statement = db()->prepare(
-        'SELECT oi.name,oi.sku,ri.quantity,oi.price_cents,(ri.quantity * oi.price_cents) AS line_cents '
-        . 'FROM return_items ri JOIN order_items oi ON oi.id=ri.order_item_id '
-        . 'WHERE ri.return_id = ? ORDER BY ri.id'
-    );
+    $creditNote = mediaFetchOne('SELECT * FROM customer_credit_notes WHERE settlement_id=?', [(int)$settlement['id']]);
+    $snapshot = json_decode((string)$settlement['snapshot'], true);
+    if (!is_array($snapshot) || !isset($snapshot['lines'])) throw new HttpError(409, 'The immutable settlement snapshot is unavailable.');
+    $names = [];
+    $statement = db()->prepare('SELECT ri.id,oi.name,oi.sku FROM return_items ri JOIN order_items oi ON oi.id=ri.order_item_id WHERE ri.return_id=?');
     $statement->execute([$returnId]);
-    $items = $statement->fetchAll(PDO::FETCH_ASSOC);
-    $number = 'TEST-CN-' . (string) $return['number'];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) $names[(int)$row['id']] = $row;
+    $items = [];
+    foreach ($snapshot['lines'] as $line) {
+        $source = $names[(int)($line['return_item_id'] ?? 0)] ?? null;
+        if ($source === null) continue;
+        $items[] = ['name'=>$source['name'],'sku'=>$source['sku'],'quantity'=>(int)$line['received_quantity'],
+            'price_cents'=>(int)$line['unit_net_cents'],'line_cents'=>(int)$line['net_cents']];
+    }
+    $number = 'TEST-' . ($creditNote === null ? 'REF-' . (string)$return['number'] : (string)$creditNote['number']);
     $pdf = new PdfWriter($number, 'CREDIT NOTE');
     $pdf->heading('Credited return', 18);
     $pdf->line('Credit note: ' . $number);
@@ -354,11 +372,16 @@ function mediaCreditDocument(int $returnId): never
         ));
     }
     $pdf->rule();
-    $creditedTax = (int) $return['credit_cents'] - $returnedSubtotal;
+    $creditedTax = (int)($snapshot['tax_cents'] ?? 0);
     $pdf->line('Returned item subtotal: ' . mediaMoney($returnedSubtotal, (string) $return['currency']));
     $pdf->line('Credited tax (original order allocation): ' . mediaMoney($creditedTax, (string) $return['currency']));
-    $pdf->heading('Credited amount: ' . mediaMoney((int) $return['credit_cents'], (string) $return['currency']), 13);
-    $pdf->line('This is an isolated test credit record. It does not initiate a bank transfer or card refund.');
+    $pdf->heading('Settlement amount: ' . mediaMoney((int) $settlement['amount_cents'], (string) $return['currency']), 13);
+    $pdf->line('Settlement: ' . (string)$settlement['kind'] . ' / ' . (string)$settlement['status']);
+    if ($creditNote !== null) {
+        $applied = (int)(mediaFetchOne('SELECT COALESCE(SUM(amount_cents),0) amount FROM credit_applications WHERE credit_note_id=?', [(int)$creditNote['id']])['amount'] ?? 0);
+        $pdf->line('Amount applied to original invoice: ' . mediaMoney($applied, (string)$return['currency']));
+        $pdf->line('Remaining customer account credit: ' . mediaMoney((int)$creditNote['remaining_cents'], (string)$return['currency']));
+    }
     mediaSendPdf($pdf->output(), strtolower($number) . '.pdf');
 }
 

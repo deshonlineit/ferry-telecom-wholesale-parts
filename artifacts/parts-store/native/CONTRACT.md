@@ -19,7 +19,7 @@ GET `/session` -> `{user,csrf,test_mode:true,capabilities:{live_stock:false,paym
 GET `/currency` -> current country/currency/rate context. POST `/currency` `{country}` updates the session display country. The selected checkout delivery address remains authoritative.
 POST `/auth/demo` `{persona:"customer"|"partner"}` -> `{user,csrf}` (only isolated synthetic customer personas). Staff demo is prohibited; staff must authenticate normally.
 POST `/auth/login` `{email,password}`; POST `/auth/register` `{name,email,password,company}` (pending approval); POST `/auth/logout`.
-POST `/auth/forgot` `{email}` -> generic success (reset message goes into staff-only test mail inbox). POST `/auth/reset` `{token,password}`.
+POST `/auth/forgot` `{email}` -> generic success (the isolated account-message capture remains internal and is not an Admin mailbox). POST `/auth/reset` `{token,password}`.
 GET `/catalog?category=&brand=&model=&q=&quality=&stock=&featured=&part=` -> `{categories:[{id,name,slug,count}],brands:[{id,name,count}],models:[{id,brand_id,name,count}],qualities:[string],part_types:[{id:string,name:string,description:string,category_id:number,count:number}],total}`
 Category facets additionally have `image_url` (possibly empty). With filters, category counts ignore category; brand counts ignore brand and model; model counts ignore model but honor brand; quality options ignore quality. `total` matches `/products` for the same filters. Every category, brand and model remains present (including zero counts), with no model-frequency cutoff. Without filters the full-catalog response is unchanged. Counts are distinct active products from the isolated database.
 GET `/products?q=&category=&brand=&model=&quality=&stock=&part=&sort=&page=&limit=` -> `{products:[Product],total,page,pages}`. `part` accepts only the housing subtype slugs exposed by `/catalog`; without `category` it implies the housing category, with an unrelated category it returns zero, and invalid values return HTTP 400. Housing products include `part_type:{id,name}` from the title-only classifier; other products include `part_type:null`. `housing-with-parts` means only that the title explicitly says parts/components are pre-installed, never that the housing is complete. Part-type facet counts ignore `part` but honor other filters, while switch-category counts ignore both `category` and `part`.
@@ -45,10 +45,6 @@ POST `/returns` `{order_id,reason,items:[{order_item_id,quantity}]}` -> `{return
 GET `/returns/:id` -> `{return,items:[{name,quantity,price_cents}],events:[...]}`
 GET `/documents/:orderId/invoice.pdf` -> authenticated owned PDF after fulfillment is completed, or immediately while an entitled Swiss QR order is `on_hold` so the customer can initiate payment, with TEST watermark. Swiss QR orders contain an SPC-compliant Swiss QR payment section generated from the immutable order snapshot, including creditor, debtor, exact CHF amount, `NON` reference and order information; an invalid snapshot returns 503 rather than emitting payment instructions. Customer packing slips remain forbidden; staff may still retrieve `/documents/:orderId/packing-slip.pdf`.
 GET `/documents/returns/:returnId/credit-note.pdf` -> only approved/credited owned return.
-GET `/buyback` -> `{items:[{id,model,grade,price_cents,active}]}`
-POST `/buyback/requests` `{items:[{item_id,quantity}],notes}` -> `{request:{id,number,total_cents,status}}`
-GET `/buyback/requests` -> `{requests:[...]}`
-
 ## Staff API (requireStaff)
 GET `/admin/dashboard` -> `{stats:{products,orders,customers,revenue_cents,low_stock,open_returns},recent_orders:[...],low_stock:[Product],finance:InvoiceSummary,invoice_attention:[Invoice],safety:{test_mode:true,live_connections:0}}`. Attention is limited to six unverified, overdue or open rows.
 GET `/admin/products?q=&status=all|active|archived&category=&brand=&model=&quality=&stock=&sort=&page=&limit=` same listing + canonical EUR price/cost and pricing_version, with `{status,counts:{all,active,archived},featured_total,stock_threshold}` metadata. `featured_total` is the global count of all featured products, including archived products, and is independent of listing filters and pagination. Status defaults to `all`, all existing filters/sorts compose with it, and out-of-range pages are clamped. POST `/admin/products` and PATCH `/admin/products/:id`: sku,name,description,category_id,brand_id,quality,stock,list_price_eur_cents,purchase_price_eur_cents,minimum_quantity,featured; optional `group_prices:[{group_id,price_eur_cents}]`. Price-changing PATCH requires the current pricing_version; a null group price explicitly clears the override. GET `/admin/products/:id` -> `{product,group_prices,images,model_ids}`. PATCH supports `model_ids:[int]`. DELETE archives (`active=0`), never erase order history. POST `/admin/products/:id/restore` restores an archived row and audits the action.
@@ -65,17 +61,16 @@ InvoiceSummary is `{unpaid_count,outstanding_cents,overdue_count,overdue_cents,u
 GET `/admin/returns` -> `{returns:[...customer_name]}`
 GET `/admin/returns/:id` -> `{return,items,events}` (staff only; customer detail remains ownership-scoped).
 PATCH `/admin/returns/:id` `{status:"approved"|"rejected"|"credited",note}`; compute credit from returned order-item snapshots, no arbitrary client amount; no automatic restock (damaged goods).
-GET `/admin/messages` -> `{messages:[{id,kind,payload,status,created_at}]}` (local email/outbox, never sends).
-GET `/admin/integrations` -> `{connections:[{name,mode:"isolated",status:"blocked"}],events:[...]}`.
-POST `/admin/integrations/simulate` `{event:"stock"|"shipment"|"payment"}` -> creates explicit locally simulated record; NEVER remote API.
-GET `/admin/settings` -> `{settings:{currency,tax_bps,shipping_eur_cents,free_shipping_eur_cents,low_stock_threshold,...},safety:{...}}`. Legacy CHF shipping settings remain preserved; only the explicit EUR settings are editable for current commerce.
-PATCH `/admin/settings` permitted numeric tax/shipping/threshold fields only; never allow toggling safety, currencies or external endpoints.
+GET `/admin/diagnostics?page=&limit=&severity=&category=&status=open|resolved&search=` -> staff-only, paginated redacted diagnostics and severity counts. GET/PATCH `/admin/diagnostics/:id` reads redacted detail or changes `status` to `resolved`/`open`; changes are audited.
+`messages` remains an internal isolated account/business capture mechanism (for example password recovery) and has no Admin endpoint or UI. Diagnostics never enqueue or send messages.
+GET `/admin/integrations` -> `{connections:[{name,mode:"isolated",status:"blocked"}]}`.
+POST `/admin/integrations/simulate` `{event:"stock"|"shipment"|"payment"}` -> returns explicit local simulation status; NEVER remote API or generic mailbox record.
+GET `/admin/settings` -> `{settings:{currency,low_stock_threshold,...},safety:{...}}`. VAT and shipping are delivery-country policy, not settings. Legacy tax and shipping rows may remain inert for migration compatibility.
+PATCH `/admin/settings` permits `low_stock_threshold` only; `tax_bps`, `shipping_eur_cents`, and `free_shipping_eur_cents` are explicitly rejected with 422 so stale clients cannot alter policy.
 GET `/admin/audit` -> `{events:[{id,action,entity,entity_id,details,created_at}]}`
-GET `/admin/buyback` -> `{items,requests}`. POST `/admin/buyback` / PATCH `/admin/buyback/:id` fields model,grade,price_cents,active. PATCH `/admin/buyback/requests/:id` `{status:"received"|"assessed"|"completed"|"rejected",note}`.
-
 ## File ownership
 - Main agent: bootstrap.php, auth.php, catalog.php, router.php, database/schema.sql, bin/, infra, contract, data import, safety and integration tests.
 - Commerce agent: src/commerce.php (cart, checkout, orders, addresses/profile, staff orders).
-- Operations agent: src/operations.php (staff products/customers/dashboard/settings/integrations/audit/import, returns/credits, buyback). Cooperate with media module.
+- Operations agent: src/operations.php (staff products/customers/dashboard/settings/integrations/audit/import and returns/credits). Cooperate with media module.
 - Media agent: src/media.php (uploads, document PDFs), authored PDF utility, isolated image import utility if useful.
 - Design agent: public/index.php, public/assets/* (CSS/native JS), frontend only. Split JS modules by storefront/account/staff to keep files readable. No fake buttons. Use complete API and clear errors/loading/empty states. Staff data visible only after role check. Product administration explicitly uses EUR; shopper amounts use the server response currency; history always uses the record's stored currency.

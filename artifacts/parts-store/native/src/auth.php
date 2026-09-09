@@ -122,6 +122,8 @@ function handleAuth(string $method, string $path): bool
                 $userId = (int) $pdo->lastInsertId();
                 $pdo->prepare('INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,?,?,?,?,?,?,?,?,1)')
                     ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), $addressAddition, $postalCode, $city, $country]);
+                $pdo->prepare('INSERT INTO billing_addresses(user_id,label,name,company,line1,line2,postal_code,city,country) VALUES(?,?,?,?,?,?,?,?,?)')
+                    ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), $addressAddition, $postalCode, $city, $country]);
                 $pdo->commit();
                 enqueue('registration_review', ['user_id' => $userId]);
             } catch (Throwable $error) {

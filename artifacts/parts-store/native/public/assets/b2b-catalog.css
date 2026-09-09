@@ -274,14 +274,14 @@ body:not(:has(.admin-shell)) .catalog-main > .b2b-products,
 body:not(:has(.admin-shell)) .catalog-empty-surface {
     margin: 0;
     overflow: hidden;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--catalog-shell-border, var(--border-light));
     border-radius: 10px;
     background: #fff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    box-shadow: var(--catalog-shell-shadow, 0 2px 8px rgba(15, 23, 42, 0.035));
 }
 
 body:not(:has(.admin-shell)) .catalog-main > .b2b-products {
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--catalog-shell-border, var(--border-light));
 }
 
 body:not(:has(.admin-shell)) .b2b-products-toolbar {
@@ -290,11 +290,12 @@ body:not(:has(.admin-shell)) .b2b-products-toolbar {
     padding: 7px 12px;
     align-items: center;
     justify-content: flex-end;
-    background: #f5f5f7;
-    border-bottom: 1px solid var(--border-light);
+    background: var(--catalog-header-surface, #f5f5f7);
+    border-bottom: 1px solid var(--catalog-shell-border, var(--border-light));
 }
 
 body:not(:has(.admin-shell)) .catalog-main > .b2b-products .b2b-table th {
+    background: var(--catalog-header-surface, #f5f5f7);
     border-radius: 0;
 }
 
@@ -313,7 +314,7 @@ body:not(:has(.admin-shell)) .catalog-empty-surface .empty-state {
 }
 
 .b2b-table th {
-    background: #f5f5f7;
+    background: var(--catalog-header-surface, #f5f5f7);
     font-weight: 600;
     color: var(--apple-muted);
     padding: 0.65rem 0.75rem;
@@ -324,8 +325,10 @@ body:not(:has(.admin-shell)) .catalog-empty-surface .empty-state {
     white-space: nowrap;
 }
 
-.b2b-table th:first-child { border-top-left-radius: 8px; }
-.b2b-table th:last-child { border-top-right-radius: 8px; }
+body:not(:has(.admin-shell)) .catalog-main > .b2b-products .b2b-table th:first-child,
+body:not(:has(.admin-shell)) .catalog-main > .b2b-products .b2b-table th:last-child {
+    border-radius: 0;
+}
 
 .b2b-table td {
     padding: 0.5rem 0.75rem;
