@@ -135,6 +135,7 @@ router.post("/stripe/native/checkout-session", async (req, res): Promise<void> =
   const session = await (await getUncachableStripeClient()).checkout.sessions.create(
     {
       mode: "payment",
+      payment_method_types: ["card"],
       success_url: successUrl,
       cancel_url: cancelUrl,
       client_reference_id: quote.orderId,

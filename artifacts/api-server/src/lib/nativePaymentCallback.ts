@@ -11,6 +11,7 @@ type NativePaymentUpdate = {
   order_number: string;
   checkout_session_id: string;
   payment_intent_id: string | null;
+  provider?: "stripe" | "wallee";
   state: NativePaymentState;
 };
 

@@ -162,3 +162,10 @@ timeoutMs = 20000
 [nix]
 channel = "stable-25_05"
 packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf", "mysql84", "openjpeg", "swig", "xcbuild"]
+
+[userenv]
+
+[userenv.shared]
+WALLEE_ENVIRONMENT = "PREVIEW"
+WALLEE_SPACE_ID = "24285"
+WALLEE_TWINT_PAYMENT_METHOD_CONFIGURATION_ID = "82134"

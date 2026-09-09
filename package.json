@@ -13,7 +13,8 @@
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.1",
     "stripe": "^22.6.1",
-    "stripe-replit-sync": "^1.0.0"
+    "stripe-replit-sync": "^1.0.0",
+    "wallee": "^5.5.0"
   },
   "devDependencies": {
     "csv-parse": "^7.0.1",

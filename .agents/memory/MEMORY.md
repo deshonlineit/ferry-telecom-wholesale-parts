@@ -54,7 +54,8 @@
 - [Customer account visual language](customer-account-visual-language.md) — account screens must feel like a purpose-built B2B workspace, never a generic CMS settings page.
 - [Manufacturer versus compatibility](manufacturer-vs-compatibility.md) — maker brand is independent from compatible device brands/models; unknown makers stay Universal.
 - [Customer address boundaries](customer-address-boundaries.md) — billing is independent from the multi-location shipping book; historical orders keep immutable address snapshots.
-- [RMA settlement policy](rma-settlement-policy.md) — partial returns settle via original Stripe payment or invoice credit; stock moves only by explicit disposition.
+- [RMA settlement policy](rma-settlement-policy.md) — paid returns settle via their original provider; pending refunds stay pending and stock moves only by explicit disposition.
 - [Swiss destination VAT](swiss-destination-vat.md) — CH deliveries use 8.1%; exports use 0% Swiss VAT, while historical documents keep their order snapshot.
 - [Admin diagnostics boundary](admin-diagnostics-boundary.md) — store redacted failures for staff; never route diagnostics through email, messages, or a local mailbox.
 - [Picqer fulfilment boundary](picqer-fulfilment-boundary.md) — live warehouse traffic belongs in the production API; the isolated PHP shop must never reach Picqer.
+- [Wallee payment authority](wallee-payment-authority.md) — default TWINT to PREVIEW; only an SDK reread in COMPLETED state proves payment.

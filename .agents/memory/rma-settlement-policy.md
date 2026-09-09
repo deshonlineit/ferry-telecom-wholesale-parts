@@ -8,8 +8,9 @@ and stock disposition are independent from financial settlement. Only an
 explicit Restock disposition returns units to saleable stock; quarantine and
 write-off never do.
 
-Paid Stripe merchandise is refunded through the original Stripe payment and is
-not credited until the provider confirms success. Deferred-payment returns
+Paid Stripe or Wallee/TWINT merchandise is refunded through its original
+provider payment and is not credited until the provider confirms success.
+An accepted but pending asynchronous refund must remain pending. Deferred-payment returns
 issue a numbered credit note: apply it to the originating unpaid invoice first,
 then other open invoices for the same customer and currency, oldest first. Any
 remainder stays as customer account credit.

@@ -10,6 +10,7 @@ import storageRouter from "./storage";
 import adminRouter from "./admin";
 import stripeRouter from "./stripe";
 import picqerRouter from "./picqer";
+import walleeRouter from "./wallee";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(storageRouter);
 router.use(adminRouter);
 router.use(stripeRouter);
 router.use(picqerRouter);
+router.use(walleeRouter);
 
 export default router;

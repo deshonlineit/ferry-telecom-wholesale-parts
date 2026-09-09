@@ -287,4 +287,9 @@
     Object.assign(source.de, {checkout:'Zur Kasse'});
     Object.assign(source.fr, {checkout:'Finaliser la commande'});
     Object.assign(source.it, {checkout:'Completa l’ordine'});
+    Object.assign(source.en, {twint:'TWINT',twintHelp:'Pay securely with TWINT.',});
+    Object.assign(source.nl, {twint:'TWINT',twintHelp:'Betaal veilig met TWINT.'});
+    Object.assign(source.de, {twint:'TWINT',twintHelp:'Sicher mit TWINT bezahlen.'});
+    Object.assign(source.fr, {twint:'TWINT',twintHelp:'Payez en toute sécurité avec TWINT.'});
+    Object.assign(source.it, {twint:'TWINT',twintHelp:'Paga in sicurezza con TWINT.'});
 })(window, document);

@@ -563,15 +563,15 @@ window.Router.add(/^checkout$/, async (match, root) => {
             const container = root.querySelector('#checkout-payment-methods');
             if (!container) return;
             const byCode = new Map((methods || []).map(method => [method.code || method.method, method]));
-            const codes = ['stripe', 'pay_later'];
+            const codes = ['stripe', 'twint', 'pay_later'];
             const current = container.querySelector('[name="payment_method"]:checked')?.value;
             const choices = codes.map(code => {
                 const response = byCode.get(code);
                 if (response?.hidden) return '';
                 const enabled = Boolean(response && response.enabled !== false && response.available !== false);
-                const label = response?.variant === 'swiss_qr' ? t('payLaterSwissQr') : t({stripe: 'stripe', pay_later: 'payLater'}[code]);
+                const label = response?.variant === 'swiss_qr' ? t('payLaterSwissQr') : t({stripe: 'stripe', twint: 'twint', pay_later: 'payLater'}[code]);
                 const help = response?.reason || response?.message ||
-                    (enabled ? t(response?.variant === 'swiss_qr' ? 'payLaterSwissQrHelp' : {stripe: 'stripeHelp', pay_later: 'payLaterHelp'}[code]) : t('paymentUnavailable'));
+                    (enabled ? t(response?.variant === 'swiss_qr' ? 'payLaterSwissQrHelp' : {stripe: 'stripeHelp', twint: 'twintHelp', pay_later: 'payLaterHelp'}[code]) : t('paymentUnavailable'));
                 return `<label class="payment-card ${enabled ? '' : 'disabled'}" data-payment-code="${code}">
                     <input type="radio" name="payment_method" value="${code}" ${enabled ? '' : 'disabled'} aria-describedby="payment-help-${code}">
                     <div class="address-header"><strong>${label}</strong>
@@ -748,14 +748,18 @@ window.Router.add(/^checkout$/, async (match, root) => {
             try {
                 const res = await window.Core.fetch('/checkout', { method: 'POST', body: data });
                 await window.Core.refreshCart();
-                if (data.payment_method === 'stripe') {
-                    const redirect = res.payment_bridge_url || res.payment?.bridge_url || res.payment?.redirect_url ||
-                        res.stripe_checkout_url || res.checkout_url;
+                if (data.payment_method === 'stripe' || data.payment_method === 'twint') {
+                    const redirect = data.payment_method === 'twint'
+                        ? res.wallee_payment_url
+                        : (res.payment_bridge_url || res.payment?.bridge_url || res.payment?.redirect_url ||
+                            res.stripe_checkout_url || res.checkout_url);
                     if (!redirect) throw new Error(t('stripeRedirectMissing'));
                     const target = new URL(redirect, window.location.origin);
                     const isLocalBridge = target.origin === window.location.origin;
                     const isStripeCheckout = target.protocol === 'https:' && target.hostname === 'checkout.stripe.com';
-                    if (!isLocalBridge && !isStripeCheckout) throw new Error(t('unsafePaymentRedirect'));
+                    const isWalleeCheckout = target.protocol === 'https:' &&
+                        (/(^|\.)wallee\.com$/i.test(target.hostname) || /(^|\.)app-wallee\.com$/i.test(target.hostname));
+                    if (!isLocalBridge && !isStripeCheckout && !isWalleeCheckout) throw new Error(t('unsafePaymentRedirect'));
                     window.location.assign(target.href);
                     return;
                 }

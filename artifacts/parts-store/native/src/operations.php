@@ -529,24 +529,28 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
         $target = (int)$return['subtotal_cents'] > 0 ? opMulDivFloor($priorNet + $net, $pool, (int)$return['subtotal_cents']) : 0;
         $tax = max(0, min($pool - $priorTax, $target - $priorTax)); $amount = $net + $tax;
         if ($amount <= 0) throw new HttpError(422, 'No received merchandise is available to settle.');
-        $paymentAttempt = opRow("SELECT provider_id,payload FROM payment_attempts WHERE order_id=? AND payment_method='stripe' AND state='paid' AND provider_id IS NOT NULL AND provider_id<>'' ORDER BY id DESC LIMIT 1", [(int)$return['order_id']]);
+        $paymentAttempt = opRow("SELECT provider_id,payload,payment_method FROM payment_attempts WHERE order_id=? AND payment_method IN ('stripe','twint') AND state='paid' AND provider_id IS NOT NULL AND provider_id<>'' ORDER BY id DESC LIMIT 1", [(int)$return['order_id']]);
         $paymentPayload = $paymentAttempt === null ? null : opJson($paymentAttempt['payload']);
         $paymentIntentId = is_array($paymentPayload) ? text($paymentPayload['payment_intent_id'] ?? '', 190) : '';
         $isStripe = (string)$return['payment_method'] === 'stripe' && (string)$return['payment_state'] === 'paid'
             && $paymentAttempt !== null && preg_match('/^pi_[A-Za-z0-9]+$/', $paymentIntentId) === 1;
-        if ($isStripe) {
+        $isWallee = (string)$return['payment_method'] === 'twint' && (string)$return['payment_state'] === 'paid'
+            && $paymentAttempt !== null && ctype_digit((string)$paymentAttempt['provider_id']);
+        if ($isStripe || $isWallee) {
             $paidLimit = (int)$return['total_cents'];
+            $refundKind = $isWallee ? 'twint_refund' : 'stripe_refund';
             $refunded = (int)(opRow(
                 "SELECT COALESCE(SUM(rs.amount_cents),0) amount FROM return_settlements rs
                  JOIN returns prior_return ON prior_return.id=rs.return_id
-                 WHERE rs.status='succeeded' AND rs.kind='stripe_refund' AND prior_return.order_id=?",
-                [(int)$return['order_id']]
+                  WHERE rs.status='succeeded' AND rs.kind=? AND prior_return.order_id=?",
+                [$refundKind, (int)$return['order_id']]
             )['amount'] ?? 0);
             if ($amount > $paidLimit - $refunded) throw new HttpError(409, 'Refund exceeds confirmed paid funds.');
         }
         $snapshot = ['order_id'=>(int)$return['order_id'],'order_number'=>(string)$return['order_number'],'return_id'=>$returnId,'net_cents'=>$net,'tax_cents'=>$tax,'payment_intent_id'=>$paymentIntentId,'lines'=>$snapshotLines];
-        $kind = $isStripe ? 'stripe_refund' : 'invoice_credit'; $state = $isStripe ? 'pending' : 'succeeded';
-        $pdo->prepare('INSERT INTO return_settlements(return_id,idempotency_key,kind,status,amount_cents,currency,snapshot,created_by,settled_at) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$returnId,$key,$kind,$state,$amount,(string)$return['currency'],json_encode($snapshot, JSON_THROW_ON_ERROR),$staffId,$isStripe ? null : gmdate('Y-m-d H:i:s')]);
+        $providerRefund = $isStripe || $isWallee;
+        $kind = $isStripe ? 'stripe_refund' : ($isWallee ? 'twint_refund' : 'invoice_credit'); $state = $providerRefund ? 'pending' : 'succeeded';
+        $pdo->prepare('INSERT INTO return_settlements(return_id,idempotency_key,kind,status,amount_cents,currency,snapshot,created_by,settled_at) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$returnId,$key,$kind,$state,$amount,(string)$return['currency'],json_encode($snapshot, JSON_THROW_ON_ERROR),$staffId,$providerRefund ? null : gmdate('Y-m-d H:i:s')]);
         $settlementId = (int)$pdo->lastInsertId();
         foreach ($snapshotLines as $line) {
             $pdo->prepare('INSERT INTO return_item_dispositions(return_item_id,received_quantity,restock_quantity,disposition,recorded_by) VALUES(?,?,?,?,?)')->execute([$line['return_item_id'],$line['received_quantity'],$line['restock_quantity'],$line['disposition'],$staffId]);
@@ -555,7 +559,7 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
                 $pdo->prepare("INSERT INTO return_stock_movements(return_item_id,product_id,quantity,kind,created_by) VALUES(?, ?, ?, 'restock', ?)")->execute([$line['return_item_id'],$line['product_id'],$line['restock_quantity'],$staffId]);
             }
         }
-        if (!$isStripe) {
+        if (!$providerRefund) {
             $tmp = 'TMP-CN-' . bin2hex(random_bytes(8));
             $pdo->prepare('INSERT INTO customer_credit_notes(number,user_id,order_id,return_id,settlement_id,issued_cents,remaining_cents,currency,snapshot,created_by) VALUES(?,?,?,?,?,?,?,?,?,?)')->execute([$tmp,(int)$return['user_id'],(int)$return['order_id'],$returnId,$settlementId,$amount,$amount,(string)$return['currency'],json_encode($snapshot, JSON_THROW_ON_ERROR),$staffId]);
             $noteId = (int)$pdo->lastInsertId(); $number = opNumber('CN', $noteId); $pdo->prepare('UPDATE customer_credit_notes SET number=? WHERE id=?')->execute([$number,$noteId]);
@@ -580,31 +584,36 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
             $pdo->prepare('UPDATE customer_credit_notes SET remaining_cents=? WHERE id=?')->execute([$remainingCredit,$noteId]);
             $pdo->prepare('UPDATE returns SET status="credited",credit_cents=? WHERE id=?')->execute([$amount,$returnId]);
         }
-        $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,?,?)')->execute([$returnId,$isStripe ? 'settlement_pending' : 'credited', 'Settlement ' . $kind . ' prepared by staff #' . $staffId]);
+        $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,?,?)')->execute([$returnId,$providerRefund ? 'settlement_pending' : 'credited', 'Settlement ' . $kind . ' prepared by staff #' . $staffId]);
         audit('return.settlement_' . $state, 'return', $returnId, ['settlement_id'=>$settlementId,'amount_cents'=>$amount,'by'=>$staffId]);
         $pdo->commit();
-        return ['settlement_id'=>$settlementId,'kind'=>$kind,'status'=>$state,'amount_cents'=>$amount,'bridge'=>$isStripe ? ['settlement_id'=>$settlementId,'return_id'=>$returnId,'order_id'=>(int)$return['order_id'],'order_number'=>(string)$return['order_number'],'amount_cents'=>$amount,'currency'=>(string)$return['currency'],'payment_intent_id'=>$paymentIntentId,'idempotency_key'=>$key] : null];
+        return ['settlement_id'=>$settlementId,'kind'=>$kind,'status'=>$state,'amount_cents'=>$amount,'bridge'=>($isStripe || $isWallee) ? ['kind'=>$kind,'settlement_id'=>$settlementId,'return_id'=>$returnId,'order_id'=>(int)$return['order_id'],'order_number'=>(string)$return['order_number'],'amount_cents'=>$amount,'currency'=>(string)$return['currency'],'payment_intent_id'=>$paymentIntentId,'transaction_id'=>$isWallee ? (int)$paymentAttempt['provider_id'] : null,'idempotency_key'=>$key] : null];
     } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
 }
 
-function opStripeRefundBridge(array $payload): array
+function opProviderRefundBridge(array $payload): array
 {
     $secret = getenv('NATIVE_STRIPE_BRIDGE_SECRET');
     if (!is_string($secret) || $secret === '') $secret = getenv('NATIVE_S2S_SECRET');
     if (!is_string($secret) || $secret === '') throw new HttpError(503, 'Stripe refund bridge authentication is unavailable.');
+    if (($payload['kind'] ?? '') === 'twint_refund') {
+        $request = ['transactionId'=>(int)$payload['transaction_id'],'amount'=>(int)$payload['amount_cents'],'currency'=>'CHF','idempotencyKey'=>(string)$payload['idempotency_key']];
+        $curl = curl_init('http://localhost:80/api/wallee/native/refund');
+    } else {
     $request = ['returnId'=>(string)$payload['return_id'],'settlementId'=>(string)$payload['settlement_id'],
         'orderId'=>(string)$payload['order_id'],'orderNumber'=>(string)$payload['order_number'],
         'amount'=>(int)$payload['amount_cents'],'currency'=>strtolower((string)$payload['currency']),
         'paymentIntentId'=>(string)$payload['payment_intent_id'],'idempotencyKey'=>(string)$payload['idempotency_key']];
     $curl = curl_init('http://localhost:80/api/stripe/native/refund');
-    if ($curl === false) throw new HttpError(503, 'Stripe refund bridge is unavailable.');
+    }
+    if ($curl === false) throw new HttpError(503, 'Payment-provider refund bridge is unavailable.');
     curl_setopt_array($curl, [CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>15,CURLOPT_HTTPHEADER=>['Content-Type: application/json','X-Native-Stripe-Bridge-Secret: '.$secret],CURLOPT_POSTFIELDS=>json_encode($request, JSON_THROW_ON_ERROR)]);
     $raw = curl_exec($curl); $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE); $error = curl_error($curl); curl_close($curl);
-    if (!is_string($raw) || $status < 200 || $status >= 300) return ['ok'=>false,'error'=>'Stripe refund bridge failed (HTTP '.$status.($error !== '' ? ')' : ')')];
-    $response = json_decode($raw, true); return is_array($response) ? ['ok'=>true,'response'=>$response] : ['ok'=>false,'error'=>'Stripe refund bridge returned invalid JSON.'];
+    if (!is_string($raw) || $status < 200 || $status >= 300) return ['ok'=>false,'error'=>'Payment-provider refund bridge failed (HTTP '.$status.($error !== '' ? ')' : ')')];
+    $response = json_decode($raw, true); return is_array($response) ? ['ok'=>true,'response'=>$response] : ['ok'=>false,'error'=>'Payment-provider refund bridge returned invalid JSON.'];
 }
 
-function opFinalizeStripeSettlement(int $settlementId, array $bridge, int $staffId): array
+function opFinalizeProviderSettlement(int $settlementId, array $bridge, int $staffId): array
 {
     $pdo = db(); $pdo->beginTransaction();
     try {
@@ -612,16 +621,21 @@ function opFinalizeStripeSettlement(int $settlementId, array $bridge, int $staff
         if ($s === null) throw new HttpError(404, 'Settlement not found.');
         if ((string)$s['status'] !== 'pending') { $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>$s['status'],'kind'=>$s['kind']]; }
         if (!($bridge['ok'] ?? false)) {
-            $pdo->prepare('UPDATE return_settlements SET status="failed",error_message=? WHERE id=?')->execute([text($bridge['error'] ?? 'Stripe refund failed.', 1000),$settlementId]);
-            $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"settlement_failed",?)')->execute([(int)$s['return_id'],'Stripe refund failed; retry with the same settlement idempotency key.']);
-            $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>'failed','kind'=>'stripe_refund'];
+            $pdo->prepare('UPDATE return_settlements SET status="failed",error_message=? WHERE id=?')->execute([text($bridge['error'] ?? 'Provider refund failed.', 1000),$settlementId]);
+            $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"settlement_failed",?)')->execute([(int)$s['return_id'],'Provider refund failed; retry with the same settlement idempotency key.']);
+            $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>'failed','kind'=>(string)$s['kind']];
         }
         $ref = text(($bridge['response']['id'] ?? $bridge['response']['refund_id'] ?? ''), 190);
+        if (($s['kind'] ?? '') === 'twint_refund' && strtoupper((string)($bridge['response']['status'] ?? 'PENDING')) !== 'SUCCESSFUL') {
+            $pdo->prepare('UPDATE return_settlements SET provider_reference=?,error_message=? WHERE id=?')->execute([$ref === '' ? null : $ref,'Wallee accepted the refund; completion remains pending.', $settlementId]);
+            $pdo->commit();
+            return ['settlement_id'=>$settlementId,'status'=>'pending','kind'=>'twint_refund'];
+        }
         $pdo->prepare('UPDATE return_settlements SET status="succeeded",provider_reference=?,settled_at=UTC_TIMESTAMP() WHERE id=?')->execute([$ref === '' ? null : $ref,$settlementId]);
         $pdo->prepare('UPDATE returns SET status="credited",credit_cents=? WHERE id=?')->execute([(int)$s['amount_cents'],(int)$s['return_id']]);
-        $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"credited",?)')->execute([(int)$s['return_id'],'Stripe refund settled by staff #'.$staffId]);
+        $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"credited",?)')->execute([(int)$s['return_id'],'Provider refund settled by staff #'.$staffId]);
         audit('return.settlement_succeeded', 'return', (int)$s['return_id'], ['settlement_id'=>$settlementId,'by'=>$staffId]);
-        $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>'succeeded','kind'=>'stripe_refund'];
+        $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>'succeeded','kind'=>(string)$s['kind']];
     } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
 }
 
@@ -682,8 +696,8 @@ function opReturns(string $method, string $path): bool
         $staff = requireStaff();
         $result = opSettleReturn(opId($match[1]), body(), (int)$staff['id']);
         if (($result['bridge'] ?? null) !== null) {
-            $bridge = opStripeRefundBridge($result['bridge']);
-            $result = opFinalizeStripeSettlement((int)$result['settlement_id'], $bridge, (int)$staff['id']);
+            $bridge = opProviderRefundBridge($result['bridge']);
+            $result = opFinalizeProviderSettlement((int)$result['settlement_id'], $bridge, (int)$staff['id']);
         }
         respond(['return' => opReturnDetail(opId($match[1])), 'settlement' => $result]);
     }
@@ -1302,7 +1316,7 @@ function opAdminGeneral(string $method, string $path): bool
         if (array_key_exists('payment_entitlements', $input)) {
             if (!is_array($input['payment_entitlements'])) throw new HttpError(422, 'Payment entitlements must be an object.');
             foreach ($input['payment_entitlements'] as $method => $enabled) {
-                if (!is_string($method) || !in_array($method, ['stripe', 'pay_later', 'swiss_qr_invoice'], true)
+                if (!is_string($method) || !in_array($method, ['stripe', 'twint', 'pay_later', 'swiss_qr_invoice'], true)
                     || !is_bool($enabled)) throw new HttpError(422, 'Invalid payment entitlement.');
                 db()->prepare(
                     'INSERT INTO customer_payment_entitlements(user_id,payment_method,enabled,granted_by,granted_at,revoked_by,revoked_at)

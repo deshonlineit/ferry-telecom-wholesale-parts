@@ -24,7 +24,7 @@ if (strlen($password) < 16 || !in_array($role, ['customer', 'staff'], true) || !
 db()->prepare("INSERT INTO users(name,email,password_hash,company,role,group_id,status) VALUES('QA fixture',?,?, 'QA isolated test',?,?,'active')")
     ->execute([$email, password_hash($password, PASSWORD_DEFAULT), $role, $group]);
 $id = (int) db()->lastInsertId();
-$allowedEntitlements = ['stripe', 'pay_later', 'swiss_qr_invoice'];
+$allowedEntitlements = ['stripe', 'twint', 'pay_later', 'swiss_qr_invoice'];
 foreach (($input['payment_entitlements'] ?? []) as $paymentMethod) {
     if (!is_string($paymentMethod) || !in_array($paymentMethod, $allowedEntitlements, true)) {
         throw new RuntimeException('Invalid QA payment entitlement.');

@@ -74,7 +74,7 @@ function commerceShippingMethod(string $country, ?string $requestedCode = null, 
 
 function commercePaymentEligible(PDO $pdo, int $userId, string $paymentMethod): bool
 {
-    if (!in_array($paymentMethod, ['stripe', 'pay_later', 'swiss_qr_invoice'], true)) {
+    if (!in_array($paymentMethod, ['stripe', 'twint', 'pay_later', 'swiss_qr_invoice'], true)) {
         return false;
     }
     $methods = $paymentMethod === 'pay_later' ? ['pay_later', 'swiss_qr_invoice'] : [$paymentMethod];
@@ -88,7 +88,7 @@ function commercePaymentEligible(PDO $pdo, int $userId, string $paymentMethod): 
 
 function commercePaymentAvailableForCountry(string $paymentMethod, string $country): bool
 {
-    return $paymentMethod !== 'swiss_qr_invoice' || strtoupper($country) === 'CH';
+    return !in_array($paymentMethod, ['swiss_qr_invoice', 'twint'], true) || strtoupper($country) === 'CH';
 }
 
 function commerceResolvePayLaterMethod(string $requestedMethod, string $country): string
@@ -104,7 +104,7 @@ function commerceQrProfile(PDO $pdo, string $currency): ?array
 
 function commercePaymentTerms(PDO $pdo, string $method, string $currency): ?array
 {
-    if ($method === 'stripe') return null;
+    if (in_array($method, ['stripe', 'twint'], true)) return null;
     if ($method === 'swiss_qr_invoice') {
         $profile = commerceQrProfile($pdo, $currency);
         if ($profile === null) throw new HttpError(503, 'QR invoice payment is unavailable until a creditor profile is configured.');
@@ -188,6 +188,39 @@ function commerceStripeBridge(int $orderId, bool $allowPayLaterInvoice = false):
          WHERE id=? AND provider_event_id IS NULL"
     )->execute([(string) $response['id'], (int) $attemptId]);
     return ['stripe_checkout_id' => (string) $response['id'], 'stripe_checkout_url' => (string) $response['url']];
+}
+
+function commerceWalleeBridge(int $orderId): array
+{
+    $pdo = db();
+    $order = $pdo->prepare('SELECT id,number,currency,total_cents,payment_method FROM orders WHERE id=?');
+    $order->execute([$orderId]); $row = $order->fetch(PDO::FETCH_ASSOC);
+    if (!$row || $row['payment_method'] !== 'twint' || $row['currency'] !== 'CHF') throw new HttpError(409, 'This order is not eligible for TWINT payment.');
+    $attempt = $pdo->prepare("SELECT id,provider_id FROM payment_attempts WHERE order_id=? AND payment_method='twint' AND state='pending' ORDER BY id DESC LIMIT 1");
+    $attempt->execute([$orderId]); $attemptRow = $attempt->fetch(PDO::FETCH_ASSOC);
+    if (!$attemptRow) throw new HttpError(409, 'No active TWINT payment attempt exists.');
+    $attemptId = (int)$attemptRow['id'];
+    $lines = $pdo->prepare('SELECT name,sku,quantity,price_cents AS unitAmountCents FROM order_items WHERE order_id=? ORDER BY id');
+    $lines->execute([$orderId]);
+    $secret = getenv('NATIVE_S2S_SECRET');
+    if (!is_string($secret) || $secret === '') throw new HttpError(503, 'Wallee bridge authentication is unavailable.');
+    $payload = json_encode([
+        'orderId'=>(string)$row['id'],
+        'attemptId'=>(string)$attemptId,
+        'orderNumber'=>(string)$row['number'],
+        'currency'=>'chf',
+        'totalCents'=>(int)$row['total_cents'],
+        'lines'=>$lines->fetchAll(PDO::FETCH_ASSOC),
+    ] + ((string)($attemptRow['provider_id'] ?? '') !== '' ? ['transactionId'=>(int)$attemptRow['provider_id']] : []), JSON_THROW_ON_ERROR);
+    $curl = curl_init('http://localhost:80/api/wallee/native/checkout');
+    if ($curl === false) throw new HttpError(503, 'Wallee bridge is unavailable.');
+    curl_setopt_array($curl, [CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>15,CURLOPT_HTTPHEADER=>['Content-Type: application/json','X-Native-Stripe-Bridge-Secret: '.$secret],CURLOPT_POSTFIELDS=>$payload]);
+    $raw=curl_exec($curl); $status=(int)curl_getinfo($curl,CURLINFO_RESPONSE_CODE); curl_close($curl);
+    if (!is_string($raw) || $status<200 || $status>=300) throw new HttpError(502, 'The TWINT payment page is temporarily unavailable. Retry without creating a duplicate.');
+    $response=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+    if (!is_array($response) || !isset($response['id'],$response['url'])) throw new HttpError(502, 'Wallee returned an invalid payment response.');
+    $pdo->prepare('UPDATE payment_attempts SET provider_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND provider_event_id IS NULL')->execute([(string)$response['id'],(int)$attemptId]);
+    return ['wallee_transaction_id'=>(string)$response['id'],'wallee_payment_url'=>(string)$response['url']];
 }
 
 function commerceTotals(int $subtotal, string $country, array $shippingMethod): array
@@ -601,9 +634,10 @@ function commerceCheckoutQuote(): never
         throw new HttpError(422, 'Your cart is empty.');
     }
     $methods = [];
-    foreach (['stripe', 'pay_later'] as $method) {
+    foreach (['stripe', 'twint', 'pay_later'] as $method) {
         if (commercePaymentEligible(db(), (int) $user['id'], $method)) {
             try {
+                if (!commercePaymentAvailableForCountry($method, (string) $address['country'])) continue;
                 $resolvedMethod = commerceResolvePayLaterMethod($method, (string) $address['country']);
                 $terms = commercePaymentTerms(db(), $resolvedMethod, (string) $cart['currency']);
                 $methods[] = [
@@ -645,7 +679,7 @@ function commerceCheckout(): never
     $quoteToken = text($input['quote_token'] ?? '', 128);
     $paymentMethod = text($input['payment_method'] ?? '', 30);
     $shippingMethodCode = text($input['shipping_method'] ?? '', 40);
-    if (!in_array($paymentMethod, ['stripe', 'pay_later'], true)) {
+    if (!in_array($paymentMethod, ['stripe', 'twint', 'pay_later'], true)) {
         throw new HttpError(422, 'Choose a supported payment method.');
     }
     $notes = text($input['notes'] ?? '', 4000);
@@ -668,7 +702,9 @@ function commerceCheckout(): never
         ]];
         $method = db()->prepare('SELECT payment_method FROM orders WHERE id=?');
         $method->execute([(int) $existingReplay['id']]);
-        if ($method->fetchColumn() === 'stripe') $response += commerceStripeBridge((int) $existingReplay['id']);
+        $methodName = $method->fetchColumn();
+        if ($methodName === 'stripe') $response += commerceStripeBridge((int) $existingReplay['id']);
+        if ($methodName === 'twint') $response += commerceWalleeBridge((int) $existingReplay['id']);
         respond($response);
     }
     startSession();
@@ -708,7 +744,9 @@ function commerceCheckout(): never
             ]];
             $method = $pdo->prepare('SELECT payment_method FROM orders WHERE id=?');
             $method->execute([(int) $existing['id']]);
-            if ($method->fetchColumn() === 'stripe') $response += commerceStripeBridge((int) $existing['id']);
+            $methodName = $method->fetchColumn();
+            if ($methodName === 'stripe') $response += commerceStripeBridge((int) $existing['id']);
+            if ($methodName === 'twint') $response += commerceWalleeBridge((int) $existing['id']);
             respond($response);
         }
 
@@ -720,6 +758,9 @@ function commerceCheckout(): never
             throw new HttpError(403, 'This payment method is not enabled for your account.');
         }
         $paymentMethod = commerceResolvePayLaterMethod($paymentMethod, (string) $address['country']);
+        if (!commercePaymentAvailableForCountry($paymentMethod, (string) $address['country'])) {
+            throw new HttpError(422, 'This payment method is unavailable for the delivery country.');
+        }
         $paymentTerms = commercePaymentTerms($pdo, $paymentMethod, (string) currencyContext((string) $address['country'])['currency']);
         $acceptedShippingMethod = $acceptedQuote['shipping_method'] ?? null;
         if (!is_array($acceptedShippingMethod)
@@ -816,7 +857,7 @@ function commerceCheckout(): never
             'EUR',
             json_encode($addressSnapshot, JSON_THROW_ON_ERROR),
              $shippingMethod['code'], $shippingMethod['label'], $shippingMethod['carrier'],
-              $paymentMethod, $paymentMethod === 'stripe' ? 'pending' : 'open',
+              $paymentMethod, in_array($paymentMethod, ['stripe', 'twint'], true) ? 'pending' : 'open',
               $paymentTerms['reference_type'] ?? null, $paymentTerms['reference'] ?? null,
               $paymentTerms === null ? null : json_encode($paymentTerms, JSON_THROW_ON_ERROR),
               json_encode([
@@ -857,7 +898,7 @@ function commerceCheckout(): never
         $statement->execute([$orderId, $initialStatus, $label]);
         $pdo->prepare(
             'INSERT INTO payment_attempts(order_id,payment_method,state,payload) VALUES(?,?,?,?)'
-        )->execute([$orderId, $paymentMethod, $paymentMethod === 'stripe' ? 'pending' : 'open',
+        )->execute([$orderId, $paymentMethod, in_array($paymentMethod, ['stripe', 'twint'], true) ? 'pending' : 'open',
             json_encode(['created_by' => 'checkout'], JSON_THROW_ON_ERROR)]);
         $statement = $pdo->prepare('DELETE FROM cart_items WHERE user_id = ?');
         $statement->execute([(int) $user['id']]);
@@ -874,9 +915,10 @@ function commerceCheckout(): never
             'status' => $initialStatus,
             'currency' => $context['currency'],
         ];
-        if ($paymentMethod === 'stripe') $responseOrder['customer_status_label'] = 'Order Received';
+        if (in_array($paymentMethod, ['stripe', 'twint'], true)) $responseOrder['customer_status_label'] = 'Order Received';
         $response = ['order' => $responseOrder];
         if ($paymentMethod === 'stripe') $response += commerceStripeBridge($orderId);
+        if ($paymentMethod === 'twint') $response += commerceWalleeBridge($orderId);
         respond($response);
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) {
@@ -1340,6 +1382,9 @@ function commerceInternalQuoteValidation(): never
     if (!$user->fetchColumn() || !commercePaymentEligible(db(), $userId, $method)) {
         throw new HttpError(403, 'Payment method is not eligible for this customer.');
     }
+    if ($method === 'twint' && $currency !== 'CHF') {
+        throw new HttpError(422, 'TWINT requires CHF.');
+    }
     $terms = commercePaymentTerms(db(), $method, $currency);
     respond(['valid' => true, 'payment_method' => $method, 'terms' => $terms]);
 }
@@ -1352,6 +1397,7 @@ function commerceInternalPaymentCallback(): never
     $orderNumber = text($input['order_number'] ?? '', 40);
     $state = text($input['state'] ?? '', 30);
     $providerId = text($input['checkout_session_id'] ?? '', 190);
+    $providerMethod = text($input['provider'] ?? 'stripe', 20);
     $paymentIntentId = text($input['payment_intent_id'] ?? '', 190);
     $eventId = text($input['event_id'] ?? '', 190);
     $eventCreatedAt = integer($input['event_created_at'] ?? null, 1);
@@ -1366,15 +1412,18 @@ function commerceInternalPaymentCallback(): never
         $orderStatement->execute([$orderId]);
         $order = $orderStatement->fetch(PDO::FETCH_ASSOC);
         if (!$order || !hash_equals((string) $order['number'], $orderNumber)) throw new HttpError(404, 'Order not found.');
-        if (!in_array($order['payment_method'], ['stripe', 'pay_later'], true)) {
-            throw new HttpError(409, 'Order does not support Stripe payment.');
+        if (!in_array($providerMethod, ['stripe', 'wallee'], true)
+            || ($providerMethod === 'wallee' && $order['payment_method'] !== 'twint')
+            || ($providerMethod === 'stripe' && !in_array($order['payment_method'], ['stripe', 'pay_later'], true))) {
+            throw new HttpError(409, 'Provider does not belong to this order.');
         }
+        $methodName = $providerMethod === 'wallee' ? 'twint' : 'stripe';
         $provider = $pdo->prepare(
             "SELECT id FROM payment_attempts
-             WHERE order_id=? AND payment_method='stripe' AND provider_id=?
+             WHERE order_id=? AND payment_method=? AND provider_id=?
              ORDER BY id DESC LIMIT 1 FOR UPDATE"
         );
-        $provider->execute([$orderId, $providerId]);
+        $provider->execute([$orderId, $methodName, $providerId]);
         $providerAttemptId = $provider->fetchColumn();
         if ($providerAttemptId === false) throw new HttpError(409, 'Checkout Session does not belong to this order.');
         $existing = $pdo->prepare('SELECT id,order_id,state FROM payment_attempts WHERE provider_event_id=? FOR UPDATE');
@@ -1393,14 +1442,14 @@ function commerceInternalPaymentCallback(): never
             $pdo->prepare(
                 'INSERT INTO payment_attempts(order_id,payment_method,provider_id,provider_event_id,provider_event_created_at,state,payload)
                  VALUES(?,?,?,?,?,?,?)'
-            )->execute([$orderId, 'stripe', $providerId, $eventId, $eventCreatedAt, $state,
+            )->execute([$orderId, $methodName, $providerId, $eventId, $eventCreatedAt, $state,
                  json_encode(['source' => 'internal_callback', 'payment_intent_id' => $paymentIntentId, 'ignored' => $isPaidTerminal ? 'paid_terminal' : 'stale'], JSON_THROW_ON_ERROR)]);
             $pdo->commit();
             respond(['accepted' => true, 'idempotent' => false, 'ignored' => $isPaidTerminal ? 'paid_terminal' : 'stale', 'payment_state' => $order['payment_state']]);
         }
         $pdo->prepare(
             'INSERT INTO payment_attempts(order_id,payment_method,provider_id,provider_event_id,provider_event_created_at,state,payload) VALUES(?,?,?,?,?,?,?)'
-        )->execute([$orderId, $order['payment_method'], $providerId, $eventId, $eventCreatedAt, $state,
+        )->execute([$orderId, $methodName, $providerId, $eventId, $eventCreatedAt, $state,
             json_encode(['source' => 'internal_callback', 'payment_intent_id' => $paymentIntentId], JSON_THROW_ON_ERROR)]);
         // Callbacks intentionally update payment facts only; fulfillment status is staff-owned.
         $pdo->prepare('UPDATE orders SET payment_state=?,latest_payment_event_at=?,latest_payment_event_id=? WHERE id=?')
