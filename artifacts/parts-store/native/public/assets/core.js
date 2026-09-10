@@ -275,6 +275,17 @@ window.Router = {
         }
         if (!path) path = '';
 
+        // An admin URL is also the entry point for staff. Sending an
+        // unauthenticated visitor to the storefront hid the login path and
+        // made /admin appear broken. Route every non-staff session to sign-in;
+        // the login handler sends a successful staff login back to /admin.
+        if (path.startsWith('admin') && (!window.Core.user || window.Core.user.role !== 'staff')) {
+            const loginPath = window.APP_BASE + 'login';
+            if (location.pathname !== loginPath) {
+                return this.navigate(loginPath);
+            }
+        }
+
         // Keep header search mode stable while asynchronous route content loads.
         // Inferring this from page descendants caused a visible full-search flash
         // between removing the homepage and mounting the catalogue.
