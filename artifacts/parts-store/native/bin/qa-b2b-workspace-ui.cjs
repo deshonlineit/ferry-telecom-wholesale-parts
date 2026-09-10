@@ -476,6 +476,29 @@ async function main() {
             return true;
         })()`);
         await waitFor("window.Core.user && window.Core.user.role === 'staff'", 'the staff session');
+
+        const adminRoutes = [
+            ['admin', 'dashboard'],
+            ['admin/products', 'products'],
+            ['admin/prices', 'prices'],
+            ['admin/orders', 'orders'],
+            ['admin/invoices', 'invoices'],
+            ['admin/customers', 'customers'],
+            ['admin/returns', 'returns'],
+            ['admin/settings', 'settings'],
+            ['admin/diagnostics', 'diagnostics'],
+            ['admin/integrations', 'integrations'],
+            ['admin/audit', 'audit log'],
+        ];
+        for (const [route, label] of adminRoutes) {
+            await visit(route);
+            await waitFor("document.querySelector('.admin-shell .admin-main h1')", `the ${label} admin screen`);
+            check(true, `The ${label} admin screen loads in the shared compact workspace`);
+            if (['admin', 'admin/products', 'admin/invoices', 'admin/customers'].includes(route)) {
+                await shoot(`12-admin-${label.replace(/\\s+/g, '-')}`);
+            }
+        }
+
         await visit('admin/products/new');
         await waitFor("document.querySelector('.product-editor-layout')", 'the redesigned product editor');
         check(await evaluate("document.querySelectorAll('.editor-card').length >= 5"),
@@ -507,6 +530,12 @@ async function main() {
         await waitFor("document.querySelector('.product-editor-layout')", 'the mobile product editor');
         check(await evaluate("getComputedStyle(document.querySelector('.product-editor-layout')).gridTemplateColumns.split(' ').length === 1"),
             'The product editor collapses to one readable column on mobile');
+        await evaluate("document.querySelector('.admin-mobile-menu-toggle').click()");
+        check(await evaluate("document.querySelector('#admin-sidebar').classList.contains('open')"),
+            'The mobile administration menu opens from the compact header');
+        await evaluate("document.body.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true}))");
+        check(!await evaluate("document.querySelector('#admin-sidebar').classList.contains('open')"),
+            'Escape closes the mobile administration menu');
         await shoot('14-admin-product-editor-mobile');
 
         check(pageErrors.length === 0,

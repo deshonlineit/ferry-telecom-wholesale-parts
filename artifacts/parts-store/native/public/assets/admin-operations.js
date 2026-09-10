@@ -102,7 +102,7 @@ window.Router.add(/^admin\/returns\/(\d+)$/, async (match, root) => {
             <h1>Return RMA: ${esc(r.number)}</h1>
         </div>
         
-        <div class="card" style="margin-bottom:2rem">
+        <div class="card" style="margin-bottom:2rem; padding: 1.5rem;">
             <div class="grid-cols-2" style="margin-bottom:1rem;">
                 <div><div class="data-label">Current Status</div><div class="data-value">${window.Workbench.badge(r.status)}</div></div>
                 <div><div class="data-label">Request Date</div><div class="data-value">${new Date(r.created_at).toLocaleDateString()}</div></div>
@@ -119,7 +119,7 @@ window.Router.add(/^admin\/returns\/(\d+)$/, async (match, root) => {
             <table class="data-table"><thead><tr><th>Product</th><th>Price (per part)</th><th>Quantity</th></tr></thead><tbody>${itemsHtml}</tbody></table>
         </div>
         
-        <div class="card" style="margin-top:2rem">
+        <div class="card" style="margin-top:2rem; padding: 1.5rem;">
             <h3 class="form-section-title">Log & History</h3>
             <ul style="padding-left:1.5rem; font-size:0.875rem; margin-bottom:0;">
                 ${data.events.map(e => `<li style="margin-bottom:0.5rem"><strong>${new Date(e.created_at).toLocaleString()}</strong> - Status changed to: <strong>${window.Workbench.statusMap[e.status]?.label || e.status}</strong>. ${e.note ? `<br><span style="color:var(--wb-text-muted)">${esc(e.note)}</span>` : ''}</li>`).join('')}
@@ -157,11 +157,11 @@ window.Router.add(/^admin\/diagnostics$/, async (match, root, query) => {
             <h1>Diagnostics</h1>
         </div>
         <p class="text-muted" style="margin-bottom:1rem">${countText}</p>
-        <form class="card" style="margin-bottom:1rem; display:flex; gap:.75rem; flex-wrap:wrap" method="get">
-          <select name="severity"><option value="">All severities</option>${['debug','info','warning','error','critical'].map(x => `<option ${selected('severity') === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
-          <select name="status"><option value="">All statuses</option><option value="open" ${selected('status') === 'open' ? 'selected' : ''}>Open</option><option value="resolved" ${selected('status') === 'resolved' ? 'selected' : ''}>Resolved</option></select>
-          <input name="search" value="${selected('search')}" placeholder="Reference, category or summary">
-          <button class="btn btn-primary">Filter</button>
+        <form class="admin-toolbar" style="margin-bottom:1.5rem;" method="get">
+          <div class="form-group"><select class="form-control" name="severity"><option value="">All severities</option>${['debug','info','warning','error','critical'].map(x => `<option ${selected('severity') === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+          <div class="form-group"><select class="form-control" name="status"><option value="">All statuses</option><option value="open" ${selected('status') === 'open' ? 'selected' : ''}>Open</option><option value="resolved" ${selected('status') === 'resolved' ? 'selected' : ''}>Resolved</option></select></div>
+          <div class="form-group"><input class="form-control" name="search" value="${selected('search')}" placeholder="Reference, category or summary"></div>
+          <button class="btn btn-primary" style="flex:0 0 auto">Filter</button>
         </form>
         <div class="table-responsive">
             <table class="data-table">
@@ -182,7 +182,7 @@ window.Router.add(/^admin\/diagnostics$/, async (match, root, query) => {
         try {
             const result = await window.Core.fetch('/admin/diagnostics/' + detailId);
             const d = result.diagnostic;
-            panel.innerHTML = `<div class="card" style="margin-top:1rem"><h3>${esc(d.reference)}</h3><p>${esc(d.summary)}</p><dl><dt>Request</dt><dd>${esc(d.request_method || '')} ${esc(d.request_path || '')}</dd><dt>Occurred</dt><dd>${esc(d.occurred_at)}</dd><dt>Category</dt><dd>${esc(d.category)}</dd></dl><pre style="white-space:pre-wrap;word-break:break-word">${esc(JSON.stringify(d.context_json, null, 2))}</pre><button class="btn btn-outline" id="diagnostic-toggle">${d.resolved_at ? 'Reopen' : 'Resolve'}</button></div>`;
+            panel.innerHTML = `<div class="card" style="margin-top:1rem; padding: 1.5rem;"><h3>${esc(d.reference)}</h3><p>${esc(d.summary)}</p><dl><dt>Request</dt><dd>${esc(d.request_method || '')} ${esc(d.request_path || '')}</dd><dt>Occurred</dt><dd>${esc(d.occurred_at)}</dd><dt>Category</dt><dd>${esc(d.category)}</dd></dl><pre style="white-space:pre-wrap;word-break:break-word;background:var(--wb-surface-hover);padding:1rem;border-radius:var(--wb-radius);border:1px solid var(--wb-border);">${esc(JSON.stringify(d.context_json, null, 2))}</pre><button class="btn btn-outline" id="diagnostic-toggle" style="margin-top:1rem;">${d.resolved_at ? 'Reopen' : 'Resolve'}</button></div>`;
             panel.querySelector('#diagnostic-toggle').onclick = async () => {
                 await window.Core.fetch('/admin/diagnostics/' + d.id, {method:'PATCH', body:{status:d.resolved_at ? 'open' : 'resolved'}});
                 window.Router.navigate(window.APP_BASE + 'admin/diagnostics?detail=' + d.id);

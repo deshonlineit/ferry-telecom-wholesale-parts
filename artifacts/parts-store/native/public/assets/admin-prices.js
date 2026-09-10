@@ -203,10 +203,10 @@
             ${rateBannerHtml}
             
             <form id="prices-filter-form" class="prices-toolbar" style="margin: 1.5rem 0;">
-                <input type="text" name="q" value="${esc(q)}" placeholder="Search by SKU or name..." style="flex:1; min-width:200px;">
-                <select name="category"><option value="">All Categories</option>${catsHtml}</select>
+                <div class="form-group" style="flex: 2; min-width: 200px;"><input type="text" name="q" class="form-control" value="${esc(q)}" placeholder="Search by SKU or name..."></div>
+                <div class="form-group"><select name="category" class="form-control"><option value="">All Categories</option>${catsHtml}</select></div>
                 <button type="submit" class="btn btn-outline">Filter</button>
-                <a href="${window.APP_BASE}admin/prices" class="btn btn-outline" style="border:none">Clear</a>
+                <a href="${window.APP_BASE}admin/prices" class="btn btn-outline">Clear</a>
             </form>
 
             <div class="prices-grid-container">

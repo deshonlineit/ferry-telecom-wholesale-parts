@@ -148,7 +148,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                                     <input type="text" inputmode="decimal" name="purchase_price_eur" value="${p.purchase_price_eur_cents != null ? (p.purchase_price_eur_cents / 100).toFixed(2) : ''}" placeholder="0.00">
                                 </div>
                             </div>
-                            <hr style="border:0; border-top:1px solid #e2e8f0; margin:1.5rem 0;">
+                            <hr style="border:0; border-top:1px solid var(--wb-border); margin:1.5rem 0;">
                             <div class="editor-form-group">
                                 <label>Customer Group Prices</label>
                                 <p class="editor-help-text" style="margin-bottom: 1rem;">Every customer group needs its own explicit price before this product can be published.</p>
@@ -216,7 +216,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                                 </select>
                                 <div class="editor-help-text">Publishing requires SKU, name, category, brand, and a price for every customer group.</div>
                             </div>
-                            <hr style="border:0; border-top:1px solid #e2e8f0; margin:1rem 0;">
+                            <hr style="border:0; border-top:1px solid var(--wb-border); margin:1rem 0;">
                             <label class="checkbox-card">
                                 <input type="checkbox" name="featured" value="1" ${p.featured ? 'checked' : ''}>
                                 <div class="checkbox-card-content">
@@ -264,10 +264,10 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             </div>
 
             <div class="editor-sticky-footer">
-                <div style="font-size:0.875rem; color:#64748b;">
+                <div style="font-size:0.875rem; color:var(--wb-text-muted);">
                     ${isNew ? 'New product will be saved as draft initially if publication requirements are not met.' : 'Last saved: just now'}
                 </div>
-                <button type="submit" class="btn product-submit" style="padding:0.625rem 2rem; font-weight:600; background:#0f172a; color:#fff; border:none;">
+                <button type="submit" class="btn btn-primary product-submit" style="padding:0.625rem 2rem; font-weight:600; border:none;">
                     ${isNew ? 'Create Product' : 'Save Changes'}
                 </button>
             </div>

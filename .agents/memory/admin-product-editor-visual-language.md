@@ -1,10 +1,10 @@
 ---
-name: Admin product editor visual language
-description: Durable density and workflow rules for the back-office product editor.
+name: Admin back-office visual language
+description: Durable density, consistency, and workflow rules for the full administration.
 ---
 
-The product editor must be compact, searchable, and operationally organized rather than a long sequence of oversized full-width form fields.
+The full administration must feel like one compact, coherent operational workspace rather than separate generic CMS screens. Product editing must remain searchable and image-aware instead of becoming a long sequence of oversized full-width fields.
 
-**Why:** the owner rejected the previous add-product screen as aggressively large and visually low quality; staff need to maintain products, compatible models, prices, stock, publication, and photos efficiently.
+**Why:** the owner rejected both the oversized add-product screen and the broader administration as visually inconsistent, incomplete-feeling, and unpleasant for routine work. Staff need to move efficiently across products, prices, orders, invoices, customers, returns, and system screens.
 
-**How to apply:** group related controls into dense work areas, keep the primary save action available, make compatible-model selection searchable without losing hidden selections, and treat image upload/gallery management as a first-class part of editing. Preserve a clear responsive one-column flow on narrow screens without returning to oversized controls.
+**How to apply:** share navigation, page headers, filters, tables, forms, status badges, action hierarchy, and responsive behavior across every admin route. Keep controls compact but readable, use internal horizontal scrolling only for genuinely wide data tables, and preserve clear mobile navigation. In the product editor, keep related controls grouped, keep save available, preserve searchable model selection without losing hidden choices, and treat image upload/gallery management as first-class editing.

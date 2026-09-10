@@ -1,9 +1,18 @@
 (function initAdminShell() {
     window.Admin = window.Admin || {};
+    window.Admin.setMobileMenu = open => {
+        const sidebar = document.getElementById('admin-sidebar');
+        const toggle = document.querySelector('.admin-mobile-menu-toggle');
+        if (sidebar) sidebar.classList.toggle('open', Boolean(open));
+        if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') window.Admin.setMobileMenu(false);
+    });
     window.Admin.layout = (content, activeRoute) => {
         return `
             <div class="admin-shell">
-                <button type="button" class="admin-mobile-menu-toggle" aria-expanded="false" aria-controls="admin-sidebar" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'); document.getElementById('admin-sidebar').classList.toggle('open');">
+                <button type="button" class="admin-mobile-menu-toggle" aria-expanded="false" aria-controls="admin-sidebar" onclick="window.Admin.setMobileMenu(this.getAttribute('aria-expanded') !== 'true');">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     <span>${{
                         'dashboard': 'Dashboard', 'products': 'Products', 'orders': 'Orders', 'invoices': 'Invoices', 'customers': 'Customers', 'returns': 'Returns', 'settings': 'Settings', 'diagnostics': 'Diagnostics', 'integrations': 'Integrations', 'audit': 'Audit Log'
@@ -15,18 +24,21 @@
                         <div class="admin-test-badge">Test administration</div>
                     </div>
                     
-                    <div class="admin-staff-identity" style="padding: 0 0.5rem 1rem 0.5rem; color: #94a3b8; font-size: 0.875rem;">
+                    <div class="admin-staff-identity">
                         ${window.Core.user ? window.Core.escapeHtml(window.Core.user.name) : 'Staff'}
                     </div>
-                    <nav class="admin-nav">
-                        <div class="admin-nav-group">Administration (Staff)</div>
+                    <nav class="admin-nav" onclick="if(event.target.closest('a')) window.Admin.setMobileMenu(false);">
+                        <div class="admin-nav-group">Overview</div>
                         <a href="${window.APP_BASE}admin" class="${activeRoute === 'dashboard' ? 'active' : ''}" ${activeRoute === 'dashboard' ? 'aria-current="page"' : ''}>Dashboard</a>
+                        <div class="admin-nav-group">Catalogue</div>
                         <a href="${window.APP_BASE}admin/products" class="${activeRoute === 'products' ? 'active' : ''}" ${activeRoute === 'products' ? 'aria-current="page"' : ''}>Products</a>
-                        <a href="${window.APP_BASE}admin/prices" class="${activeRoute === 'prices' ? 'active' : ''}" ${activeRoute === 'prices' ? 'aria-current="page"' : ''} style="color: var(--wb-warning);">EUR Prices</a>
+                        <a href="${window.APP_BASE}admin/prices" class="${activeRoute === 'prices' ? 'active' : ''}" ${activeRoute === 'prices' ? 'aria-current="page"' : ''}>EUR Prices</a>
+                        <div class="admin-nav-group">Commerce</div>
                         <a href="${window.APP_BASE}admin/orders" class="${activeRoute === 'orders' ? 'active' : ''}" ${activeRoute === 'orders' ? 'aria-current="page"' : ''}>Orders</a>
                         <a href="${window.APP_BASE}admin/invoices" class="${activeRoute === 'invoices' ? 'active' : ''}" ${activeRoute === 'invoices' ? 'aria-current="page"' : ''}>Invoices</a>
                         <a href="${window.APP_BASE}admin/customers" class="${activeRoute === 'customers' ? 'active' : ''}" ${activeRoute === 'customers' ? 'aria-current="page"' : ''}>Customers</a>
                         <a href="${window.APP_BASE}admin/returns" class="${activeRoute === 'returns' ? 'active' : ''}" ${activeRoute === 'returns' ? 'aria-current="page"' : ''}>Returns</a>
+                        <div class="admin-nav-group">System</div>
                         <a href="${window.APP_BASE}admin/settings" class="${activeRoute === 'settings' ? 'active' : ''}" ${activeRoute === 'settings' ? 'aria-current="page"' : ''}>Settings</a>
                         <a href="${window.APP_BASE}admin/diagnostics" class="${activeRoute === 'diagnostics' ? 'active' : ''}" ${activeRoute === 'diagnostics' ? 'aria-current="page"' : ''}>Diagnostics</a>
                         <a href="${window.APP_BASE}admin/integrations" class="${activeRoute === 'integrations' ? 'active' : ''}" ${activeRoute === 'integrations' ? 'aria-current="page"' : ''}>Integrations</a>

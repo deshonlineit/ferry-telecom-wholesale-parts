@@ -64,4 +64,4 @@
 - [Invoice delivery model](invoice-delivery-model.md) — no accounting integration; invoices go to a customer-set email plus a self-service archive, and saved preferences must be consumed.
 - [Native workspace conventions](native-workspace-conventions.md) — cross-module PHP calls need a lazy require at the call site; account screens render through the shared account shell.
 - [Minimum order quantity](minimum-order-quantity.md) — a minimum is commercial, not stock: refuse the line as below-minimum instead of clamping it down to stock.
-- [Admin product editor](admin-product-editor-visual-language.md) — keep product maintenance compact, searchable, image-aware, and responsive rather than a long oversized form.
+- [Admin back-office design](admin-product-editor-visual-language.md) — keep every admin route compact, consistent, usable, and responsive; product editing stays searchable and image-aware.

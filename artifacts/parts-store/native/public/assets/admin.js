@@ -240,30 +240,31 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
             </div>
         </div>
         
-        <div class="card" style="padding:1rem; margin-bottom:1.5rem; background:var(--wb-bg)">
-            <form style="display:flex; flex-wrap:wrap; gap:0.75rem;" id="admin-filter-form">
-                <input type="text" name="q" value="${esc(q)}" class="form-control" style="flex:1 1 150px;" placeholder="Search by name/SKU...">
-                <select name="category" class="form-control" style="flex:1 1 150px;"><option value="">All Categories</option>${catsHtml}</select>
-                <select name="brand" class="form-control" style="flex:1 1 150px;"><option value="">All Brands</option>${brandsHtml}</select>
-                <select name="quality" class="form-control" style="flex:1 1 150px;"><option value="">All Qualities</option>${qualitiesHtml}</select>
-                <select name="stock" class="form-control" style="flex:1 1 150px;">
+        <form id="admin-filter-form" class="admin-toolbar" style="margin-bottom:1.5rem;">
+                <div class="form-group"><input type="text" name="q" value="${esc(q)}" class="form-control" placeholder="Search by name/SKU..."></div>
+                <div class="form-group"><select name="category" class="form-control"><option value="">All Categories</option>${catsHtml}</select></div>
+                <div class="form-group"><select name="brand" class="form-control"><option value="">All Brands</option>${brandsHtml}</select></div>
+                <div class="form-group"><select name="quality" class="form-control"><option value="">All Qualities</option>${qualitiesHtml}</select></div>
+                <div class="form-group">
+                <select name="stock" class="form-control">
                     <option value="">All Stock</option>
                     <option value="in_stock" ${stock === 'in_stock' ? 'selected' : ''}>In stock</option>
                     <option value="low_stock" ${stock === 'low_stock' ? 'selected' : ''}>Low stock</option>
                     <option value="out_of_stock" ${stock === 'out_of_stock' ? 'selected' : ''}>Out of stock</option>
                 </select>
-                <span style="align-self:center; color:var(--wb-text-muted); font-size:0.8125rem; white-space:nowrap;">Low stock: ≤ ${stockThreshold} units</span>
-                <select name="status" class="form-control" style="flex:1 1 150px;">
+                </div>
+                <div class="form-group">
+                <select name="status" class="form-control">
                     <option value="all" ${status === 'all' ? 'selected' : ''}>All products</option>
                     <option value="visible" ${status === 'visible' ? 'selected' : ''}>Visible</option>
                     <option value="draft" ${status === 'draft' ? 'selected' : ''}>Draft</option>
                     <option value="archived" ${status === 'archived' ? 'selected' : ''}>Archived Only</option>
                 </select>
-                <select name="sort" class="form-control" style="flex:1 1 150px;"><option value="">Relevance</option><option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Price ascending</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Price descending</option></select>
+                </div>
+                <div class="form-group"><select name="sort" class="form-control"><option value="">Relevance</option><option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Price ascending</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Price descending</option></select></div>
                 <button type="submit" class="btn btn-outline" style="flex:0 0 auto;">Apply</button>
                 <button type="button" class="btn btn-outline action-clear-filters" style="flex:0 0 auto;">Clear</button>
             </form>
-        </div>
         
         ${renderTable(['SKU', 'Name', 'Stock', 'Status', 'Actions'], rows, 'No products found.')}
         ${paginationHtml}
@@ -978,7 +979,7 @@ window.Router.add(/^admin\/settings$/, async (match, root) => {
         <div class="page-header">
             <h1>Settings</h1>
         </div>
-        <div class="card" style="max-width:800px">
+        <div class="card" style="max-width:800px; padding: 1.5rem;">
             <form id="settings-form">
                 <div class="form-section">
                     <h3 class="form-section-title">Inventory</h3>
@@ -1024,7 +1025,7 @@ window.Router.add(/^admin\/integrations$/, async (match, root) => {
                 <h3 class="form-section-title">Current Connections</h3>
                 ${renderTable(['System', 'Mode', 'Status'], rows, 'No connections recorded.')}
             </div>
-            <div class="card">
+            <div class="card" style="padding: 1.5rem;">
                 <h3 class="form-section-title">Simulate Webhook</h3>
                 <form id="sim-form">
                     <div class="form-group">
