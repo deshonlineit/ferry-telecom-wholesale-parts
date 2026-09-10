@@ -180,10 +180,11 @@ function currencyInitializeEurPrices(): array
             if (!isset($existingSettings[$legacy]) || !preg_match('/^[0-9]+$/D', $existingSettings[$legacy])) {
                 continue;
             }
-            $statement = $pdo->prepare(
-                'INSERT INTO settings(name,value) VALUES(?,?)
-                 ON DUPLICATE KEY UPDATE name=VALUES(name)'
-            );
+            $statement = $pdo->prepare(dbDriver() === 'pgsql'
+                ? 'INSERT INTO settings(name,value) VALUES(?,?)
+                   ON CONFLICT (name) DO NOTHING'
+                : 'INSERT INTO settings(name,value) VALUES(?,?)
+                   ON DUPLICATE KEY UPDATE name=VALUES(name)');
             $converted = currencyConvert((int) $existingSettings[$legacy], 'CHF', 'EUR', $rate);
             $statement->execute([$eur, (string) $converted]);
             $shippingCount += $statement->rowCount();

@@ -11,9 +11,15 @@ const MEDIA_MAX_PIXELS = 20_000_000;
 function handleMedia(string $method, string $path): bool
 {
     if ($method === 'POST' && preg_match('#^/admin/products/(\d+)/images/?$#', $path, $match)) {
+        if (appProduction()) {
+            mediaUploadProduction((int) $match[1]);
+        }
         mediaUpload((int) $match[1]);
     }
     if ($method === 'DELETE' && preg_match('#^/admin/images/(\d+)/?$#', $path, $match)) {
+        if (appProduction()) {
+            mediaDeleteProduction((int) $match[1]);
+        }
         mediaDelete((int) $match[1]);
     }
     if ($method === 'GET' && preg_match('#^/documents/(\d+)/(invoice|packing-slip)\.pdf$#', $path, $match)) {
@@ -25,13 +31,78 @@ function handleMedia(string $method, string $path): bool
     return false;
 }
 
+function mediaBridge(string $method, string $path, string $body, string $contentType = 'application/json'): array
+{
+    $url = getenv('NATIVE_MEDIA_BRIDGE_URL') ?: 'http://127.0.0.1:80';
+    $secret = getenv('NATIVE_MEDIA_BRIDGE_SECRET');
+    if (!is_string($secret) || $secret === '') {
+        throw new HttpError(503, 'Native media storage is not configured.');
+    }
+    $parts = parse_url($url);
+    $scheme = strtolower((string)($parts['scheme'] ?? ''));
+    $host = strtolower((string)($parts['host'] ?? ''));
+    $secureExternal = $scheme === 'https'
+        && ($host !== '')
+        && (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false
+            || preg_match('/\./', $host));
+    $internalLoopback = $scheme === 'http' && in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
+    if (!is_array($parts) || (!$secureExternal && !$internalLoopback)) {
+        throw new HttpError(503, 'Native media bridge URL is invalid.');
+    }
+    $timestamp = (string) time();
+    $eventId = bin2hex(random_bytes(16));
+    $signature = hash_hmac('sha256', 'v1.' . $timestamp . '.' . $eventId . '.' . $body, $secret);
+    $curl = curl_init(rtrim($url, '/') . $path);
+    if ($curl === false) throw new HttpError(503, 'Native media bridge is unavailable.');
+    curl_setopt_array($curl, [
+        CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 60,
+        CURLOPT_HTTPHEADER => ['Content-Type: ' . $contentType, 'X-Ferry-Media-Timestamp: ' . $timestamp,
+            'X-Ferry-Media-Event-Id: ' . $eventId, 'X-Ferry-Media-Signature: ' . $signature],
+        CURLOPT_POSTFIELDS => $body,
+    ]);
+    $raw = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    curl_close($curl);
+    if (!is_string($raw) || $status < 200 || $status >= 300) {
+        throw new HttpError($status >= 400 ? $status : 503, 'Native media storage rejected the request.');
+    }
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) throw new HttpError(503, 'Native media storage returned an invalid response.');
+    return $decoded;
+}
+
+function mediaUploadProduction(int $productId): never
+{
+    requireStaff();
+    if (!isset($_FILES['file']) || !is_array($_FILES['file']) || (int)($_FILES['file']['error'] ?? 4) !== UPLOAD_ERR_OK) {
+        throw new HttpError(400, 'Choose a JPEG, PNG or WebP image.');
+    }
+    $temporary = (string)($_FILES['file']['tmp_name'] ?? '');
+    $size = (int)($_FILES['file']['size'] ?? 0);
+    if ($size < 1 || $size > MEDIA_MAX_BYTES || !is_uploaded_file($temporary)) throw new HttpError(400, 'The uploaded image is invalid.');
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($temporary);
+    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) throw new HttpError(415, 'Only actual JPEG, PNG and WebP images are accepted.');
+    $body = file_get_contents($temporary);
+    if (!is_string($body)) throw new HttpError(400, 'The uploaded image is invalid.');
+    $result = mediaBridge('POST', '/api/native/media/products/' . $productId . '/images', $body, $mime);
+    respond($result, 201);
+}
+
+function mediaDeleteProduction(int $imageId): never
+{
+    requireStaff();
+    $result = mediaBridge('DELETE', '/api/native/media/images/' . $imageId, '{}');
+    mediaRespondImages((int)($result['product_id'] ?? 0));
+}
+
 function mediaUpload(int $productId): never
 {
     requireStaff();
     if (!extension_loaded('gd') || !extension_loaded('fileinfo') || !function_exists('imagewebp')) {
         throw new HttpError(503, 'Image processing is unavailable on this test server.');
     }
-    $product = mediaFetchOne('SELECT id FROM products WHERE id = ? AND active = 1', [$productId]);
+    $product = mediaFetchOne('SELECT id FROM products WHERE id = ? AND active = TRUE', [$productId]);
     if ($product === null) {
         throw new HttpError(404, 'Product not found.');
     }
@@ -112,14 +183,12 @@ function mediaUpload(int $productId): never
         $pdo = db();
         $pdo->beginTransaction();
         try {
-            $statement = $pdo->prepare('INSERT INTO images(product_id,url,variants,original_path) VALUES(?,?,?,?)');
-            $statement->execute([
+            $imageId = insertReturning($pdo, 'INSERT INTO images(product_id,url,variants,original_path) VALUES(?,?,?,?)', [
                 $productId,
                 $mainUrl,
                 json_encode($variants, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
                 $originalRelative,
             ]);
-            $imageId = (int) $pdo->lastInsertId();
             $pdo->prepare("UPDATE products SET image_url = ? WHERE id = ? AND image_url = ''")->execute([$mainUrl, $productId]);
             audit('image.upload', 'image', $imageId, ['product_id' => $productId, 'width' => $width, 'height' => $height]);
             $pdo->commit();
@@ -219,7 +288,9 @@ function mediaOrderDocument(int $orderId, string $kind): never
     }
 
     $isInvoice = $kind === 'invoice';
-    $prefix = $isInvoice ? 'TEST-INV-' : 'TEST-PACK-';
+    $prefix = shopPreviewMode()
+        ? ($isInvoice ? 'TEST-INV-' : 'TEST-PACK-')
+        : ($isInvoice ? 'INV-' : 'PACK-');
     $number = $prefix . (string) $order['number'];
     if ($isInvoice) {
         mediaProfessionalInvoiceDocument($order, $items, $address, $number);
@@ -239,7 +310,10 @@ function mediaOrderDocument(int $orderId, string $kind): never
     } else {
         $taxBps = (int) $order['tax_bps'];
         $taxLabel = $taxBps === 0
-            ? 'Swiss export VAT 0% (Art. 23(2)(1) Swiss VAT Act)'
+            ? 'Swiss export VAT 0%'
+            : sprintf('Swiss VAT (snapshot %.2f%%)', $taxBps / 100);
+        $taxNote = $taxBps === 0
+            ? 'Art. 23(2)(1) Swiss VAT Act. Destination import VAT and duties may be charged separately.'
             : sprintf('Swiss VAT (snapshot %.2f%%)', $taxBps / 100);
         $paymentLabels = [
             'stripe' => 'Card payment',
@@ -275,6 +349,7 @@ function mediaOrderDocument(int $orderId, string $kind): never
             'subtotal' => mediaMoney((int) $order['subtotal_cents'], (string) $order['currency']),
             'shipping' => mediaMoney((int) $order['shipping_cents'], (string) $order['currency']),
             'tax_label' => $taxLabel,
+            'tax_note' => $taxNote,
             'tax' => mediaMoney((int) $order['tax_cents'], (string) $order['currency']),
             'total' => mediaMoney((int) $order['total_cents'], (string) $order['currency']),
             'payment_method' => $paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method'],
@@ -390,7 +465,12 @@ function mediaRenderInvoicePdf(array $order, array $items, array $address, strin
         ], $items),
         'subtotal' => mediaMoney((int) $order['subtotal_cents'], $currency),
         'shipping' => mediaMoney((int) $order['shipping_cents'], $currency),
-        'tax_label' => $taxBps === 0 ? 'Swiss export VAT 0%' : 'Swiss VAT ' . number_format($taxBps / 100, 1) . '%',
+        'tax_label' => $taxBps === 0
+            ? 'Swiss export VAT 0%'
+            : sprintf('Swiss VAT (snapshot %.2f%%)', $taxBps / 100),
+        'tax_note' => $taxBps === 0
+            ? 'Art. 23(2)(1) Swiss VAT Act. Destination import VAT and duties may be charged separately.'
+            : sprintf('Swiss VAT (snapshot %.2f%%)', $taxBps / 100),
         'tax' => mediaMoney((int) $order['tax_cents'], $currency),
         'total' => mediaMoney((int) $order['total_cents'], $currency),
         'payment_method' => $paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method'],
@@ -398,7 +478,7 @@ function mediaRenderInvoicePdf(array $order, array $items, array $address, strin
         'customer_note' => (string) ($order['notes'] ?? ''),
         'customer_reference' => $customerReference,
         'reference_label' => $referenceLabel,
-        'test_mode' => true,
+        'test_mode' => shopPreviewMode(),
     ];
     $qrData = null;
     if ((string) $order['payment_method'] === 'swiss_qr_invoice') {
@@ -479,7 +559,9 @@ function mediaRenderCreditNotePdf(int $returnId): array
         $items[] = ['name'=>$source['name'],'sku'=>$source['sku'],'quantity'=>(int)$line['received_quantity'],
             'price_cents'=>(int)$line['unit_net_cents'],'line_cents'=>(int)$line['net_cents']];
     }
-    $number = 'TEST-' . ($creditNote === null ? 'REF-' . (string)$return['number'] : (string)$creditNote['number']);
+    $number = shopPreviewMode()
+        ? 'TEST-' . ($creditNote === null ? 'REF-' . (string)$return['number'] : (string)$creditNote['number'])
+        : ($creditNote === null ? 'REF-' . (string)$return['number'] : (string)$creditNote['number']);
     $pdf = new PdfWriter($number, 'CREDIT NOTE');
     $pdf->heading('Credited return', 18);
     $pdf->line('Credit note: ' . $number);
@@ -566,7 +648,7 @@ function mediaImportCatalogImage(int $productId, string $sourcePath, bool $repla
     if (!extension_loaded('gd') || !extension_loaded('fileinfo') || !function_exists('imagewebp')) {
         throw new HttpError(503, 'Image processing is unavailable on this test server.');
     }
-    if (mediaFetchOne('SELECT id FROM products WHERE id = ? AND active = 1', [$productId]) === null) {
+    if (mediaFetchOne('SELECT id FROM products WHERE id = ? AND active = TRUE', [$productId]) === null) {
         throw new HttpError(404, 'Product not found.');
     }
     if (!$replace && mediaFetchOne('SELECT id FROM images WHERE product_id = ? LIMIT 1', [$productId]) !== null) {
@@ -628,7 +710,7 @@ function mediaImportCatalogImage(int $productId, string $sourcePath, bool $repla
         $pdo = db();
         $pdo->beginTransaction();
         try {
-            $lock = $pdo->prepare('SELECT id FROM products WHERE id = ? AND active = 1 FOR UPDATE');
+            $lock = $pdo->prepare('SELECT id FROM products WHERE id = ? AND active = TRUE FOR UPDATE');
             $lock->execute([$productId]);
             if ($lock->fetchColumn() === false) {
                 throw new HttpError(404, 'Product not found.');
@@ -650,9 +732,8 @@ function mediaImportCatalogImage(int $productId, string $sourcePath, bool $repla
                 $statement->execute([$url, $variantJson, $originalRelative, (int) $existingId]);
                 $imageId = (int) $existingId;
             } else {
-                $statement = $pdo->prepare('INSERT INTO images(product_id,url,variants,original_path) VALUES(?,?,?,?)');
-                $statement->execute([$productId, $url, $variantJson, $originalRelative]);
-                $imageId = (int) $pdo->lastInsertId();
+                $imageId = insertReturning($pdo, 'INSERT INTO images(product_id,url,variants,original_path) VALUES(?,?,?,?)',
+                    [$productId, $url, $variantJson, $originalRelative]);
             }
             $pdo->prepare('UPDATE products SET image_url = ? WHERE id = ?')->execute([$url, $productId]);
             audit($existingId !== false ? 'image.catalog_refreshed' : 'image.catalog_import', 'image', $imageId, [

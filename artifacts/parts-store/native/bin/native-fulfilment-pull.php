@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../src/bootstrap.php';
-if (getenv('NODE_ENV') !== 'production' || getenv('LIVE_INTEGRATIONS') !== '1' || getenv('PICQER_RELAY_ENABLED') !== '1') exit("Native fulfilment pull is disabled.\n");
+if (!shopLiveMode() || getenv('NODE_ENV') !== 'production' || getenv('LIVE_INTEGRATIONS') !== '1' || getenv('PICQER_RELAY_ENABLED') !== '1') exit("Native fulfilment pull is disabled.\n");
 $secret = (string)getenv('PICQER_RELAY_SECRET'); $endpoint = trim((string)getenv('PICQER_RELAY_FULFILMENT_ENDPOINT'));
 if ($secret === '' || !preg_match('#^https://#i', $endpoint) || str_contains(strtolower($endpoint), 'picqer')) exit("Unsafe fulfilment endpoint.\n");
 for ($page = 1; ; $page++) {

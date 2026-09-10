@@ -77,7 +77,7 @@ function catalogB2bSearch(array $input, ?array $user): array
         throw new HttpError(422, 'Enter a search term to look for products.');
     }
 
-    $where = ["p.active=1", "p.publication_status='visible'"];
+    $where = ["p.active=TRUE", "p.publication_status='visible'"];
     $parameters = [];
     $aliases = catalogCategoryAliases();
     $matchedCategorySlugs = [];
@@ -86,12 +86,14 @@ function catalogB2bSearch(array $input, ?array $user): array
             // A standalone number is normally a device model. Do not let it match
             // digits buried inside a SKU or supplier code such as GH82-28143A.
             $numericBoundary = '(^|[^0-9])' . preg_quote($term, '/') . '([^0-9]|$)';
+            $regex = dbDriver() === 'pgsql' ? '~*' : 'REGEXP';
+            $namePrefix = dbDriver() === 'pgsql' ? "split_part(p.name,' - ',1)" : "SUBSTRING_INDEX(p.name,' - ',1)";
             $where[] = "(LOWER(p.sku)=?
-                OR LOWER(SUBSTRING_INDEX(p.name,' - ',1)) REGEXP ?
+                OR LOWER($namePrefix) $regex ?
                 OR EXISTS(
                     SELECT 1 FROM product_models numeric_pm
                     JOIN device_models numeric_m ON numeric_m.id=numeric_pm.model_id
-                    WHERE numeric_pm.product_id=p.id AND LOWER(numeric_m.name) REGEXP ?
+                    WHERE numeric_pm.product_id=p.id AND LOWER(numeric_m.name) $regex ?
                 ))";
             array_push($parameters, $term, $numericBoundary, $numericBoundary);
             continue;

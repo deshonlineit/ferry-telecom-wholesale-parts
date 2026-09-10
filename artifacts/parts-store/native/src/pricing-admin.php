@@ -102,8 +102,8 @@ function pricingFilter(array $filters): array
         $params[] = opSetting('low_stock_threshold', 5);
     } elseif ($stock !== '') throw new HttpError(422, 'Invalid stock filter.');
     $status = (string)($filters['status'] ?? 'all');
-    if ($status === 'active') $where[] = 'p.active=1';
-    elseif ($status === 'archived') $where[] = 'p.active=0';
+    if ($status === 'active') $where[] = 'p.active=TRUE';
+    elseif ($status === 'archived') $where[] = 'p.active=FALSE';
     elseif ($status !== 'all' && $status !== '') throw new HttpError(422, 'Invalid product status.');
     $sort = (string)($filters['sort'] ?? 'newest');
     $order = match ($sort) {
@@ -179,10 +179,12 @@ function pricingApplyChanges(int $id, array $changes): void
             /* Keep a retained legacy CHF source row, while removing its EUR override. */
             db()->prepare('UPDATE group_prices SET price_eur_cents=NULL WHERE product_id=? AND group_id=?')->execute([$id, $groupId]);
         } else {
-            db()->prepare(
-                'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents)
-                 VALUES(?,?,0,?) ON DUPLICATE KEY UPDATE price_eur_cents=VALUES(price_eur_cents)'
-            )->execute([$id, $groupId, $price]);
+            db()->prepare(dbDriver() === 'pgsql'
+                ? 'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents)
+                   VALUES(?,?,0,?) ON CONFLICT (product_id,group_id) DO UPDATE SET price_eur_cents=EXCLUDED.price_eur_cents'
+                : 'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents)
+                   VALUES(?,?,0,?) ON DUPLICATE KEY UPDATE price_eur_cents=VALUES(price_eur_cents)')
+                ->execute([$id, $groupId, $price]);
         }
     }
 }

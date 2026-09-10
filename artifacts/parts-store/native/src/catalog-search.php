@@ -22,7 +22,8 @@ function catalogLike(string $value): string
  */
 function catalogRealScreenSqlCondition(string $categorySlugSql = 'catalog_category.slug', string $nameSql = 'p.name'): string
 {
-    $protection = "LOWER($nameSql) REGEXP '(panzer[[:space:]-]*glass|display[[:space:]-]*protection|screen[[:space:]-]*(protector|protection)|screenprotector)'";
+    $regex = dbDriver() === 'pgsql' ? '~*' : 'REGEXP';
+    $protection = "LOWER($nameSql) $regex '(panzer[[:space:]-]*glass|display[[:space:]-]*protection|screen[[:space:]-]*(protector|protection)|screenprotector)'";
     return "($categorySlugSql='screens' AND NOT ($protection))";
 }
 
@@ -35,27 +36,27 @@ function catalogUnfilteredFacets(): array
     $categories = db()->query(
         "SELECT c.id,c.name,c.slug,COUNT(p.id) AS count,
             COALESCE((SELECT pi.image_url FROM products pi
-                WHERE pi.category_id=c.id AND pi.active=1 AND pi.publication_status='visible' AND pi.image_url<>''
+                WHERE pi.category_id=c.id AND pi.active=TRUE AND pi.publication_status='visible' AND pi.image_url<>''
                 ORDER BY pi.featured DESC,pi.id DESC LIMIT 1),'') AS image_url
-         FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.active=1 AND p.publication_status='visible'
+         FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.active=TRUE AND p.publication_status='visible'
          GROUP BY c.id ORDER BY count DESC,c.name"
     )->fetchAll();
     $brands = db()->query(
         "SELECT b.id,b.name,COUNT(p.id) AS count FROM brands b
-         LEFT JOIN products p ON p.brand_id=b.id AND p.active=1 AND p.publication_status='visible'
+         LEFT JOIN products p ON p.brand_id=b.id AND p.active=TRUE AND p.publication_status='visible'
          GROUP BY b.id ORDER BY count DESC,b.name"
     )->fetchAll();
     $models = db()->query(
         "SELECT m.id,m.brand_id,m.name,COUNT(p.id) AS count FROM device_models m
          LEFT JOIN product_models pm ON pm.model_id=m.id
-         LEFT JOIN products p ON p.id=pm.product_id AND p.active=1 AND p.publication_status='visible'
+         LEFT JOIN products p ON p.id=pm.product_id AND p.active=TRUE AND p.publication_status='visible'
          GROUP BY m.id ORDER BY m.name"
     )->fetchAll();
     $models = deviceAnnotateModels($models, $brands);
     $facets = [
         'categories' => $categories, 'brands' => $brands, 'models' => $models,
-        'qualities' => db()->query("SELECT DISTINCT quality FROM products WHERE active=1 AND publication_status='visible' AND quality<>'' ORDER BY quality")->fetchAll(PDO::FETCH_COLUMN),
-        'total' => (int) db()->query("SELECT COUNT(*) FROM products WHERE active=1 AND publication_status='visible'")->fetchColumn(),
+        'qualities' => db()->query("SELECT DISTINCT quality FROM products WHERE active=TRUE AND publication_status='visible' AND quality<>'' ORDER BY quality")->fetchAll(PDO::FETCH_COLUMN),
+        'total' => (int) db()->query("SELECT COUNT(*) FROM products WHERE active=TRUE AND publication_status='visible'")->fetchColumn(),
     ];
     return $facets;
 }
@@ -78,7 +79,7 @@ function catalogDepartmentCondition(string $department): string
 
 function catalogProductCondition(array $input, array $exclude = []): array
 {
-    $where = ["p.active=1", "p.publication_status='visible'"];
+    $where = ["p.active=TRUE", "p.publication_status='visible'"];
     $parameters = [];
     $search = text($input['q'] ?? '', 190);
     $tokens = catalogTokens($search);
@@ -108,12 +109,14 @@ function catalogProductCondition(array $input, array $exclude = []): array
                 // free text would incorrectly include "screen protector".
             } elseif (preg_match('/^\d{1,4}$/', $term)) {
                 $boundary = '(^|[^0-9])' . preg_quote($term, '/') . '([^0-9]|$)';
+                $regex = dbDriver() === 'pgsql' ? '~*' : 'REGEXP';
+                $namePrefix = dbDriver() === 'pgsql' ? "split_part(p.name,' - ',1)" : "SUBSTRING_INDEX(p.name,' - ',1)";
                 $alternatives[] = 'LOWER(p.sku)=?';
-                $alternatives[] = "LOWER(SUBSTRING_INDEX(p.name,' - ',1)) REGEXP ?";
+                $alternatives[] = "LOWER($namePrefix) $regex ?";
                 $alternatives[] = 'EXISTS(
                     SELECT 1 FROM product_models token_pm
                     JOIN device_models token_m ON token_m.id=token_pm.model_id
-                    WHERE token_pm.product_id=p.id AND LOWER(token_m.name) REGEXP ?
+                    WHERE token_pm.product_id=p.id AND LOWER(token_m.name) $regex ?
                 )';
                 array_push($parameters, $term, $boundary, $boundary);
             } else {
@@ -190,7 +193,7 @@ function catalogProductCondition(array $input, array $exclude = []): array
         $where[] = 'p.stock=0';
     }
     if (!in_array('featured', $exclude, true) && (string) ($input['featured'] ?? '') === '1') {
-        $where[] = 'p.featured=1';
+        $where[] = 'p.featured=TRUE';
     }
     if (!in_array('part', $exclude, true) && array_key_exists('part', $input) && $input['part'] !== '') {
         $partPredicate = catalogPartTypeCondition(catalogValidatePartType($input['part']));
@@ -413,7 +416,7 @@ function catalogCorrectSearchTokens(array $tokens): array
             "SELECT name FROM brands
              UNION SELECT name FROM device_models
              UNION SELECT name FROM categories
-             UNION SELECT quality AS name FROM products WHERE active=1 AND publication_status='visible' AND quality<>''"
+             UNION SELECT quality AS name FROM products WHERE active=TRUE AND publication_status='visible' AND quality<>''"
         )->fetchAll(PDO::FETCH_COLUMN);
         foreach ($rows as $row) {
             $parts = preg_split(

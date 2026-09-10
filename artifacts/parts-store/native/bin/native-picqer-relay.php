@@ -9,7 +9,7 @@ require_once __DIR__ . '/../src/native-relay.php';
  * endpoint; all warehouse/Picqer HTTP remains exclusively in API code.
  */
 function relayFail(string $message): never { fwrite(STDERR, $message . PHP_EOL); exit(1); }
-if (getenv('NODE_ENV') !== 'production' || getenv('LIVE_INTEGRATIONS') !== '1'
+if (!shopLiveMode() || getenv('NODE_ENV') !== 'production' || getenv('LIVE_INTEGRATIONS') !== '1'
     || getenv('PICQER_RELAY_ENABLED') !== '1') relayFail('Native relay is hard-disabled outside explicit production opt-in.');
 $secret = (string)getenv('PICQER_RELAY_SECRET');
 $endpoint = trim((string)getenv('PICQER_RELAY_API_ENDPOINT'));

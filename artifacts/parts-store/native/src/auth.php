@@ -14,10 +14,10 @@ function handleAuth(string $method, string $path): bool
     }
     if ($path === '/session' && $method === 'GET') {
         $context = currencyContext();
-        respond([
-            'user' => currentUser(), 'csrf' => csrf(), 'test_mode' => true,
+            respond([
+            'user' => currentUser(), 'csrf' => csrf(), 'test_mode' => shopPreviewMode(),
             'currency' => $context['currency'], 'currency_context' => $context,
-            'capabilities' => ['live_stock' => false, 'payments' => true, 'email' => false],
+            'capabilities' => ['live_stock' => shopLiveMode(), 'payments' => shopLiveMode(), 'email' => shopLiveMode()],
         ]);
     }
     if (!str_starts_with($path, '/auth/') || $method !== 'POST') {
@@ -25,6 +25,9 @@ function handleAuth(string $method, string $path): bool
     }
     $data = body();
     if ($path === '/auth/demo') {
+        if (appProduction()) {
+            throw new HttpError(403, 'Demo accounts are unavailable in infrastructure production.');
+        }
         assertIsolated();
         if (($data['persona'] ?? '') === 'staff') {
             throw new HttpError(403, 'Staff must sign in with their own account.');
@@ -60,7 +63,11 @@ function handleAuth(string $method, string $path): bool
             && strtotime($attempt['last_attempt'] . ' UTC') > time() - 900) {
             throw new HttpError(429, 'Too many attempts. Try again in 15 minutes.');
         }
-        db()->prepare('INSERT INTO login_attempts(fingerprint,attempts,last_attempt) VALUES(?,1,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE attempts=IF(last_attempt < DATE_SUB(UTC_TIMESTAMP(),INTERVAL 15 MINUTE),1,attempts+1),last_attempt=UTC_TIMESTAMP()')->execute([$fingerprint]);
+        $loginSql = dbDriver() === 'pgsql'
+            ? "INSERT INTO login_attempts(fingerprint,attempts,last_attempt) VALUES(?,1,CURRENT_TIMESTAMP)
+               ON CONFLICT (fingerprint) DO UPDATE SET attempts=CASE WHEN login_attempts.last_attempt < CURRENT_TIMESTAMP - INTERVAL '15 minutes' THEN 1 ELSE login_attempts.attempts+1 END,last_attempt=CURRENT_TIMESTAMP"
+            : 'INSERT INTO login_attempts(fingerprint,attempts,last_attempt) VALUES(?,1,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE attempts=IF(last_attempt < DATE_SUB(UTC_TIMESTAMP(),INTERVAL 15 MINUTE),1,attempts+1),last_attempt=UTC_TIMESTAMP()';
+        db()->prepare($loginSql)->execute([$fingerprint]);
         $query = db()->prepare('SELECT * FROM users WHERE email=?');
         $query->execute([$email]);
         $user = $query->fetch();
@@ -117,9 +124,10 @@ function handleAuth(string $method, string $path): bool
             $pdo = db();
             $pdo->beginTransaction();
             try {
-                $pdo->prepare("INSERT INTO users(name,email,password_hash,company,phone,website,business_activity,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),'customer',1,'pending')")
-                    ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $company, $phone, $website, $activity, $taxType, $taxNumber, $newsletter ? 1 : 0]);
-                $userId = (int) $pdo->lastInsertId();
+                $userId = insertReturning($pdo, dbDriver() === 'pgsql'
+                    ? "INSERT INTO users(name,email,password_hash,company,phone,website,business_activity,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'customer',1,'pending')"
+                    : "INSERT INTO users(name,email,password_hash,company,phone,website,business_activity,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),'customer',1,'pending')",
+                    [$name, $email, password_hash($password, PASSWORD_DEFAULT), $company, $phone, $website, $activity, $taxType, $taxNumber, $newsletter ? true : false]);
                 $pdo->prepare('INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,?,?,?,?,?,?,?,?,1)')
                     ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), $addressAddition, $postalCode, $city, $country]);
                 $pdo->prepare('INSERT INTO billing_addresses(user_id,label,name,company,line1,line2,postal_code,city,country) VALUES(?,?,?,?,?,?,?,?,?)')
@@ -139,11 +147,15 @@ function handleAuth(string $method, string $path): bool
         $query->execute([$email]);
         $id = $query->fetchColumn();
         if ($id) {
-            $query = db()->prepare('SELECT COUNT(*) FROM reset_tokens WHERE user_id=? AND expires_at>UTC_TIMESTAMP()');
+            $query = db()->prepare(dbDriver() === 'pgsql'
+                ? "SELECT COUNT(*) FROM reset_tokens WHERE user_id=? AND expires_at>CURRENT_TIMESTAMP"
+                : 'SELECT COUNT(*) FROM reset_tokens WHERE user_id=? AND expires_at>UTC_TIMESTAMP()');
             $query->execute([$id]);
             if ((int) $query->fetchColumn() < 3) {
                 $token = bin2hex(random_bytes(32));
-                db()->prepare('INSERT INTO reset_tokens(user_id,token_hash,expires_at) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 30 MINUTE))')
+                db()->prepare(dbDriver() === 'pgsql'
+                    ? "INSERT INTO reset_tokens(user_id,token_hash,expires_at) VALUES(?,?,CURRENT_TIMESTAMP + INTERVAL '30 minutes')"
+                    : 'INSERT INTO reset_tokens(user_id,token_hash,expires_at) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 30 MINUTE))')
                     ->execute([$id, hash('sha256', $token)]);
                 enqueue('password_reset', ['user_id' => (int) $id, 'reset_path' => basePath() . 'reset?token=' . $token]);
             }
@@ -159,14 +171,19 @@ function handleAuth(string $method, string $path): bool
         $pdo = db();
         $pdo->beginTransaction();
         try {
-            $query = $pdo->prepare('SELECT id,user_id FROM reset_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() FOR UPDATE');
+            $query = $pdo->prepare(dbDriver() === 'pgsql'
+                ? 'SELECT id,user_id FROM reset_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP FOR UPDATE'
+                : 'SELECT id,user_id FROM reset_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() FOR UPDATE');
             $query->execute([hash('sha256', $token)]);
             $reset = $query->fetch();
             if (!$reset) {
                 throw new HttpError(422, 'This recovery code has expired or has already been used.');
             }
             $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($password, PASSWORD_DEFAULT), $reset['user_id']]);
-            $pdo->prepare('UPDATE reset_tokens SET used_at=UTC_TIMESTAMP() WHERE user_id=? AND used_at IS NULL')->execute([$reset['user_id']]);
+            $pdo->prepare(dbDriver() === 'pgsql'
+                ? 'UPDATE reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE user_id=? AND used_at IS NULL'
+                : 'UPDATE reset_tokens SET used_at=UTC_TIMESTAMP() WHERE user_id=? AND used_at IS NULL')
+                ->execute([$reset['user_id']]);
             $pdo->commit();
         } catch (Throwable $error) {
             if ($pdo->inTransaction()) {

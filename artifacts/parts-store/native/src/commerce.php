@@ -120,6 +120,9 @@ function commercePaymentTerms(PDO $pdo, string $method, string $currency): ?arra
 
 function commerceStripeBridge(int $orderId, bool $allowPayLaterInvoice = false): array
 {
+    if (shopPreviewMode()) {
+        throw new HttpError(403, 'Live payment integrations are disabled in preview mode.');
+    }
     $pdo = db();
     $statement = $pdo->prepare(
         'SELECT id,number,currency,subtotal_cents,shipping_cents,tax_cents,total_cents,payment_method
@@ -163,7 +166,7 @@ function commerceStripeBridge(int $orderId, bool $allowPayLaterInvoice = false):
         'totalCents' => (int) $order['total_cents'],
         'lines' => $lines,
     ], JSON_THROW_ON_ERROR);
-    $curl = curl_init('http://localhost:80/api/stripe/native/checkout-session');
+    $curl = curl_init(internalApiBase() . '/api/stripe/native/checkout-session');
     if ($curl === false) throw new HttpError(503, 'Stripe bridge is unavailable.');
     curl_setopt_array($curl, [
         CURLOPT_POST => true,
@@ -192,6 +195,9 @@ function commerceStripeBridge(int $orderId, bool $allowPayLaterInvoice = false):
 
 function commerceWalleeBridge(int $orderId): array
 {
+    if (shopPreviewMode()) {
+        throw new HttpError(403, 'Live payment integrations are disabled in preview mode.');
+    }
     $pdo = db();
     $order = $pdo->prepare('SELECT id,number,currency,total_cents,payment_method FROM orders WHERE id=?');
     $order->execute([$orderId]); $row = $order->fetch(PDO::FETCH_ASSOC);
@@ -212,7 +218,7 @@ function commerceWalleeBridge(int $orderId): array
         'totalCents'=>(int)$row['total_cents'],
         'lines'=>$lines->fetchAll(PDO::FETCH_ASSOC),
     ] + ((string)($attemptRow['provider_id'] ?? '') !== '' ? ['transactionId'=>(int)$attemptRow['provider_id']] : []), JSON_THROW_ON_ERROR);
-    $curl = curl_init('http://localhost:80/api/wallee/native/checkout');
+    $curl = curl_init(internalApiBase() . '/api/wallee/native/checkout');
     if ($curl === false) throw new HttpError(503, 'Wallee bridge is unavailable.');
     curl_setopt_array($curl, [CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>15,CURLOPT_HTTPHEADER=>['Content-Type: application/json','X-Native-Stripe-Bridge-Secret: '.$secret],CURLOPT_POSTFIELDS=>$payload]);
     $raw=curl_exec($curl); $status=(int)curl_getinfo($curl,CURLINFO_RESPONSE_CODE); curl_close($curl);
@@ -248,9 +254,9 @@ function commerceCart(int $userId, int $groupId, ?string $country = null, ?strin
     $statement = $pdo->prepare(
         "SELECT p.id AS product_id, p.name, p.sku, p.image_url, ci.quantity,
                 p.stock, p.minimum_quantity,
-                gp.price_eur_cents AS price_eur_cents
+                COALESCE(gp.price_eur_cents,p.list_price_eur_cents) AS price_eur_cents
          FROM cart_items ci
-         JOIN products p ON p.id = ci.product_id AND p.active = 1 AND p.publication_status='visible'
+         JOIN products p ON p.id = ci.product_id AND p.active = TRUE AND p.publication_status='visible'
          LEFT JOIN group_prices gp ON gp.product_id = p.id AND gp.group_id = ?
          WHERE ci.user_id = ?
          ORDER BY p.id"
@@ -431,7 +437,7 @@ function commerceSetCart(): never
             $statement->execute([(int) $lockedUser['id'], $productId]);
         } else {
             $statement = $pdo->prepare(
-                "SELECT stock,minimum_quantity FROM products WHERE id=? AND active=1 AND publication_status='visible' FOR UPDATE"
+                "SELECT stock,minimum_quantity FROM products WHERE id=? AND active=TRUE AND publication_status='visible' FOR UPDATE"
             );
             $statement->execute([$productId]);
             $product = $statement->fetch(PDO::FETCH_ASSOC);
@@ -444,10 +450,11 @@ function commerceSetCart(): never
             if ($quantity > (int) $product['stock']) {
                 throw new HttpError(409, 'The requested quantity is no longer in stock.');
             }
-            $statement = $pdo->prepare(
-                'INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)
-                 ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)'
-            );
+            $statement = $pdo->prepare(dbDriver() === 'pgsql'
+                ? 'INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)
+                   ON CONFLICT (user_id,product_id) DO UPDATE SET quantity=EXCLUDED.quantity'
+                : 'INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)
+                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)');
             $statement->execute([(int) $lockedUser['id'], $productId, $quantity]);
         }
         $cart = commerceCart((int) $lockedUser['id'], (int) $lockedUser['group_id']);
@@ -482,10 +489,10 @@ function commerceQuickAddCart(): never
         }
 
         $statement = $pdo->prepare(
-            "SELECT p.stock,p.minimum_quantity,gp.price_eur_cents
+            "SELECT p.stock,p.minimum_quantity,COALESCE(gp.price_eur_cents,p.list_price_eur_cents) AS price_eur_cents
              FROM products p
              LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=?
-             WHERE p.id=? AND p.active=1 AND p.publication_status='visible' FOR UPDATE"
+             WHERE p.id=? AND p.active=TRUE AND p.publication_status='visible' FOR UPDATE"
         );
         $statement->execute([(int) $user['group_id'], $productId]);
         $product = $statement->fetch(PDO::FETCH_ASSOC);
@@ -517,10 +524,11 @@ function commerceQuickAddCart(): never
         if ($context['currency'] === 'CHF') {
             currencyConvert((int) $product['price_eur_cents'], 'EUR', 'CHF', $context['exchange_rate']);
         }
-        $statement = $pdo->prepare(
-            'INSERT INTO cart_items (user_id,product_id,quantity) VALUES (?,?,?)
-             ON DUPLICATE KEY UPDATE quantity=VALUES(quantity)'
-        );
+        $statement = $pdo->prepare(dbDriver() === 'pgsql'
+            ? 'INSERT INTO cart_items (user_id,product_id,quantity) VALUES (?,?,?)
+               ON CONFLICT (user_id,product_id) DO UPDATE SET quantity=EXCLUDED.quantity'
+            : 'INSERT INTO cart_items (user_id,product_id,quantity) VALUES (?,?,?)
+               ON DUPLICATE KEY UPDATE quantity=VALUES(quantity)');
         $statement->execute([(int) $user['id'], $productId, $quantity]);
         $cart = commerceCart((int) $user['id'], (int) $user['group_id']);
         $pdo->commit();
@@ -603,7 +611,7 @@ function commerceQuoteFingerprint(array $cart): string
         ], $cart['items']),
         'subtotal_cents' => $cart['subtotal_cents'],
         'shipping_cents' => $cart['shipping_cents'],
-        'shipping_method' => $cart['shipping_method'],
+        'shipping_method' => $cart['shipping_method'] ?? null,
         'shipping_methods' => $cart['shipping_methods'] ?? [],
         'saturday_delivery_available' => in_array('swiss_post_saturday', array_column($cart['shipping_methods'] ?? [], 'code'), true),
         'tax_cents' => $cart['tax_cents'],
@@ -789,10 +797,10 @@ function commerceCheckout(): never
         // lock acquisition deterministic across simultaneous checkouts.
         $productStatement = $pdo->prepare(
             'SELECT p.id, p.sku, p.name, p.stock, p.minimum_quantity, p.active,
-                    gp.price_eur_cents AS price_eur_cents
+                    COALESCE(gp.price_eur_cents,p.list_price_eur_cents) AS price_eur_cents
              FROM products p
              LEFT JOIN group_prices gp ON gp.product_id = p.id AND gp.group_id = ?
-             WHERE p.id = ? FOR UPDATE'
+             WHERE p.id = ? AND p.publication_status = \'visible\' FOR UPDATE'
         );
         $items = [];
         $subtotal = 0;
@@ -838,22 +846,14 @@ function commerceCheckout(): never
         if (!hash_equals((string) $acceptedQuote['fingerprint'], commerceQuoteFingerprint($recalculated))) {
             throw new HttpError(409, 'Prices, quantities, country, or exchange rate changed. Request a new quote.');
         }
-        $number = 'TS-' . gmdate('Ymd') . '-' . strtoupper(bin2hex(random_bytes(5)));
+        $number = (shopLiveMode() ? 'ORD-' : 'TS-') . gmdate('Ymd') . '-' . strtoupper(bin2hex(random_bytes(5)));
         if ($paymentMethod === 'swiss_qr_invoice' && $paymentTerms !== null) {
             $paymentTerms = swissQrTermsForOrder($paymentTerms, $number);
         }
         $addressSnapshot = commerceAddressRow($address);
-        $statement = $pdo->prepare(
-            'INSERT INTO orders
-             (number, user_id, status, subtotal_cents, tax_cents, shipping_cents,
-               total_cents, tax_bps, currency, exchange_rate_ppm, exchange_rate_date,
-               base_currency, address_json, shipping_method_code, shipping_method_name,
-               shipping_carrier, payment_method, payment_state, payment_reference_type, payment_reference,
-               payment_terms_json, checkout_snapshot, notes, customer_reference,
-              tracking, idempotency_key, stock_restored)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
-        );
-        $statement->execute([
+        $orderId = insertReturning($pdo, 'INSERT INTO orders
+             (number,user_id,status,subtotal_cents,tax_cents,shipping_cents,total_cents,tax_bps,currency,exchange_rate_ppm,exchange_rate_date,base_currency,address_json,shipping_method_code,shipping_method_name,shipping_carrier,payment_method,payment_state,payment_reference_type,payment_reference,payment_terms_json,checkout_snapshot,notes,customer_reference,tracking,idempotency_key,stock_restored)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,FALSE)', [
             $number, (int) $user['id'], 'on_hold',
             $totals['subtotal_cents'], $totals['tax_cents'], $totals['shipping_cents'],
             $totals['total_cents'], $totals['tax_bps'], $context['currency'],
@@ -872,7 +872,6 @@ function commerceCheckout(): never
               ], JSON_THROW_ON_ERROR),
               $notes, $customerReference, '', $idempotencyKey,
         ]);
-        $orderId = (int) $pdo->lastInsertId();
 
         $itemInsert = $pdo->prepare(
             'INSERT INTO order_items
@@ -904,12 +903,16 @@ function commerceCheckout(): never
         // Record where this invoice is addressed. The isolated shop sends no
         // mail; the customer collects documents from their own workspace.
         if ($billing['auto_send']) {
-            $pdo->prepare(
-                'INSERT INTO invoice_deliveries
-                 (user_id, order_id, document_kind, recipient, copy_recipient, status)
-                 VALUES (?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE recipient=VALUES(recipient), copy_recipient=VALUES(copy_recipient)'
-            )->execute([
+            $pdo->prepare(dbDriver() === 'pgsql'
+                ? 'INSERT INTO invoice_deliveries
+                   (user_id, order_id, document_kind, recipient, copy_recipient, status)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT (order_id,document_kind) DO UPDATE SET recipient=EXCLUDED.recipient, copy_recipient=EXCLUDED.copy_recipient'
+                : 'INSERT INTO invoice_deliveries
+                   (user_id, order_id, document_kind, recipient, copy_recipient, status)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON DUPLICATE KEY UPDATE recipient=VALUES(recipient), copy_recipient=VALUES(copy_recipient)')
+            ->execute([
                 (int) $user['id'], $orderId, 'invoice',
                 (string) $billing['effective_email'], (string) $billing['copy_email'], 'captured',
             ]);
@@ -920,8 +923,8 @@ function commerceCheckout(): never
             json_encode(['created_by' => 'checkout'], JSON_THROW_ON_ERROR)]);
         $statement = $pdo->prepare('DELETE FROM cart_items WHERE user_id = ?');
         $statement->execute([(int) $user['id']]);
-        enqueue('order.created', ['order_id' => $orderId, 'number' => $number, 'test_mode' => true]);
-        audit('checkout', 'order', $orderId, ['number' => $number, 'test_mode' => true]);
+        enqueue('order.created', ['order_id' => $orderId, 'number' => $number, 'test_mode' => shopPreviewMode()]);
+        audit('checkout', 'order', $orderId, ['number' => $number, 'test_mode' => shopPreviewMode()]);
         $pdo->commit();
         unset($_SESSION['checkout_quotes'][$quoteToken]);
         $_SESSION['currency_country'] = (string) $context['country'];
@@ -1091,20 +1094,14 @@ function commerceCreateAddress(): never
         $count->execute([(int) $user['id']]);
         $values['is_default'] = $values['is_default'] || ((int) $count->fetchColumn() === 0);
         if ($values['is_default']) {
-            $clear = $pdo->prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?');
+            $clear = $pdo->prepare('UPDATE addresses SET is_default = FALSE WHERE user_id = ?');
             $clear->execute([(int) $user['id']]);
         }
-        $statement = $pdo->prepare(
-            'INSERT INTO addresses
-             (user_id, label, name, company, line1, line2, postal_code, city, country, is_default)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $statement->execute([
+        $id = insertReturning($pdo, 'INSERT INTO addresses (user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES (?,?,?,?,?,?,?,?,?,?)', [
             (int) $user['id'], $values['label'], $values['name'], $values['company'],
             $values['line1'], $values['line2'], $values['postal_code'], $values['city'],
-            $values['country'], $values['is_default'] ? 1 : 0,
+            $values['country'], (bool) $values['is_default'],
         ]);
-        $id = (int) $pdo->lastInsertId();
         audit('address.created', 'address', $id);
         $pdo->commit();
         $values['id'] = $id;
@@ -1141,7 +1138,7 @@ function commerceUpdateAddress(int $addressId): never
         }
         if ($values['is_default']) {
             $clear = $pdo->prepare(
-                'UPDATE addresses SET is_default = 0 WHERE user_id = ? AND id <> ?'
+                'UPDATE addresses SET is_default = FALSE WHERE user_id = ? AND id <> ?'
             );
             $clear->execute([(int) $user['id'], $addressId]);
         }
@@ -1187,7 +1184,7 @@ function commerceDeleteAddress(int $addressId): never
         $statement->execute([$addressId, (int) $user['id']]);
         if ((bool) $wasDefault) {
             $statement = $pdo->prepare(
-                'UPDATE addresses SET is_default = 1
+                'UPDATE addresses SET is_default = TRUE
                  WHERE user_id = ? ORDER BY id LIMIT 1'
             );
             $statement->execute([(int) $user['id']]);
@@ -1353,7 +1350,7 @@ function commerceAdminUpdateOrder(int $orderId): never
             'order_id' => $orderId,
             'number' => $order['number'],
             'status' => $newStatus,
-            'test_mode' => true,
+            'test_mode' => shopPreviewMode(),
         ]);
         audit('order.status_updated', 'order', $orderId, [
             'from' => $oldStatus,

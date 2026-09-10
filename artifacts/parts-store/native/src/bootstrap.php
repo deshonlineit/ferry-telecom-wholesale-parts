@@ -20,31 +20,123 @@ function basePath(): string
 
 function assertIsolated(): void
 {
+    if (appProduction()) {
+        return;
+    }
     $marker = WORKSPACE_ROOT . '/.local/native-mysql/isolated.marker';
     if (!is_file($marker) || trim((string) file_get_contents($marker)) !== 'FERRY_LOCAL_TEST_ONLY') {
         throw new RuntimeException('The isolated test database has not been initialized.');
     }
 }
 
+function appProduction(): bool
+{
+    return strtolower((string) (getenv('APP_ENV') ?: getenv('NODE_ENV') ?: '')) === 'production';
+}
+
+/**
+ * SHOP_MODE is an explicit commercial-safety boundary.  Infrastructure
+ * production remains production for database, sessions and storage, but is
+ * deliberately a preview unless the value is exactly "live".
+ */
+function shopLiveMode(): bool
+{
+    return (string) getenv('SHOP_MODE') === 'live';
+}
+
+function shopPreviewMode(): bool
+{
+    return !shopLiveMode();
+}
+
+function dbDriver(): string
+{
+    return appProduction() ? 'pgsql' : 'mysql';
+}
+
+function insertReturning(PDO $pdo, string $sql, array $params = []): int
+{
+    if (dbDriver() === 'pgsql') {
+        $statement = $pdo->prepare($sql . ' RETURNING id');
+        $statement->execute($params);
+        return (int) $statement->fetchColumn();
+    }
+    $mysqlParams = array_map(static fn(mixed $value): mixed => is_bool($value) ? (int) $value : $value, $params);
+    $pdo->prepare($sql)->execute($mysqlParams);
+    return (int) $pdo->lastInsertId();
+}
+
+function internalApiBase(): string
+{
+    $base = trim((string) (getenv('INTERNAL_API_BASE_URL') ?: 'http://127.0.0.1:80'));
+    if (!filter_var($base, FILTER_VALIDATE_URL)
+        || !preg_match('#^https?://[^/?#]+(?::\d+)?$#i', $base)) {
+        throw new RuntimeException('INTERNAL_API_BASE_URL must be a valid http(s) origin.');
+    }
+    return rtrim($base, '/');
+}
+
+function postgresDsn(string $url): array
+{
+    $parts = parse_url($url);
+    if (!is_array($parts) || !isset($parts['host'])) {
+        throw new RuntimeException('DATABASE_URL must be a valid PostgreSQL URL.');
+    }
+    $dsn = 'pgsql:host=' . $parts['host'];
+    if (isset($parts['port'])) $dsn .= ';port=' . (int) $parts['port'];
+    if (isset($parts['path']) && $parts['path'] !== '') {
+        $dsn .= ';dbname=' . rawurldecode(ltrim($parts['path'], '/'));
+    }
+    $query = [];
+    parse_str((string) ($parts['query'] ?? ''), $query);
+    if (isset($query['sslmode']) && preg_match('/^(disable|allow|prefer|required|verify-ca|verify-full)$/', (string) $query['sslmode'])) {
+        $dsn .= ';sslmode=' . $query['sslmode'];
+    }
+    if (isset($query['options']) && preg_match('/^[A-Za-z0-9_ .+\/=-]+$/', (string) $query['options'])) {
+        $dsn .= ';options=' . $query['options'];
+    }
+    return [$dsn, isset($parts['user']) ? rawurldecode($parts['user']) : null,
+        isset($parts['pass']) ? rawurldecode($parts['pass']) : null];
+}
+
 function db(): PDO
 {
     static $connection = null;
     if (!$connection) {
-        assertIsolated();
-        $socket = realpath(WORKSPACE_ROOT . '/.local/native-mysql') . '/mysql.sock';
-        $connection = new PDO(
-            'mysql:unix_socket=' . $socket . ';dbname=' . NATIVE_DB . ';charset=utf8mb4',
-            'ferry_test_app',
-            '',
-            [
+        if (appProduction()) {
+            $url = getenv('DATABASE_URL');
+            if (!is_string($url) || $url === '') {
+                throw new RuntimeException('DATABASE_URL is required in production.');
+            }
+            if (!extension_loaded('pdo_pgsql')) {
+                throw new RuntimeException('The pdo_pgsql extension is required in production.');
+            }
+            [$dsn, $dbUser, $dbPassword] = postgresDsn($url);
+            $connection = new PDO($dsn, $dbUser, $dbPassword, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
                 PDO::ATTR_STRINGIFY_FETCHES => false,
-                PDO::MYSQL_ATTR_MULTI_STATEMENTS => false,
-            ]
-        );
-        $connection->exec("SET time_zone = '+00:00'");
+            ]);
+            $connection->exec('SET TIME ZONE \'UTC\'');
+            $connection->exec('SET search_path TO parts_store, public');
+        } else {
+            assertIsolated();
+            $socket = realpath(WORKSPACE_ROOT . '/.local/native-mysql') . '/mysql.sock';
+            $connection = new PDO(
+                'mysql:unix_socket=' . $socket . ';dbname=' . NATIVE_DB . ';charset=utf8mb4',
+                'ferry_test_app',
+                '',
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_STRINGIFY_FETCHES => false,
+                    PDO::MYSQL_ATTR_MULTI_STATEMENTS => false,
+                ]
+            );
+            $connection->exec("SET time_zone = '+00:00'");
+        }
     }
     return $connection;
 }
@@ -54,12 +146,15 @@ function startSession(): void
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
+    if (appProduction()) {
+        session_set_save_handler(new PostgreSqlSessionHandler(db()), true);
+    }
     $directory = NATIVE_ROOT . '/storage/sessions';
     if (!is_dir($directory)) {
         mkdir($directory, 0700, true);
     }
     session_save_path($directory);
-    session_name('ferry_test_session');
+    session_name(appProduction() ? 'ferry_session' : 'ferry_test_session');
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     session_set_cookie_params([
@@ -73,6 +168,36 @@ function startSession(): void
     session_start();
     if (empty($_SESSION['csrf'])) {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+}
+
+final class PostgreSqlSessionHandler implements SessionHandlerInterface
+{
+    public function __construct(private PDO $pdo) {}
+    public function open(string $path, string $name): bool { return true; }
+    public function close(): bool { return true; }
+    public function read(string $id): string|false
+    {
+        $q = $this->pdo->prepare('SELECT data FROM sessions WHERE id=? AND last_accessed_at > CURRENT_TIMESTAMP - INTERVAL \'1 day\'');
+        $q->execute([$id]);
+        $value = $q->fetchColumn();
+        return $value === false ? '' : (string) $value;
+    }
+    public function write(string $id, string $data): bool
+    {
+        $q = $this->pdo->prepare('INSERT INTO sessions(id,data,last_accessed_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET data=EXCLUDED.data,last_accessed_at=CURRENT_TIMESTAMP');
+        return $q->execute([$id, $data]);
+    }
+    public function destroy(string $id): bool
+    {
+        $q = $this->pdo->prepare('DELETE FROM sessions WHERE id=?');
+        return $q->execute([$id]);
+    }
+    public function gc(int $max_lifetime): int|false
+    {
+        $q = $this->pdo->prepare('DELETE FROM sessions WHERE last_accessed_at < CURRENT_TIMESTAMP - (? * INTERVAL \'1 second\')');
+        $q->execute([$max_lifetime]);
+        return $q->rowCount();
     }
 }
 
@@ -219,8 +344,8 @@ function audit(string $action, string $entity, int $entityId, array $details = [
 
 function enqueue(string $kind, array $payload): void
 {
-    $payload['test_only'] = true;
-    $payload['delivery'] = 'blocked';
+    $payload['test_only'] = shopPreviewMode();
+    $payload['delivery'] = shopLiveMode() ? 'queued' : 'blocked';
     db()->prepare('INSERT INTO messages(kind,payload,status) VALUES(?,?,?)')
         ->execute([$kind, json_encode($payload, JSON_THROW_ON_ERROR), 'captured']);
 }

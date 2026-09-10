@@ -35,9 +35,13 @@ localPort = 18411
 run = "bash native/bin/start.sh"
 
 [services.production]
-build = ["php", "native/bin/not-publishable.php"]
-run = "php native/bin/not-publishable.php"
+build = ["bash", "native/bin/build-production.sh"]
+run = "bash native/bin/start-production.sh"
+
+[services.production.health.startup]
+path = "/test-shop/ready"
 
 [services.env]
 PORT = "18411"
 BASE_PATH = "/test-shop/"
+SHOP_MODE = "preview"

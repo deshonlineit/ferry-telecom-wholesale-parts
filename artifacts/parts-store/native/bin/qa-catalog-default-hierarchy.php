@@ -57,8 +57,8 @@ try {
     $customerB = ['id' => 0, 'role' => 'customer', 'group_id' => $groupB];
 
     $insertProduct = $pdo->prepare(
-        'INSERT INTO products(sku,name,description,category_id,quality,stock,list_price_eur_cents,featured,active)
-         VALUES(?,?,?,?,?,?,?,?,1)'
+        "INSERT INTO products(sku,name,description,category_id,quality,stock,list_price_eur_cents,featured,active,publication_status)
+         VALUES(?,?,?,?,?,?,?,?,1,'visible')"
     );
     $insertPrice = $pdo->prepare('INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,?,?)');
     $add = static function (string $sku, string $name, string $category, int $stock, ?int $list, int $featured = 0)

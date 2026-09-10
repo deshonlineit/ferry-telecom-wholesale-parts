@@ -41,6 +41,23 @@ export class ObjectNotFoundError extends Error {
 export class ObjectStorageService {
   constructor() {}
 
+  async saveNativeMedia(relativePath: string, data: Buffer, contentType: string, visibility: 'public' | 'private'): Promise<string> {
+    const root = visibility === 'public' ? this.getPublicObjectSearchPaths()[0] : this.getPrivateObjectDir();
+    const { bucketName, objectName } = parseObjectPath(`${root.replace(/\/$/, '')}/native-media/${relativePath}`);
+    const file = objectStorageClient.bucket(bucketName).file(objectName);
+    await file.save(data, { resumable: false, contentType, metadata: {
+      cacheControl: visibility === 'public' ? 'public, max-age=31536000, immutable' : 'private, no-store',
+      metadata: { 'custom:aclPolicy': JSON.stringify({ owner: 'native-media', visibility }) },
+    }});
+    return `native-media/${relativePath}`;
+  }
+
+  async deleteNativeMedia(relativePath: string, visibility: 'public' | 'private'): Promise<void> {
+    const root = visibility === 'public' ? this.getPublicObjectSearchPaths()[0] : this.getPrivateObjectDir();
+    const { bucketName, objectName } = parseObjectPath(`${root.replace(/\/$/, '')}/native-media/${relativePath}`);
+    await objectStorageClient.bucket(bucketName).file(objectName).delete({ ignoreNotFound: true });
+  }
+
   getPublicObjectSearchPaths(): Array<string> {
     const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || '';
     const paths = Array.from(

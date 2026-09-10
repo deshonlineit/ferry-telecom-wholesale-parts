@@ -63,14 +63,16 @@ function nativeRelayQueuePaidOrder(PDO $pdo, int $orderId, string $eventId): voi
     ];
     $encoded = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     $hash = hash('sha256', $encoded);
-    $statement = $pdo->prepare(
-        'INSERT INTO native_picqer_order_snapshots(native_order_id,event_id,content_hash,order_created_at,snapshot_json)
-         VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE content_hash=content_hash'
-    );
+    $statement = $pdo->prepare(dbDriver() === 'pgsql'
+        ? 'INSERT INTO native_picqer_order_snapshots(native_order_id,event_id,content_hash,order_created_at,snapshot_json)
+           VALUES(?,?,?,?,?) ON CONFLICT (native_order_id) DO NOTHING'
+        : 'INSERT INTO native_picqer_order_snapshots(native_order_id,event_id,content_hash,order_created_at,snapshot_json)
+           VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE content_hash=content_hash');
     $statement->execute([(string)$orderId, $eventId, $hash, $created->format('Y-m-d H:i:s'), $encoded]);
-    $statement = $pdo->prepare(
-        'INSERT INTO native_picqer_outbox(native_order_id,event_id,content_hash,order_created_at,snapshot_json)
-         VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE content_hash=content_hash'
-    );
+    $statement = $pdo->prepare(dbDriver() === 'pgsql'
+        ? 'INSERT INTO native_picqer_outbox(native_order_id,event_id,content_hash,order_created_at,snapshot_json)
+           VALUES(?,?,?,?,?) ON CONFLICT (native_order_id) DO NOTHING'
+        : 'INSERT INTO native_picqer_outbox(native_order_id,event_id,content_hash,order_created_at,snapshot_json)
+           VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE content_hash=content_hash');
     $statement->execute([(string)$orderId, $eventId, $hash, $created->format('Y-m-d H:i:s'), $encoded]);
 }

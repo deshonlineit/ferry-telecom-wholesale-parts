@@ -91,8 +91,8 @@ try {
   $name="Café B2B part ".$x["token"];
   $q=$pdo->prepare("INSERT INTO products
     (sku,name,description,category_id,brand_id,quality,stock,list_price_cents,
-     list_price_eur_cents,minimum_quantity,image_url,featured,active)
-     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1)");
+      list_price_eur_cents,minimum_quantity,image_url,featured,active,publication_status)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,'visible')");
   $q->execute([$sku,$name,"Dedicated native B2B QA fixture",$category,$brand,
     "Premium QA",20,999,900,2,"",0]);
   $pid=(int)$pdo->lastInsertId();

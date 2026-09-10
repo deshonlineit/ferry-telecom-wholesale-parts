@@ -18,6 +18,7 @@ import { timingSafeSecretEqual, verifyPicqerSignature } from "./lib/picqerSecuri
 import { picqerFreeStock, picqerWebhookKey } from "./lib/picqerPayload";
 import { picqerEnabled } from "./lib/picqerGate";
 import { acceptNativeCatalogRelay, acceptNativeRelay, authorizeNativeSignedRead } from "./lib/nativeRelay";
+import nativeMediaRouter from "./routes/nativeMedia";
 
 const app: Express = express();
 
@@ -234,6 +235,7 @@ app.post(
 );
 
 app.use(cors({ credentials: true, origin: true }));
+app.use("/api", nativeMediaRouter);
 // CSV imports carry the file text in JSON. Keep the larger parser scoped so
 // every other endpoint retains Express's normal body limit.
 app.use("/api/admin/products/import", express.json({ limit: "2mb" }));

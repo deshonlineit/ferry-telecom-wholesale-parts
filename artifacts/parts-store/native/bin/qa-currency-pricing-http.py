@@ -149,7 +149,9 @@ try {
       $pdo->prepare("DELETE FROM audit_events WHERE entity='return' AND entity_id IN ($rm)")->execute($returnIds);
     }
     $pdo->prepare("DELETE FROM payment_attempts WHERE order_id IN ($m)")->execute($oids);
+    $pdo->prepare("DELETE FROM imported_payments WHERE order_id IN ($m)")->execute($oids);
     $pdo->prepare("DELETE FROM invoice_accounting WHERE order_id IN ($m)")->execute($oids);
+    $pdo->prepare("DELETE FROM invoice_deliveries WHERE order_id IN ($m)")->execute($oids);
     $pdo->prepare("DELETE FROM order_events WHERE order_id IN ($m)")->execute($oids);
     $pdo->prepare("DELETE FROM order_items WHERE order_id IN ($m)")->execute($oids);
     $pdo->prepare("DELETE FROM orders WHERE id IN ($m)")->execute($oids);
@@ -235,6 +237,16 @@ try:
         fixture["product_ids"].append(product["id"])
         products.append(product)
 
+    php(r'''
+require "src/bootstrap.php";
+$x=json_decode(stream_get_contents(STDIN),true,8,JSON_THROW_ON_ERROR);
+$ids=array_values(array_map("intval",$x["ids"]??[]));
+if(!$ids) throw new RuntimeException("Currency fixture product IDs are required.");
+$marks=implode(",",array_fill(0,count($ids),"?"));
+db()->prepare("UPDATE products SET publication_status='visible' WHERE id IN ($marks)")->execute($ids);
+echo json_encode(["published"=>count($ids)]);
+''', {"ids": fixture["product_ids"]})
+
     listing = staff.call("GET", f"/admin/prices?q={urllib.parse.quote('QA native currency ' + unique)}&limit=500")
     check(listing["total"] == 2 and listing["currency"] == "EUR" and listing["exchange_rate"],
           "staff EUR list filters and exchange metadata")
@@ -253,7 +265,10 @@ try:
         {"id": p1["id"], "version": p1["pricing_version"], "purchase_price_eur_cents": -1},
     ]}, expected=(422,))
     unchanged = staff.call("POST", "/admin/prices/resolve", {"skus": skus})["products"]
-    check(unchanged[0]["list_price_eur_cents"] == 1000, "invalid bulk row rolls back every row")
+    check(
+        unchanged[0]["list_price_eur_cents"] == 1000,
+        f"invalid bulk row rolls back every row (got {unchanged[0]['list_price_eur_cents']!r})",
+    )
     staff.call("POST", "/admin/prices/bulk", {"rows": [
         {"id": p0["id"], "version": p0["pricing_version"] + 99, "list_price_eur_cents": 1700}
     ]}, expected=(409,))
@@ -406,11 +421,15 @@ try:
     pdf_chf_text = subprocess.run(
         ["pdftotext", "-", "-"], input=pdf_chf, stdout=subprocess.PIPE, check=True
     ).stdout.decode("utf-8", errors="replace")
-    check("Swiss export VAT 0%" in pdf_eur_text
-          and "Art. 23(2)(1) Swiss VAT Act" in pdf_eur_text
-          and "Destination import VAT and duties may be charged separately." in pdf_eur_text
-          and "Swiss VAT (snapshot 8.10%)" in pdf_chf_text,
-          "invoice PDFs state Swiss domestic and export VAT treatment")
+    pdf_eur_text = " ".join(pdf_eur_text.split())
+    pdf_chf_text = " ".join(pdf_chf_text.split())
+    vat_checks = {
+        "export_rate": "Swiss export VAT 0%" in pdf_eur_text,
+        "export_basis": "Art. 23(2)(1) Swiss VAT Act" in pdf_eur_text,
+        "destination_notice": "Destination import VAT and duties may be charged separately." in pdf_eur_text,
+        "domestic_snapshot": "Swiss VAT (snapshot 8.10%)" in pdf_chf_text,
+    }
+    check(all(vat_checks.values()), f"invoice PDFs state Swiss domestic and export VAT treatment: {vat_checks}")
 
     staff.call("PATCH", f"/admin/orders/{ch_order['id']}", {
         "status": "processing", "note": "synthetic processing currency check",

@@ -86,7 +86,7 @@ function workspaceResolveCode(PDO $pdo, string $code, int $groupId): array
 
     $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $needle);
     $statement = $pdo->prepare(
-        workspaceProductSelect() . " WHERE p.active = 1 AND p.publication_status='visible' AND (p.sku LIKE ? OR p.name LIKE ?) ORDER BY p.sku LIMIT 6"
+        workspaceProductSelect() . " WHERE p.active = TRUE AND p.publication_status='visible' AND (p.sku LIKE ? OR p.name LIKE ?) ORDER BY p.sku LIMIT 6"
     );
     $statement->execute([$groupId, $like . '%', '%' . $like . '%']);
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -225,7 +225,7 @@ function workspaceAddLinesToCart(array $lines, int $userId): array
         foreach ($orderable as $line) {
             $productId = (int) $line['product']['product_id'];
             $statement = $pdo->prepare(
-                "SELECT stock,minimum_quantity FROM products WHERE id=? AND active=1 AND publication_status='visible' FOR UPDATE"
+                "SELECT stock,minimum_quantity FROM products WHERE id=? AND active=TRUE AND publication_status='visible' FOR UPDATE"
             );
             $statement->execute([$productId]);
             $product = $statement->fetch(PDO::FETCH_ASSOC);
@@ -245,10 +245,11 @@ function workspaceAddLinesToCart(array $lines, int $userId): array
             if ($quantity <= 0 || $quantity < (int) $product['minimum_quantity']) {
                 continue;
             }
-            $statement = $pdo->prepare(
-                'INSERT INTO cart_items (user_id,product_id,quantity) VALUES (?,?,?)
-                 ON DUPLICATE KEY UPDATE quantity=VALUES(quantity)'
-            );
+            $statement = $pdo->prepare(dbDriver() === 'pgsql'
+                ? 'INSERT INTO cart_items (user_id,product_id,quantity) VALUES (?,?,?)
+                   ON CONFLICT (user_id,product_id) DO UPDATE SET quantity=EXCLUDED.quantity'
+                : 'INSERT INTO cart_items (user_id,product_id,quantity) VALUES (?,?,?)
+                   ON DUPLICATE KEY UPDATE quantity=VALUES(quantity)');
             $statement->execute([$userId, $productId, $quantity]);
             $added++;
         }
@@ -406,8 +407,7 @@ function workspaceCreateList(): never
     if ($statement->fetchColumn() !== false) {
         throw new HttpError(409, 'A list with this name already exists.');
     }
-    $pdo->prepare('INSERT INTO order_lists (user_id,name) VALUES (?,?)')->execute([(int) $user['id'], $name]);
-    $listId = (int) $pdo->lastInsertId();
+    $listId = insertReturning($pdo, 'INSERT INTO order_lists (user_id,name) VALUES (?,?)', [(int) $user['id'], $name]);
     audit('order_list.create', 'order_list', $listId, ['name' => $name]);
     respond(['list' => ['id' => $listId, 'name' => $name, 'item_count' => 0], 'lists' => workspaceListSummaries((int) $user['id'])], 201);
 }
@@ -447,7 +447,7 @@ function workspaceListAddItem(int $listId): never
     $productId = integer($input['product_id'] ?? null, 1);
     $quantity = integer($input['quantity'] ?? 1, 1, 100000);
     $pdo = db();
-    $statement = $pdo->prepare("SELECT id FROM products WHERE id=? AND active=1 AND publication_status='visible'");
+    $statement = $pdo->prepare("SELECT id FROM products WHERE id=? AND active=TRUE AND publication_status='visible'");
     $statement->execute([$productId]);
     if ($statement->fetchColumn() === false) {
         throw new HttpError(404, 'Product not found.');
@@ -457,10 +457,12 @@ function workspaceListAddItem(int $listId): never
     if ((int) $statement->fetchColumn() >= 500) {
         throw new HttpError(422, 'This list has reached its maximum size.');
     }
-    $pdo->prepare(
-        'INSERT INTO order_list_items (list_id,product_id,quantity) VALUES (?,?,?)
-         ON DUPLICATE KEY UPDATE quantity=VALUES(quantity)'
-    )->execute([$listId, $productId, $quantity]);
+    $pdo->prepare(dbDriver() === 'pgsql'
+        ? 'INSERT INTO order_list_items (list_id,product_id,quantity) VALUES (?,?,?)
+           ON CONFLICT (list_id,product_id) DO UPDATE SET quantity=EXCLUDED.quantity'
+        : 'INSERT INTO order_list_items (list_id,product_id,quantity) VALUES (?,?,?)
+           ON DUPLICATE KEY UPDATE quantity=VALUES(quantity)')
+        ->execute([$listId, $productId, $quantity]);
     $pdo->prepare('UPDATE order_lists SET updated_at=CURRENT_TIMESTAMP WHERE id=?')->execute([$listId]);
     respond(['lists' => workspaceListSummaries((int) $user['id'])], 201);
 }
@@ -482,7 +484,7 @@ function workspaceListToCart(int $listId): never
     $statement = db()->prepare(
         workspaceProductSelect()
         . " JOIN order_list_items li ON li.product_id = p.id
-            WHERE li.list_id = ? AND p.active = 1 AND p.publication_status='visible'
+            WHERE li.list_id = ? AND p.active = TRUE AND p.publication_status='visible'
             ORDER BY p.id"
     );
     $statement->execute([(int) $user['group_id'], $listId]);
@@ -530,7 +532,7 @@ function workspaceReorder(int $orderId): never
         workspaceProductSelect()
         . " JOIN (SELECT DISTINCT product_id FROM order_items WHERE order_id = ?) oi
                 ON oi.product_id = p.id
-            WHERE p.active = 1 AND p.publication_status='visible'
+            WHERE p.active = TRUE AND p.publication_status='visible'
             ORDER BY p.id"
     );
     $statement->execute([(int) $user['group_id'], $orderId]);
@@ -606,7 +608,7 @@ function workspaceCreateAlert(): never
 {
     $user = commerceActiveCustomer();
     $productId = integer(body()['product_id'] ?? null, 1);
-    $statement = db()->prepare("SELECT id,stock FROM products WHERE id=? AND active=1 AND publication_status='visible'");
+    $statement = db()->prepare("SELECT id,stock FROM products WHERE id=? AND active=TRUE AND publication_status='visible'");
     $statement->execute([$productId]);
     $product = $statement->fetch(PDO::FETCH_ASSOC);
     if (!$product) {
@@ -617,10 +619,12 @@ function workspaceCreateAlert(): never
     if ((int) $statement->fetchColumn() >= 200) {
         throw new HttpError(422, 'The maximum number of stock alerts has been reached.');
     }
-    db()->prepare(
-        "INSERT INTO stock_alerts (user_id,product_id,status) VALUES (?,?,'waiting')
-         ON DUPLICATE KEY UPDATE status='waiting', notified_at=NULL"
-    )->execute([(int) $user['id'], $productId]);
+    db()->prepare(dbDriver() === 'pgsql'
+        ? "INSERT INTO stock_alerts (user_id,product_id,status) VALUES (?,?,'waiting')
+           ON CONFLICT (user_id,product_id) DO UPDATE SET status='waiting', notified_at=NULL"
+        : "INSERT INTO stock_alerts (user_id,product_id,status) VALUES (?,?,'waiting')
+           ON DUPLICATE KEY UPDATE status='waiting', notified_at=NULL")
+        ->execute([(int) $user['id'], $productId]);
     respond(['watching' => true, 'product_id' => $productId], 201);
 }
 
@@ -746,14 +750,20 @@ function workspaceSaveBillingPreferences(): never
     if ($referenceRequired === 1 && $referenceLabel === '') {
         $referenceLabel = 'Purchase order';
     }
-    db()->prepare(
-        'INSERT INTO billing_preferences
-           (user_id,invoice_email,copy_email,auto_send,reference_label,reference_required)
-         VALUES (?,?,?,?,?,?)
-         ON DUPLICATE KEY UPDATE invoice_email=VALUES(invoice_email), copy_email=VALUES(copy_email),
-           auto_send=VALUES(auto_send), reference_label=VALUES(reference_label),
-           reference_required=VALUES(reference_required)'
-    )->execute([(int) $user['id'], $invoiceEmail, $copyEmail, $autoSend, $referenceLabel, $referenceRequired]);
+    db()->prepare(dbDriver() === 'pgsql'
+        ? 'INSERT INTO billing_preferences
+             (user_id,invoice_email,copy_email,auto_send,reference_label,reference_required)
+           VALUES (?,?,?,?,?,?)
+           ON CONFLICT (user_id) DO UPDATE SET invoice_email=EXCLUDED.invoice_email,
+             copy_email=EXCLUDED.copy_email,auto_send=EXCLUDED.auto_send,
+             reference_label=EXCLUDED.reference_label,reference_required=EXCLUDED.reference_required'
+        : 'INSERT INTO billing_preferences
+             (user_id,invoice_email,copy_email,auto_send,reference_label,reference_required)
+           VALUES (?,?,?,?,?,?)
+           ON DUPLICATE KEY UPDATE invoice_email=VALUES(invoice_email), copy_email=VALUES(copy_email),
+             auto_send=VALUES(auto_send), reference_label=VALUES(reference_label),
+             reference_required=VALUES(reference_required)')
+        ->execute([(int) $user['id'], $invoiceEmail, $copyEmail, $autoSend, $referenceLabel, $referenceRequired]);
     audit('billing_preferences.update', 'user', (int) $user['id'], ['auto_send' => (bool) $autoSend]);
     respond(['preferences' => workspaceBillingPreferences((int) $user['id'], (string) $user['email'])]);
 }

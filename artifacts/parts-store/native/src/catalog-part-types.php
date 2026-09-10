@@ -93,12 +93,13 @@ function catalogHousingPartTypeForTitle(string $title): string
 
 function catalogHousingPartTypeSqlCase(string $nameSql = 'p.name'): string
 {
+    $regex = dbDriver() === 'pgsql' ? '~*' : 'REGEXP';
     return "CASE
-        WHEN LOWER($nameSql) REGEXP '(^|[^[:alnum:]])(back[[:space:]]+cover[[:space:]]+glass|back[[:space:]]+glass|rear[[:space:]]+glass|achterglas)([^[:alnum:]]|$)' THEN 'rear-glass'
-        WHEN LOWER($nameSql) REGEXP '(^|[^[:alnum:]])(mid(dle)?[[:space:]-]*frame|frame|chassis)([^[:alnum:]]|$)' THEN 'frame-chassis'
-        WHEN LOWER($nameSql) REGEXP '(^|[^[:alnum:]])(housing|behuizing)([^[:alnum:]]|$).*(^|[^[:alnum:]])(small[[:space:]]+components|parts|pre[[:space:]-]*installed|voorgemonteerde?[[:space:]]+onderdelen)([^[:alnum:]]|$)' THEN 'housing-with-parts'
-        WHEN LOWER($nameSql) REGEXP '(^|[^[:alnum:]])(complete[[:space:]]+(housing|behuizing)|(housing|behuizing)[[:space:]]+complete|full[[:space:]]+housing)([^[:alnum:]]|$)' THEN 'complete-housing'
-        WHEN LOWER($nameSql) REGEXP '(^|[^[:alnum:]])(back[[:space:]]+cover|rear[[:space:]]+cover|battery[[:space:]]+cover|achtercover|batterijcover)([^[:alnum:]]|$)' THEN 'rear-cover'
+        WHEN LOWER($nameSql) $regex '(^|[^[:alnum:]])(back[[:space:]]+cover[[:space:]]+glass|back[[:space:]]+glass|rear[[:space:]]+glass|achterglas)([^[:alnum:]]|$)' THEN 'rear-glass'
+        WHEN LOWER($nameSql) $regex '(^|[^[:alnum:]])(mid(dle)?[[:space:]-]*frame|frame|chassis)([^[:alnum:]]|$)' THEN 'frame-chassis'
+        WHEN LOWER($nameSql) $regex '(^|[^[:alnum:]])(housing|behuizing)([^[:alnum:]]|$).*(^|[^[:alnum:]])(small[[:space:]]+components|parts|pre[[:space:]-]*installed|voorgemonteerde?[[:space:]]+onderdelen)([^[:alnum:]]|$)' THEN 'housing-with-parts'
+        WHEN LOWER($nameSql) $regex '(^|[^[:alnum:]])(complete[[:space:]]+(housing|behuizing)|(housing|behuizing)[[:space:]]+complete|full[[:space:]]+housing)([^[:alnum:]]|$)' THEN 'complete-housing'
+        WHEN LOWER($nameSql) $regex '(^|[^[:alnum:]])(back[[:space:]]+cover|rear[[:space:]]+cover|battery[[:space:]]+cover|achtercover|batterijcover)([^[:alnum:]]|$)' THEN 'rear-cover'
         ELSE 'other-housing'
     END";
 }

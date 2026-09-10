@@ -23,7 +23,7 @@ foreach ($cases as [$title, $expected]) {
 }
 
 $housingId = catalogHousingCategoryId();
-$rows = db()->prepare('SELECT name FROM products WHERE active=1 AND category_id=?');
+$rows = db()->prepare("SELECT name FROM products WHERE active=1 AND publication_status='visible' AND category_id=?");
 $rows->execute([$housingId]);
 $phpCounts = array_fill_keys(catalogHousingPartTypeIds(), 0);
 foreach ($rows->fetchAll(PDO::FETCH_COLUMN) as $title) {

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../src/bootstrap.php';
 
-if (getenv('NODE_ENV') !== 'production' || getenv('LIVE_INTEGRATIONS') !== '1'
+if (!shopLiveMode() || getenv('NODE_ENV') !== 'production' || getenv('LIVE_INTEGRATIONS') !== '1'
     || getenv('PICQER_RELAY_ENABLED') !== '1') { fwrite(STDERR, "Native catalog relay is disabled.\n"); exit(1); }
 $secret = (string)getenv('PICQER_RELAY_SECRET');
 $endpoint = trim((string)getenv('PICQER_RELAY_CATALOG_ENDPOINT'));

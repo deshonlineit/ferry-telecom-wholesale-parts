@@ -25,7 +25,7 @@ function invoiceDataUri(string $path, string $mime): string
  *  invoice_number:string,order_number:string,invoice_date:string,due_date:string,currency:string,
  *  buyer:list<string>,buyer_email:string,buyer_registration_label:string,buyer_registration_number:string,
  *  items:list<array{sku:string,name:string,quantity:int,unit:string,tax:string,total:string}>,
- *  subtotal:string,shipping:string,tax_label:string,tax:string,total:string,payment_method:string,
+ *  subtotal:string,shipping:string,tax_label:string,tax_note?:string,tax:string,total:string,payment_method:string,
  *  payment_terms:string,customer_note:string,test_mode:bool
  * } $invoice
  * @param array{svg:string,account:string,creditor:list<string>,debtor:list<string>,currency:string,amount:string,reference:string,information:string}|null $qr
@@ -73,8 +73,12 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
         ? ''
         : '<div class="info-row"><span>' . $e($referenceLabel === '' ? 'Your reference' : $referenceLabel)
             . '</span><strong>' . $e($reference) . '</strong></div>';
-    $watermark = $invoice['test_mode'] ? '<div class="watermark">TEST</div>' : '';
-    $testFooter = $invoice['test_mode'] ? ' · <span class="test-note">TEST DOCUMENT</span>' : '';
+    $watermark = shopPreviewMode() && !empty($invoice['test_mode']) ? '<div class="watermark">TEST</div>' : '';
+    $testFooter = shopPreviewMode() && !empty($invoice['test_mode']) ? ' · <span class="test-note">TEST DOCUMENT</span>' : '';
+    $taxNote = trim((string) ($invoice['tax_note'] ?? ''));
+    $taxNoteRow = $taxNote === ''
+        ? ''
+        : '<div class="tax-note">' . $e($taxNote) . '</div>';
     $qrPage = '';
     if ($qr !== null) {
         $creditor = implode('<br>', array_map($e, $qr['creditor']));
@@ -136,7 +140,7 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
     .parties{display:table;width:100%;table-layout:fixed;margin-bottom:5mm}.bill,.meta{display:table-cell;vertical-align:top;width:50%}.bill{padding-right:10mm}.eyebrow{font-size:6.5pt;font-weight:700;color:#687386;text-transform:uppercase;letter-spacing:.6pt;margin-bottom:1.6mm}.buyer{font-size:8.2pt;line-height:1.35}.buyer strong{font-size:9pt}.buyer-details{margin-top:2.2mm;padding-top:1.8mm;border-top:1px solid #e2e7ee;font-size:6.7pt;color:#334055}.buyer-details div{margin:.5mm 0}.buyer-details span{display:inline-block;width:29mm;color:#7a8494}
     .meta table{width:100%;border-collapse:collapse}.meta td{padding:.75mm 0;vertical-align:top}.meta td:first-child{width:43%;color:#687386;font-size:6.9pt}.meta td:last-child{font-weight:700;font-size:7.5pt}
     .items{width:100%;border-collapse:collapse;table-layout:fixed}.items thead{display:table-header-group}.items th{background:#111a2a;color:white;text-align:left;padding:2.2mm 2mm;font-size:6.4pt;text-transform:uppercase;letter-spacing:.45pt}.items td{padding:2.35mm 2mm;border-bottom:1px solid #dfe5ec;vertical-align:top;font-size:7.2pt;line-height:1.3}.items .sku{width:14%;font-weight:700}.items .product{width:40%}.items .number{width:9%;text-align:right}.items .money{width:14%;text-align:right;white-space:nowrap}.strong{font-weight:700}
-    .after-items{display:table;width:100%;table-layout:fixed;margin-top:5mm}.payment-info,.totals{display:table-cell;vertical-align:top}.payment-info{width:51%;padding-right:10mm}.info-box{background:#f4f7fb;border-left:2px solid #1683e8;padding:3mm 4mm}.info-box h3{font-size:6.4pt;text-transform:uppercase;letter-spacing:.55pt;margin:0 0 2mm}.info-row{display:table;width:100%;margin:1.1mm 0}.info-row span,.info-row strong{display:table-cell;vertical-align:top}.info-row span{width:38%;color:#687386;font-size:6.8pt}.info-row strong{font-size:7.2pt}
+    .after-items{display:table;width:100%;table-layout:fixed;margin-top:5mm}.payment-info,.totals{display:table-cell;vertical-align:top}.payment-info{width:51%;padding-right:10mm}.info-box{background:#f4f7fb;border-left:2px solid #1683e8;padding:3mm 4mm}.info-box h3{font-size:6.4pt;text-transform:uppercase;letter-spacing:.55pt;margin:0 0 2mm}.info-row{display:table;width:100%;margin:1.1mm 0}.info-row span,.info-row strong{display:table-cell;vertical-align:top}.info-row span{width:38%;color:#687386;font-size:6.8pt}.info-row strong{font-size:7.2pt}.tax-note{margin-top:1.6mm;font-size:6.4pt;line-height:1.3;color:#253043}
     .totals{width:49%;font-size:7.6pt}.totals table{width:100%;border-collapse:collapse}.totals td{padding:1.2mm 0;border-bottom:1px solid #e5eaf0}.totals td:last-child{text-align:right;font-weight:700;white-space:nowrap}.totals tr.grand td{border-top:2px solid #1683e8;border-bottom:0;padding-top:2mm;font-size:10pt}
     .footer{position:absolute;left:15mm;right:15mm;bottom:8mm;border-top:1px solid #dce3ec;padding-top:2.2mm;color:#778194;font-size:6.5pt}.footer strong{color:#172033}.footer-right{float:right}.test-note{color:#9a6500;font-weight:700}
     .qr-page{height:297mm;position:relative}.qr-page .watermark{top:100mm}.separate{position:absolute;left:0;right:0;bottom:105mm;text-align:center;font-size:7pt;border-bottom:1px dashed #333;padding-bottom:1.5mm}
@@ -163,6 +167,7 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
         <div class="info-row"><span>Payment terms</span><strong>{$e($invoice['payment_terms'])}</strong></div>
         {$referenceRow}
         {$noteRow}
+        {$taxNoteRow}
       </div></div><div class="totals"><table>
         <tr><td>Subtotal excl. VAT</td><td>{$e($invoice['subtotal'])}</td></tr>
         <tr><td>Shipping excl. VAT</td><td>{$e($invoice['shipping'])}</td></tr>

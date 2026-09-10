@@ -162,10 +162,11 @@ function opReplaceRelations(int $productId, array $input, string $kind): void
     }
     /* Clearing a canonical override must never delete its retained CHF source row. */
     db()->prepare('UPDATE group_prices SET price_eur_cents=NULL WHERE product_id = ?')->execute([$productId]);
-    $insert = db()->prepare(
-        'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,0,?)
-         ON DUPLICATE KEY UPDATE price_eur_cents=VALUES(price_eur_cents)'
-    );
+    $insert = db()->prepare(dbDriver() === 'pgsql'
+        ? 'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,0,?)
+           ON CONFLICT (product_id,group_id) DO UPDATE SET price_eur_cents=EXCLUDED.price_eur_cents'
+        : 'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,0,?)
+           ON DUPLICATE KEY UPDATE price_eur_cents=VALUES(price_eur_cents)');
     foreach ($prices as $groupId => $price) {
         if ($price === null) continue;
         $insert->execute([$productId, $groupId, $price]);
@@ -175,7 +176,7 @@ function opReplaceRelations(int $productId, array $input, string $kind): void
 function opProductPayload(array $input, bool $create): array
 {
     $allowed = ['sku', 'name', 'description', 'category_id', 'brand_id', 'quality', 'stock',
-        'purchase_price_eur_cents', 'minimum_quantity', 'featured',
+        'purchase_price_eur_cents', 'list_price_eur_cents', 'minimum_quantity', 'featured',
         'publication_status'];
     $result = [];
     foreach ($allowed as $field) {
@@ -293,9 +294,9 @@ function opAdminProducts(string $method, string $path): bool
             throw new HttpError(422, 'Invalid stock filter.');
         }
         $statusWhere = match ($status) {
-            'visible' => " AND p.active=1 AND p.publication_status='visible'",
-            'draft' => " AND p.active=1 AND p.publication_status='draft'",
-            'archived' => ' AND p.active=0',
+            'visible' => " AND p.active=TRUE AND p.publication_status='visible'",
+            'draft' => " AND p.active=TRUE AND p.publication_status='draft'",
+            'archived' => ' AND p.active=FALSE',
             default => '',
         };
         $sort = (string)($_GET['sort'] ?? '');
@@ -309,16 +310,16 @@ function opAdminProducts(string $method, string $path): bool
             default => throw new HttpError(422, 'Invalid product sort.'),
         };
         $countsStatement = db()->prepare(
-            "SELECT COUNT(*) `all`,
-                    COALESCE(SUM(p.active=1 AND p.publication_status='visible'),0) visible,
-                    COALESCE(SUM(p.active=1 AND p.publication_status='draft'),0) draft,
-                    COALESCE(SUM(p.active=0),0) archived"
+            "SELECT COUNT(*) AS \"all\",
+                    COALESCE(SUM(CASE WHEN p.active=TRUE AND p.publication_status='visible' THEN 1 ELSE 0 END),0) visible,
+                    COALESCE(SUM(CASE WHEN p.active=TRUE AND p.publication_status='draft' THEN 1 ELSE 0 END),0) draft,
+                    COALESCE(SUM(CASE WHEN p.active=FALSE THEN 1 ELSE 0 END),0) archived"
             . ' FROM products p' . $where
         );
         $countsStatement->execute($params);
         $counts = $countsStatement->fetch(PDO::FETCH_ASSOC) ?: ['all' => 0, 'active' => 0, 'archived' => 0];
         foreach ($counts as $key => $value) $counts[$key] = (int)$value;
-        $featuredTotal = (int)db()->query('SELECT COUNT(*) FROM products WHERE featured=1')->fetchColumn();
+        $featuredTotal = (int)db()->query('SELECT COUNT(*) FROM products WHERE featured=TRUE')->fetchColumn();
         $count = db()->prepare('SELECT COUNT(*) FROM products p' . $where . $statusWhere);
         $count->execute($params);
         $total = (int)$count->fetchColumn();
@@ -349,7 +350,7 @@ function opAdminProducts(string $method, string $path): bool
     if (preg_match('#^/admin/products/(\d+)/restore$#', $path, $match) && $method === 'POST') {
         $staff = requireStaff();
         $id = opId($match[1]);
-        $statement = db()->prepare("UPDATE products SET active=1,publication_status='draft' WHERE id=?");
+        $statement = db()->prepare("UPDATE products SET active=TRUE,publication_status='draft' WHERE id=?");
         $statement->execute([$id]);
         if ($statement->rowCount() === 0 && opRow('SELECT id FROM products WHERE id=?', [$id]) === null) {
             throw new HttpError(404, 'Product not found.');
@@ -367,8 +368,7 @@ function opAdminProducts(string $method, string $path): bool
             $columns = array_keys($fields);
             $sql = 'INSERT INTO products(' . implode(',', $columns) . ') VALUES('
                 . implode(',', array_fill(0, count($columns), '?')) . ')';
-            $pdo->prepare($sql)->execute(array_values($fields));
-            $id = (int)$pdo->lastInsertId();
+            $id = insertReturning($pdo, $sql, array_values($fields));
             if (array_key_exists('group_prices', $input)) {
                 if (!is_array($input['group_prices'])) throw new HttpError(422, 'Invalid group prices.');
                 opReplaceRelations($id, $input['group_prices'], 'prices');
@@ -420,6 +420,7 @@ function opAdminProducts(string $method, string $path): bool
             $input = body();
             $fields = opProductPayload($input, false);
             $priceTouched = array_key_exists('purchase_price_eur_cents', $fields)
+                || array_key_exists('list_price_eur_cents', $fields)
                 || array_key_exists('group_prices', $input);
             $expectedVersion = null;
             if ($priceTouched) {
@@ -476,7 +477,7 @@ function opAdminProducts(string $method, string $path): bool
             respond(['product' => opProduct(opRow('SELECT * FROM products WHERE id=?', [$id]) ?? [])]);
         }
         if ($method === 'DELETE') {
-            db()->prepare('UPDATE products SET active=0 WHERE id=?')->execute([$id]);
+            db()->prepare('UPDATE products SET active=FALSE WHERE id=?')->execute([$id]);
             audit('product.archived', 'product', $id, ['by' => (int)$staff['id']]);
             respond(['success' => true]);
         }
@@ -529,7 +530,7 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
         if ($existing !== null) {
             if (!hash_equals((string)$existing['idempotency_key'], $key)) throw new HttpError(409, 'This return already has a settlement.');
             if ((string)$existing['kind'] === 'stripe_refund' && in_array((string)$existing['status'], ['pending','failed'], true)) {
-                if ((string)$existing['status'] === 'failed') $pdo->prepare('UPDATE return_settlements SET status="pending",error_message=NULL WHERE id=?')->execute([(int)$existing['id']]);
+                if ((string)$existing['status'] === 'failed') $pdo->prepare("UPDATE return_settlements SET status='pending',error_message=NULL WHERE id=?")->execute([(int)$existing['id']]);
                 $snapshot = opJson($existing['snapshot']);
                 $pdo->commit();
                 return ['settlement_id'=>(int)$existing['id'], 'status'=>'pending', 'kind'=>'stripe_refund',
@@ -594,8 +595,8 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
         $snapshot = ['order_id'=>(int)$return['order_id'],'order_number'=>(string)$return['order_number'],'return_id'=>$returnId,'net_cents'=>$net,'tax_cents'=>$tax,'payment_intent_id'=>$paymentIntentId,'lines'=>$snapshotLines];
         $providerRefund = $isStripe || $isWallee;
         $kind = $isStripe ? 'stripe_refund' : ($isWallee ? 'twint_refund' : 'invoice_credit'); $state = $providerRefund ? 'pending' : 'succeeded';
-        $pdo->prepare('INSERT INTO return_settlements(return_id,idempotency_key,kind,status,amount_cents,currency,snapshot,created_by,settled_at) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$returnId,$key,$kind,$state,$amount,(string)$return['currency'],json_encode($snapshot, JSON_THROW_ON_ERROR),$staffId,$providerRefund ? null : gmdate('Y-m-d H:i:s')]);
-        $settlementId = (int)$pdo->lastInsertId();
+        $settlementId = insertReturning($pdo, 'INSERT INTO return_settlements(return_id,idempotency_key,kind,status,amount_cents,currency,snapshot,created_by,settled_at) VALUES(?,?,?,?,?,?,?,?,?)',
+            [$returnId,$key,$kind,$state,$amount,(string)$return['currency'],json_encode($snapshot, JSON_THROW_ON_ERROR),$staffId,$providerRefund ? null : gmdate('Y-m-d H:i:s')]);
         foreach ($snapshotLines as $line) {
             $pdo->prepare('INSERT INTO return_item_dispositions(return_item_id,received_quantity,restock_quantity,disposition,recorded_by) VALUES(?,?,?,?,?)')->execute([$line['return_item_id'],$line['received_quantity'],$line['restock_quantity'],$line['disposition'],$staffId]);
             if ($line['restock_quantity'] > 0) {
@@ -604,9 +605,10 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
             }
         }
         if (!$providerRefund) {
-            $tmp = 'TMP-CN-' . bin2hex(random_bytes(8));
-            $pdo->prepare('INSERT INTO customer_credit_notes(number,user_id,order_id,return_id,settlement_id,issued_cents,remaining_cents,currency,snapshot,created_by) VALUES(?,?,?,?,?,?,?,?,?,?)')->execute([$tmp,(int)$return['user_id'],(int)$return['order_id'],$returnId,$settlementId,$amount,$amount,(string)$return['currency'],json_encode($snapshot, JSON_THROW_ON_ERROR),$staffId]);
-            $noteId = (int)$pdo->lastInsertId(); $number = opNumber('CN', $noteId); $pdo->prepare('UPDATE customer_credit_notes SET number=? WHERE id=?')->execute([$number,$noteId]);
+            $tmp = (shopLiveMode() ? 'CN-' : 'TMP-CN-') . bin2hex(random_bytes(8));
+            $noteId = insertReturning($pdo, 'INSERT INTO customer_credit_notes(number,user_id,order_id,return_id,settlement_id,issued_cents,remaining_cents,currency,snapshot,created_by) VALUES(?,?,?,?,?,?,?,?,?,?)',
+                [$tmp,(int)$return['user_id'],(int)$return['order_id'],$returnId,$settlementId,$amount,$amount,(string)$return['currency'],json_encode($snapshot, JSON_THROW_ON_ERROR),$staffId]);
+            $number = opNumber('CN', $noteId); $pdo->prepare('UPDATE customer_credit_notes SET number=? WHERE id=?')->execute([$number,$noteId]);
             $targets = opRows(
                 "SELECT o.id,o.total_cents,COALESCE(ia.paid_cents,0) paid_cents,
                         COALESCE((SELECT SUM(ca.amount_cents) FROM credit_applications ca WHERE ca.target_order_id=o.id),0) applied_cents
@@ -626,7 +628,7 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
                 $remainingCredit -= $applied;
             }
             $pdo->prepare('UPDATE customer_credit_notes SET remaining_cents=? WHERE id=?')->execute([$remainingCredit,$noteId]);
-            $pdo->prepare('UPDATE returns SET status="credited",credit_cents=? WHERE id=?')->execute([$amount,$returnId]);
+            $pdo->prepare("UPDATE returns SET status='credited',credit_cents=? WHERE id=?")->execute([$amount,$returnId]);
         }
         $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,?,?)')->execute([$returnId,$providerRefund ? 'settlement_pending' : 'credited', 'Settlement ' . $kind . ' prepared by staff #' . $staffId]);
         audit('return.settlement_' . $state, 'return', $returnId, ['settlement_id'=>$settlementId,'amount_cents'=>$amount,'by'=>$staffId]);
@@ -637,18 +639,21 @@ function opSettleReturn(int $returnId, array $input, int $staffId): array
 
 function opProviderRefundBridge(array $payload): array
 {
+    if (shopPreviewMode()) {
+        throw new HttpError(403, 'Live refund integrations are disabled in preview mode.');
+    }
     $secret = getenv('NATIVE_STRIPE_BRIDGE_SECRET');
     if (!is_string($secret) || $secret === '') $secret = getenv('NATIVE_S2S_SECRET');
     if (!is_string($secret) || $secret === '') throw new HttpError(503, 'Stripe refund bridge authentication is unavailable.');
     if (($payload['kind'] ?? '') === 'twint_refund') {
         $request = ['transactionId'=>(int)$payload['transaction_id'],'amount'=>(int)$payload['amount_cents'],'currency'=>'CHF','idempotencyKey'=>(string)$payload['idempotency_key']];
-        $curl = curl_init('http://localhost:80/api/wallee/native/refund');
+        $curl = curl_init(internalApiBase() . '/api/wallee/native/refund');
     } else {
     $request = ['returnId'=>(string)$payload['return_id'],'settlementId'=>(string)$payload['settlement_id'],
         'orderId'=>(string)$payload['order_id'],'orderNumber'=>(string)$payload['order_number'],
         'amount'=>(int)$payload['amount_cents'],'currency'=>strtolower((string)$payload['currency']),
         'paymentIntentId'=>(string)$payload['payment_intent_id'],'idempotencyKey'=>(string)$payload['idempotency_key']];
-    $curl = curl_init('http://localhost:80/api/stripe/native/refund');
+    $curl = curl_init(internalApiBase() . '/api/stripe/native/refund');
     }
     if ($curl === false) throw new HttpError(503, 'Payment-provider refund bridge is unavailable.');
     curl_setopt_array($curl, [CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>15,CURLOPT_HTTPHEADER=>['Content-Type: application/json','X-Native-Stripe-Bridge-Secret: '.$secret],CURLOPT_POSTFIELDS=>json_encode($request, JSON_THROW_ON_ERROR)]);
@@ -665,8 +670,8 @@ function opFinalizeProviderSettlement(int $settlementId, array $bridge, int $sta
         if ($s === null) throw new HttpError(404, 'Settlement not found.');
         if ((string)$s['status'] !== 'pending') { $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>$s['status'],'kind'=>$s['kind']]; }
         if (!($bridge['ok'] ?? false)) {
-            $pdo->prepare('UPDATE return_settlements SET status="failed",error_message=? WHERE id=?')->execute([text($bridge['error'] ?? 'Provider refund failed.', 1000),$settlementId]);
-            $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"settlement_failed",?)')->execute([(int)$s['return_id'],'Provider refund failed; retry with the same settlement idempotency key.']);
+            $pdo->prepare("UPDATE return_settlements SET status='failed',error_message=? WHERE id=?")->execute([text($bridge['error'] ?? 'Provider refund failed.', 1000),$settlementId]);
+            $pdo->prepare("INSERT INTO return_events(return_id,status,note) VALUES(?, 'settlement_failed',?)")->execute([(int)$s['return_id'],'Provider refund failed; retry with the same settlement idempotency key.']);
             $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>'failed','kind'=>(string)$s['kind']];
         }
         $ref = text(($bridge['response']['id'] ?? $bridge['response']['refund_id'] ?? ''), 190);
@@ -675,9 +680,12 @@ function opFinalizeProviderSettlement(int $settlementId, array $bridge, int $sta
             $pdo->commit();
             return ['settlement_id'=>$settlementId,'status'=>'pending','kind'=>'twint_refund'];
         }
-        $pdo->prepare('UPDATE return_settlements SET status="succeeded",provider_reference=?,settled_at=UTC_TIMESTAMP() WHERE id=?')->execute([$ref === '' ? null : $ref,$settlementId]);
-        $pdo->prepare('UPDATE returns SET status="credited",credit_cents=? WHERE id=?')->execute([(int)$s['amount_cents'],(int)$s['return_id']]);
-        $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"credited",?)')->execute([(int)$s['return_id'],'Provider refund settled by staff #'.$staffId]);
+        $pdo->prepare(dbDriver() === 'pgsql'
+            ? 'UPDATE return_settlements SET status=\'succeeded\',provider_reference=?,settled_at=CURRENT_TIMESTAMP WHERE id=?'
+            : "UPDATE return_settlements SET status='succeeded',provider_reference=?,settled_at=UTC_TIMESTAMP() WHERE id=?")
+            ->execute([$ref === '' ? null : $ref,$settlementId]);
+        $pdo->prepare("UPDATE returns SET status='credited',credit_cents=? WHERE id=?")->execute([(int)$s['amount_cents'],(int)$s['return_id']]);
+        $pdo->prepare("INSERT INTO return_events(return_id,status,note) VALUES(?, 'credited',?)")->execute([(int)$s['return_id'],'Provider refund settled by staff #'.$staffId]);
         audit('return.settlement_succeeded', 'return', (int)$s['return_id'], ['settlement_id'=>$settlementId,'by'=>$staffId]);
         $pdo->commit(); return ['settlement_id'=>$settlementId,'status'=>'succeeded','kind'=>(string)$s['kind']];
     } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
@@ -723,14 +731,14 @@ function opReturns(string $method, string $path): bool
             $q->execute([$orderId, ...$ids]); $used = [];
             foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) $used[(int)$row['order_item_id']] = ($used[(int)$row['order_item_id']] ?? 0) + (int)$row['quantity'];
             foreach ($requested as $itemId => $quantity) if ($quantity + ($used[$itemId] ?? 0) > $ordered[$itemId]) throw new HttpError(409, 'Return quantity exceeds the quantity available.');
-            $tmp = 'TMP-' . bin2hex(random_bytes(10));
-            $pdo->prepare('INSERT INTO returns(number,user_id,order_id,status,reason,credit_cents,note) VALUES(?,?,?,"submitted",?,0,?)')->execute([$tmp, (int)$order['user_id'], $orderId, $reason, $note]);
-            $returnId = (int)$pdo->lastInsertId(); $number = opNumber('RET', $returnId);
+            $tmp = (shopLiveMode() ? 'RET-' : 'TMP-') . bin2hex(random_bytes(10));
+            $returnId = insertReturning($pdo, "INSERT INTO returns(number,user_id,order_id,status,reason,credit_cents,note) VALUES(?,?,?,'submitted',?,0,?)",
+                [$tmp, (int)$order['user_id'], $orderId, $reason, $note]); $number = opNumber('RET', $returnId);
             $pdo->prepare('UPDATE returns SET number=? WHERE id=?')->execute([$number, $returnId]);
             $insert = $pdo->prepare('INSERT INTO return_items(return_id,order_item_id,quantity) VALUES(?,?,?)');
             foreach ($requested as $itemId => $quantity) $insert->execute([$returnId, $itemId, $quantity]);
             $pdo->prepare('INSERT INTO return_creation_keys(idempotency_key,return_id) VALUES(?,?)')->execute([$key, $returnId]);
-            $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"submitted",?)')->execute([$returnId, 'Staff RMA created: ' . $note]);
+            $pdo->prepare("INSERT INTO return_events(return_id,status,note) VALUES(?, 'submitted',?)")->execute([$returnId, 'Staff RMA created: ' . $note]);
             audit('return.staff_created', 'return', $returnId, ['order_id' => $orderId, 'by' => (int)$staff['id']]);
             $pdo->commit();
         } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
@@ -808,15 +816,14 @@ function opReturns(string $method, string $path): bool
                     throw new HttpError(409, 'Return quantity exceeds the quantity available.');
                 }
             }
-            $temporary = 'TMP-' . bin2hex(random_bytes(10));
-            $pdo->prepare('INSERT INTO returns(number,user_id,order_id,status,reason,credit_cents,note) VALUES(?,?,?,"submitted",?,0,"")')
-                ->execute([$temporary, (int)$user['id'], $orderId, $reason]);
-            $returnId = (int)$pdo->lastInsertId();
+            $temporary = (shopLiveMode() ? 'RET-' : 'TMP-') . bin2hex(random_bytes(10));
+            $returnId = insertReturning($pdo, "INSERT INTO returns(number,user_id,order_id,status,reason,credit_cents,note) VALUES(?,?,?,'submitted',?,0,'')",
+                [$temporary, (int)$user['id'], $orderId, $reason]);
             $number = opNumber('RET', $returnId);
             $pdo->prepare('UPDATE returns SET number=? WHERE id=?')->execute([$number, $returnId]);
             $insert = $pdo->prepare('INSERT INTO return_items(return_id,order_item_id,quantity) VALUES(?,?,?)');
             foreach ($requested as $itemId => $quantity) $insert->execute([$returnId, $itemId, $quantity]);
-            $pdo->prepare('INSERT INTO return_events(return_id,status,note) VALUES(?,"submitted","Return submitted")')->execute([$returnId]);
+            $pdo->prepare("INSERT INTO return_events(return_id,status,note) VALUES(?, 'submitted','Return submitted')")->execute([$returnId]);
             audit('return.created', 'return', $returnId, ['order_id' => $orderId]);
             $pdo->commit();
         } catch (Throwable $e) {
@@ -1110,18 +1117,18 @@ function opImport(string $method, string $path): bool
             }
         }
         $insert = $pdo->prepare(
-            'INSERT INTO products(sku,name,description,category_id,brand_id,quality,stock,list_price_cents,list_price_eur_cents,minimum_quantity,active)
-             VALUES(?,?,"",?,?,?,?,0,?,1,1)'
+            "INSERT INTO products(sku,name,description,category_id,brand_id,quality,stock,list_price_cents,list_price_eur_cents,minimum_quantity,active)
+             VALUES(?,?,'',?,?,?,?,0,?,1,TRUE)"
         );
         $update = $pdo->prepare(
             'UPDATE products SET name=?,category_id=?,brand_id=?,quality=?,stock=?,
-             list_price_eur_cents=?,pricing_version=pricing_version+1,active=1 WHERE id=?'
+             list_price_eur_cents=?,pricing_version=pricing_version+1,active=TRUE WHERE id=?'
         );
         foreach ($rows as $row) {
             $locked = $lockedBySku[$row['sku']];
             if ($locked === null) {
-                $insert->execute([$row['sku'], $row['name'], $row['category_id'], $row['brand_id'], $row['quality'], $row['stock'], $row['price']]);
-                $newId = (int)$pdo->lastInsertId();
+                $newId = insertReturning($pdo, 'INSERT INTO products(sku,name,description,category_id,brand_id,quality,stock,list_price_cents,list_price_eur_cents,minimum_quantity,active) VALUES(?,?,?,?,?,?,?,?,?,?,TRUE)',
+                    [$row['sku'], $row['name'], '', $row['category_id'], $row['brand_id'], $row['quality'], $row['stock'], 0, $row['price'], 1]);
                 audit('product.imported_created', 'product', $newId, [
                     'pricing_before' => null, 'pricing_after' => pricingSnapshot($newId), 'by' => (int)$staff['id'],
                 ]);
@@ -1206,13 +1213,18 @@ function opAdminGeneral(string $method, string $path): bool
             $existing = opRow('SELECT * FROM billing_addresses WHERE user_id=? FOR UPDATE', [$customerId]);
             $values = commerceAddressInput(body(), $existing);
             unset($values['is_default']);
-            $pdo->prepare(
-                'INSERT INTO billing_addresses(user_id,label,name,company,line1,line2,postal_code,city,country)
-                 VALUES(?,?,?,?,?,?,?,?,?)
-                 ON DUPLICATE KEY UPDATE label=VALUES(label),name=VALUES(name),company=VALUES(company),
-                 line1=VALUES(line1),line2=VALUES(line2),postal_code=VALUES(postal_code),city=VALUES(city),
-                 country=VALUES(country),updated_at=CURRENT_TIMESTAMP'
-            )->execute([$customerId, $values['label'], $values['name'], $values['company'], $values['line1'],
+            $pdo->prepare(dbDriver() === 'pgsql'
+                ? 'INSERT INTO billing_addresses(user_id,label,name,company,line1,line2,postal_code,city,country)
+                   VALUES(?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT (user_id) DO UPDATE SET label=EXCLUDED.label,name=EXCLUDED.name,company=EXCLUDED.company,
+                   line1=EXCLUDED.line1,line2=EXCLUDED.line2,postal_code=EXCLUDED.postal_code,city=EXCLUDED.city,
+                   country=EXCLUDED.country,updated_at=CURRENT_TIMESTAMP'
+                : 'INSERT INTO billing_addresses(user_id,label,name,company,line1,line2,postal_code,city,country)
+                   VALUES(?,?,?,?,?,?,?,?,?)
+                   ON DUPLICATE KEY UPDATE label=VALUES(label),name=VALUES(name),company=VALUES(company),
+                   line1=VALUES(line1),line2=VALUES(line2),postal_code=VALUES(postal_code),city=VALUES(city),
+                   country=VALUES(country),updated_at=CURRENT_TIMESTAMP')
+            ->execute([$customerId, $values['label'], $values['name'], $values['company'], $values['line1'],
                 $values['line2'], $values['postal_code'], $values['city'], $values['country']]);
             audit('customer.billing_address_updated', 'user', $customerId, ['actor_id' => (int)$staff['id'], 'customer_id' => $customerId]);
             $pdo->commit();
@@ -1241,19 +1253,25 @@ function opAdminGeneral(string $method, string $path): bool
                 if (count($addresses) === 1) throw new HttpError(422, 'Cannot delete the last shipping address.');
                 $pdo->prepare('DELETE FROM addresses WHERE id=? AND user_id=?')->execute([$addressId, $customerId]);
                 if ((bool)$existing['is_default']) {
-                    $pdo->prepare('UPDATE addresses SET is_default=1 WHERE user_id=? ORDER BY id ASC LIMIT 1')->execute([$customerId]);
+                    // MySQL's UPDATE ... ORDER BY ... LIMIT has no PostgreSQL
+                    // equivalent; select the deterministic row first.
+                    $addressQuery = $pdo->prepare('SELECT id FROM addresses WHERE user_id=? ORDER BY id ASC LIMIT 1');
+                    $addressQuery->execute([$customerId]);
+                    $addressId = $addressQuery->fetchColumn();
+                    if ($addressId !== false) {
+                        $pdo->prepare('UPDATE addresses SET is_default=TRUE WHERE id=?')->execute([(int)$addressId]);
+                    }
                 }
                 audit('customer.shipping_address_deleted', 'address', $addressId, ['actor_id' => (int)$staff['id'], 'customer_id' => $customerId]);
             } else {
                 $values = commerceAddressInput(body(), $existing);
                 $makeDefault = $values['is_default'] || ($method === 'POST' && $addresses === []);
                 if ($existing !== null && (bool)$existing['is_default'] && !$makeDefault) $makeDefault = true;
-                if ($makeDefault) $pdo->prepare('UPDATE addresses SET is_default=0 WHERE user_id=?')->execute([$customerId]);
+                if ($makeDefault) $pdo->prepare('UPDATE addresses SET is_default=FALSE WHERE user_id=?')->execute([$customerId]);
                 if ($method === 'POST') {
-                    $pdo->prepare('INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,?,?,?,?,?,?,?,?,?)')
-                        ->execute([$customerId, $values['label'], $values['name'], $values['company'], $values['line1'], $values['line2'],
-                            $values['postal_code'], $values['city'], $values['country'], $makeDefault ? 1 : 0]);
-                    $addressId = (int)$pdo->lastInsertId();
+                    $addressId = insertReturning($pdo, 'INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,?,?,?,?,?,?,?,?,?)',
+                        [$customerId, $values['label'], $values['name'], $values['company'], $values['line1'], $values['line2'],
+                            $values['postal_code'], $values['city'], $values['country'], (bool) $makeDefault]);
                     $action = 'customer.shipping_address_created';
                 } else {
                     $pdo->prepare('UPDATE addresses SET label=?,name=?,company=?,line1=?,line2=?,postal_code=?,city=?,country=?,is_default=? WHERE id=? AND user_id=?')
@@ -1272,8 +1290,8 @@ function opAdminGeneral(string $method, string $path): bool
                         break;
                     }
                 }
-                $pdo->prepare('UPDATE addresses SET is_default=0 WHERE user_id=?')->execute([$customerId]);
-                $pdo->prepare('UPDATE addresses SET is_default=1 WHERE id=? AND user_id=?')->execute([$defaultId, $customerId]);
+                $pdo->prepare('UPDATE addresses SET is_default=FALSE WHERE user_id=?')->execute([$customerId]);
+                $pdo->prepare('UPDATE addresses SET is_default=TRUE WHERE id=? AND user_id=?')->execute([$defaultId, $customerId]);
             }
             $pdo->commit();
         } catch (Throwable $e) {
@@ -1288,10 +1306,10 @@ function opAdminGeneral(string $method, string $path): bool
         $threshold = opSetting('low_stock_threshold', 5);
         $stats = opRow(
             "SELECT
-             (SELECT COUNT(*) FROM products WHERE active=1) products,
+             (SELECT COUNT(*) FROM products WHERE active=TRUE) products,
              (SELECT COUNT(*) FROM orders) orders,
              (SELECT COUNT(*) FROM users WHERE role='customer') customers,
-             (SELECT COUNT(*) FROM products WHERE active=1 AND stock<=?) low_stock,
+             (SELECT COUNT(*) FROM products WHERE active=TRUE AND stock<=?) low_stock,
              (SELECT COUNT(*) FROM returns WHERE status IN ('submitted','approved')) open_returns",
             [$threshold]
         ) ?? [];
@@ -1304,13 +1322,13 @@ function opAdminGeneral(string $method, string $path): bool
         $recent = opRows('SELECT o.id,o.number,o.status,o.total_cents,o.currency,o.created_at,u.name customer_name FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 8');
         foreach ($recent as &$row) { $row['id'] = (int)$row['id']; $row['total_cents'] = (int)$row['total_cents']; }
         unset($row);
-        $low = opRows('SELECT * FROM products WHERE active=1 AND stock<=? ORDER BY stock,id LIMIT 20', [$threshold]);
+        $low = opRows('SELECT * FROM products WHERE active=TRUE AND stock<=? ORDER BY stock,id LIMIT 20', [$threshold]);
         $allInvoices = financeLoadInvoices();
         $finance = financeSummary($allInvoices);
         $invoiceAttention = financeInvoiceAttention($allInvoices, 6);
         respond(['stats' => $stats, 'recent_orders' => $recent, 'low_stock' => array_map('opProduct', $low),
             'finance' => $finance, 'invoice_attention' => $invoiceAttention,
-            'safety' => ['test_mode' => true, 'live_connections' => 0]]);
+            'safety' => ['test_mode' => shopPreviewMode(), 'live_connections' => 0]]);
     }
     if ($path === '/admin/customers' && $method === 'GET') {
         requireStaff();
@@ -1362,18 +1380,28 @@ function opAdminGeneral(string $method, string $path): bool
             foreach ($input['payment_entitlements'] as $method => $enabled) {
                 if (!is_string($method) || !in_array($method, ['stripe', 'twint', 'pay_later', 'swiss_qr_invoice'], true)
                     || !is_bool($enabled)) throw new HttpError(422, 'Invalid payment entitlement.');
-                db()->prepare(
-                    'INSERT INTO customer_payment_entitlements(user_id,payment_method,enabled,granted_by,granted_at,revoked_by,revoked_at)
-                     VALUES(?,?,?,?,UTC_TIMESTAMP(),NULL,NULL)
-                     ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),
-                     granted_by=IF(VALUES(enabled)=1,VALUES(granted_by),granted_by),
-                     granted_at=IF(VALUES(enabled)=1,UTC_TIMESTAMP(),granted_at),
-                     revoked_by=IF(VALUES(enabled)=0,VALUES(granted_by),NULL),
-                     revoked_at=IF(VALUES(enabled)=0,UTC_TIMESTAMP(),NULL)'
-                )->execute([$id, $method, $enabled ? 1 : 0, (int)$staff['id']]);
+                $entitlementSql = dbDriver() === 'pgsql'
+                    ? 'INSERT INTO customer_payment_entitlements(user_id,payment_method,enabled,granted_by,granted_at,revoked_by,revoked_at)
+                       VALUES(?,?,?, ?,CURRENT_TIMESTAMP,NULL,NULL)
+                       ON CONFLICT (user_id,payment_method) DO UPDATE SET enabled=EXCLUDED.enabled,
+                       granted_by=CASE WHEN EXCLUDED.enabled=TRUE THEN EXCLUDED.granted_by ELSE customer_payment_entitlements.granted_by END,
+                       granted_at=CASE WHEN EXCLUDED.enabled=TRUE THEN CURRENT_TIMESTAMP ELSE customer_payment_entitlements.granted_at END,
+                       revoked_by=CASE WHEN EXCLUDED.enabled=FALSE THEN EXCLUDED.granted_by ELSE NULL END,
+                       revoked_at=CASE WHEN EXCLUDED.enabled=FALSE THEN CURRENT_TIMESTAMP ELSE NULL END'
+                    : 'INSERT INTO customer_payment_entitlements(user_id,payment_method,enabled,granted_by,granted_at,revoked_by,revoked_at)
+                       VALUES(?,?,?,?,UTC_TIMESTAMP(),NULL,NULL)
+                       ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),
+                       granted_by=IF(VALUES(enabled)=1,VALUES(granted_by),granted_by),
+                       granted_at=IF(VALUES(enabled)=1,UTC_TIMESTAMP(),granted_at),
+                       revoked_by=IF(VALUES(enabled)=0,VALUES(granted_by),NULL),
+                       revoked_at=IF(VALUES(enabled)=0,UTC_TIMESTAMP(),NULL)';
+                db()->prepare($entitlementSql)->execute([$id, $method, $enabled ? 1 : 0, (int)$staff['id']]);
                 if ($method === 'pay_later') {
                     db()->prepare(
-                        "UPDATE customer_payment_entitlements SET enabled=0,revoked_by=?,revoked_at=UTC_TIMESTAMP()
+                        dbDriver() === 'pgsql'
+                        ? "UPDATE customer_payment_entitlements SET enabled=FALSE,revoked_by=?,revoked_at=CURRENT_TIMESTAMP
+                           WHERE user_id=? AND payment_method='swiss_qr_invoice'"
+                        : "UPDATE customer_payment_entitlements SET enabled=FALSE,revoked_by=?,revoked_at=UTC_TIMESTAMP()
                          WHERE user_id=? AND payment_method='swiss_qr_invoice'"
                     )->execute([(int)$staff['id'], $id]);
                 }
@@ -1403,7 +1431,7 @@ function opAdminGeneral(string $method, string $path): bool
         respond(['settings' => [
             'currency' => 'EUR',
             'low_stock_threshold' => opSetting('low_stock_threshold', 5),
-        ], 'safety' => ['test_mode' => true, 'live_connections' => 0, 'external_endpoints' => false]]);
+        ], 'safety' => ['test_mode' => shopPreviewMode(), 'live_connections' => 0, 'external_endpoints' => false]]);
     }
     if ($path === '/admin/settings' && $method === 'PATCH') {
         $staff = requireStaff();
@@ -1420,13 +1448,15 @@ function opAdminGeneral(string $method, string $path): bool
             if (!array_key_exists($name, $input)) continue;
             $changed[$name] = integer($input[$name], 0, $max);
         }
-        $statement = db()->prepare('INSERT INTO settings(name,value) VALUES(?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)');
+        $statement = db()->prepare(dbDriver() === 'pgsql'
+            ? 'INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT (name) DO UPDATE SET value=EXCLUDED.value'
+            : 'INSERT INTO settings(name,value) VALUES(?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)');
         foreach ($changed as $name => $value) $statement->execute([$name, (string)$value]);
         audit('settings.updated', 'settings', 0, ['fields' => array_keys($changed), 'by' => (int)$staff['id']]);
         respond(['settings' => [
             'currency' => 'EUR',
             'low_stock_threshold' => opSetting('low_stock_threshold', 5),
-        ], 'safety' => ['test_mode' => true, 'live_connections' => 0, 'external_endpoints' => false]]);
+        ], 'safety' => ['test_mode' => shopPreviewMode(), 'live_connections' => 0, 'external_endpoints' => false]]);
     }
     if ($path === '/admin/diagnostics' && $method === 'GET') {
         requireStaff();
@@ -1452,7 +1482,7 @@ function opAdminGeneral(string $method, string $path): bool
         $statement->execute($params); $rows = $statement->fetchAll();
         foreach ($rows as &$row) { $row['id'] = (int)$row['id']; $row['resolved_by'] = $row['resolved_by'] === null ? null : (int)$row['resolved_by']; }
         unset($row);
-        $counts = db()->query("SELECT severity,COUNT(*) total,SUM(resolved_at IS NULL) open_total FROM diagnostics GROUP BY severity")->fetchAll();
+        $counts = db()->query("SELECT severity,COUNT(*) total,SUM(CASE WHEN resolved_at IS NULL THEN 1 ELSE 0 END) open_total FROM diagnostics GROUP BY severity")->fetchAll();
         respond(['diagnostics' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages, 'limit' => $limit, 'counts' => $counts]);
     }
     if (preg_match('#^/admin/diagnostics/(\d+)$#', $path, $matches) && $method === 'GET') {
@@ -1489,7 +1519,7 @@ function opAdminGeneral(string $method, string $path): bool
             ['name' => 'Inventory provider', 'mode' => 'isolated', 'status' => 'blocked'],
             ['name' => 'Shipment provider', 'mode' => 'isolated', 'status' => 'blocked'],
             ['name' => 'Payment provider', 'mode' => 'isolated', 'status' => 'blocked'],
-        ], 'safety' => ['test_mode' => true, 'live_connections' => 0]]);
+        ], 'safety' => ['test_mode' => shopPreviewMode(), 'live_connections' => 0]]);
     }
     if ($path === '/admin/integrations/simulate' && $method === 'POST') {
         $staff = requireStaff();

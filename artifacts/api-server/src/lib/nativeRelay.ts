@@ -19,6 +19,35 @@ export function nativeRelaySignature(timestamp: string, eventId: string, raw: Bu
   return crypto.createHmac("sha256", secret).update(`v1.${timestamp}.${eventId}.`).update(raw).digest("hex");
 }
 
+export async function authorizeNativeMediaRequest(raw: Buffer, timestamp: string, eventId: string, supplied: string | undefined): Promise<void> {
+  const secret = process.env.NATIVE_MEDIA_BRIDGE_SECRET ?? "";
+  if (process.env.NODE_ENV !== "production" || !secret) throw Object.assign(new Error("Native media bridge is disabled"), { status: 503 });
+  if (!/^\d{10,13}$/.test(timestamp) || !/^[A-Za-z0-9._:-]{1,190}$/.test(eventId) || !supplied) {
+    throw Object.assign(new Error("Media authentication failed"), { status: 403 });
+  }
+  const seconds = Number(timestamp.length === 13 ? timestamp.slice(0, -3) : timestamp);
+  if (!Number.isFinite(seconds) || Math.abs(Date.now() / 1000 - seconds) > 300) {
+    throw Object.assign(new Error("Media request timestamp expired"), { status: 403 });
+  }
+  const expected = nativeRelaySignature(timestamp, eventId, raw, secret);
+  if (!/^[a-f0-9]{64}$/i.test(supplied) || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied.toLowerCase()))) {
+    throw Object.assign(new Error("Media authentication failed"), { status: 403 });
+  }
+  const hash = crypto.createHash("sha256").update(raw).digest("hex");
+  const prior = await db.execute(sql`SELECT content_hash,completed_at FROM parts_store.native_media_events WHERE event_id=${eventId}`);
+  if (prior.rows.length) {
+    const row = prior.rows[0] as Record<string, unknown>;
+    if (row.content_hash !== hash) throw Object.assign(new Error("Media event conflict"), { status: 409 });
+    if (row.completed_at) throw Object.assign(new Error("Media request replayed"), { status: 409 });
+    return; // failed downstream work remains retryable with the same signed request
+  }
+  await db.execute(sql`INSERT INTO parts_store.native_media_events(event_id,content_hash) VALUES(${eventId},${hash}) ON CONFLICT(event_id) DO NOTHING`);
+}
+
+export async function completeNativeMediaRequest(eventId: string): Promise<void> {
+  await db.execute(sql`UPDATE parts_store.native_media_events SET completed_at=now() WHERE event_id=${eventId} AND completed_at IS NULL`);
+}
+
 export function stockEventIsNewer(current: Date | null, incoming: Date): boolean {
   return !Number.isNaN(incoming.valueOf()) && (current === null || incoming.valueOf() > current.valueOf());
 }

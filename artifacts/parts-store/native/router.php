@@ -17,6 +17,24 @@ register_shutdown_function(static function () use (&$fatalRecorded): void {
 });
 
 $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$healthPath = rtrim($uriPath, '/');
+if ($healthPath === '/health' || $healthPath === '/ready'
+    || preg_match('#/test-shop/(health|ready)$#', $healthPath, $healthMatch)) {
+    $healthPath = $healthMatch[1] ?? ltrim($healthPath, '/');
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    try {
+        if ($healthPath === '/ready') {
+            db()->query('SELECT 1')->fetchColumn();
+        }
+        http_response_code(200);
+        echo json_encode(['status' => 'ok'], JSON_THROW_ON_ERROR);
+    } catch (Throwable) {
+        http_response_code(503);
+        echo '{"status":"unavailable"}';
+    }
+    exit;
+}
 $base = rtrim(basePath(), '/');
 if ($uriPath !== $base && !str_starts_with($uriPath, $base . '/')) {
     http_response_code(404);
@@ -25,7 +43,7 @@ if ($uriPath !== $base && !str_starts_with($uriPath, $base . '/')) {
 $path = substr($uriPath, strlen($base)) ?: '/';
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
-header('X-Robots-Tag: noindex, nofollow, noarchive');
+if (shopPreviewMode()) header('X-Robots-Tag: noindex, nofollow, noarchive');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
 
