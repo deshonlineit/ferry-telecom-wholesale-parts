@@ -19,7 +19,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-async function start() {
+async function initializeStripe() {
   try {
     const databaseUrl = process.env.DATABASE_URL;
     const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0];
@@ -33,27 +33,33 @@ async function start() {
     );
     await stripeSync.syncBackfill();
     logger.info("Stripe schema, managed webhook, and backfill ready");
+  } catch (err) {
+    logger.error(
+      { err },
+      "Stripe background initialization failed. Payment routes remain unavailable until initialization succeeds.",
+    );
+  }
+}
 
+async function initializeAddressBook() {
+  try {
     const migratedAddresses = await backfillCustomerAddresses(pool);
     logger.info({ migratedAddresses }, "Address book data ready");
   } catch (err) {
     logger.error(
       { err },
-      "Address book initialization failed. Apply the current database schema before starting the API.",
+      "Address book background initialization failed. Apply the current database schema.",
     );
-    await pool.end();
-    process.exitCode = 1;
-    return;
   }
-
-  app.listen(port, (err) => {
-    if (err) {
-      logger.error({ err }, "Error listening on port");
-      process.exit(1);
-    }
-
-    logger.info({ port }, "Server listening");
-  });
 }
 
-void start();
+const server = app.listen(port, () => {
+  logger.info({ port }, "Server listening");
+  void initializeStripe();
+  void initializeAddressBook();
+});
+
+server.on("error", (err) => {
+  logger.error({ err }, "Error listening on port");
+  process.exit(1);
+});

@@ -66,3 +66,4 @@
 - [Minimum order quantity](minimum-order-quantity.md) — a minimum is commercial, not stock: refuse the line as below-minimum instead of clamping it down to stock.
 - [Admin back-office design](admin-product-editor-visual-language.md) — keep every admin route compact, consistent, usable, and responsive; product editing stays searchable and image-aware.
 - [Deployment context exclusions](deployment-context-exclusions.md) — Git-ignored generated media still bloats publishing unless `.replitignore` excludes it; production media lives in App Storage.
+- [Deployment port gating](deployment-port-gating.md) — every dynamic artifact port must open quickly; bind before migrations, connector calls, webhooks, or backfills.
