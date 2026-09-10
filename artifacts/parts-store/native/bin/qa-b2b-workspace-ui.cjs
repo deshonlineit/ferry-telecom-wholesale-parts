@@ -231,6 +231,23 @@ async function main() {
         check(true, 'A customer can sign in through the login form');
 
         // ------------------------------------------------------------ //
+        // Account profile and addresses                                 //
+        // ------------------------------------------------------------ //
+        await visit('account');
+        await waitFor("document.querySelector('#profile-form')", 'the account profile form');
+        check(await evaluate("document.querySelector('#profile-name').value.length > 0"),
+            'The account page loads the signed-in customer profile');
+        check(!await evaluate("document.body.textContent.includes(\"Can't find variable: id\")"),
+            'The account page does not fail on an undefined return id');
+        await shoot('00-account-profile');
+
+        await visit('account/addresses');
+        await waitFor("document.querySelector('.action-new-addr')", 'the address book');
+        check(!await evaluate("document.body.textContent.includes(\"Can't find variable: id\")"),
+            'The address book loads without using an undefined return id');
+        await shoot('00-account-addresses');
+
+        // ------------------------------------------------------------ //
         // Quick order                                                   //
         // ------------------------------------------------------------ //
         await visit('quick-order');
