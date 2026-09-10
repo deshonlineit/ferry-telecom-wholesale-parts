@@ -100,7 +100,7 @@ try {
         'Guest default browsing exposed a price.'
     );
     $rank = ['screens' => 1, 'batteries' => 2, 'charging' => 3, 'cameras' => 4, 'flex' => 5, 'audio' => 6, 'adhesive' => 7,
-        'housing' => 8, 'tools' => 14, 'protection' => 15, 'accessories' => 16, 'other' => 17];
+        'housing' => 8, 'tools' => 9, 'protection' => 10, 'accessories' => 11, 'other' => 12];
     $seenRank = 0;
     foreach ($guest['products'] as $product) {
         $current = $rank[array_column($categoryRows, 'slug', 'id')[$product['category_id']] ?? ''] ?? 18;
@@ -139,8 +139,8 @@ try {
     );
     $featuredBrowse = hierarchyAllProducts(['featured' => 1], null);
     $tierPositions = hierarchyPositions($featuredBrowse, [$tierTool, $screenProtection]);
-    hierarchyAssert($tierPositions[$tierTool] < $tierPositions[$screenProtection],
-        'A screens-source display protector did not rank in the protection tier.');
+    hierarchyAssert($tierPositions[$screenProtection] < $tierPositions[$tierTool],
+        'Products did not follow their visible sidebar category order.');
 
     $housings = hierarchyAllProducts(['category' => $categories['housing'], 'featured' => 1], null);
     $housingPositions = hierarchyPositions($housings, $housing);

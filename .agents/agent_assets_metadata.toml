@@ -364,3 +364,17 @@ mtime_ms = 1788976782002
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/c7498511-f38f-4665-b26a-f785a314c003/e4d9f948-3cfb-42f0-9044-d28935cfc5fa"
 storage_version_token = "1788976796475550"
 content_type = "image/png"
+
+[[outputs]]
+id = "0Vh4PKsqqWuqPIUN-iS0h"
+uri = "file://screenshots/iphone-15-pro-max-catalog-sorted.jpg"
+type = "image"
+title = "iPhone 15 Pro Max — gesorteerde catalogus"
+description = "Browsercontrole: actieve modelnaam zichtbaar bovenaan en producten in dezelfde categorievolgorde als de linker kolom."
+logical_id = "3e27ac0f-e73a-4de2-8dd9-5c3389f66263"
+content_hash = "sha256:6f3d80c8ffc9b1c0bbc781335cd62445cab63cfe0b6fb0be57483a02c36fae42"
+size = 87187
+mtime_ms = 1788999752882
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/3e27ac0f-e73a-4de2-8dd9-5c3389f66263/f3f29eae-2789-4e72-a00a-b228b8163fc4"
+storage_version_token = "1788999776244947"
+content_type = "image/jpeg"

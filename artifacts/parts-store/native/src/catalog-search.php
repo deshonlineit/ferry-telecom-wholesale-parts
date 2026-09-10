@@ -579,33 +579,41 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
         $order = 'COALESCE(gp.price_eur_cents,p.list_price_eur_cents) ' . ($sort === 'price_asc' ? 'ASC' : 'DESC') . ',p.id ASC';
         $orderParams = [];
     }
-    // Only the unsearched featured/default catalogue has a commercial browse
-    // order. Search ordering (including exact SKU relevance) and every explicit
-    // sort above intentionally remain authoritative.
+    // The default catalogue follows the exact category order shown in the
+    // sidebar. Search relevance and every explicit sort remain authoritative.
     $categoryJoin = '';
     if ($search === '' && $sort === 'featured') {
         $categoryJoin = ' LEFT JOIN categories catalog_category ON catalog_category.id=p.category_id ';
         $housingType = catalogHousingPartTypeSqlCase('p.name');
         $realScreen = catalogRealScreenSqlCondition();
         $categoryRank = "CASE
-            WHEN $realScreen THEN 1
+            WHEN catalog_category.slug='screens' THEN 1
             WHEN catalog_category.slug='batteries' THEN 2
             WHEN catalog_category.slug='charging' THEN 3
             WHEN catalog_category.slug='cameras' THEN 4
             WHEN catalog_category.slug='flex' THEN 5
             WHEN catalog_category.slug='audio' THEN 6
             WHEN catalog_category.slug='adhesive' THEN 7
-            WHEN catalog_category.slug='housing' AND $housingType='frame-chassis' THEN 8
-            WHEN catalog_category.slug='housing' AND $housingType='housing-with-parts' THEN 9
-            WHEN catalog_category.slug='housing' AND $housingType='complete-housing' THEN 10
-            WHEN catalog_category.slug='housing' AND $housingType='other-housing' THEN 11
-            WHEN catalog_category.slug='housing' AND $housingType='rear-cover' THEN 12
-            WHEN catalog_category.slug='housing' AND $housingType='rear-glass' THEN 13
-            WHEN catalog_category.slug='tools' THEN 14
-            WHEN catalog_category.slug='protection' OR catalog_category.slug='screens' THEN 15
-            WHEN catalog_category.slug='accessories' THEN 16
-            WHEN catalog_category.slug='other' THEN 17
-            ELSE 18
+            WHEN catalog_category.slug='housing' THEN 8
+            WHEN catalog_category.slug='tools' THEN 9
+            WHEN catalog_category.slug='protection' THEN 10
+            WHEN catalog_category.slug='accessories' THEN 11
+            WHEN catalog_category.slug='other' THEN 12
+            ELSE 13
+        END";
+        $housingRank = "CASE
+            WHEN catalog_category.slug<>'housing' THEN 0
+            WHEN $housingType='frame-chassis' THEN 1
+            WHEN $housingType='housing-with-parts' THEN 2
+            WHEN $housingType='complete-housing' THEN 3
+            WHEN $housingType='other-housing' THEN 4
+            WHEN $housingType='rear-cover' THEN 5
+            WHEN $housingType='rear-glass' THEN 6
+            ELSE 7
+        END";
+        $screenTypeRank = "CASE
+            WHEN catalog_category.slug='screens' AND NOT ($realScreen) THEN 1
+            ELSE 0
         END";
         if ($user) {
             // Do not join or reference prices for guests: price visibility and
@@ -613,12 +621,12 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
             $priceJoin = ' LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=? ';
             $priceParams = [$user['group_id']];
             $screenPrice = 'COALESCE(gp.price_eur_cents,p.list_price_eur_cents)';
-            $order = "$categoryRank ASC,p.stock>0 DESC,
+            $order = "$categoryRank ASC,$screenTypeRank ASC,$housingRank ASC,p.stock>0 DESC,
                 CASE WHEN $realScreen AND $screenPrice IS NULL THEN 1 ELSE 0 END ASC,
                 CASE WHEN $realScreen THEN $screenPrice END ASC,
                 p.featured DESC,p.image_url<>'' DESC,p.id DESC";
         } else {
-            $order = "$categoryRank ASC,p.stock>0 DESC,p.featured DESC,p.image_url<>'' DESC,p.id DESC";
+            $order = "$categoryRank ASC,$screenTypeRank ASC,$housingRank ASC,p.stock>0 DESC,p.featured DESC,p.image_url<>'' DESC,p.id DESC";
         }
     }
     $query = db()->prepare("SELECT p.* FROM products p $categoryJoin $priceJoin WHERE $condition ORDER BY $order LIMIT ? OFFSET ?");
