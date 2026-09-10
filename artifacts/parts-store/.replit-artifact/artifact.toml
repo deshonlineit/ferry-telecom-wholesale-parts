@@ -35,8 +35,8 @@ localPort = 18411
 run = "bash native/bin/start.sh"
 
 [services.production]
-build = ["bash", "native/bin/build-production.sh"]
-run = "bash native/bin/start-production.sh"
+build = ["bash", "artifacts/parts-store/native/bin/build-production.sh"]
+run = "bash artifacts/parts-store/native/bin/start-production.sh"
 
 [services.production.health.startup]
 path = "/test-shop/ready"
