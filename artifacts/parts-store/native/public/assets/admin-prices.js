@@ -72,7 +72,6 @@
                 id,
                 version: p.pricing_version,
                 purchase_price_eur_cents: p.purchase_price_eur_cents,
-                list_price_eur_cents: p.list_price_eur_cents,
                 group_prices: JSON.parse(JSON.stringify(p.group_prices || []))
             });
         }
@@ -91,7 +90,6 @@
 
         const draft = getDraft(id);
         if (field === 'purchase_price_eur_cents') draft.purchase_price_eur_cents = val;
-        else if (field === 'list_price_eur_cents') draft.list_price_eur_cents = val;
         else if (field.startsWith('group_')) {
             const gid = parseInt(field.split('_')[1], 10);
             const idx = draft.group_prices.findIndex(x => x.group_id === gid);
@@ -103,9 +101,7 @@
         const gpOrigStr = JSON.stringify([...(p.group_prices||[])].sort((a,b)=>a.group_id-b.group_id));
         const gpDraftStr = JSON.stringify([...draft.group_prices].sort((a,b)=>a.group_id-b.group_id));
         
-        if (draft.purchase_price_eur_cents === p.purchase_price_eur_cents &&
-            draft.list_price_eur_cents === p.list_price_eur_cents &&
-            gpOrigStr === gpDraftStr) {
+        if (draft.purchase_price_eur_cents === p.purchase_price_eur_cents && gpOrigStr === gpDraftStr) {
             priceDrafts.delete(id);
             e.target.classList.remove('is-dirty');
             e.target.closest('tr').classList.remove('is-dirty');
@@ -114,14 +110,6 @@
             e.target.closest('tr').classList.add('is-dirty');
         }
 
-        // If base price changed, update placeholders for groups
-        if (field === 'list_price_eur_cents') {
-            const tr = e.target.closest('tr');
-            tr.querySelectorAll('.inherit-placeholder').forEach(inp => {
-                inp.placeholder = formatCents(draft.list_price_eur_cents || 0);
-            });
-        }
-        
         updateUnsavedBanner();
     }
 
@@ -148,17 +136,14 @@
         return products.map(p => {
             const draft = priceDrafts.get(p.id);
             const cost = draft && draft.purchase_price_eur_cents !== undefined ? draft.purchase_price_eur_cents : p.purchase_price_eur_cents;
-            const base = draft && draft.list_price_eur_cents !== undefined ? draft.list_price_eur_cents : p.list_price_eur_cents;
-            
             const costDirty = draft && cost !== p.purchase_price_eur_cents;
-            const baseDirty = draft && base !== p.list_price_eur_cents;
 
             const groupCells = groups.map(g => {
                 const orig = p.group_prices?.find(gp => gp.group_id === g.id)?.price_eur_cents;
                 const d = draft?.group_prices?.find(gp => gp.group_id === g.id)?.price_eur_cents;
                 const val = d !== undefined ? d : orig;
                 const isDirty = draft && val !== orig;
-                return `<td><input type="text" inputmode="decimal" class="prices-input ${isDirty?'is-dirty':''} inherit-placeholder" data-id="${p.id}" data-field="group_${g.id}" value="${formatCents(val)}" placeholder="${formatCents(base||0)}"></td>`;
+                return `<td><input type="text" inputmode="decimal" class="prices-input ${isDirty?'is-dirty':''}" data-id="${p.id}" data-field="group_${g.id}" value="${formatCents(val)}" placeholder="Required"></td>`;
             }).join('');
 
             return `
@@ -167,7 +152,6 @@
                 <td class="sku-cell" title="${esc(p.sku)}"><a href="${window.APP_BASE}admin/products/${p.id}" target="_blank">${esc(p.sku)}</a></td>
                 <td class="name-cell" title="${esc(p.name)}">${esc(p.name)}</td>
                 <td><input type="text" inputmode="decimal" class="prices-input ${costDirty?'is-dirty':''} unknown-placeholder" data-id="${p.id}" data-field="purchase_price_eur_cents" value="${formatCents(cost)}" placeholder="Unknown"></td>
-                <td><input type="text" inputmode="decimal" class="prices-input ${baseDirty?'is-dirty':''}" data-id="${p.id}" data-field="list_price_eur_cents" value="${formatCents(base)}" required></td>
                 ${groupCells}
             </tr>
             `;
@@ -233,7 +217,6 @@
                             <th>SKU</th>
                             <th>Name</th>
                             <th>Purchase Cost (EUR)</th>
-                            <th>EUR Price</th>
                             ${groupHeaders}
                         </tr>
                     </thead>
@@ -294,9 +277,9 @@
         document.getElementById('btn-import-excel').addEventListener('click', () => {
             const html = `
                 <div class="form-group">
-                    <label>Paste rows from Excel (Copy SKU, Purchase Cost EUR, EUR Price, Customer Prices...)</label>
+                    <label>Paste rows from Excel (Copy SKU, Purchase Cost EUR, Customer Prices...)</label>
                     <textarea id="excel-paste-area" class="form-control" rows="8" placeholder="SKU123\\t5,50\\t12,00\\t..."></textarea>
-                    <small>Expected order per row (tab-separated): SKU, purchase cost EUR, EUR price${groups.length ? ', ' + groups.map(pricingGroupLabel).join(', ') : ''}. Blank cells are ignored. A - (dash) clears the value.</small>
+                    <small>Expected order per row (tab-separated): SKU, purchase cost EUR${groups.length ? ', ' + groups.map(pricingGroupLabel).join(', ') : ''}. Blank cells are ignored. A - (dash) clears the value.</small>
                 </div>
                 <div class="alert error" id="paste-error" hidden></div>
                 <button type="button" class="btn" id="btn-process-paste" style="width:100%">Analyse</button>
@@ -316,10 +299,9 @@
                 try {
                     for (const row of rows) {
                         if (row.length < 2) throw new Error(`Paste ${row[0]} with at least one price column, separated by tabs.`);
-                        for (let column = 1; column < Math.min(row.length, 3 + groups.length); column++) {
+                        for (let column = 1; column < Math.min(row.length, 2 + groups.length); column++) {
                             const cell = row[column].trim();
                             if (!cell) continue;
-                            if (column === 2 && cell === '-') throw new Error(`The base price of ${row[0]} cannot be cleared.`);
                             if (Number.isNaN(window.Workbench.parseCentsStrict(cell))) {
                                 throw new Error(`Invalid EUR amount for ${row[0]}, column ${column + 1}: ${cell}`);
                             }
@@ -346,11 +328,8 @@
                         const cost = parsePasteVal(r[1]);
                         if (cost !== undefined) draft.purchase_price_eur_cents = cost;
                         
-                        const base = parsePasteVal(r[2]);
-                        if (base !== undefined && base !== null) draft.list_price_eur_cents = base; // cannot be null
-                        
                         groups.forEach((g, i) => {
-                            const gpVal = parsePasteVal(r[3 + i]);
+                            const gpVal = parsePasteVal(r[2 + i]);
                             if (gpVal !== undefined) {
                                 const idx = draft.group_prices.findIndex(x => x.group_id === g.id);
                                 if (idx >= 0) draft.group_prices[idx].price_eur_cents = gpVal;
@@ -392,7 +371,6 @@
                 id: prod.id,
                 version: prod.pricing_version,
                 purchase_price_eur_cents: prod.purchase_price_eur_cents,
-                list_price_eur_cents: prod.list_price_eur_cents,
                 group_prices: JSON.parse(JSON.stringify(prod.group_prices || []))
             };
         }
@@ -410,7 +388,6 @@
                     <div class="form-group">
                         <label>Field</label>
                         <select name="field" class="form-control">
-                            <option value="list_price_eur_cents">EUR Price</option>
                             <option value="purchase_price_eur_cents">Purchase Cost (EUR)</option>
                             ${groups.map(g => `<option value="group_${g.id}">${esc(pricingGroupLabel(g))}</option>`).join('')}
                         </select>
@@ -468,16 +445,14 @@
                     let currentVal = null;
                     
                     if (field === 'purchase_price_eur_cents') currentVal = draft.purchase_price_eur_cents;
-                    else if (field === 'list_price_eur_cents') currentVal = draft.list_price_eur_cents;
                     else if (field.startsWith('group_')) {
                         const gid = parseInt(field.split('_')[1], 10);
                         currentVal = draft.group_prices.find(x => x.group_id === gid)?.price_eur_cents;
-                        if (currentVal === undefined) currentVal = draft.list_price_eur_cents; // inheritance base for calculation
                     }
                     
                     let newVal = currentVal;
                     if (op === 'clear') {
-                        newVal = field === 'list_price_eur_cents' ? 0 : null;
+                        newVal = null;
                     } else if (op === 'set') {
                         newVal = Math.round(val * 100);
                     } else if (op === 'add') {
@@ -489,7 +464,6 @@
                     if (newVal !== null) newVal = Math.max(0, newVal); // No negative prices
                     
                     if (field === 'purchase_price_eur_cents') draft.purchase_price_eur_cents = newVal;
-                    else if (field === 'list_price_eur_cents') draft.list_price_eur_cents = newVal;
                     else if (field.startsWith('group_')) {
                         const gid = parseInt(field.split('_')[1], 10);
                         const idx = draft.group_prices.findIndex(x => x.group_id === gid);
@@ -514,7 +488,6 @@
                     <div class="form-group">
                         <label>Field</label>
                         <select name="field" class="form-control">
-                            <option value="list_price_eur_cents">EUR Price</option>
                             <option value="purchase_price_eur_cents">Purchase Cost (EUR)</option>
                             ${groups.map(g => `<option value="group:${g.id}">${esc(pricingGroupLabel(g))}</option>`).join('')}
                         </select>

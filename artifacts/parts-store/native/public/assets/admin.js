@@ -28,6 +28,8 @@
             'completed': { label: 'Completed', badge: 'success' },
             'cancelled': { label: 'Cancelled', badge: 'danger' },
             'archived': { label: 'Archived', badge: 'neutral' },
+            'draft': { label: 'Draft', badge: 'warning' },
+            'visible': { label: 'Visible', badge: 'success' },
             'submitted': { label: 'Submitted', badge: 'warning' },
             'received': { label: 'Received', badge: 'info' },
             'assessed': { label: 'Assessed', badge: 'info' },
@@ -131,7 +133,7 @@ window.Router.add(/^admin$/, async (match, root) => {
             <div class="card"><div class="data-label">Active Products</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.products}</div></div>
             <div class="card"><div class="data-label">Customers</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.customers}</div></div>
             <div class="card"><div class="data-label">Total Orders</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0;">${s.orders}</div></div>
-            <div class="card"><div class="data-label">Low Stock</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0; color:var(--wb-danger)"><a href="${window.APP_BASE}admin/products?status=active&stock=low_stock">${s.low_stock}</a></div></div>
+            <div class="card"><div class="data-label">Low Stock</div><div class="data-value" style="font-size:1.5rem; margin-bottom:0; color:var(--wb-danger)"><a href="${window.APP_BASE}admin/products?status=visible&stock=low_stock">${s.low_stock}</a></div></div>
         </div>
 
         <div class="admin-dashboard-panels" style="margin-bottom:2rem">
@@ -210,11 +212,10 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         <tr class="${!p.active ? 'archived-row' : ''}">
             <td><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(p.sku)}</span></td>
             <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong>${p.featured ? ' <span class="wb-badge wb-badge-warning" style="font-size:0.65rem">Featured</span>' : ''}</td>
-            <td>${p.list_price_eur_cents != null ? window.Core.formatMoney(p.list_price_eur_cents, 'EUR') : '<span style="color:var(--wb-text-muted)">Unknown</span>'}</td>
             <td><span class="wb-badge ${p.stock <= stockThreshold ? 'wb-badge-warning' : 'wb-badge-neutral'}" style="font-weight:700">${p.stock} units${p.stock === 0 ? ' · Out of stock' : (p.stock <= stockThreshold ? ' · Low stock' : '')}</span></td>
-            <td>${window.Workbench.badge(p.active ? 'active' : 'archived')}</td>
+            <td>${window.Workbench.badge(!p.active ? 'archived' : (p.publication_status || 'draft'))}</td>
             <td>
-                <button type="button" class="btn btn-sm btn-outline action-quick-edit" data-id="${p.id}" data-stock="${p.stock}" data-price-eur="${p.list_price_eur_cents ?? ''}" data-version="${p.pricing_version ?? 0}" data-featured="${p.featured}">Quick Edit</button>
+                <button type="button" class="btn btn-sm btn-outline action-quick-edit" data-id="${p.id}" data-stock="${p.stock}" data-version="${p.pricing_version ?? 0}" data-featured="${p.featured}">Quick Edit</button>
                 ${!p.active 
                     ? `<button type="button" class="btn btn-sm btn-outline action-restore" data-id="${p.id}">Restore</button>` 
                     : `<button type="button" class="btn btn-sm btn-danger action-archive" data-id="${p.id}">Archive</button>`}
@@ -253,8 +254,9 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                 </select>
                 <span style="align-self:center; color:var(--wb-text-muted); font-size:0.8125rem; white-space:nowrap;">Low stock: ≤ ${stockThreshold} units</span>
                 <select name="status" class="form-control" style="flex:1 1 150px;">
-                    <option value="all" ${status === 'all' ? 'selected' : ''}>All (Active + Archived)</option>
-                    <option value="active" ${status === 'active' ? 'selected' : ''}>Active Only</option>
+                    <option value="all" ${status === 'all' ? 'selected' : ''}>All products</option>
+                    <option value="visible" ${status === 'visible' ? 'selected' : ''}>Visible</option>
+                    <option value="draft" ${status === 'draft' ? 'selected' : ''}>Draft</option>
                     <option value="archived" ${status === 'archived' ? 'selected' : ''}>Archived Only</option>
                 </select>
                 <select name="sort" class="form-control" style="flex:1 1 150px;"><option value="">Relevance</option><option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Price ascending</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Price descending</option></select>
@@ -263,7 +265,7 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
             </form>
         </div>
         
-        ${renderTable(['SKU', 'Name', 'Base Selling Price (EUR)', 'Stock', 'Status', 'Actions'], rows, 'No products found.')}
+        ${renderTable(['SKU', 'Name', 'Stock', 'Status', 'Actions'], rows, 'No products found.')}
         ${paginationHtml}
     `;
 
@@ -306,13 +308,12 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         const groupPriceFields = customerGroups.map(group => {
             const existing = groupPrices.find(price => price.group_id === group.id);
             const value = existing?.price_eur_cents == null ? '' : (existing.price_eur_cents / 100).toFixed(2);
-            const inherited = product.list_price_eur_cents == null ? 'No base price' : `Inherits ${(product.list_price_eur_cents / 100).toFixed(2)}`;
             return `
                 <label class="quick-edit-group-price">
                     <span>${esc(pricingGroupLabel(group))}</span>
                     <div class="quick-edit-money-input">
                         <span>€</span>
-                        <input type="text" inputmode="decimal" name="gp_eur_${group.id}" value="${value}" class="form-control" placeholder="${inherited}">
+                        <input type="text" inputmode="decimal" name="gp_eur_${group.id}" value="${value}" class="form-control" placeholder="Required to publish">
                     </div>
                 </label>`;
         }).join('');
@@ -324,16 +325,12 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                         <label>Current stock</label>
                         <input type="number" name="stock" value="${product.stock}" class="form-control" min="0" step="1" required>
                     </div>
-                    <div class="form-group">
-                        <label>EUR Price</label>
-                        <input type="text" inputmode="decimal" name="list_price_eur" value="${product.list_price_eur_cents == null ? '' : (product.list_price_eur_cents / 100).toFixed(2)}" class="form-control" required>
-                    </div>
                 </div>
                 <section class="quick-edit-group-prices">
                     <div class="quick-edit-section-head">
                         <div>
                             <h3>Customer group prices</h3>
-                            <p>Set a specific selling price per customer group. Leave blank to use the base price.</p>
+                            <p>Set the explicit selling price for each customer group. Every group needs a price before the product can be published.</p>
                         </div>
                         <a href="${window.APP_BASE}admin/prices" class="text-sm">Open full price manager</a>
                     </div>
@@ -355,8 +352,6 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
             btn.disabled = true;
             btn.textContent = 'Saving...';
             try {
-                const listPriceEurCents = window.Workbench.parseCentsStrict(fd.get('list_price_eur'));
-                if (Number.isNaN(listPriceEurCents) || listPriceEurCents === null) throw new Error("Invalid amount for base price");
                 const groupPricesPayload = customerGroups.map(group => {
                     const price = window.Workbench.parseCentsStrict(fd.get(`gp_eur_${group.id}`));
                     if (Number.isNaN(price)) throw new Error(`Invalid amount for ${group.name}`);
@@ -367,7 +362,6 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                     method: 'PATCH', 
                     body: { 
                         stock: parseInt(fd.get('stock'), 10),
-                        list_price_eur_cents: listPriceEurCents,
                         group_prices: groupPricesPayload,
                         pricing_version: parseInt(fd.get('pricing_version'), 10),
                         featured: fd.get('featured') ? 1 : 0
@@ -395,7 +389,7 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
         const id = e.currentTarget.dataset.id;
         try {
             await window.Core.fetch(`/admin/products/${id}/restore`, { method: 'POST' });
-            window.Workbench.toast('Product restored', 'success');
+            window.Workbench.toast('Product restored as draft', 'success');
             window.Router.route();
         } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Save Changes'; }
     }));

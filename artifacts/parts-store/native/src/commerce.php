@@ -246,14 +246,14 @@ function commerceCart(int $userId, int $groupId, ?string $country = null, ?strin
         throw new HttpError(503, 'EUR pricing is not initialized.');
     }
     $statement = $pdo->prepare(
-        'SELECT p.id AS product_id, p.name, p.sku, p.image_url, ci.quantity,
+        "SELECT p.id AS product_id, p.name, p.sku, p.image_url, ci.quantity,
                 p.stock, p.minimum_quantity,
-                COALESCE(gp.price_eur_cents, p.list_price_eur_cents) AS price_eur_cents
+                gp.price_eur_cents AS price_eur_cents
          FROM cart_items ci
-         JOIN products p ON p.id = ci.product_id AND p.active = 1
+         JOIN products p ON p.id = ci.product_id AND p.active = 1 AND p.publication_status='visible'
          LEFT JOIN group_prices gp ON gp.product_id = p.id AND gp.group_id = ?
          WHERE ci.user_id = ?
-         ORDER BY p.id'
+         ORDER BY p.id"
     );
     $statement->execute([$groupId, $userId]);
     $items = [];
@@ -431,7 +431,7 @@ function commerceSetCart(): never
             $statement->execute([(int) $lockedUser['id'], $productId]);
         } else {
             $statement = $pdo->prepare(
-                'SELECT stock,minimum_quantity FROM products WHERE id=? AND active=1 FOR UPDATE'
+                "SELECT stock,minimum_quantity FROM products WHERE id=? AND active=1 AND publication_status='visible' FOR UPDATE"
             );
             $statement->execute([$productId]);
             $product = $statement->fetch(PDO::FETCH_ASSOC);
@@ -482,21 +482,15 @@ function commerceQuickAddCart(): never
         }
 
         $statement = $pdo->prepare(
-            'SELECT stock,minimum_quantity,list_price_eur_cents AS price_eur_cents
-             FROM products WHERE id=? AND active=1 FOR UPDATE'
+            "SELECT p.stock,p.minimum_quantity,gp.price_eur_cents
+             FROM products p
+             LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=?
+             WHERE p.id=? AND p.active=1 AND p.publication_status='visible' FOR UPDATE"
         );
-        $statement->execute([$productId]);
+        $statement->execute([(int) $user['group_id'], $productId]);
         $product = $statement->fetch(PDO::FETCH_ASSOC);
         if (!$product) {
             throw new HttpError(404, 'Product not found.');
-        }
-        $statement = $pdo->prepare(
-            'SELECT price_eur_cents FROM group_prices WHERE product_id=? AND group_id=?'
-        );
-        $statement->execute([$productId, (int) $user['group_id']]);
-        $groupPrice = $statement->fetchColumn();
-        if ($groupPrice !== false && $groupPrice !== null) {
-            $product['price_eur_cents'] = $groupPrice;
         }
         if ($product['price_eur_cents'] === null) {
             throw new HttpError(409, 'A product price is unavailable.');
@@ -795,7 +789,7 @@ function commerceCheckout(): never
         // lock acquisition deterministic across simultaneous checkouts.
         $productStatement = $pdo->prepare(
             'SELECT p.id, p.sku, p.name, p.stock, p.minimum_quantity, p.active,
-                    COALESCE(gp.price_eur_cents, p.list_price_eur_cents) AS price_eur_cents
+                    gp.price_eur_cents AS price_eur_cents
              FROM products p
              LEFT JOIN group_prices gp ON gp.product_id = p.id AND gp.group_id = ?
              WHERE p.id = ? FOR UPDATE'

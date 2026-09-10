@@ -78,7 +78,7 @@ try:
 
     filtered = staff.call(
         "GET",
-        f"/admin/products?q=definitely-no-match-{unique}&status=active&page=999&limit=1",
+        f"/admin/products?q=definitely-no-match-{unique}&status=draft&page=999&limit=1",
     )
     assert filtered["total"] == 0
     assert filtered["featured_total"] == baseline + 1

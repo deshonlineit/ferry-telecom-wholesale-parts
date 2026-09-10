@@ -107,7 +107,8 @@ try {
 
   $insertProduct=$pdo->prepare("INSERT INTO products
     (sku,name,description,category_id,brand_id,quality,stock,list_price_cents,list_price_eur_cents,
-     minimum_quantity,image_url,featured,active) VALUES(?,?,?,?,?,?,?,?,?,?,'',0,1)");
+     minimum_quantity,image_url,featured,publication_status,active)
+     VALUES(?,?,?,?,?,?,?,?,?,?,'',0,'visible',1)");
   $price=$pdo->prepare("INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents)
     VALUES(?,?,?,?)");
 

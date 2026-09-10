@@ -32,7 +32,7 @@ function handleCatalog(string $method, string $path): bool
         ]);
     }
     if (preg_match('#^/products/(\d+)$#', $path, $match)) {
-        $query = db()->prepare('SELECT * FROM products WHERE id=? AND active=1');
+        $query = db()->prepare("SELECT * FROM products WHERE id=? AND active=1 AND publication_status='visible'");
         $query->execute([(int) $match[1]]);
         $product = $query->fetch();
         if (!$product) {
@@ -52,7 +52,7 @@ function handleCatalog(string $method, string $path): bool
         $query = db()->prepare('SELECT m.id,m.name FROM product_models pm JOIN device_models m ON m.id=pm.model_id WHERE pm.product_id=? ORDER BY m.name');
         $query->execute([$product['id']]);
         $models = $query->fetchAll();
-        $query = db()->prepare('SELECT * FROM products WHERE active=1 AND category_id=? AND id<>? ORDER BY featured DESC,stock>0 DESC LIMIT 4');
+        $query = db()->prepare("SELECT * FROM products WHERE active=1 AND publication_status='visible' AND category_id=? AND id<>? ORDER BY featured DESC,stock>0 DESC LIMIT 4");
         $query->execute([$product['category_id'], $product['id']]);
         $context = currencyContext();
         $enriched = catalogEnrichProducts([$product], $user);

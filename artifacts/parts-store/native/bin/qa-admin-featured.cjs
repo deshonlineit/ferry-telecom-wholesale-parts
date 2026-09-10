@@ -78,7 +78,7 @@ function listing(featuredTotal, products = []) {
         page: 1,
         pages: 1,
         status: 'all',
-        counts: { all: products.length, active: products.length, archived: 0 },
+        counts: { all: products.length, visible: products.length, draft: 0, archived: 0 },
         featured_total: featuredTotal,
         stock_threshold: 5,
     };
@@ -104,18 +104,29 @@ function listing(featuredTotal, products = []) {
 
     response = listing(1, [{
         id: 91, sku: 'QA-FEATURED', name: 'QA fixture', list_price_cents: 100,
-        stock: 2, active: true, featured: true,
+        stock: 2, active: true, publication_status: 'visible', featured: true,
     }]);
     const listeners = {};
     const button = {
-        dataset: { id: '91', stock: '2', priceEur: '100', version: '0', featured: '1' },
+        dataset: { id: '91', stock: '2', version: '0', featured: '1' },
         addEventListener(type, listener) { listeners[type] = listener; },
     };
     quickForm = {};
     await handler([], rootWithQuickButton(button), '');
-    listeners.click({ currentTarget: button });
+    context.window.Core.fetch = async url => {
+        assert.equal(url, '/admin/products/91');
+        return {
+            product: {
+                id: 91,
+                stock: 2,
+                pricing_version: 0,
+            },
+            group_prices: [],
+        };
+    };
+    await listeners.click({ currentTarget: button });
     const submitButton = { disabled: false, textContent: '' };
-    quickForm.values = { stock: '2', list_price_eur: '1.00', pricing_version: '0' };
+    quickForm.values = { stock: '2', pricing_version: '0' };
     quickForm.querySelector = () => submitButton;
     context.window.Core.fetch = async (url, options) => {
         assert.equal(url, '/admin/products/91');

@@ -35,27 +35,27 @@ function catalogUnfilteredFacets(): array
     $categories = db()->query(
         "SELECT c.id,c.name,c.slug,COUNT(p.id) AS count,
             COALESCE((SELECT pi.image_url FROM products pi
-                WHERE pi.category_id=c.id AND pi.active=1 AND pi.image_url<>''
+                WHERE pi.category_id=c.id AND pi.active=1 AND pi.publication_status='visible' AND pi.image_url<>''
                 ORDER BY pi.featured DESC,pi.id DESC LIMIT 1),'') AS image_url
-         FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.active=1
+         FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.active=1 AND p.publication_status='visible'
          GROUP BY c.id ORDER BY count DESC,c.name"
     )->fetchAll();
     $brands = db()->query(
-        'SELECT b.id,b.name,COUNT(p.id) AS count FROM brands b
-         LEFT JOIN products p ON p.brand_id=b.id AND p.active=1
-         GROUP BY b.id ORDER BY count DESC,b.name'
+        "SELECT b.id,b.name,COUNT(p.id) AS count FROM brands b
+         LEFT JOIN products p ON p.brand_id=b.id AND p.active=1 AND p.publication_status='visible'
+         GROUP BY b.id ORDER BY count DESC,b.name"
     )->fetchAll();
     $models = db()->query(
-        'SELECT m.id,m.brand_id,m.name,COUNT(p.id) AS count FROM device_models m
+        "SELECT m.id,m.brand_id,m.name,COUNT(p.id) AS count FROM device_models m
          LEFT JOIN product_models pm ON pm.model_id=m.id
-         LEFT JOIN products p ON p.id=pm.product_id AND p.active=1
-         GROUP BY m.id ORDER BY m.name'
+         LEFT JOIN products p ON p.id=pm.product_id AND p.active=1 AND p.publication_status='visible'
+         GROUP BY m.id ORDER BY m.name"
     )->fetchAll();
     $models = deviceAnnotateModels($models, $brands);
     $facets = [
         'categories' => $categories, 'brands' => $brands, 'models' => $models,
-        'qualities' => db()->query("SELECT DISTINCT quality FROM products WHERE active=1 AND quality<>'' ORDER BY quality")->fetchAll(PDO::FETCH_COLUMN),
-        'total' => (int) db()->query('SELECT COUNT(*) FROM products WHERE active=1')->fetchColumn(),
+        'qualities' => db()->query("SELECT DISTINCT quality FROM products WHERE active=1 AND publication_status='visible' AND quality<>'' ORDER BY quality")->fetchAll(PDO::FETCH_COLUMN),
+        'total' => (int) db()->query("SELECT COUNT(*) FROM products WHERE active=1 AND publication_status='visible'")->fetchColumn(),
     ];
     return $facets;
 }
@@ -78,7 +78,7 @@ function catalogDepartmentCondition(string $department): string
 
 function catalogProductCondition(array $input, array $exclude = []): array
 {
-    $where = ['p.active=1'];
+    $where = ["p.active=1", "p.publication_status='visible'"];
     $parameters = [];
     $search = text($input['q'] ?? '', 190);
     $tokens = catalogTokens($search);
@@ -413,7 +413,7 @@ function catalogCorrectSearchTokens(array $tokens): array
             "SELECT name FROM brands
              UNION SELECT name FROM device_models
              UNION SELECT name FROM categories
-             UNION SELECT quality AS name FROM products WHERE active=1 AND quality<>''"
+             UNION SELECT quality AS name FROM products WHERE active=1 AND publication_status='visible' AND quality<>''"
         )->fetchAll(PDO::FETCH_COLUMN);
         foreach ($rows as $row) {
             $parts = preg_split(
@@ -576,7 +576,7 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
     if (in_array($sort, ['price_asc', 'price_desc'], true) && $user) {
         $priceJoin = ' LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=? ';
         $priceParams[] = $user['group_id'];
-        $order = 'COALESCE(gp.price_eur_cents,p.list_price_eur_cents) ' . ($sort === 'price_asc' ? 'ASC' : 'DESC') . ',p.id ASC';
+        $order = 'gp.price_eur_cents ' . ($sort === 'price_asc' ? 'ASC' : 'DESC') . ',p.id ASC';
         $orderParams = [];
     }
     // The default catalogue follows the exact category order shown in the
@@ -620,7 +620,7 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
             // price-based ranking are both restricted to authenticated buyers.
             $priceJoin = ' LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=? ';
             $priceParams = [$user['group_id']];
-            $screenPrice = 'COALESCE(gp.price_eur_cents,p.list_price_eur_cents)';
+            $screenPrice = 'gp.price_eur_cents';
             $order = "$categoryRank ASC,$screenTypeRank ASC,$housingRank ASC,p.stock>0 DESC,
                 CASE WHEN $realScreen AND $screenPrice IS NULL THEN 1 ELSE 0 END ASC,
                 CASE WHEN $realScreen THEN $screenPrice END ASC,

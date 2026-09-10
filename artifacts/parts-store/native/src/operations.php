@@ -175,7 +175,8 @@ function opReplaceRelations(int $productId, array $input, string $kind): void
 function opProductPayload(array $input, bool $create): array
 {
     $allowed = ['sku', 'name', 'description', 'category_id', 'brand_id', 'quality', 'stock',
-        'purchase_price_eur_cents', 'list_price_eur_cents', 'minimum_quantity', 'featured'];
+        'purchase_price_eur_cents', 'minimum_quantity', 'featured',
+        'publication_status'];
     $result = [];
     foreach ($allowed as $field) {
         if (!array_key_exists($field, $input)) {
@@ -194,16 +195,21 @@ function opProductPayload(array $input, bool $create): array
             'list_price_eur_cents' => integer($input[$field], 0, 100000000),
             'minimum_quantity' => integer($input[$field], 1, 100000000),
             'featured' => opBool($input[$field]),
+            'publication_status' => match ((string)$input[$field]) {
+                'draft', 'visible' => (string)$input[$field],
+                default => throw new HttpError(422, 'Invalid publication status.'),
+            },
         };
     }
     if ($create) {
-        foreach (['sku', 'name', 'description', 'quality', 'stock', 'list_price_eur_cents'] as $required) {
+        foreach (['sku', 'name', 'description', 'quality', 'stock'] as $required) {
             if (!array_key_exists($required, $result)) {
                 throw new HttpError(422, "Missing product field: $required.");
             }
         }
         $result['minimum_quantity'] ??= 1;
         $result['featured'] ??= 0;
+        $result['publication_status'] ??= 'draft';
     }
     if (isset($result['sku']) && $result['sku'] === '') {
         throw new HttpError(422, 'SKU is required.');
@@ -214,6 +220,35 @@ function opProductPayload(array $input, bool $create): array
     return $result;
 }
 
+function opAssertProductPublishable(int $productId): void
+{
+    $candidate = opRow(
+        'SELECT sku,name,category_id,brand_id FROM products WHERE id=?',
+        [$productId]
+    );
+    if (!$candidate || trim((string)$candidate['sku']) === ''
+        || trim((string)$candidate['name']) === ''
+        || $candidate['category_id'] === null || $candidate['brand_id'] === null) {
+        throw new HttpError(422, 'Complete SKU, name, category and brand before publishing.');
+    }
+    $missing = opRows(
+        'SELECT cg.name
+         FROM customer_groups cg
+         LEFT JOIN group_prices gp ON gp.group_id=cg.id
+           AND gp.product_id=? AND gp.price_eur_cents IS NOT NULL
+         WHERE gp.product_id IS NULL
+         ORDER BY cg.id',
+        [$productId]
+    );
+    if ($missing !== []) {
+        throw new HttpError(
+            422,
+            'Add a price for every customer group before publishing: '
+            . implode(', ', array_column($missing, 'name'))
+        );
+    }
+}
+
 function opAdminProducts(string $method, string $path): bool
 {
     if ($path === '/admin/products' && $method === 'GET') {
@@ -222,7 +257,7 @@ function opAdminProducts(string $method, string $path): bool
         $page = integer($_GET['page'] ?? 1, 1, 1000000);
         $limit = integer($_GET['limit'] ?? 25, 1, 100);
         $status = (string)($_GET['status'] ?? 'all');
-        if (!in_array($status, ['all', 'active', 'archived'], true)) {
+        if (!in_array($status, ['all', 'visible', 'draft', 'archived'], true)) {
             throw new HttpError(422, 'Invalid product status.');
         }
         $where = ' WHERE 1=1';
@@ -258,7 +293,8 @@ function opAdminProducts(string $method, string $path): bool
             throw new HttpError(422, 'Invalid stock filter.');
         }
         $statusWhere = match ($status) {
-            'active' => ' AND p.active=1',
+            'visible' => " AND p.active=1 AND p.publication_status='visible'",
+            'draft' => " AND p.active=1 AND p.publication_status='draft'",
             'archived' => ' AND p.active=0',
             default => '',
         };
@@ -273,7 +309,10 @@ function opAdminProducts(string $method, string $path): bool
             default => throw new HttpError(422, 'Invalid product sort.'),
         };
         $countsStatement = db()->prepare(
-            'SELECT COUNT(*) `all`,COALESCE(SUM(p.active=1),0) active,COALESCE(SUM(p.active=0),0) archived'
+            "SELECT COUNT(*) `all`,
+                    COALESCE(SUM(p.active=1 AND p.publication_status='visible'),0) visible,
+                    COALESCE(SUM(p.active=1 AND p.publication_status='draft'),0) draft,
+                    COALESCE(SUM(p.active=0),0) archived"
             . ' FROM products p' . $where
         );
         $countsStatement->execute($params);
@@ -310,12 +349,12 @@ function opAdminProducts(string $method, string $path): bool
     if (preg_match('#^/admin/products/(\d+)/restore$#', $path, $match) && $method === 'POST') {
         $staff = requireStaff();
         $id = opId($match[1]);
-        $statement = db()->prepare('UPDATE products SET active=1 WHERE id=?');
+        $statement = db()->prepare("UPDATE products SET active=1,publication_status='draft' WHERE id=?");
         $statement->execute([$id]);
         if ($statement->rowCount() === 0 && opRow('SELECT id FROM products WHERE id=?', [$id]) === null) {
             throw new HttpError(404, 'Product not found.');
         }
-        audit('product.restored', 'product', $id, ['by' => (int)$staff['id']]);
+        audit('product.restored', 'product', $id, ['by' => (int)$staff['id'], 'publication_status' => 'draft']);
         respond(['product' => opProduct(opRow('SELECT * FROM products WHERE id=?', [$id]) ?? [])]);
     }
     if ($path === '/admin/products' && $method === 'POST') {
@@ -337,6 +376,9 @@ function opAdminProducts(string $method, string $path): bool
             if (array_key_exists('model_ids', $input)) {
                 if (!is_array($input['model_ids'])) throw new HttpError(422, 'Invalid model IDs.');
                 opReplaceRelations($id, $input['model_ids'], 'models');
+            }
+            if (($fields['publication_status'] ?? 'draft') === 'visible') {
+                opAssertProductPublishable($id);
             }
             audit('product.created', 'product', $id, [
                 'by' => (int)$staff['id'], 'pricing_after' => pricingSnapshot($id),
@@ -378,7 +420,6 @@ function opAdminProducts(string $method, string $path): bool
             $input = body();
             $fields = opProductPayload($input, false);
             $priceTouched = array_key_exists('purchase_price_eur_cents', $fields)
-                || array_key_exists('list_price_eur_cents', $fields)
                 || array_key_exists('group_prices', $input);
             $expectedVersion = null;
             if ($priceTouched) {
@@ -413,6 +454,9 @@ function opAdminProducts(string $method, string $path): bool
                 if (array_key_exists('model_ids', $input)) {
                     if (!is_array($input['model_ids'])) throw new HttpError(422, 'Invalid model IDs.');
                     opReplaceRelations($id, $input['model_ids'], 'models');
+                }
+                if (($fields['publication_status'] ?? null) === 'visible') {
+                    opAssertProductPublishable($id);
                 }
                 $auditDetails = ['fields' => array_keys($fields), 'by' => (int)$staff['id']];
                 if ($priceTouched) {

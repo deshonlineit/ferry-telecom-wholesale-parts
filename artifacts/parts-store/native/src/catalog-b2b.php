@@ -77,7 +77,7 @@ function catalogB2bSearch(array $input, ?array $user): array
         throw new HttpError(422, 'Enter a search term to look for products.');
     }
 
-    $where = ['p.active=1'];
+    $where = ["p.active=1", "p.publication_status='visible'"];
     $parameters = [];
     $aliases = catalogCategoryAliases();
     $matchedCategorySlugs = [];

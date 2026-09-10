@@ -10,7 +10,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     const isNew = match[1] === 'new';
     const id = isNew ? null : match[1];
 
-    let p = { sku:'', name:'', description:'', category_id:'', brand_id:'', quality:'', stock:0, list_price_eur_cents:null, purchase_price_eur_cents:null, pricing_version:0, minimum_quantity:1, featured:0 };
+    let p = { sku:'', name:'', description:'', category_id:'', brand_id:'', quality:'', stock:0, purchase_price_eur_cents:null, pricing_version:0, minimum_quantity:1, featured:0, publication_status:'draft' };
     let groupPrices = [];
     let images = [];
     let modelIds = [];
@@ -118,6 +118,18 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
 
                 <div>
                     <div class="card" style="margin-bottom:1.5rem">
+                        <h3 class="form-section-title">Publication</h3>
+                        <div class="form-group">
+                            <label>Product status</label>
+                            <select name="publication_status" class="form-control">
+                                <option value="draft" ${p.publication_status !== 'visible' ? 'selected' : ''}>Draft — hidden from customers</option>
+                                <option value="visible" ${p.publication_status === 'visible' ? 'selected' : ''}>Visible — published in the shop</option>
+                            </select>
+                            <p class="text-muted" style="font-size:0.8125rem; margin-top:0.5rem;">Publishing requires SKU, name, category, brand and a price for every customer group.</p>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom:1.5rem">
                         <h3 class="form-section-title">Stock & Logistics</h3>
                         <div class="grid-cols-2">
                             <div class="form-group">
@@ -143,12 +155,8 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                             <label>Purchase Price / Cost (EUR)</label>
                             <input type="text" inputmode="decimal" name="purchase_price_eur" value="${p.purchase_price_eur_cents != null ? (p.purchase_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" placeholder="Unknown">
                         </div>
-                        <div class="form-group">
-                            <label>Base Selling Price (EUR)</label>
-                            <input type="text" inputmode="decimal" name="list_price_eur" value="${p.list_price_eur_cents != null ? (p.list_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" required>
-                        </div>
-                        <details class="wb-details" ${groupPrices.length > 0 ? 'open' : ''} style="margin-bottom:0;">
-                            <summary>Specific B2B Group Prices (EUR)</summary>
+                        <details class="wb-details" open style="margin-bottom:0;">
+                            <summary>Customer Group Prices (EUR)</summary>
                             <div class="wb-details-content">
                                 ${groupPricesHtml}
                             </div>
@@ -228,22 +236,16 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             return c;
         };
 
-        const listPriceEurCents = parseFormCents(fd.get('list_price_eur'), 'base selling price');
-        if (listPriceEurCents === null) {
-            window.Workbench.toast('Base selling price is required', 'error');
-            return;
-        }
-
         const payload = {
             sku: fd.get('sku'), name: fd.get('name'), description: fd.get('description'),
             category_id: fd.get('category_id') ? parseInt(fd.get('category_id'), 10) : null,
             brand_id: fd.get('brand_id') ? parseInt(fd.get('brand_id'), 10) : null,
             quality: fd.get('quality'), stock: parseInt(fd.get('stock'), 10),
-            list_price_eur_cents: listPriceEurCents,
             purchase_price_eur_cents: parseFormCents(fd.get('purchase_price_eur'), 'purchase price'),
             pricing_version: fd.get('pricing_version') ? parseInt(fd.get('pricing_version'), 10) : 0,
             minimum_quantity: parseInt(fd.get('minimum_quantity'), 10),
-            featured: fd.get('featured') ? 1 : 0
+            featured: fd.get('featured') ? 1 : 0,
+            publication_status: fd.get('publication_status')
         };
 
         const gps = [];

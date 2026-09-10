@@ -26,7 +26,7 @@ function workspaceProductSelect(): string
 {
     return 'SELECT p.id, p.sku, p.name, p.image_url, p.stock, p.minimum_quantity, p.quality, p.active,
                    p.expected_restock_date,
-                   COALESCE(gp.price_eur_cents, p.list_price_eur_cents) AS price_eur_cents
+                   gp.price_eur_cents AS price_eur_cents
             FROM products p
             LEFT JOIN group_prices gp ON gp.product_id = p.id AND gp.group_id = ?';
 }
@@ -86,7 +86,7 @@ function workspaceResolveCode(PDO $pdo, string $code, int $groupId): array
 
     $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $needle);
     $statement = $pdo->prepare(
-        workspaceProductSelect() . ' WHERE p.active = 1 AND (p.sku LIKE ? OR p.name LIKE ?) ORDER BY p.sku LIMIT 6'
+        workspaceProductSelect() . " WHERE p.active = 1 AND p.publication_status='visible' AND (p.sku LIKE ? OR p.name LIKE ?) ORDER BY p.sku LIMIT 6"
     );
     $statement->execute([$groupId, $like . '%', '%' . $like . '%']);
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -225,7 +225,7 @@ function workspaceAddLinesToCart(array $lines, int $userId): array
         foreach ($orderable as $line) {
             $productId = (int) $line['product']['product_id'];
             $statement = $pdo->prepare(
-                'SELECT stock,minimum_quantity FROM products WHERE id=? AND active=1 FOR UPDATE'
+                "SELECT stock,minimum_quantity FROM products WHERE id=? AND active=1 AND publication_status='visible' FOR UPDATE"
             );
             $statement->execute([$productId]);
             $product = $statement->fetch(PDO::FETCH_ASSOC);
@@ -447,7 +447,7 @@ function workspaceListAddItem(int $listId): never
     $productId = integer($input['product_id'] ?? null, 1);
     $quantity = integer($input['quantity'] ?? 1, 1, 100000);
     $pdo = db();
-    $statement = $pdo->prepare('SELECT id FROM products WHERE id=? AND active=1');
+    $statement = $pdo->prepare("SELECT id FROM products WHERE id=? AND active=1 AND publication_status='visible'");
     $statement->execute([$productId]);
     if ($statement->fetchColumn() === false) {
         throw new HttpError(404, 'Product not found.');
@@ -481,9 +481,9 @@ function workspaceListToCart(int $listId): never
     workspaceOwnedList($listId, (int) $user['id']);
     $statement = db()->prepare(
         workspaceProductSelect()
-        . ' JOIN order_list_items li ON li.product_id = p.id
-            WHERE li.list_id = ? AND p.active = 1
-            ORDER BY p.id'
+        . " JOIN order_list_items li ON li.product_id = p.id
+            WHERE li.list_id = ? AND p.active = 1 AND p.publication_status='visible'
+            ORDER BY p.id"
     );
     $statement->execute([(int) $user['group_id'], $listId]);
     $quantities = db()->prepare('SELECT product_id,quantity FROM order_list_items WHERE list_id=?');
@@ -528,10 +528,10 @@ function workspaceReorder(int $orderId): never
     }
     $statement = db()->prepare(
         workspaceProductSelect()
-        . ' JOIN (SELECT DISTINCT product_id FROM order_items WHERE order_id = ?) oi
+        . " JOIN (SELECT DISTINCT product_id FROM order_items WHERE order_id = ?) oi
                 ON oi.product_id = p.id
-            WHERE p.active = 1
-            ORDER BY p.id'
+            WHERE p.active = 1 AND p.publication_status='visible'
+            ORDER BY p.id"
     );
     $statement->execute([(int) $user['group_id'], $orderId]);
     $products = $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -606,7 +606,7 @@ function workspaceCreateAlert(): never
 {
     $user = commerceActiveCustomer();
     $productId = integer(body()['product_id'] ?? null, 1);
-    $statement = db()->prepare('SELECT id,stock FROM products WHERE id=? AND active=1');
+    $statement = db()->prepare("SELECT id,stock FROM products WHERE id=? AND active=1 AND publication_status='visible'");
     $statement->execute([$productId]);
     $product = $statement->fetch(PDO::FETCH_ASSOC);
     if (!$product) {
