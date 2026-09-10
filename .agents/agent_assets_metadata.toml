@@ -420,3 +420,17 @@ mtime_ms = 1789000795453
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/f32d4147-6ebb-49c9-b8e8-5650cadc1e1e/2a96d2b0-6164-4df5-a123-32450f06e9c8"
 storage_version_token = "1789000801522671"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "ovLhp68BbeCq-8QQjmi-M"
+uri = "file://screenshots/catalog-sidebar-spacing-corrected.jpg"
+type = "image"
+title = "Compacte afstand onder cataloguskop"
+description = "De onbedoelde 24 px kolomgap is verwijderd; onder de kop blijft nu alleen 10 px nette tussenruimte over."
+logical_id = "5d7996c0-f2d2-42d5-b207-92640ffcb975"
+content_hash = "sha256:39e658e7e9e403cec9ec2a840c9752d17aae552c957c56c8c1027f88c7e292be"
+size = 92133
+mtime_ms = 1789001217269
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/5d7996c0-f2d2-42d5-b207-92640ffcb975/a1686b85-1209-46f3-b1e4-1fcb54c17aee"
+storage_version_token = "1789001223505050"
+content_type = "image/jpeg"

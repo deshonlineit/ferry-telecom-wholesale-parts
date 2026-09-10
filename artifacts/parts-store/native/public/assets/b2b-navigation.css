@@ -1654,6 +1654,7 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
         overflow-y: auto;
         overscroll-behavior: contain;
         padding: 14px;
+        gap: 0;
         background: #fff;
         border: 1px solid var(--catalog-shell-border);
         border-radius: 10px;
@@ -1665,7 +1666,7 @@ body:not(:has(.admin-shell)) .part-type-option.active b {
         height: 56px;
         min-height: 56px;
         flex: 0 0 56px;
-        margin: -14px -14px 18px;
+        margin: -14px -14px 10px;
         padding: 0 14px;
         flex-direction: row;
         align-items: center;

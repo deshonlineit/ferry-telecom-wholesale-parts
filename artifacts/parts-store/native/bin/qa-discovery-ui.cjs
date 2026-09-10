@@ -66,6 +66,7 @@ check('left and right catalogue headers use the same fixed height', () => {
     const navigationCss = fs.readFileSync(path.join(__dirname, '../public/assets/b2b-navigation.css'), 'utf8');
     const catalogueCss = fs.readFileSync(path.join(__dirname, '../public/assets/b2b-catalog.css'), 'utf8');
     assert.match(navigationCss, /\.catalog-sidebar-heading\s*\{[^}]*height:\s*56px[^}]*flex:\s*0 0 56px/s);
+    assert.match(navigationCss, /\.catalog-sidebar\s*\{[^}]*gap:\s*0/s);
     assert.match(catalogueCss, /\.catalog-main > \.b2b-products \.b2b-table th\s*\{[^}]*height:\s*56px/s);
 });
 check('facet metadata cache key is shared by sort and pagination changes', () => {
