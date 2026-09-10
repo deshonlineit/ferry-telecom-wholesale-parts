@@ -67,3 +67,4 @@
 - [Admin back-office design](admin-product-editor-visual-language.md) — keep every admin route compact, consistent, usable, and responsive; product editing stays searchable and image-aware.
 - [Deployment context exclusions](deployment-context-exclusions.md) — Git-ignored generated media still bloats publishing unless `.replitignore` excludes it; production media lives in App Storage.
 - [Deployment port gating](deployment-port-gating.md) — every dynamic artifact port must open quickly; bind before migrations, connector calls, webhooks, or backfills.
+- [Deployment bundle pruning](deployment-bundle-pruning.md) — test runnable bundles without workspace node_modules; publishing may prune packages that hide local external imports.
