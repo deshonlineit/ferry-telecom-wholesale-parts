@@ -295,8 +295,10 @@ body:not(:has(.admin-shell)) .b2b-products-toolbar {
 }
 
 body:not(:has(.admin-shell)) .catalog-main > .b2b-products .b2b-table th {
+    height: 56px;
     background: var(--catalog-header-surface, #f5f5f7);
     border-radius: 0;
+    box-sizing: border-box;
 }
 
 body:not(:has(.admin-shell)) .catalog-empty-surface .empty-state {

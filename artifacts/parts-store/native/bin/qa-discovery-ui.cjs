@@ -62,6 +62,12 @@ check('the selected model context remains visibly identified above the catalogue
     const navigationCss = fs.readFileSync(path.join(__dirname, '../public/assets/b2b-navigation.css'), 'utf8');
     assert.match(navigationCss, /\.catalog-table-model\s*\{/);
 });
+check('left and right catalogue headers use the same fixed height', () => {
+    const navigationCss = fs.readFileSync(path.join(__dirname, '../public/assets/b2b-navigation.css'), 'utf8');
+    const catalogueCss = fs.readFileSync(path.join(__dirname, '../public/assets/b2b-catalog.css'), 'utf8');
+    assert.match(navigationCss, /\.catalog-sidebar-heading\s*\{[^}]*height:\s*56px[^}]*flex:\s*0 0 56px/s);
+    assert.match(catalogueCss, /\.catalog-main > \.b2b-products \.b2b-table th\s*\{[^}]*height:\s*56px/s);
+});
 check('facet metadata cache key is shared by sort and pagination changes', () => {
     const base = discovery.catalogCacheKey('category=5&model=132&sort=name&page=3');
     assert.equal(base, discovery.catalogCacheKey('model=132&category=5&sort=stock&page=9'));

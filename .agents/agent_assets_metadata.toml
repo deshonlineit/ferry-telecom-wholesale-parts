@@ -406,3 +406,17 @@ mtime_ms = 1789000548721
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/b3c1ce54-823f-446a-b018-10e7757eb630/8eae8714-4332-49f2-b062-a77a570ec672"
 storage_version_token = "1789000554308099"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "swB7FMLud_7k5feuLdsQz"
+uri = "file://screenshots/catalog-headers-exact-final.jpg"
+type = "image"
+title = "Cataloguskoppen exact uitgelijnd"
+description = "De linker en rechter grijze kop zijn beide 56 px hoog; boven- en onderlijnen lopen nu exact gelijk."
+logical_id = "f32d4147-6ebb-49c9-b8e8-5650cadc1e1e"
+content_hash = "sha256:1aa29577a3618c9a5d7462f68cc6433e31d3a6f06150f3f6c386944026f765cc"
+size = 92125
+mtime_ms = 1789000795453
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/f32d4147-6ebb-49c9-b8e8-5650cadc1e1e/2a96d2b0-6164-4df5-a123-32450f06e9c8"
+storage_version_token = "1789000801522671"
+content_type = "image/jpeg"
