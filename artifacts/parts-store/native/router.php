@@ -17,6 +17,10 @@ register_shutdown_function(static function () use (&$fatalRecorded): void {
 });
 
 $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if ($uriPath === '/') {
+    header('Location: /test-shop/', true, 302);
+    exit;
+}
 $healthPath = rtrim($uriPath, '/');
 if ($healthPath === '/health' || $healthPath === '/ready'
     || preg_match('#/test-shop/(health|ready)$#', $healthPath, $healthMatch)) {
