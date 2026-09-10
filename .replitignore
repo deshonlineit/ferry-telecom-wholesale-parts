@@ -3,3 +3,8 @@
 
 # No need to store the pnpm store twice.
 .local
+
+# Local native-shop runtime data is development-only. Production reads product
+# media and private documents from App Storage instead of the local filesystem.
+artifacts/parts-store/native/public/media
+artifacts/parts-store/native/storage
