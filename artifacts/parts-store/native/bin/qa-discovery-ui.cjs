@@ -57,9 +57,10 @@ check('catalogue embeds sorting in the product surface without a visible result 
     assert.match(discoverySource, /class="b2b-products-toolbar"/);
 });
 check('the selected model context remains visibly identified above the catalogue', () => {
-    assert.match(discoverySource, /const title = device \? `\$\{subject\} \$\{t\('for'\)\} \$\{device\}`/);
+    assert.match(discoverySource, /class="catalog-model-context"/);
+    assert.match(discoverySource, /\$\{escape\(device\)\}/);
     const navigationCss = fs.readFileSync(path.join(__dirname, '../public/assets/b2b-navigation.css'), 'utf8');
-    assert.doesNotMatch(navigationCss, /\.catalog-heading\s*\{\s*display:\s*none/);
+    assert.match(navigationCss, /\.catalog-model-context\s*\{/);
 });
 check('facet metadata cache key is shared by sort and pagination changes', () => {
     const base = discovery.catalogCacheKey('category=5&model=132&sort=name&page=3');

@@ -378,3 +378,17 @@ mtime_ms = 1788999752882
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/3e27ac0f-e73a-4de2-8dd9-5c3389f66263/f3f29eae-2789-4e72-a00a-b228b8163fc4"
 storage_version_token = "1788999776244947"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "YESO-u6Ve-JpCbLmWTNMf"
+uri = "file://screenshots/iphone-15-pro-max-compact-model-context.jpg"
+type = "image"
+title = "Compacte modelvermelding boven producten"
+description = "De modelnaam staat nu zakelijk in de productkolom, direct boven Product & specifications."
+logical_id = "7c395530-ed50-4b90-84d9-a477a8fe44d8"
+content_hash = "sha256:f1607c60a1d9f32bee69a4b6e9bcb84c150718cbd45ce7e5e0362f29e830fd3e"
+size = 88456
+mtime_ms = 1789000156950
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/7c395530-ed50-4b90-84d9-a477a8fe44d8/a0b16cc3-9e75-4066-98f0-1e79744b7a2c"
+storage_version_token = "1789000163152676"
+content_type = "image/jpeg"
