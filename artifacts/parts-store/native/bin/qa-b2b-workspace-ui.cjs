@@ -45,6 +45,11 @@ try {
   $q->execute(["Workspace UI QA",$x["email"],password_hash($x["password"],PASSWORD_DEFAULT),
     "Workspace UI QA BV",$group]);
   $uid=(int)$pdo->lastInsertId();
+  $staff=$pdo->prepare("INSERT INTO users(name,email,password_hash,company,role,group_id,status)
+    VALUES(?,?,?,?,'staff',?,'active')");
+  $staff->execute(["Product Editor UI QA",$x["staff_email"],password_hash($x["password"],PASSWORD_DEFAULT),
+    "Ferry Telecom",$group]);
+  $staffId=(int)$pdo->lastInsertId();
   $insert=$pdo->prepare("INSERT INTO products
     (sku,name,description,category_id,brand_id,quality,stock,list_price_cents,list_price_eur_cents,
      minimum_quantity,image_url,featured,publication_status,active)
@@ -69,7 +74,8 @@ try {
   $pdo->prepare("INSERT INTO order_items(order_id,product_id,name,sku,quantity,price_cents,total_cents,price_eur_cents)
     VALUES(?,?,?,?,2,1000,2000,900)")->execute([$oid,$stocked,"Workspace UI screen ".$x["token"],$skuStocked]);
   $pdo->commit();
-  echo json_encode(["user_id"=>$uid,"stocked_id"=>$stocked,"depleted_id"=>$depleted,
+  echo json_encode(["user_id"=>$uid,"staff_id"=>$staffId,"staff_email"=>$x["staff_email"],
+    "stocked_id"=>$stocked,"depleted_id"=>$depleted,
     "sku_stocked"=>$skuStocked,"sku_empty"=>$skuEmpty,"order_id"=>$oid,"order_number"=>$number]);
 } catch(Throwable $e){ if($pdo->inTransaction())$pdo->rollBack(); throw $e; }
 `;
@@ -91,6 +97,7 @@ $pdo->prepare("DELETE FROM group_prices WHERE product_id IN (?,?)")->execute([(i
 $pdo->prepare("DELETE FROM products WHERE id IN (?,?)")->execute([(int)$x["stocked_id"],(int)$x["depleted_id"]]);
 $pdo->prepare("DELETE FROM audit_events WHERE user_id=?")->execute([$uid]);
 $pdo->prepare("DELETE FROM users WHERE id=?")->execute([$uid]);
+$pdo->prepare("DELETE FROM users WHERE id=?")->execute([(int)$x["staff_id"]]);
 echo json_encode(["removed"=>true]);
 `;
 
@@ -139,7 +146,13 @@ function connectCdp(webSocketUrl, onEvent) {
 async function main() {
     fs.rmSync(shots, {recursive: true, force: true});
     fs.mkdirSync(shots, {recursive: true});
-    const fixture = php(FIXTURE, {token, email, password, order_date: '2026-04-08 10:15:00'});
+    const fixture = php(FIXTURE, {
+        token,
+        email,
+        staff_email: `workspace-ui-staff-${token}@test.invalid`,
+        password,
+        order_date: '2026-04-08 10:15:00',
+    });
     const port = 9300 + Math.floor(Math.random() * 400);
     const profile = path.join('/tmp', `workspace-ui-${process.pid}`);
     const browser = spawn(chromium, [
@@ -442,6 +455,59 @@ async function main() {
         })()`, 'the reordered cart line');
         check(true, 'Reordering from the orders screen fills the cart again');
         await shoot('11-reordered');
+
+        // ------------------------------------------------------------ //
+        // Compact product editor                                        //
+        // ------------------------------------------------------------ //
+        await evaluate("window.Core.fetch('/auth/logout', {method: 'POST'})");
+        await visit('login');
+        await waitFor("document.querySelector('#login-form')", 'the staff login form');
+        await evaluate(`(() => {
+            const form = document.querySelector('#login-form');
+            const set = (selector, value) => {
+                const field = form.querySelector(selector);
+                const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+                setter.call(field, value);
+                field.dispatchEvent(new Event('input', {bubbles: true}));
+            };
+            set('input[type="email"], input[name="email"]', ${JSON.stringify(`workspace-ui-staff-${token}@test.invalid`)});
+            set('input[type="password"]', ${JSON.stringify(password)});
+            form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit'));
+            return true;
+        })()`);
+        await waitFor("window.Core.user && window.Core.user.role === 'staff'", 'the staff session');
+        await visit('admin/products/new');
+        await waitFor("document.querySelector('.product-editor-layout')", 'the redesigned product editor');
+        check(await evaluate("document.querySelectorAll('.editor-card').length >= 5"),
+            'The product editor groups its controls into compact work areas');
+        check(await evaluate("Boolean(document.querySelector('#model-search'))"),
+            'Compatible models can be searched');
+        check(await evaluate("document.body.textContent.includes('Save the product to enable image uploads.')"),
+            'Image upload explains the save-first state for a new product');
+        await evaluate(`(() => {
+            const first = document.querySelector('#models-list .model-item span');
+            if (!first) return false;
+            const search = document.querySelector('#model-search');
+            search.value = first.textContent.slice(0, Math.min(8, first.textContent.length));
+            search.dispatchEvent(new Event('input', {bubbles:true}));
+            return true;
+        })()`);
+        check(await evaluate("document.querySelectorAll('#models-list .model-item').length > 0"),
+            'Model search keeps matching compatible models selectable');
+        await shoot('12-admin-product-editor-desktop');
+        await visit(`admin/products/${fixture.stocked_id}`);
+        await waitFor("document.querySelector('#drop-zone')", 'the product image upload area');
+        check(await evaluate("Boolean(document.querySelector('#img-upload[accept*=\"image/jpeg\"]'))"),
+            'Existing products offer real multi-image upload');
+        await shoot('13-admin-product-editor-images');
+        await cdp.send('Emulation.setDeviceMetricsOverride', {
+            width: 390, height: 844, deviceScaleFactor: 1, mobile: true,
+        }, sessionId);
+        await visit('admin/products/new');
+        await waitFor("document.querySelector('.product-editor-layout')", 'the mobile product editor');
+        check(await evaluate("getComputedStyle(document.querySelector('.product-editor-layout')).gridTemplateColumns.split(' ').length === 1"),
+            'The product editor collapses to one readable column on mobile');
+        await shoot('14-admin-product-editor-mobile');
 
         check(pageErrors.length === 0,
             `No page error surfaced during the walkthrough${pageErrors.length ? `: ${pageErrors.join(' | ')}` : ''}`);

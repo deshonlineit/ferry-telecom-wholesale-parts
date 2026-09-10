@@ -34,164 +34,242 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     const catsHtml = catalogData.categories.map(c => `<option value="${c.id}" ${c.id == p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
     const brandsHtml = catalogData.brands.map(b => `<option value="${b.id}" ${b.id == p.brand_id ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
     
-    const groupPricesHtml = groups.map(g => {
-        const existing = groupPrices.find(gp => gp.group_id === g.id);
-        const val = existing && existing.price_eur_cents != null ? (existing.price_eur_cents / 100).toFixed(2) : '';
-        return `
-            <div class="form-group" style="margin-bottom:0.75rem;">
-                <label style="font-size:0.75rem;">Price for ${esc(g.name)} (EUR)</label>
-                <input type="text" inputmode="decimal" name="gp_eur_${g.id}" value="${val}" class="form-control" placeholder="Standard price if blank">
-            </div>
-        `;
-    }).join('');
+    let allModels = catalogData.models || [];
+    const renderModels = (filter) => {
+        const lowerFilter = filter.toLowerCase();
+        let html = '';
+        const sorted = allModels.slice().sort((a,b) => {
+            const aChecked = modelIds.includes(a.id);
+            const bChecked = modelIds.includes(b.id);
+            if (aChecked && !bChecked) return -1;
+            if (!aChecked && bChecked) return 1;
+            return a.name.localeCompare(b.name);
+        });
 
-    const modelsHtml = catalogData.models.map(m => `
-        <label class="model-check-item">
-            <input type="checkbox" name="models[]" value="${m.id}" ${modelIds.includes(m.id) ? 'checked' : ''}>
-            <span style="font-size:0.875rem;">${esc(m.name)}</span>
-        </label>
-    `).join('');
+        sorted.forEach(m => {
+            if (lowerFilter && !m.name.toLowerCase().includes(lowerFilter)) return;
+            html += `
+                <label class="model-item">
+                    <input type="checkbox" name="models[]" value="${m.id}" ${modelIds.includes(m.id) ? 'checked' : ''}>
+                    <span>${esc(m.name)}</span>
+                </label>
+            `;
+        });
+        if (!html) html = '<div style="padding:0.5rem; font-size:0.8125rem; color:#64748b;">No matching models</div>';
+        return html;
+    };
 
     let coverUrl = p.image_url || '';
     const renderImages = currentImages => {
         const displayImages = coverUrl && !currentImages.some(img => img.url === coverUrl)
             ? [{id: null, url: coverUrl, legacy: true}, ...currentImages]
             : currentImages;
-        return displayImages.map(img => `
-            <div style="position:relative; display:inline-block; border:1px solid var(--wb-border-light); padding:0.25rem; border-radius:var(--wb-radius); margin-right:0.5rem; margin-bottom:0.5rem; background:var(--wb-bg);">
-                <img src="${esc(img.url)}" style="height:100px; width:100px; object-fit:contain; display:block;">
-                ${img.legacy
-                    ? '<span class="text-muted" style="display:block; max-width:100px; font-size:0.6875rem; text-align:center;">Existing main image</span>'
-                    : `<button type="button" class="btn btn-sm btn-danger action-del-img" data-id="${img.id}" data-url="${esc(img.url)}" aria-label="Remove image" style="position:absolute; top:-5px; right:-5px; padding:0; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:var(--wb-shadow-sm)">&times;</button>`}
+        if (displayImages.length === 0) {
+            return '<p style="margin:0; font-size:0.875rem; color:#64748b;">No images yet.</p>';
+        }
+        return `
+            <div class="image-gallery">
+                ${displayImages.map(img => `
+                    <div class="image-item">
+                        <img src="${esc(img.url)}" alt="">
+                        ${img.legacy
+                            ? '<div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:0.65rem; text-align:center; padding:0.125rem;">Legacy cover</div>'
+                            : `<button type="button" class="image-item-del action-del-img" data-id="${img.id}" data-url="${esc(img.url)}" aria-label="Remove image">&times;</button>`}
+                    </div>
+                `).join('')}
             </div>
-        `).join('') || '<p class="text-muted" style="font-size:0.875rem;">No images yet.</p>';
+        `;
     };
 
     const content = `
-        <div class="page-header">
-            <h1>${isNew ? 'Add New Product' : 'Edit Product: ' + esc(p.sku)}</h1>
+        <div class="editor-page-header">
+            <h1 class="editor-page-title">${isNew ? 'Create Product' : 'Edit Product: ' + esc(p.sku)}</h1>
             <div class="page-actions">
-                <a href="${window.APP_BASE}admin/products" class="btn btn-outline">&larr; Back to overview</a>
-                ${!isNew ? `<button type="button" class="btn btn-danger action-del-product">Archive Product</button>` : ''}
+                <a href="${window.APP_BASE}admin/products" class="btn btn-outline">Discard</a>
+                ${!isNew ? `<button type="button" class="btn btn-danger action-del-product">Archive</button>` : ''}
             </div>
         </div>
         
         <form id="admin-product-form">
-            <div class="grid-cols-2" style="align-items:start">
-                <div>
-                    <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Basic Information</h3>
-                        <div class="grid-cols-2">
-                            <div class="form-group">
-                                <label>SKU (Part Number)</label>
-                                <input type="text" name="sku" value="${esc(p.sku)}" class="form-control" required>
+            <div class="product-editor-layout">
+                <div class="editor-main">
+                    <div class="editor-card">
+                        <div class="editor-card-header">
+                            <h3>General Information</h3>
+                        </div>
+                        <div class="editor-card-body">
+                            <div class="editor-grid-2">
+                                <div class="editor-form-group">
+                                    <label>SKU (Part Number)</label>
+                                    <input type="text" name="sku" value="${esc(p.sku)}" class="editor-input" required>
+                                </div>
+                                <div class="editor-form-group">
+                                    <label>Product Name</label>
+                                    <input type="text" name="name" value="${esc(p.name)}" class="editor-input" required>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Quality (Grade)</label>
-                                <input type="text" name="quality" value="${esc(p.quality)}" class="form-control" placeholder="e.g. OEM, AAA">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Product Name</label>
-                            <input type="text" name="name" value="${esc(p.name)}" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Detailed Description <span class="text-muted">(optional)</span></label>
-                            <textarea name="description" class="form-control" rows="5">${esc(p.description)}</textarea>
-                        </div>
-                        
-                        <details class="wb-details" ${p.category_id || p.brand_id ? 'open' : ''}>
-                            <summary>Categorisation (Brand & Category)</summary>
-                            <div class="wb-details-content grid-cols-2">
-                                <div class="form-group" style="margin-bottom:0">
+                            <div class="editor-grid-2" style="margin-top:1rem;">
+                                <div class="editor-form-group">
                                     <label>Category</label>
-                                    <select name="category_id" class="form-control"><option value="">-- None --</option>${catsHtml}</select>
+                                    <select name="category_id" class="editor-input">
+                                        <option value="">-- None --</option>
+                                        ${catsHtml}
+                                    </select>
                                 </div>
-                                <div class="form-group" style="margin-bottom:0">
+                                <div class="editor-form-group">
                                     <label>Brand</label>
-                                    <select name="brand_id" class="form-control"><option value="">-- None --</option>${brandsHtml}</select>
+                                    <select name="brand_id" class="editor-input">
+                                        <option value="">-- None --</option>
+                                        ${brandsHtml}
+                                    </select>
                                 </div>
                             </div>
-                        </details>
+                            <div class="editor-form-group" style="margin-top:1rem;">
+                                <label>Quality Grade</label>
+                                <input type="text" name="quality" value="${esc(p.quality)}" class="editor-input" placeholder="e.g. OEM, Refurbished">
+                            </div>
+                            <div class="editor-form-group" style="margin-top:1rem;">
+                                <label>Description</label>
+                                <textarea name="description" class="editor-input" rows="4">${esc(p.description)}</textarea>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="editor-card">
+                        <div class="editor-card-header">
+                            <h3>Pricing</h3>
+                        </div>
+                        <div class="editor-card-body">
+                            <input type="hidden" name="pricing_version" value="${p.pricing_version}">
+                            <div class="editor-form-group" style="max-width: 250px;">
+                                <label>Purchase Price (Cost)</label>
+                                <div class="input-with-prefix">
+                                    <span class="input-prefix">EUR</span>
+                                    <input type="text" inputmode="decimal" name="purchase_price_eur" value="${p.purchase_price_eur_cents != null ? (p.purchase_price_eur_cents / 100).toFixed(2) : ''}" placeholder="0.00">
+                                </div>
+                            </div>
+                            <hr style="border:0; border-top:1px solid #e2e8f0; margin:1.5rem 0;">
+                            <div class="editor-form-group">
+                                <label>Customer Group Prices</label>
+                                <p class="editor-help-text" style="margin-bottom: 1rem;">Every customer group needs its own explicit price before this product can be published.</p>
+                                <div class="pricing-grid">
+                                    ${groups.map(g => {
+                                        const existing = groupPrices.find(gp => gp.group_id === g.id);
+                                        const val = existing && existing.price_eur_cents != null ? (existing.price_eur_cents / 100).toFixed(2) : '';
+                                        return `
+                                            <label>${esc(g.name)}</label>
+                                            <div class="input-with-prefix">
+                                                <span class="input-prefix">EUR</span>
+                                                <input type="text" inputmode="decimal" name="gp_eur_${g.id}" value="${val}" placeholder="0.00">
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${!isNew ? `
+                    <div class="editor-card">
+                        <div class="editor-card-header">
+                            <h3>Images</h3>
+                        </div>
+                        <div class="editor-card-body">
+                            <div class="admin-product-images" style="margin-bottom:1.5rem;">${renderImages(images)}</div>
+
+                            <label class="image-upload-area" id="drop-zone" for="img-upload">
+                                <div style="margin-bottom:0.5rem; color:#0f172a;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto; display:block; margin-bottom:0.5rem;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                    <strong>Click to upload</strong> or drag and drop<br>
+                                    <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">PNG, JPG, WEBP</span>
+                                </div>
+                                <input type="file" id="img-upload" accept="image/jpeg,image/png,image/webp" multiple style="display:none;">
+                            </label>
+                            <div class="image-upload-progress" role="status" aria-live="polite" style="margin-top:0.75rem;"></div>
+                        </div>
+                    </div>
+                    ` : `
+                    <div class="editor-card">
+                        <div class="editor-card-header">
+                            <h3>Images</h3>
+                        </div>
+                        <div class="editor-card-body">
+                            <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:2rem; text-align:center;">
+                                <p style="margin:0; font-size:0.875rem; color:#64748b;">Save the product to enable image uploads.</p>
+                            </div>
+                        </div>
+                    </div>
+                    `}
                 </div>
 
-                <div>
-                    <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Publication</h3>
-                        <div class="form-group">
-                            <label>Product status</label>
-                            <select name="publication_status" class="form-control">
-                                <option value="draft" ${p.publication_status !== 'visible' ? 'selected' : ''}>Draft — hidden from customers</option>
-                                <option value="visible" ${p.publication_status === 'visible' ? 'selected' : ''}>Visible — published in the shop</option>
-                            </select>
-                            <p class="text-muted" style="font-size:0.8125rem; margin-top:0.5rem;">Publishing requires SKU, name, category, brand and a price for every customer group.</p>
+                <div class="editor-sidebar">
+                    <div class="editor-card">
+                        <div class="editor-card-header">
+                            <h3>Publication</h3>
                         </div>
-                    </div>
-
-                    <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Stock & Logistics</h3>
-                        <div class="grid-cols-2">
-                            <div class="form-group">
-                                <label>Current Stock</label>
-                                <input type="number" name="stock" value="${p.stock}" class="form-control" min="0" step="1" required>
+                        <div class="editor-card-body">
+                            <div class="editor-form-group">
+                                <label>Status</label>
+                                <select name="publication_status" class="editor-input">
+                                    <option value="draft" ${p.publication_status !== 'visible' ? 'selected' : ''}>Draft</option>
+                                    <option value="visible" ${p.publication_status === 'visible' ? 'selected' : ''}>Visible (Published)</option>
+                                </select>
+                                <div class="editor-help-text">Publishing requires SKU, name, category, brand, and a price for every customer group.</div>
                             </div>
-                            <div class="form-group">
-                                <label>Minimum Order Quantity</label>
-                                <input type="number" name="minimum_quantity" value="${p.minimum_quantity}" min="1" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-                                <input type="checkbox" name="featured" value="1" ${p.featured ? 'checked' : ''}> Featured (on homepage)
+                            <hr style="border:0; border-top:1px solid #e2e8f0; margin:1rem 0;">
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="featured" value="1" ${p.featured ? 'checked' : ''}>
+                                <div class="checkbox-card-content">
+                                    <span class="checkbox-card-title">Featured</span>
+                                    <span class="checkbox-card-desc">Highlight on homepage</span>
+                                </div>
                             </label>
                         </div>
                     </div>
-                    
-                    <div class="card" style="margin-bottom:1.5rem">
-                        <h3 class="form-section-title">Price Management (EUR)</h3>
-                        <input type="hidden" name="pricing_version" value="${p.pricing_version}">
-                        <div class="form-group">
-                            <label>Purchase Price / Cost (EUR)</label>
-                            <input type="text" inputmode="decimal" name="purchase_price_eur" value="${p.purchase_price_eur_cents != null ? (p.purchase_price_eur_cents / 100).toFixed(2) : ''}" class="form-control" placeholder="Unknown">
+
+                    <div class="editor-card">
+                        <div class="editor-card-header">
+                            <h3>Inventory</h3>
                         </div>
-                        <details class="wb-details" open style="margin-bottom:0;">
-                            <summary>Customer Group Prices (EUR)</summary>
-                            <div class="wb-details-content">
-                                ${groupPricesHtml}
+                        <div class="editor-card-body">
+                            <div class="editor-grid-2">
+                                <div class="editor-form-group">
+                                    <label>Stock</label>
+                                    <input type="number" name="stock" value="${p.stock}" class="editor-input" min="0" step="1" required>
+                                </div>
+                                <div class="editor-form-group">
+                                    <label>Min. Qty</label>
+                                    <input type="number" name="minimum_quantity" value="${p.minimum_quantity}" min="1" class="editor-input" required>
+                                </div>
                             </div>
-                        </details>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid-cols-2" style="align-items:start">
-                <div class="card" style="margin-bottom:1.5rem">
-                    <h3 class="form-section-title">Compatible Models</h3>
-                    <p style="font-size:0.875rem; color:var(--wb-text-muted); margin-bottom:1rem;">Select the devices this part is suitable for.</p>
-                    <div style="max-height:300px; overflow-y:auto; border:1px solid var(--wb-border-light); padding:0.5rem; border-radius:var(--wb-radius); background:var(--wb-surface);">
-                        ${modelsHtml || '<div class="text-muted">No models available.</div>'}
-                    </div>
-                </div>
-                
-                ${!isNew ? `
-                <div class="card" style="margin-bottom:1.5rem">
-                    <h3 class="form-section-title">Images</h3>
-                    <div class="admin-product-images">${renderImages(images)}</div>
-                    <div class="form-section" style="border-top:1px solid var(--wb-border-light); margin-top:1.5rem; padding-top:1.5rem; padding-bottom:0; margin-bottom:0; border-bottom:none;">
-                        <label>Upload New Images</label>
-                        <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem; flex-wrap:wrap;">
-                            <input type="file" id="img-upload" accept="image/jpeg,image/png,image/webp" multiple class="form-control" style="flex:1; min-width:220px">
-                            <button type="button" class="btn btn-outline action-upload-img">Upload</button>
                         </div>
-                        <div class="image-upload-progress" role="status" aria-live="polite" style="margin-top:0.75rem;"></div>
+                    </div>
+
+                    <div class="editor-card">
+                        <div class="editor-card-header">
+                            <h3>Compatible Models</h3>
+                        </div>
+                        <div class="editor-card-body" style="padding: 1rem;">
+                            <div class="models-selector">
+                                <div class="models-search">
+                                    <input type="text" id="model-search" placeholder="Search models...">
+                                </div>
+                                <div class="models-list" id="models-list">
+                                    ${renderModels('')}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                ` : '<div class="alert warning" style="margin-bottom:1.5rem;">Save the product before adding images.</div>'}
             </div>
 
-            <div class="card" style="display:flex; justify-content:flex-end; padding:1.5rem; background:var(--wb-bg)">
-                <button type="submit" class="btn product-submit" style="padding:0.75rem 2rem; font-size:1rem;">${isNew ? 'Create Product' : 'Save Changes'}</button>
+            <div class="editor-sticky-footer">
+                <div style="font-size:0.875rem; color:#64748b;">
+                    ${isNew ? 'New product will be saved as draft initially if publication requirements are not met.' : 'Last saved: just now'}
+                </div>
+                <button type="submit" class="btn product-submit" style="padding:0.625rem 2rem; font-weight:600; background:#0f172a; color:#fff; border:none;">
+                    ${isNew ? 'Create Product' : 'Save Changes'}
+                </button>
             </div>
         </form>
     `;
@@ -199,6 +277,24 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     const fullHtml = window.Admin.layout(content, 'products');
 
     root.innerHTML = fullHtml;
+
+    const list = document.getElementById('models-list');
+    const search = document.getElementById('model-search');
+    if (list && search) {
+        list.addEventListener('change', (e) => {
+            if (e.target.matches('input[type="checkbox"]')) {
+                const id = parseInt(e.target.value, 10);
+                if (e.target.checked) {
+                    if (!modelIds.includes(id)) modelIds.push(id);
+                } else {
+                    modelIds = modelIds.filter(i => i !== id);
+                }
+            }
+        });
+        search.addEventListener('input', (e) => {
+            list.innerHTML = renderModels(e.target.value);
+        });
+    }
 
     const updateImageGallery = currentImages => {
         images = currentImages;
@@ -258,7 +354,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             }
         });
         payload.group_prices = gps;
-        payload.model_ids = fd.getAll('models[]').map(m => parseInt(m, 10));
+        payload.model_ids = modelIds;
         const btn = e.target.querySelector('.product-submit');
         btn.disabled = true;
         btn.textContent = 'Saving...';
@@ -286,50 +382,61 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Create Product' : 'Save Changes'; }
         });
 
-        const upBtn = root.querySelector('.action-upload-img');
-        if (upBtn) upBtn.addEventListener('click', async () => {
-            const input = document.getElementById('img-upload');
-            const files = [...input.files];
-            if (!files.length) return window.Workbench.toast('Select one or more files first', 'warning');
-            const progress = root.querySelector('.image-upload-progress');
-            const results = files.map(file => ({file, state: 'waiting', error: ''}));
-            const renderProgress = () => {
-                progress.innerHTML = results.map((result, index) => `
-                    <div class="image-upload-result ${result.state}" data-upload-index="${index}">
-                        <span>${esc(result.file.name)}</span>
-                        <strong>${result.state === 'waiting' ? 'Waiting' : result.state === 'uploading' ? 'Uploading…' : result.state === 'success' ? 'Saved' : esc(result.error)}</strong>
-                    </div>
-                `).join('');
-            };
-            upBtn.disabled = true;
-            input.disabled = true;
-            renderProgress();
-            for (const result of results) {
-                result.state = 'uploading';
+        const input = document.getElementById('img-upload');
+        if (input) {
+            const handleUpload = async (filesArray) => {
+                if (!filesArray.length) return;
+                const progress = root.querySelector('.image-upload-progress');
+                const results = filesArray.map(file => ({file, state: 'waiting', error: ''}));
+                const renderProgress = () => {
+                    progress.innerHTML = results.map((result, index) => `
+                        <div class="image-upload-result ${result.state}" data-upload-index="${index}" style="font-size:0.8125rem; padding:0.375rem 0; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+                            <span style="color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:1rem;">${esc(result.file.name)}</span>
+                            <strong style="color:${result.state === 'error' ? '#ef4444' : result.state === 'success' ? '#10b981' : '#64748b'}">${result.state === 'waiting' ? 'Waiting' : result.state === 'uploading' ? 'Uploading…' : result.state === 'success' ? 'Saved' : esc(result.error)}</strong>
+                        </div>
+                    `).join('');
+                };
+                input.disabled = true;
                 renderProgress();
-                const fd = new FormData();
-                fd.append('file', result.file);
-                try {
-                    const response = await window.Core.fetch(`/admin/products/${id}/images`, { method: 'POST', body: fd });
-                    updateImageGallery(response.images || images);
-                    result.state = 'success';
-                } catch (error) {
-                    result.state = 'error';
-                    result.error = error.message || 'Upload failed';
+                for (const result of results) {
+                    result.state = 'uploading';
+                    renderProgress();
+                    const fd = new FormData();
+                    fd.append('file', result.file);
+                    try {
+                        const response = await window.Core.fetch(`/admin/products/${id}/images`, { method: 'POST', body: fd });
+                        updateImageGallery(response.images || images);
+                        result.state = 'success';
+                    } catch (error) {
+                        result.state = 'error';
+                        result.error = error.message || 'Upload failed';
+                    }
+                    renderProgress();
                 }
-                renderProgress();
+                input.disabled = false;
+                input.value = '';
+                const successes = results.filter(result => result.state === 'success').length;
+                const failures = results.length - successes;
+                if (failures) {
+                    window.Workbench.toast(`${successes} saved, ${failures} failed.`, 'error');
+                } else if (successes > 0) {
+                    window.Workbench.toast(`${successes} image${successes === 1 ? '' : 's'} uploaded`, 'success');
+                }
+            };
+
+            input.addEventListener('change', () => handleUpload([...input.files]));
+
+            const dropZone = document.getElementById('drop-zone');
+            if (dropZone) {
+                dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = '#0284c7'; dropZone.style.background = '#f0f9ff'; });
+                dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.style.borderColor = ''; dropZone.style.background = ''; });
+                dropZone.addEventListener('drop', e => {
+                    e.preventDefault();
+                    dropZone.style.borderColor = ''; dropZone.style.background = '';
+                    if (e.dataTransfer.files.length) handleUpload([...e.dataTransfer.files]);
+                });
             }
-            const successes = results.filter(result => result.state === 'success').length;
-            const failures = results.length - successes;
-            upBtn.disabled = false;
-            input.disabled = false;
-            input.value = '';
-            if (failures) {
-                window.Workbench.toast(`${successes} saved, ${failures} failed. Successful uploads have been retained.`, 'error');
-            } else {
-                window.Workbench.toast(`${successes} image${successes === 1 ? '' : 's'} uploaded`, 'success');
-            }
-        });
+        }
 
         bindImageDeleteHandlers();
     }
