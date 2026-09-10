@@ -246,3 +246,41 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
  rate_date DATE NOT NULL,fetched_at DATETIME NOT NULL,source_url VARCHAR(500) NOT NULL,
  PRIMARY KEY(base_currency,quote_currency),INDEX(rate_date)
 ) ENGINE=InnoDB;
+-- B2B ordering workspace.  Mirrors migration 015; see that file for intent.
+CREATE TABLE IF NOT EXISTS order_lists (
+ id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,user_id INT UNSIGNED NOT NULL,name VARCHAR(120) NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE KEY order_lists_user_name (user_id,name),KEY order_lists_user_updated (user_id,updated_at),
+ FOREIGN KEY(user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS order_list_items (
+ list_id INT UNSIGNED NOT NULL,product_id INT UNSIGNED NOT NULL,quantity INT UNSIGNED NOT NULL DEFAULT 1,
+ added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(list_id,product_id),KEY order_list_items_product (product_id),
+ FOREIGN KEY(list_id) REFERENCES order_lists(id) ON DELETE CASCADE,
+ FOREIGN KEY(product_id) REFERENCES products(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS stock_alerts (
+ id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,user_id INT UNSIGNED NOT NULL,product_id INT UNSIGNED NOT NULL,
+ status VARCHAR(20) NOT NULL DEFAULT 'waiting',created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ notified_at DATETIME NULL,
+ UNIQUE KEY stock_alerts_user_product (user_id,product_id),KEY stock_alerts_status (status,product_id),
+ FOREIGN KEY(user_id) REFERENCES users(id),FOREIGN KEY(product_id) REFERENCES products(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS billing_preferences (
+ user_id INT UNSIGNED PRIMARY KEY,invoice_email VARCHAR(190) NOT NULL DEFAULT '',
+ copy_email VARCHAR(190) NOT NULL DEFAULT '',auto_send TINYINT(1) NOT NULL DEFAULT 1,
+ reference_label VARCHAR(80) NOT NULL DEFAULT '',reference_required TINYINT(1) NOT NULL DEFAULT 0,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ FOREIGN KEY(user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS invoice_deliveries (
+ id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,user_id INT UNSIGNED NOT NULL,order_id INT UNSIGNED NOT NULL,
+ document_kind VARCHAR(30) NOT NULL DEFAULT 'invoice',recipient VARCHAR(190) NOT NULL,
+ copy_recipient VARCHAR(190) NOT NULL DEFAULT '',status VARCHAR(20) NOT NULL DEFAULT 'captured',
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE KEY invoice_deliveries_order_kind (order_id,document_kind),
+ KEY invoice_deliveries_user_created (user_id,created_at),
+ FOREIGN KEY(user_id) REFERENCES users(id),FOREIGN KEY(order_id) REFERENCES orders(id)
+) ENGINE=InnoDB;

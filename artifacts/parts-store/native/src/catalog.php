@@ -57,9 +57,15 @@ function handleCatalog(string $method, string $path): bool
         $context = currencyContext();
         $enriched = catalogEnrichProducts([$product], $user);
         $related = catalogEnrichProducts($query->fetchAll(), $user);
+        $watching = false;
+        if ($user && ($user['role'] ?? '') !== 'staff') {
+            $watch = db()->prepare('SELECT 1 FROM stock_alerts WHERE user_id=? AND product_id=?');
+            $watch->execute([(int) $user['id'], (int) $product['id']]);
+            $watching = $watch->fetchColumn() !== false;
+        }
         respond([
             'product' => $enriched[0], 'images' => $images, 'models' => $models,
-            'related' => $related,
+            'related' => $related, 'watching' => $watching,
             'currency' => $context['currency'], 'currency_context' => $context,
         ]);
     }

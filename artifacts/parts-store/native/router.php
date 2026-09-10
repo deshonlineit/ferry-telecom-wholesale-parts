@@ -58,7 +58,7 @@ try {
         if (!in_array($method, ['GET', 'HEAD'], true) && !$internalRoute) {
             verifyCsrf();
         }
-        foreach (['auth', 'catalog', 'commerce', 'operations', 'media'] as $module) {
+        foreach (['auth', 'catalog', 'commerce', 'workspace', 'operations', 'media'] as $module) {
             require_once __DIR__ . '/src/' . $module . '.php';
             $handler = 'handle' . ucfirst($module);
             if ($handler($method, $route)) {

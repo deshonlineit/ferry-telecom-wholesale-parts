@@ -61,3 +61,6 @@
 - [Wallee payment authority](wallee-payment-authority.md) — default TWINT to PREVIEW; only an SDK reread in COMPLETED state proves payment.
 - [Dompdf invoice dimensions](dompdf-invoice-dimensions.md) — fixed A4 and Swiss QR blocks must subtract padding from CSS height or dompdf adds blank pages and clips footer fields.
 - [Swiss VAT invoice identity](swiss-vat-invoice-identity.md) — follow MWSTG Art. 26; show real supplier/recipient identities and optional customer registration, never invent customer numbers.
+- [Invoice delivery model](invoice-delivery-model.md) — no accounting integration; invoices go to a customer-set email plus a self-service archive, and saved preferences must be consumed.
+- [Native workspace conventions](native-workspace-conventions.md) — cross-module PHP calls need a lazy require at the call site; account screens render through the shared account shell.
+- [Minimum order quantity](minimum-order-quantity.md) — a minimum is commercial, not stock: refuse the line as below-minimum instead of clamping it down to stock.

@@ -683,6 +683,17 @@ function commerceCheckout(): never
         throw new HttpError(422, 'Choose a supported payment method.');
     }
     $notes = text($input['notes'] ?? '', 4000);
+    // The customer's own billing preferences decide whether their purchase-order
+    // reference is mandatory and what it is called on their invoices.
+    $customerReference = text($input['customer_reference'] ?? '', 80);
+    // Loaded on use: the router loads commerce before workspace, and workspace
+    // already depends on this module.
+    require_once __DIR__ . '/workspace.php';
+    $billing = workspaceBillingPreferences((int) $sessionUser['id'], (string) ($sessionUser['email'] ?? ''));
+    if ($billing['reference_required'] && $customerReference === '') {
+        $label = $billing['reference_label'] !== '' ? $billing['reference_label'] : 'An order reference';
+        throw new HttpError(422, $label . ' is required on your invoices. Add it before placing the order.');
+    }
     $idempotencyKey = text($input['idempotency_key'] ?? '', 100);
     if ($idempotencyKey === '') {
         throw new HttpError(422, 'An idempotency key is required.');
@@ -844,9 +855,9 @@ function commerceCheckout(): never
                total_cents, tax_bps, currency, exchange_rate_ppm, exchange_rate_date,
                base_currency, address_json, shipping_method_code, shipping_method_name,
                shipping_carrier, payment_method, payment_state, payment_reference_type, payment_reference,
-               payment_terms_json, checkout_snapshot, notes,
+               payment_terms_json, checkout_snapshot, notes, customer_reference,
               tracking, idempotency_key, stock_restored)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
         );
         $statement->execute([
             $number, (int) $user['id'], 'on_hold',
@@ -865,7 +876,7 @@ function commerceCheckout(): never
                   'accepted_at' => gmdate('c'), 'shipping_methods' => $recalculated['shipping_methods'] ?? [],
                   'shipping_method' => $shippingMethod, 'payment_terms' => $paymentTerms,
               ], JSON_THROW_ON_ERROR),
-              $notes, '', $idempotencyKey,
+              $notes, $customerReference, '', $idempotencyKey,
         ]);
         $orderId = (int) $pdo->lastInsertId();
 
@@ -896,6 +907,19 @@ function commerceCheckout(): never
             ? 'Order received; awaiting card payment confirmation.'
             : 'Order received; awaiting payment.';
         $statement->execute([$orderId, $initialStatus, $label]);
+        // Record where this invoice is addressed. The isolated shop sends no
+        // mail; the customer collects documents from their own workspace.
+        if ($billing['auto_send']) {
+            $pdo->prepare(
+                'INSERT INTO invoice_deliveries
+                 (user_id, order_id, document_kind, recipient, copy_recipient, status)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE recipient=VALUES(recipient), copy_recipient=VALUES(copy_recipient)'
+            )->execute([
+                (int) $user['id'], $orderId, 'invoice',
+                (string) $billing['effective_email'], (string) $billing['copy_email'], 'captured',
+            ]);
+        }
         $pdo->prepare(
             'INSERT INTO payment_attempts(order_id,payment_method,state,payload) VALUES(?,?,?,?)'
         )->execute([$orderId, $paymentMethod, in_array($paymentMethod, ['stripe', 'twint'], true) ? 'pending' : 'open',

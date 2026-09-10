@@ -356,7 +356,7 @@ textarea.b2b-input {
 }
 .b2b-order-card {
     display: grid;
-    grid-template-columns: minmax(220px, 1.25fr) minmax(360px, 2fr) auto auto;
+    grid-template-columns: minmax(220px, 1.25fr) minmax(340px, 2fr) auto auto auto;
     align-items: center;
     gap: 16px;
     padding: 13px 14px 13px 16px;
@@ -425,8 +425,12 @@ textarea.b2b-input {
     margin: 0;
     font-weight: 500;
 }
-.b2b-order-open {
+.b2b-order-reorder {
     grid-column: 4;
+    white-space: nowrap;
+}
+.b2b-order-open {
+    grid-column: 5;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -448,7 +452,7 @@ textarea.b2b-input {
 
 @media (max-width: 1050px) {
     .b2b-order-card {
-        grid-template-columns: minmax(190px, 1fr) auto auto;
+        grid-template-columns: minmax(190px, 1fr) auto auto auto;
     }
     .b2b-order-states {
         grid-column: 1 / -1;
@@ -457,7 +461,8 @@ textarea.b2b-input {
         border-top: 1px solid #eef2f6;
     }
     .b2b-order-card-total { grid-column: 2; }
-    .b2b-order-open { grid-column: 3; }
+    .b2b-order-reorder { grid-column: 3; }
+    .b2b-order-open { grid-column: 4; }
 }
 
 @media (max-width: 640px) {
@@ -478,6 +483,11 @@ textarea.b2b-input {
     }
     .b2b-order-state-item:last-child {
         grid-column: 1 / -1;
+    }
+    .b2b-order-reorder {
+        grid-column: 1;
+        grid-row: 3;
+        justify-self: start;
     }
     .b2b-order-open {
         grid-column: 2;

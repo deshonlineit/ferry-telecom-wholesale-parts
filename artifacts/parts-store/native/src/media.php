@@ -321,6 +321,18 @@ function mediaOrderDocument(int $orderId, string $kind): never
 /** @param list<array<string,mixed>> $items */
 function mediaProfessionalInvoiceDocument(array $order, array $items, array $address, string $number): never
 {
+    mediaSendPdf(mediaRenderInvoicePdf($order, $items, $address, $number), strtolower($number) . '.pdf');
+}
+
+/**
+ * Build the professional invoice PDF and return its bytes.  Kept separate from
+ * the HTTP response so the customer document archive can bundle the exact same
+ * document into a ZIP without a second rendering path.
+ *
+ * @param list<array<string,mixed>> $items
+ */
+function mediaRenderInvoicePdf(array $order, array $items, array $address, string $number): string
+{
     $currency = (string) $order['currency'];
     $taxBps = (int) $order['tax_bps'];
     $terms = json_decode((string) ($order['payment_terms_json'] ?? ''), true);
@@ -344,6 +356,16 @@ function mediaProfessionalInvoiceDocument(array $order, array $items, array $add
         trim((string) ($address['postal_code'] ?? '') . ' ' . (string) ($address['city'] ?? '')),
         (string) ($address['country'] ?? ''),
     ], static fn(string $line): bool => trim($line) !== ''));
+    // A buyer reference is printed under the label that customer chose.
+    $customerReference = trim((string) ($order['customer_reference'] ?? ''));
+    $referenceLabel = '';
+    if ($customerReference !== '') {
+        $preference = mediaFetchOne(
+            'SELECT reference_label FROM billing_preferences WHERE user_id=?',
+            [(int) $order['user_id']]
+        );
+        $referenceLabel = (string) ($preference['reference_label'] ?? '');
+    }
     $invoice = [
         'invoice_number' => $number,
         'order_number' => (string) $order['number'],
@@ -374,6 +396,8 @@ function mediaProfessionalInvoiceDocument(array $order, array $items, array $add
         'payment_method' => $paymentLabels[(string) $order['payment_method']] ?? (string) $order['payment_method'],
         'payment_terms' => $dueDays > 0 ? $dueDays . ' days' : 'Due immediately',
         'customer_note' => (string) ($order['notes'] ?? ''),
+        'customer_reference' => $customerReference,
+        'reference_label' => $referenceLabel,
         'test_mode' => true,
     ];
     $qrData = null;
@@ -408,10 +432,22 @@ function mediaProfessionalInvoiceDocument(array $order, array $items, array $add
             throw new HttpError(503, 'The Swiss QR payment section could not be generated safely.');
         }
     }
-    mediaSendPdf(renderProfessionalInvoicePdf($invoice, $qrData), strtolower($number) . '.pdf');
+    return renderProfessionalInvoicePdf($invoice, $qrData);
 }
 
 function mediaCreditDocument(int $returnId): never
+{
+    $document = mediaRenderCreditNotePdf($returnId);
+    mediaSendPdf($document['bytes'], $document['name']);
+}
+
+/**
+ * Renders a credit note and returns its bytes, so the HTTP route and the bulk
+ * document archive share one renderer and one ownership check.
+ *
+ * @return array{name:string,bytes:string}
+ */
+function mediaRenderCreditNotePdf(int $returnId): array
 {
     $user = requireUser();
     $sql = 'SELECT r.*,o.number AS order_number,o.currency,o.tax_bps,o.address_json '
@@ -490,11 +526,26 @@ function mediaCreditDocument(int $returnId): never
     $pdf->heading('Settlement amount: ' . mediaMoney((int) $settlement['amount_cents'], (string) $return['currency']), 13);
     $pdf->line('Settlement: ' . (string)$settlement['kind'] . ' / ' . (string)$settlement['status']);
     if ($creditNote !== null) {
-        $applied = (int)(mediaFetchOne('SELECT COALESCE(SUM(amount_cents),0) amount FROM credit_applications WHERE credit_note_id=?', [(int)$creditNote['id']])['amount'] ?? 0);
-        $pdf->line('Amount applied to original invoice: ' . mediaMoney($applied, (string)$return['currency']));
+        // A credit is regularly settled against a different invoice than the
+        // one that was returned, so the two allocations are reported apart
+        // instead of being summed under the original invoice.
+        $originalOrderId = (int) $return['order_id'];
+        $allocation = mediaFetchOne(
+            'SELECT COALESCE(SUM(CASE WHEN target_order_id=? THEN amount_cents ELSE 0 END),0) own,
+                    COALESCE(SUM(CASE WHEN target_order_id<>? THEN amount_cents ELSE 0 END),0) other
+               FROM credit_applications WHERE credit_note_id=?',
+            [$originalOrderId, $originalOrderId, (int)$creditNote['id']]
+        ) ?? [];
+        $ownApplied = (int)($allocation['own'] ?? 0);
+        $otherApplied = (int)($allocation['other'] ?? 0);
+        $pdf->line('Applied to invoice ' . (string)$return['order_number'] . ': '
+            . mediaMoney($ownApplied, (string)$return['currency']));
+        if ($otherApplied > 0) {
+            $pdf->line('Applied to other open invoices: ' . mediaMoney($otherApplied, (string)$return['currency']));
+        }
         $pdf->line('Remaining customer account credit: ' . mediaMoney((int)$creditNote['remaining_cents'], (string)$return['currency']));
     }
-    mediaSendPdf($pdf->output(), strtolower($number) . '.pdf');
+    return ['name' => strtolower($number) . '.pdf', 'bytes' => $pdf->output()];
 }
 
 /**

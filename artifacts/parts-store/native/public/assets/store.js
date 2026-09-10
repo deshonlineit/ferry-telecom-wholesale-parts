@@ -195,6 +195,20 @@ window.Router.add(/^products\/(\d+)$/, async (match, root) => {
                         ${p.minimum_quantity > 1 ? `<div class="qty-hint mt-3 text-muted small" style="font-weight: 500;">${t('minimumQuantityUnits', {count: window.I18n.number(p.minimum_quantity)})}</div>` : ''}
                     </div>
                 ` : (isStaff ? `<div class="alert warning mb-4">${t('staffCannotOrder')}</div>` : (!window.Core.user ? `<div class="alert warning mb-4"><a href="${window.APP_BASE}login">${t('signIn')}</a> ${t('signInToOrder')}</div>` : ''))}
+
+                ${window.Core.user && !isStaff ? `
+                    <div class="wsp-product-tools">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="window.ProductActions.saveToList(${p.id}, this)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                            ${t('saveToList')}
+                        </button>
+                        ${p.stock <= 0 ? `
+                            <button type="button" class="btn btn-outline btn-sm" onclick="window.ProductActions.${data.watching ? 'unwatch' : 'watch'}(${p.id}, this)">
+                                ${t(data.watching ? 'alertStopWatching' : 'alertNotifyMe')}
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : ''}
                 
                 <div class="product-description text-muted">
                     ${esc(p.description).replace(/\n/g, '<br>')}
@@ -390,10 +404,14 @@ window.Router.add(/^checkout$/, async (match, root) => {
     if (window.Core.user.role === 'staff') return window.Router.navigate(window.APP_BASE + 'catalog');
     
     try {
-        const [cartRes, addrRes] = await Promise.all([
+        const [cartRes, addrRes, billingRes] = await Promise.all([
             window.Core.fetch('/cart'),
-            window.Core.fetch('/addresses')
+            window.Core.fetch('/addresses'),
+            // Billing preferences decide whether this customer must supply a
+            // reference; checkout still works if the lookup fails.
+            window.Core.fetch('/workspace/billing-preferences').catch(() => null)
         ]);
+        const billing = (billingRes && billingRes.preferences) || {};
         
         if (!cartRes.items || cartRes.items.length === 0) {
             return window.Router.navigate(window.APP_BASE + 'cart');
@@ -502,6 +520,16 @@ window.Router.add(/^checkout$/, async (match, root) => {
                                 <div class="step-header">
                                     <div class="step-number">4</div>
                                     <h3>${t('notes')} <span class="step-optional">${t('optional')}</span></h3>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="checkout-reference">
+                                        ${esc(billing.reference_label || t('checkoutReference'))}
+                                        <span class="step-optional">${billing.reference_required
+                                            ? t('checkoutReferenceRequired') : t('optional')}</span>
+                                    </label>
+                                    <input type="text" id="checkout-reference" name="customer_reference"
+                                        class="form-control" maxlength="80"
+                                        ${billing.reference_required ? 'required' : ''}>
                                 </div>
                                 <div class="form-group mb-0">
                                     <textarea name="notes" class="form-control" rows="3" placeholder="${t('orderNotePlaceholder')}"></textarea>
@@ -738,8 +766,12 @@ window.Router.add(/^checkout$/, async (match, root) => {
                 idempotency_key: form.idempotency_key.value,
                 payment_method: form.querySelector('[name="payment_method"]:checked')?.value,
                 shipping_method: shippingMethod,
-                notes: form.notes.value
+                notes: form.notes.value,
+                customer_reference: form.customer_reference ? form.customer_reference.value.trim() : ''
             };
+            if (form.customer_reference && form.customer_reference.required && data.customer_reference === '') {
+                return alert(t('checkoutReferenceMissing'));
+            }
             
             const btn = submitButton;
             const checkoutSequence = quoteGate.begin();

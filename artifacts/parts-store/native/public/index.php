@@ -95,6 +95,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <link rel="stylesheet" href="/test-shop/assets/category-rail.css?v=<?= @filemtime(__DIR__ . '/assets/category-rail.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/commerce-redesign.css?v=<?= @filemtime(__DIR__ . '/assets/commerce-redesign.css') ?: 1 ?>">
     <link rel="stylesheet" href="/test-shop/assets/b2b-account.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-account.css') ?: 1 ?>">
+    <link rel="stylesheet" href="/test-shop/assets/b2b-workspace.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-workspace.css') ?: 1 ?>">
     <script>window.APP_BASE = '/test-shop/'; window.LOGO_V = '<?= $v_logo ?>';</script>
 </head>
 <body>
@@ -200,6 +201,8 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <script src="/test-shop/assets/home-landing.js?v=<?= @filemtime(__DIR__ . '/assets/home-landing.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/home.js?v=<?= $v_home ?>"></script>
     <script src="/test-shop/assets/account.js?v=<?= $v_acc ?>"></script>
+    <script src="/test-shop/assets/quick-order.js?v=<?= @filemtime(__DIR__ . '/assets/quick-order.js') ?: 1 ?>"></script>
+    <script src="/test-shop/assets/account-workspace.js?v=<?= @filemtime(__DIR__ . '/assets/account-workspace.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/admin-shell.js?v=<?= @filemtime(__DIR__ . '/assets/admin-shell.js') ?: 1 ?>"></script>
     <script src="/test-shop/assets/admin.js?v=<?= $v_admin ?>"></script>
     <script src="/test-shop/assets/admin-products.js?v=<?= $v_aprod ?>"></script>

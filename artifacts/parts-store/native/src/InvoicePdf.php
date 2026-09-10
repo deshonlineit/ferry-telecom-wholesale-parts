@@ -66,6 +66,13 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
     }
     $note = trim($invoice['customer_note']);
     $noteRow = $note === '' ? '' : '<div class="info-row"><span>Customer note</span><strong>' . nl2br($e($note)) . '</strong></div>';
+    // The buyer decides what their purchase reference is called on the invoice.
+    $reference = trim((string) ($invoice['customer_reference'] ?? ''));
+    $referenceLabel = trim((string) ($invoice['reference_label'] ?? ''));
+    $referenceRow = $reference === ''
+        ? ''
+        : '<div class="info-row"><span>' . $e($referenceLabel === '' ? 'Your reference' : $referenceLabel)
+            . '</span><strong>' . $e($reference) . '</strong></div>';
     $watermark = $invoice['test_mode'] ? '<div class="watermark">TEST</div>' : '';
     $testFooter = $invoice['test_mode'] ? ' · <span class="test-note">TEST DOCUMENT</span>' : '';
     $qrPage = '';
@@ -154,6 +161,7 @@ function renderProfessionalInvoicePdf(array $invoice, ?array $qr): string
       <table class="items"><thead><tr><th class="sku">SKU</th><th class="product">Product</th><th class="number">Qty</th><th class="money">Unit price</th><th class="number">VAT</th><th class="money">Total</th></tr></thead><tbody>{$rows}</tbody></table>
       <div class="after-items"><div class="payment-info"><div class="info-box"><h3>Payment information</h3>
         <div class="info-row"><span>Payment terms</span><strong>{$e($invoice['payment_terms'])}</strong></div>
+        {$referenceRow}
         {$noteRow}
       </div></div><div class="totals"><table>
         <tr><td>Subtotal excl. VAT</td><td>{$e($invoice['subtotal'])}</td></tr>
