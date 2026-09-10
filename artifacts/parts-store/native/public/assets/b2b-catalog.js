@@ -111,7 +111,7 @@
                     <thead>
                         <tr>
                             <th class="col-img"><span class="sr-only">${t('noImage')}</span></th>
-                            <th class="col-product">${t('productSpecifications')}</th>
+                            <th class="col-product">${options.productHeaderHtml || t('productSpecifications')}</th>
                             <th class="col-stock">${t('stock')}</th>
                             <th class="col-price">${t('price')}</th>
                             <th class="col-order">${t('order')}</th>

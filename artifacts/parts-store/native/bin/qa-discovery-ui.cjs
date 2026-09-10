@@ -50,17 +50,17 @@ check('pagination keeps sort and all filters', () => {
     assert.equal(result.get('sort'), 'name');
     assert.equal(result.get('stock'), 'in_stock');
 });
-check('catalogue embeds sorting in the product surface without a visible result range', () => {
+check('catalogue omits manual sorting and keeps the product surface compact', () => {
     assert.doesNotMatch(discoverySource, /class="result-range"/);
     assert.doesNotMatch(discoverySource, /class="catalog-toolbar"/);
-    assert.match(discoverySource, /renderProductTable\(result\.products, \{headerHtml: sortControl\}\)/);
-    assert.match(discoverySource, /class="b2b-products-toolbar"/);
+    assert.doesNotMatch(discoverySource, /id="catalog-sort"/);
+    assert.match(discoverySource, /renderProductTable\(result\.products, \{productHeaderHtml: productHeader\}\)/);
 });
 check('the selected model context remains visibly identified above the catalogue', () => {
-    assert.match(discoverySource, /class="catalog-model-context"/);
+    assert.match(discoverySource, /class="catalog-table-model"/);
     assert.match(discoverySource, /\$\{escape\(device\)\}/);
     const navigationCss = fs.readFileSync(path.join(__dirname, '../public/assets/b2b-navigation.css'), 'utf8');
-    assert.match(navigationCss, /\.catalog-model-context\s*\{/);
+    assert.match(navigationCss, /\.catalog-table-model\s*\{/);
 });
 check('facet metadata cache key is shared by sort and pagination changes', () => {
     const base = discovery.catalogCacheKey('category=5&model=132&sort=name&page=3');

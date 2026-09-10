@@ -398,13 +398,9 @@
             let view = 'list';
             try { view = localStorage.getItem('view_pref') || 'list'; } catch (_) {}
             if (!['grid', 'list'].includes(view)) view = 'list';
-            const sort = params.get('sort') || (query ? 'relevance' : 'featured');
-            const sortControl = `<div class="catalog-sort"><label for="catalog-sort">${t('sortBy')}</label><select id="catalog-sort" class="form-control">
-                <option value="${query ? 'relevance' : 'featured'}" ${['featured','relevance'].includes(sort) ? 'selected' : ''}>${t(query ? 'bestMatch' : 'featuredFirst')}</option>
-                <option value="name" ${sort === 'name' ? 'selected' : ''}>${t('nameAZ')}</option><option value="newest" ${sort === 'newest' ? 'selected' : ''}>${t('recentlyAdded')}</option>
-                <option value="stock" ${sort === 'stock' ? 'selected' : ''}>${t('mostStock')}</option>
-                ${window.Core.user ? `<option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>${t('priceLowHigh')}</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>${t('priceHighLow')}</option>` : ''}
-            </select></div>`;
+            const productHeader = device
+                ? `<strong class="catalog-table-model">${escape(device)}</strong><span class="catalog-table-count">${window.I18n.number(result.total)} ${t(result.total === 1 ? 'part' : 'parts')}</span>`
+                : t('productSpecifications');
             const pages = result.pages;
             const page = result.page;
             const numbered = [...new Set([1, Math.max(1, page - 1), page, Math.min(pages, page + 1), pages])].sort((a, b) => a - b);
@@ -441,13 +437,12 @@
                         ${chips.length ? `<div class="catalog-sidebar-active"><span>${t('activeFilters')}</span><div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">${t('clearAll')}</a></div></div>` : ''}
                     </aside>
                     <section class="catalog-main" data-catalog-results tabindex="-1" aria-label="Product results" aria-busy="false"><p class="catalog-result-status sr-only" aria-live="polite">${window.I18n.number(result.total)} ${t(result.total === 1 ? 'part' : 'parts')}</p>
-                        ${device ? `<div class="catalog-model-context"><strong>${escape(device)}</strong><span>${window.I18n.number(result.total)} ${t(result.total === 1 ? 'part' : 'parts')}</span></div>` : ''}
                         <div class="catalog-refine-row">${showCategoryModels ? '' : `<label class="catalog-tool-field">Brand<select id="catalog-brand" class="form-control"><option value="">All brands</option>${catalog.brands.filter(b => b.count > 0 || String(b.id) === params.get('brand')).map(b => `<option value="${b.id}" ${String(b.id) === params.get('brand') ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label>`}
                         <label class="catalog-tool-field">${t('quality')}<select id="quick-quality" class="form-control"><option value="">${t('allQualities')}</option>${[...new Set([...catalog.qualities, params.get('quality')].filter(Boolean))].map(q => `<option value="${escape(q)}" ${q === params.get('quality') ? 'selected' : ''}>${escape(q)}</option>`).join('')}</select></label>
                         <button type="button" class="stock-shortcut ${params.get('stock') === 'in_stock' ? 'active' : ''}" data-stock-toggle aria-pressed="${params.get('stock') === 'in_stock'}">${t('inStock')}</button>
                         <button type="button" class="btn btn-outline" id="open-catalog-filters">${t('allFilters')}${chips.length ? ` (${window.I18n.number(chips.length)})` : ''}</button></div>
                         ${chips.length ? `<div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">${t('clear')}</a></div>` : ''}
-                        ${result.products.length ? window.App.renderProductTable(result.products, {headerHtml: sortControl}) : `<div class="catalog-empty-surface"><div class="b2b-products-toolbar">${sortControl}</div><div class="empty-state"><h2>${part ? t('noPartSelection', {part: part.name}) : t('noPartsCombination')}</h2><p>${part ? `${escape(part.description)} ${t('changeModelHint')}` : t('removeFilterHint')}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${t(part ? 'viewOtherVariants' : 'viewAllParts')}</a></div></div>`}${pagination}
+                        ${result.products.length ? window.App.renderProductTable(result.products, {productHeaderHtml: productHeader}) : `<div class="catalog-empty-surface"><div class="empty-state"><h2>${part ? t('noPartSelection', {part: part.name}) : t('noPartsCombination')}</h2><p>${part ? `${escape(part.description)} ${t('changeModelHint')}` : t('removeFilterHint')}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${t(part ? 'viewOtherVariants' : 'viewAllParts')}</a></div></div>`}${pagination}
                     </section>
                 </div>
                 <dialog id="catalog-filter-dialog" class="filter-dialog"><div class="filter-dialog-heading"><h2>${t('refineSelection')}</h2><button type="button" class="btn-close" aria-label="${t('closeFilters')}">×</button></div>${filterForm('mobile', true)}</dialog>
@@ -480,7 +475,6 @@
             }
             document.getElementById('quick-quality').addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {quality: event.target.value})));
             root.querySelector('[data-stock-toggle]').addEventListener('click', () => window.Router.navigate(D.buildUrl(params, {stock: params.get('stock') === 'in_stock' ? '' : 'in_stock'})));
-            document.getElementById('catalog-sort').addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {sort: event.target.value})));
             const dialog = document.getElementById('catalog-filter-dialog');
             const opener = document.getElementById('open-catalog-filters');
             opener.addEventListener('click', () => dialog.showModal());

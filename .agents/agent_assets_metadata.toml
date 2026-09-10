@@ -392,3 +392,17 @@ mtime_ms = 1789000156950
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/7c395530-ed50-4b90-84d9-a477a8fe44d8/a0b16cc3-9e75-4066-98f0-1e79744b7a2c"
 storage_version_token = "1789000163152676"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "yaP1-HHekhkkt4FTH6UHR"
+uri = "file://screenshots/iphone-model-in-table-header-no-sort.jpg"
+type = "image"
+title = "Modelnaam in de grijze tabelkop"
+description = "iPhone 15 Pro Max en het aantal onderdelen staan nu op dezelfde regel als Stock, Price en Order; Sort by is verwijderd."
+logical_id = "b3c1ce54-823f-446a-b018-10e7757eb630"
+content_hash = "sha256:be8d89af5727fba4539160189c5f66ddd279b1e10a86772eaf94a86ba4119945"
+size = 91192
+mtime_ms = 1789000548721
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:c532a33d-e87d-4f0c-98e3-f8b6362ed88c/b3c1ce54-823f-446a-b018-10e7757eb630/8eae8714-4332-49f2-b062-a77a570ec672"
+storage_version_token = "1789000554308099"
+content_type = "image/jpeg"
