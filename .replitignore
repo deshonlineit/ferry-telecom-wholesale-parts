@@ -1,8 +1,13 @@
 # The format of this file is identical to `.dockerignore`.
 # It is used to reduce the size of deployed images to make the process of publishing faster.
 
-# No need to store the pnpm store twice.
+# Dependencies and local tool caches are recreated by the deployment build.
 .local
+.cache
+node_modules
+
+# Local visual verification output is not part of the runtime.
+screenshots
 
 # Local native-shop runtime data is development-only. Production reads product
 # media and private documents from App Storage instead of the local filesystem.
