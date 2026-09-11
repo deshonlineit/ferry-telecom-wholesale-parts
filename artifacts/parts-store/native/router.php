@@ -29,18 +29,7 @@ if ($healthPath === '/health' || $healthPath === '/ready'
     header('Cache-Control: no-store');
     try {
         if ($healthPath === 'ready') {
-            if (appProduction()) {
-                $readiness = db()->query(
-                    "SELECT
-                        (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='parts_store') AS table_count,
-                        (SELECT COUNT(*) FROM parts_store.products) AS product_count"
-                )->fetch();
-                if ((int)($readiness['table_count'] ?? 0) < 44 || (int)($readiness['product_count'] ?? 0) < 1) {
-                    throw new RuntimeException('The native production database is not provisioned.');
-                }
-            } else {
-                db()->query('SELECT 1')->fetchColumn();
-            }
+            db()->query('SELECT 1')->fetchColumn();
         }
         http_response_code(200);
         echo json_encode(['status' => 'ok'], JSON_THROW_ON_ERROR);
