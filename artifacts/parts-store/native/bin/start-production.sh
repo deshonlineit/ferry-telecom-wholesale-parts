@@ -29,7 +29,8 @@ trap 'exit 143' TERM
 trap cleanup EXIT
 env -i PATH="$PATH" HOME="${HOME:-/tmp}" "${args[@]}" \
   php -d display_errors=0 -d log_errors=1 -d allow_url_fopen=0 -d allow_url_include=0 \
-  -d ffi.enable=false -d upload_max_filesize=8M -d post_max_size=10M -d memory_limit=256M \
+  -d ffi.enable=false -d zlib.output_compression=1 -d zlib.output_compression_level=6 \
+  -d upload_max_filesize=8M -d post_max_size=10M -d memory_limit=256M \
   -d 'disable_functions=mail,curl_multi_exec,exec,shell_exec,system,passthru,popen,proc_open,fsockopen,pfsockopen,stream_socket_client,socket_connect' \
   -S "0.0.0.0:$PORT" -t "$ROOT/public" "$ROOT/router.php" &
 child=$!

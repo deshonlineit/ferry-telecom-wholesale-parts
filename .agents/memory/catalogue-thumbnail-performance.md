@@ -4,14 +4,15 @@ description: Owner-prioritized loading strategy for product images in catalogue 
 ---
 
 Catalogue and Smart Search list views should request the 320px product variant,
-never the 1280px source. A 24-row catalogue page should eagerly preload its
-small thumbnails, with higher priority for the first visible rows.
+never the 1280px source. Eagerly load only the first visible catalogue rows;
+lazy-load the remainder and keep higher priority limited to the first two.
 
-**Why:** speed is a high owner priority, and lazy-loading list thumbnails left
-visible blank cells during scrolling. The 320px files average about 5.4 KB, so
-preloading a page is inexpensive compared with loading 1280px files.
+**Why:** speed is a high owner priority. Eager-loading all 50 thumbnails caused
+network contention in a measured mobile Lighthouse run; loading the first four
+eagerly preserves above-fold photos without starting the whole page at once.
 
 **How to apply:** convert hashed 1280px media URLs to their 320px sibling in the
 shared thumbnail helper; reserve large variants for detail/gallery views. Cache
 content-hashed product media as immutable for one year. Keep a clear missing
-photo state for products that genuinely have no source image.
+photo state for products that genuinely have no source image. Preserve intrinsic
+dimensions and asynchronous decoding so deferred thumbnails do not shift rows.

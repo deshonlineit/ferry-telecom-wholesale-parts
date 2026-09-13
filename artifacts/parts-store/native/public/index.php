@@ -33,8 +33,8 @@ $title = "Ferry Telecom | Wholesale Repair Parts";
 $description = "Precision and reliability for professional repairers. Order your parts straight from stock.";
 $ssrHtml = '';
 
-$db = db();
 if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
+    $db = db();
     $id = (int)$matches[1];
     $stmt = $db->prepare("SELECT name, description FROM products WHERE id = ? AND active=1 AND publication_status='visible'");
     $stmt->execute([$id]);
@@ -44,17 +44,12 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         $description = htmlspecialchars(substr((string)$prod['description'], 0, 160), ENT_QUOTES);
         $ssrHtml = "<h1>" . htmlspecialchars((string)$prod['name'], ENT_QUOTES) . "</h1><p>" . nl2br(htmlspecialchars((string)$prod['description'], ENT_QUOTES)) . "</p>";
     }
-} else {
-    $stmt = $db->query("SELECT id, name FROM categories ORDER BY name ASC LIMIT 20");
-    $cats = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if ($cats) {
-        $ssrHtml .= "<h2>Catalogue</h2><ul class='ssr-categories'>";
-        foreach ($cats as $cat) {
-            $ssrHtml .= "<li><a href=\"/test-shop/catalog?category=" . $cat['id'] . "\">" . htmlspecialchars((string)$cat['name'], ENT_QUOTES) . "</a></li>";
-        }
-        $ssrHtml .= "</ul>";
-    }
 }
+    $entryRoute = trim($relPath, '/');
+    $isHomeRoute = $entryRoute === '';
+    $isAdminRoute = $entryRoute === 'admin' || str_starts_with($entryRoute, 'admin/');
+    $isAccountRoute = $entryRoute === 'account' || str_starts_with($entryRoute, 'account/') || $entryRoute === 'quick-order';
+    $isProductRoute = str_starts_with($entryRoute, 'products/');
     $v_css = @filemtime(__DIR__ . '/assets/styles.css') ?: 1;
     $v_ws = @filemtime(__DIR__ . '/assets/workspace.css') ?: 1;
     $v_wb = @filemtime(__DIR__ . '/assets/workbench.css') ?: 1;
@@ -81,21 +76,27 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <meta name="description" content="<?= $description ?>">
     <link rel="icon" type="image/svg+xml" href="/test-shop/assets/mark.svg?v=<?= $v_mark ?>">
     <link rel="apple-touch-icon" sizes="180x180" href="/test-shop/assets/apple-touch-icon.png?v=<?= $v_icon ?>">
-    <link rel="stylesheet" href="/test-shop/assets/styles.css?v=<?= $v_css ?>">
-    <link rel="stylesheet" href="/test-shop/assets/workspace.css?v=<?= $v_ws ?>">
-    <link rel="stylesheet" href="/test-shop/assets/workbench.css?v=<?= $v_wb ?>">
-    <link rel="stylesheet" href="/test-shop/assets/backoffice.css?v=<?= @filemtime(__DIR__ . '/assets/backoffice.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/storefront-redesign.css?v=<?= @filemtime(__DIR__ . '/assets/storefront-redesign.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/category-models.css?v=<?= @filemtime(__DIR__ . '/assets/category-models.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/home-landing.css?v=<?= @filemtime(__DIR__ . '/assets/home-landing.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/buyer-currency.css?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/admin-prices.css?v=<?= @filemtime(__DIR__ . '/assets/admin-prices.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/b2b-catalog.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-catalog.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/b2b-navigation.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-navigation.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/category-rail.css?v=<?= @filemtime(__DIR__ . '/assets/category-rail.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/commerce-redesign.css?v=<?= @filemtime(__DIR__ . '/assets/commerce-redesign.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/b2b-account.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-account.css') ?: 1 ?>">
-    <link rel="stylesheet" href="/test-shop/assets/b2b-workspace.css?v=<?= @filemtime(__DIR__ . '/assets/b2b-workspace.css') ?: 1 ?>">
+    <?php
+        $stylesheets = [
+            'styles.css', 'workspace.css', 'workbench.css', 'storefront-redesign.css',
+            'category-models.css', 'buyer-currency.css', 'b2b-catalog.css',
+            'b2b-navigation.css', 'category-rail.css', 'commerce-redesign.css',
+        ];
+        if ($isHomeRoute) $stylesheets[] = 'home-landing.css';
+        if ($isAccountRoute || $isProductRoute) {
+            $stylesheets[] = 'b2b-account.css';
+            $stylesheets[] = 'b2b-workspace.css';
+        }
+        if ($isAdminRoute) {
+            $stylesheets[] = 'backoffice.css';
+            $stylesheets[] = 'admin-prices.css';
+            $stylesheets[] = 'b2b-workspace.css';
+        }
+        foreach (array_unique($stylesheets) as $stylesheet):
+            $version = @filemtime(__DIR__ . '/assets/' . $stylesheet) ?: 1;
+    ?>
+    <link rel="stylesheet" href="/test-shop/assets/<?= htmlspecialchars($stylesheet, ENT_QUOTES) ?>?v=<?= $version ?>">
+    <?php endforeach; ?>
     <script>window.APP_BASE = '/test-shop/'; window.LOGO_V = '<?= $v_logo ?>';</script>
 </head>
 <body>
@@ -187,28 +188,26 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         </div>
     </footer>
 
-    <script src="/test-shop/assets/i18n.js?v=<?= $v_i18n ?>"></script>
-    <script src="/test-shop/assets/core.js?v=<?= $v_core ?>"></script>
-    <script src="/test-shop/assets/b2b-ordering.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-ordering.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/buyer-currency.js?v=<?= @filemtime(__DIR__ . '/assets/buyer-currency.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/model-search.js?v=<?= @filemtime(__DIR__ . '/assets/model-search.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/discovery-controls.js?v=<?= $v_disc ?>"></script>
-    <script src="/test-shop/assets/quick-finder.js?v=<?= $v_qf ?>"></script>
-    <script src="/test-shop/assets/category-models.js?v=<?= @filemtime(__DIR__ . '/assets/category-models.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/store.js?v=<?= $v_store ?>"></script>
-    <script src="/test-shop/assets/b2b-catalog.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-catalog.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/b2b-menu.js?v=<?= @filemtime(__DIR__ . '/assets/b2b-menu.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/home-landing.js?v=<?= @filemtime(__DIR__ . '/assets/home-landing.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/home.js?v=<?= $v_home ?>"></script>
-    <script src="/test-shop/assets/account.js?v=<?= $v_acc ?>"></script>
-    <script src="/test-shop/assets/quick-order.js?v=<?= @filemtime(__DIR__ . '/assets/quick-order.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/account-workspace.js?v=<?= @filemtime(__DIR__ . '/assets/account-workspace.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/admin-shell.js?v=<?= @filemtime(__DIR__ . '/assets/admin-shell.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/admin.js?v=<?= $v_admin ?>"></script>
-    <script src="/test-shop/assets/admin-products.js?v=<?= $v_aprod ?>"></script>
-    <script src="/test-shop/assets/admin-prices.js?v=<?= @filemtime(__DIR__ . '/assets/admin-prices.js') ?: 1 ?>"></script>
-    <script src="/test-shop/assets/admin-operations.js?v=<?= $v_aops ?>"></script>
-    <script src="/test-shop/assets/admin-invoices.js?v=<?= @filemtime(__DIR__ . '/assets/admin-invoices.js') ?: 1 ?>"></script>
+    <?php
+        $scripts = [
+            'i18n.js', 'core.js', 'b2b-ordering.js', 'buyer-currency.js',
+            'model-search.js', 'discovery-controls.js', 'quick-finder.js',
+            'category-models.js', 'store.js', 'b2b-catalog.js', 'b2b-menu.js',
+        ];
+        if ($isHomeRoute) array_push($scripts, 'home-landing.js', 'home.js');
+        if ($isAccountRoute) array_push($scripts, 'account.js', 'quick-order.js', 'account-workspace.js');
+        if ($isProductRoute) $scripts[] = 'account-workspace.js';
+        if ($isAdminRoute) {
+            array_push(
+                $scripts, 'admin-shell.js', 'admin.js', 'admin-products.js',
+                'admin-prices.js', 'admin-operations.js', 'admin-invoices.js'
+            );
+        }
+        foreach (array_unique($scripts) as $script):
+            $version = @filemtime(__DIR__ . '/assets/' . $script) ?: 1;
+    ?>
+    <script src="/test-shop/assets/<?= htmlspecialchars($script, ENT_QUOTES) ?>?v=<?= $version ?>"></script>
+    <?php endforeach; ?>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             window.App.init();

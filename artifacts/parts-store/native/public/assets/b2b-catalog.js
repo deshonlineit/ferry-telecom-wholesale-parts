@@ -67,7 +67,7 @@
                 <tr class="b2b-row" data-product-row data-product-id="${p.id}">
                     <td class="col-img">
                         ${p.image_url ? 
-                            `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap"><img src="${esc(thumb)}" alt="${esc(p.name)}" loading="eager" decoding="async" fetchpriority="${index < 8 ? 'high' : 'low'}" width="64" height="64"></a>` :
+                            `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap"><img src="${esc(thumb)}" alt="${esc(p.name)}" loading="${index < 4 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 2 ? 'high' : 'low'}" width="64" height="64"></a>` :
                             `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap no-img" aria-label="${esc(t('noImage'))}" title="${esc(t('noImage'))}">${fallbackThumbnail(p)}</a>`
                         }
                     </td>

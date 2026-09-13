@@ -61,7 +61,8 @@ if (str_starts_with($path, '/assets/') || str_starts_with($path, '/media/')) {
         exit('Not found');
     }
     header('Content-Type: ' . $types[$extension]);
-    if (str_starts_with($path, '/media/products/') && preg_match('/-[a-f0-9]*(?:320|640|1280)w\.webp$/', $path)) {
+    if ((str_starts_with($path, '/assets/') && isset($_GET['v']))
+        || (str_starts_with($path, '/media/products/') && preg_match('/-[a-f0-9]*(?:320|640|1280)w\.webp$/', $path))) {
         header('Cache-Control: public, max-age=31536000, immutable');
     } else {
         header('Cache-Control: public, max-age=300');

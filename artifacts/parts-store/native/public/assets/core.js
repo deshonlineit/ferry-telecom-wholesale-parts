@@ -251,11 +251,26 @@ window.Router = {
         }
         this.routes.push({ pattern, handler });
     },
+    hasRoute(path) {
+        const destination = new URL(path, location.origin);
+        let routePath = destination.pathname;
+        if (routePath.startsWith(window.APP_BASE)) {
+            routePath = routePath.substring(window.APP_BASE.length);
+        }
+        return this.routes.some(({pattern}) => {
+            pattern.lastIndex = 0;
+            return pattern.test(routePath);
+        });
+    },
     navigate(path) {
         if (window.I18n?.explicit) {
             const destination = new URL(path, location.origin);
             destination.searchParams.set('lang', window.I18n.locale);
             path = destination.pathname + destination.search;
+        }
+        if (!this.hasRoute(path)) {
+            window.location.assign(path);
+            return;
         }
         history.pushState({}, '', path);
         this.route();
