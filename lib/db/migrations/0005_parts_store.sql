@@ -565,6 +565,8 @@ CREATE INDEX IF NOT EXISTS diagnostics_severity_occurred ON parts_store.diagnost
 CREATE INDEX IF NOT EXISTS diagnostics_category_occurred ON parts_store.diagnostics(category, occurred_at);
 CREATE INDEX IF NOT EXISTS diagnostics_reference ON parts_store.diagnostics(reference);
 CREATE INDEX IF NOT EXISTS diagnostics_resolution_occurred ON parts_store.diagnostics(resolved_at, occurred_at);
+CREATE INDEX IF NOT EXISTS audit_events_action_entity_latest
+  ON parts_store.audit_events(action, entity, entity_id, id DESC);
 CREATE INDEX IF NOT EXISTS exchange_rates_rate_date_idx ON parts_store.exchange_rates(rate_date);
 CREATE UNIQUE INDEX IF NOT EXISTS order_lists_user_name ON parts_store.order_lists(user_id, name);
 CREATE INDEX IF NOT EXISTS order_lists_user_updated ON parts_store.order_lists(user_id, updated_at);

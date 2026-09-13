@@ -381,7 +381,9 @@ export const partsStoreauditEventsTable = partsStore.table("audit_events", {
   entityId: integer("entity_id").notNull(),
   details: jsonb("details").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("audit_events_action_entity_latest").on(table.action, table.entity, table.entityId, table.id.desc()),
+]);
 
 export const partsStoresettingsTable = partsStore.table("settings", {
   name: varchar("name", { length: 100 }).primaryKey(),
