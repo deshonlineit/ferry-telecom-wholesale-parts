@@ -14,6 +14,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     let groupPrices = [];
     let images = [];
     let modelIds = [];
+    let latestImageReport = null;
 
     const [catalogData, custData] = await Promise.all([
         window.Core.fetch('/catalog'),
@@ -27,6 +28,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         groupPrices = pData.group_prices || [];
         images = pData.images || [];
         modelIds = pData.model_ids || [];
+        latestImageReport = pData.latest_image_report || null;
     }
 
     const esc = window.Core.escapeHtml;
@@ -175,6 +177,15 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                             <h3>Images</h3>
                         </div>
                         <div class="editor-card-body">
+                            ${latestImageReport ? `
+                            <div style="margin-bottom:1.25rem; padding:0.875rem 1rem; border:1px solid #fbbf24; border-radius:6px; background:#fffbeb;">
+                                <div style="font-size:0.75rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:#92400e; margin-bottom:0.375rem;">Laatste fotomelding</div>
+                                <div style="font-size:0.875rem; color:#451a03; white-space:pre-wrap;">${esc(latestImageReport.reason || 'Geen reden vastgelegd.')}</div>
+                                <div style="font-size:0.75rem; color:#78716c; margin-top:0.5rem;">
+                                    ${esc(latestImageReport.staff?.name || 'Onbekende medewerker')} · ${esc(new Date(latestImageReport.created_at).toLocaleString())}
+                                </div>
+                            </div>
+                            ` : ''}
                             <div class="admin-product-images" style="margin-bottom:1.5rem;">${renderImages(images)}</div>
 
                             <label class="image-upload-area" id="drop-zone" for="img-upload">

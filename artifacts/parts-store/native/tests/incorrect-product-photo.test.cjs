@@ -9,12 +9,18 @@ const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 test('product management exposes the incorrect-photo action and review filter', () => {
     const editor = read('public/assets/admin-products.js');
     const list = read('public/assets/admin.js');
+    const operations = read('src/operations.php');
 
     assert.match(editor, />Foto klopt niet</);
     assert.match(editor, /\/images\/hide/);
     assert.match(editor, /Waarom klopt deze foto niet/);
     assert.match(list, /name="image_review"/);
     assert.match(list, /Photo review required/);
+    assert.match(editor, /Laatste fotomelding/);
+    assert.match(editor, /latest_image_report/);
+    assert.match(operations, /ae\.action='image\.incorrect_unlinked'/);
+    assert.match(operations, /LEFT JOIN users u ON u\.id=ae\.user_id/);
+    assert.match(operations, /'latest_image_report' => \$latestImageReport/);
 });
 
 test('incorrect-photo handling unlinks without deleting stored media', () => {
