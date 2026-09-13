@@ -24,7 +24,7 @@ router.post("/native/media/products/:productId/images", expressRaw(), async (req
       throw Object.assign(new Error("Image exceeds the 8 MB limit or is malformed"), { status: 422 });
     }
     const eventId = String(req.header("x-ferry-media-event-id") ?? "");
-    await authorizeNativeMediaRequest(raw, String(req.header("x-ferry-media-timestamp") ?? ""), eventId, req.header("x-ferry-media-signature") ?? undefined);
+    await authorizeNativeMediaRequest(req.method, req.originalUrl, raw, String(req.header("x-ferry-media-timestamp") ?? ""), eventId, req.header("x-ferry-media-signature") ?? undefined);
     const product = await db.execute(sql`SELECT id FROM parts_store.products WHERE id=${productId} AND active=true`);
     if (!product.rows.length) throw Object.assign(new Error("Product not found"), { status: 404 });
     const { default: sharp } = await import("sharp");
@@ -67,7 +67,7 @@ router.post("/native/media/products/:productId/images/hide", expressRaw(), async
   try {
     const productId = Number(req.params.productId);
     const eventId = String(req.header("x-ferry-media-event-id") ?? "");
-    await authorizeNativeMediaRequest(raw, String(req.header("x-ferry-media-timestamp") ?? ""), eventId, req.header("x-ferry-media-signature") ?? undefined);
+    await authorizeNativeMediaRequest(req.method, req.originalUrl, raw, String(req.header("x-ferry-media-timestamp") ?? ""), eventId, req.header("x-ferry-media-signature") ?? undefined);
     const input = JSON.parse(raw.toString("utf8")) as Record<string, unknown>;
     const imageId = input.image_id == null ? null : Number(input.image_id);
     const oldUrl = typeof input.url === "string" ? input.url.trim() : "";
@@ -117,7 +117,7 @@ router.delete("/native/media/images/:imageId", expressRaw(), async (req: Request
   try {
     const raw = req.body as Buffer;
     const eventId = String(req.header("x-ferry-media-event-id") ?? "");
-    await authorizeNativeMediaRequest(raw, String(req.header("x-ferry-media-timestamp") ?? ""), eventId, req.header("x-ferry-media-signature") ?? undefined);
+    await authorizeNativeMediaRequest(req.method, req.originalUrl, raw, String(req.header("x-ferry-media-timestamp") ?? ""), eventId, req.header("x-ferry-media-signature") ?? undefined);
     const imageId = Number(req.params.imageId);
     const row = await db.execute(sql`SELECT id,product_id,url,original_object,variants FROM parts_store.images WHERE id=${imageId}`);
     if (!row.rows.length) {

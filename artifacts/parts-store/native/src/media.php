@@ -54,7 +54,7 @@ function mediaBridge(string $method, string $path, string $body, string $content
     }
     $timestamp = (string) time();
     $eventId = bin2hex(random_bytes(16));
-    $signature = hash_hmac('sha256', 'v1.' . $timestamp . '.' . $eventId . '.' . $body, $secret);
+    $signature = hash_hmac('sha256', 'v1.' . $timestamp . '.' . $eventId . '.' . strtoupper($method) . ' ' . $path . '.' . $body, $secret);
     $curl = curl_init(rtrim($url, '/') . $path);
     if ($curl === false) throw new HttpError(503, 'Native media bridge is unavailable.');
     curl_setopt_array($curl, [

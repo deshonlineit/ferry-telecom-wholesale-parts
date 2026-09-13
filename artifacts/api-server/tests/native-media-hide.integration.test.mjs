@@ -102,10 +102,14 @@ let originalObject = "";
 let publicObjects = [];
 const expectedPublicBytes = new Map();
 
-function signedHeaders(body, eventId, contentType) {
+function signedHeaders(body, eventId, contentType, path) {
   const timestamp = String(Math.floor(Date.now() / 1000));
+  return signedHeadersAt(body, eventId, contentType, timestamp, path);
+}
+
+function signedHeadersAt(body, eventId, contentType, timestamp, path) {
   const signature = crypto.createHmac("sha256", secret)
-    .update(`v1.${timestamp}.${eventId}.`).update(body).digest("hex");
+    .update(`v1.${timestamp}.${eventId}.POST /api${path}.`).update(body).digest("hex");
   return {
     "Content-Type": contentType,
     "X-Ferry-Media-Timestamp": timestamp,
@@ -114,12 +118,23 @@ function signedHeaders(body, eventId, contentType) {
   };
 }
 
-async function nativeRequest(method, path, body, contentType) {
-  const eventId = `photo-hide-${crypto.randomUUID()}`;
+async function rejectedNativeRequest(path, body, headers, expectedStatus) {
+  const response = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  const json = await response.json();
+  assert.equal(response.status, expectedStatus, `unexpected response: ${JSON.stringify(json)}`);
+  return json;
+}
+
+async function nativeRequest(method, path, body, contentType, requestedEventId) {
+  const eventId = requestedEventId ?? `photo-hide-${crypto.randomUUID()}`;
   eventIds.push(eventId);
   const response = await fetch(`${API}${path}`, {
     method,
-    headers: signedHeaders(body, eventId, contentType),
+    headers: signedHeaders(body, eventId, contentType, path),
     body,
   });
   const json = await response.json();
@@ -146,6 +161,33 @@ async function objectRequest(root, relativePath, method = "GET", body) {
     body,
     headers: body ? { "Content-Type": "image/png" } : undefined,
   });
+}
+
+async function captureState(productId, imageId) {
+  const { rows: [product] } = await pool.query(
+    "SELECT image_url,image_review_required FROM parts_store.products WHERE id=$1",
+    [productId],
+  );
+  const { rows: images } = await pool.query(
+    "SELECT id,product_id,url,variants,original_path,original_object,media_storage,mime_type,byte_size FROM parts_store.images WHERE id=$1",
+    [imageId],
+  );
+  const original = await objectRequest(privateRoot, originalObject);
+  assert.ok(original.ok, "private original fixture is missing");
+  const objects = [[originalObject, Buffer.from(await original.arrayBuffer())]];
+  for (const objectPath of publicObjects) {
+    const variant = await objectRequest(publicRoot, objectPath);
+    assert.ok(variant.ok, `public variant fixture ${objectPath} is missing`);
+    objects.push([objectPath, Buffer.from(await variant.arrayBuffer())]);
+  }
+  return { product, images, objects };
+}
+
+async function assertStateUnchanged(before, productId, imageId, label) {
+  const after = await captureState(productId, imageId);
+  assert.deepEqual(after.product, before.product, `${label}: product changed`);
+  assert.deepEqual(after.images, before.images, `${label}: image link changed`);
+  assert.deepEqual(after.objects, before.objects, `${label}: object bytes changed`);
 }
 
 try {
@@ -188,11 +230,76 @@ try {
   );
 
   const staffId = 987654;
+  const hidePath = `/native/media/products/${product.id}/images/hide`;
+  const hideBody = Buffer.from(JSON.stringify({ image_id: image.id, url: oldUrl, reason, staff_id: staffId }));
+  const unchanged = await captureState(product.id, image.id);
+
+  const { rows: [sharedCoverProduct] } = await pool.query(
+    `INSERT INTO parts_store.products(sku,name,description,quality,stock,list_price_cents,image_url,featured,active)
+     VALUES($1,'Shared cover target','Integration fixture','test',1,1,$2,false,true) RETURNING id`,
+    [`BRIDGE-PHOTO-SHARED-${suffix}`, oldUrl],
+  );
+  productIds.push(sharedCoverProduct.id);
+  const redirectedEventId = `photo-hide-redirect-${crypto.randomUUID()}`;
+  eventIds.push(redirectedEventId);
+  const coverBody = Buffer.from(JSON.stringify({ image_id: null, url: oldUrl, reason, staff_id: staffId }));
+  const redirectedPath = `/native/media/products/${sharedCoverProduct.id}/images/hide`;
+  await rejectedNativeRequest(
+    redirectedPath,
+    coverBody,
+    signedHeaders(coverBody, redirectedEventId, "application/json", hidePath),
+    403,
+  );
+  const { rows: [sharedCoverAfter] } = await pool.query(
+    "SELECT image_url,image_review_required FROM parts_store.products WHERE id=$1",
+    [sharedCoverProduct.id],
+  );
+  assert.deepEqual(sharedCoverAfter, { image_url: oldUrl, image_review_required: false });
+  await assertStateUnchanged(unchanged, product.id, image.id, "signature redirected to another product");
+
+  const missingEventId = `photo-hide-missing-${crypto.randomUUID()}`;
+  eventIds.push(missingEventId);
+  const missingHeaders = signedHeaders(hideBody, missingEventId, "application/json", hidePath);
+  delete missingHeaders["X-Ferry-Media-Signature"];
+  await rejectedNativeRequest(hidePath, hideBody, missingHeaders, 403);
+  await assertStateUnchanged(unchanged, product.id, image.id, "missing signature");
+
+  const invalidEventId = `photo-hide-invalid-${crypto.randomUUID()}`;
+  eventIds.push(invalidEventId);
+  const invalidHeaders = signedHeaders(hideBody, invalidEventId, "application/json", hidePath);
+  invalidHeaders["X-Ferry-Media-Signature"] = "0".repeat(64);
+  await rejectedNativeRequest(hidePath, hideBody, invalidHeaders, 403);
+  await assertStateUnchanged(unchanged, product.id, image.id, "invalid signature");
+
+  const expiredEventId = `photo-hide-expired-${crypto.randomUUID()}`;
+  eventIds.push(expiredEventId);
+  const expiredTimestamp = String(Math.floor(Date.now() / 1000) - 301);
+  await rejectedNativeRequest(
+    hidePath,
+    hideBody,
+    signedHeadersAt(hideBody, expiredEventId, "application/json", expiredTimestamp, hidePath),
+    403,
+  );
+  await assertStateUnchanged(unchanged, product.id, image.id, "expired signature");
+
+  const conflictEventId = `photo-hide-conflict-${crypto.randomUUID()}`;
+  eventIds.push(conflictEventId);
+  const retryableBody = Buffer.from(JSON.stringify({ image_id: image.id + 1_000_000, url: oldUrl, reason, staff_id: staffId }));
+  await rejectedNativeRequest(hidePath, retryableBody, signedHeaders(retryableBody, conflictEventId, "application/json", hidePath), 409);
+  await assertStateUnchanged(unchanged, product.id, image.id, "retryable failed request");
+  const changedBody = Buffer.from(JSON.stringify({ image_id: image.id, url: oldUrl, reason: `${reason} changed`, staff_id: staffId }));
+  await rejectedNativeRequest(hidePath, changedBody, signedHeaders(changedBody, conflictEventId, "application/json", hidePath), 409);
+  await assertStateUnchanged(unchanged, product.id, image.id, "event id with changed content");
+  console.log("PASS rejected bridge hide requests preserve product, image and object bytes");
+
+  const completedEventId = `photo-hide-completed-${crypto.randomUUID()}`;
+  const completedHeaders = signedHeaders(hideBody, completedEventId, "application/json", hidePath);
   const hidden = await nativeRequest(
     "POST",
-    `/native/media/products/${product.id}/images/hide`,
-    Buffer.from(JSON.stringify({ image_id: image.id, url: oldUrl, reason, staff_id: staffId })),
+    hidePath,
+    hideBody,
     "application/json",
+    completedEventId,
   );
   assert.deepEqual(hidden, { hidden: true, product_id: product.id });
 
@@ -203,6 +310,20 @@ try {
   assert.equal(after.image_url, "");
   assert.equal(after.image_review_required, true);
   assert.equal(Number((await pool.query("SELECT COUNT(*) count FROM parts_store.images WHERE id=$1", [image.id])).rows[0].count), 0);
+
+  const replayState = {
+    product: after,
+    imageCount: Number((await pool.query("SELECT COUNT(*) count FROM parts_store.images WHERE id=$1", [image.id])).rows[0].count),
+    auditCount: Number((await pool.query("SELECT COUNT(*) count FROM parts_store.audit_events WHERE entity='product' AND entity_id=$1", [product.id])).rows[0].count),
+  };
+  await rejectedNativeRequest(hidePath, hideBody, completedHeaders, 409);
+  const { rows: [productAfterReplay] } = await pool.query(
+    "SELECT image_url,image_review_required FROM parts_store.products WHERE id=$1",
+    [product.id],
+  );
+  assert.deepEqual(productAfterReplay, replayState.product, "replay changed the product");
+  assert.equal(Number((await pool.query("SELECT COUNT(*) count FROM parts_store.images WHERE id=$1", [image.id])).rows[0].count), replayState.imageCount);
+  assert.equal(Number((await pool.query("SELECT COUNT(*) count FROM parts_store.audit_events WHERE entity='product' AND entity_id=$1", [product.id])).rows[0].count), replayState.auditCount);
 
   const original = await objectRequest(privateRoot, originalObject);
   assert.ok(original.ok, "the private original object is no longer reachable");
@@ -229,7 +350,7 @@ try {
     old_url: oldUrl,
     reason,
     by: staffId,
-    shared_references: { images: 0, products: 0 },
+    shared_references: { images: 0, products: 1 },
   });
   console.log("PASS production bridge hide keeps original and variant object bytes");
 } finally {
