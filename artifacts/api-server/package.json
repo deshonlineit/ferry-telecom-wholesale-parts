@@ -13,6 +13,7 @@
     "migrate-native-media": "tsx scripts/migrate-native-media.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:profile": "node --test tests/profile.test.mjs",
+    "test:native-media-hide": "pnpm run build && node tests/native-media-hide.integration.test.mjs",
     "test": "node tests/product-classification.test.mjs && vitest run src/lib/productCsvImport.test.ts"
   },
   "dependencies": {

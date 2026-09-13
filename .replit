@@ -52,6 +52,14 @@ args = "native-header-zoom"
 task = "workflow.run"
 args = "api-codegen-drift"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "native-photo-retention"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "bridge-photo-retention"
+
 [[workflows.workflow]]
 name = "isolation-test"
 author = "agent"
@@ -147,6 +155,28 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm run check:api-codegen-drift"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "native-photo-retention"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/parts-store run test:incorrect-product-photo"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "bridge-photo-retention"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run test:native-media-hide"
 
 [workflows.workflow.metadata]
 isValidation = true
