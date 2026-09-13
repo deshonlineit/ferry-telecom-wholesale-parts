@@ -60,6 +60,9 @@ function opProduct(array $row): array
     if (array_key_exists('featured', $row)) {
         $row['featured'] = (bool)$row['featured'];
     }
+    if (array_key_exists('image_review_required', $row)) {
+        $row['image_review_required'] = (bool)$row['image_review_required'];
+    }
     if (array_key_exists('active', $row)) {
         $row['active'] = (bool)$row['active'];
     }
@@ -281,6 +284,12 @@ function opAdminProducts(string $method, string $path): bool
         if (isset($_GET['quality']) && $_GET['quality'] !== '') {
             $where .= ' AND p.quality = ?';
             $params[] = text($_GET['quality'], 100);
+        }
+        $imageReview = (string)($_GET['image_review'] ?? '');
+        if ($imageReview === 'required') {
+            $where .= ' AND p.image_review_required=TRUE';
+        } elseif ($imageReview !== '') {
+            throw new HttpError(422, 'Invalid image review filter.');
         }
         $stock = (string)($_GET['stock'] ?? '');
         if ($stock === 'in_stock') {

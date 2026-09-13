@@ -80,6 +80,7 @@ export const partsStoreproductsTable = partsStore.table("products", {
   pricingVersion: integer("pricing_version").notNull().default(0),
   minimumQuantity: integer("minimum_quantity").notNull().default(1),
   imageUrl: varchar("image_url", { length: 500 }).notNull().default(''),
+  imageReviewRequired: boolean("image_review_required").notNull().default(false),
   featured: boolean("featured").notNull().default(false),
   publicationStatus: text("publication_status").notNull().default('draft'),
   active: boolean("active").notNull().default(true),

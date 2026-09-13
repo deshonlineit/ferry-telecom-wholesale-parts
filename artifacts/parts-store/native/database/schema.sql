@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS products (
  list_price_cents INT UNSIGNED NOT NULL DEFAULT 0,
  purchase_price_eur_cents INT UNSIGNED NULL,list_price_eur_cents INT UNSIGNED NULL,pricing_version INT UNSIGNED NOT NULL DEFAULT 0,
  minimum_quantity INT UNSIGNED NOT NULL DEFAULT 1,
- image_url VARCHAR(500) NOT NULL DEFAULT '', featured TINYINT NOT NULL DEFAULT 0,
+ image_url VARCHAR(500) NOT NULL DEFAULT '', image_review_required TINYINT NOT NULL DEFAULT 0, featured TINYINT NOT NULL DEFAULT 0,
  publication_status ENUM('draft','visible') NOT NULL DEFAULT 'draft', active TINYINT NOT NULL DEFAULT 1,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  INDEX(category_id),INDEX(brand_id),INDEX(active,publication_status,featured),INDEX(name(100)),

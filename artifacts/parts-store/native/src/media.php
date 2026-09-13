@@ -22,6 +22,9 @@ function handleMedia(string $method, string $path): bool
         }
         mediaDelete((int) $match[1]);
     }
+    if ($method === 'POST' && preg_match('#^/admin/products/(\d+)/images/hide/?$#', $path, $match)) {
+        mediaHideIncorrect((int) $match[1]);
+    }
     if ($method === 'GET' && preg_match('#^/documents/(\d+)/(invoice|packing-slip)\.pdf$#', $path, $match)) {
         mediaOrderDocument((int) $match[1], $match[2]);
     }
@@ -87,6 +90,74 @@ function mediaUploadProduction(int $productId): never
     if (!is_string($body)) throw new HttpError(400, 'The uploaded image is invalid.');
     $result = mediaBridge('POST', '/api/native/media/products/' . $productId . '/images', $body, $mime);
     respond($result, 201);
+}
+
+function mediaHideIncorrect(int $productId): never
+{
+    $staff = requireStaff();
+    $input = body();
+    $imageId = isset($input['image_id']) && $input['image_id'] !== null
+        ? integer($input['image_id'], 1, 2147483647)
+        : null;
+    $oldUrl = text($input['url'] ?? '', 500);
+    $reason = text($input['reason'] ?? '', 500);
+    if ($oldUrl === '' || $reason === '') {
+        throw new HttpError(422, 'Image URL and reason are required.');
+    }
+    if (appProduction()) {
+        $payload = json_encode([
+            'image_id' => $imageId,
+            'url' => $oldUrl,
+            'reason' => $reason,
+            'staff_id' => (int)$staff['id'],
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $result = mediaBridge('POST', '/api/native/media/products/' . $productId . '/images/hide', $payload);
+        mediaRespondImages((int)($result['product_id'] ?? $productId));
+    }
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $productStatement = $pdo->prepare('SELECT id,sku,image_url FROM products WHERE id=? FOR UPDATE');
+        $productStatement->execute([$productId]);
+        $product = $productStatement->fetch(PDO::FETCH_ASSOC);
+        if (!$product) throw new HttpError(404, 'Product not found.');
+        if ($imageId !== null) {
+            $imageStatement = $pdo->prepare('SELECT id,url FROM images WHERE id=? AND product_id=? FOR UPDATE');
+            $imageStatement->execute([$imageId, $productId]);
+            $image = $imageStatement->fetch(PDO::FETCH_ASSOC);
+            if (!$image || (string)$image['url'] !== $oldUrl) {
+                throw new HttpError(409, 'This image is no longer linked to the product. Reload and try again.');
+            }
+        } elseif ((string)$product['image_url'] !== $oldUrl) {
+            throw new HttpError(409, 'This image is no longer the product cover. Reload and try again.');
+        }
+        $imageReferences = $pdo->prepare('SELECT COUNT(*) FROM images WHERE url=? AND (? IS NULL OR id<>?)');
+        $imageReferences->execute([$oldUrl, $imageId, $imageId]);
+        $productReferences = $pdo->prepare('SELECT COUNT(*) FROM products WHERE image_url=? AND id<>?');
+        $productReferences->execute([$oldUrl, $productId]);
+        if ($imageId !== null) {
+            $pdo->prepare('DELETE FROM images WHERE id=? AND product_id=?')->execute([$imageId, $productId]);
+        }
+        $pdo->prepare('UPDATE products SET image_url=CASE WHEN image_url=? THEN ? ELSE image_url END,image_review_required=TRUE WHERE id=?')
+            ->execute([$oldUrl, '', $productId]);
+        audit('image.incorrect_unlinked', 'product', $productId, [
+            'product_id' => $productId,
+            'sku' => (string)$product['sku'],
+            'old_url' => $oldUrl,
+            'reason' => $reason,
+            'by' => (int)$staff['id'],
+            'shared_references' => [
+                'images' => (int)$imageReferences->fetchColumn(),
+                'products' => (int)$productReferences->fetchColumn(),
+            ],
+        ]);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $exception;
+    }
+    mediaRespondImages($productId);
 }
 
 function mediaDeleteProduction(int $imageId): never
@@ -189,7 +260,7 @@ function mediaUpload(int $productId): never
                 json_encode($variants, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
                 $originalRelative,
             ]);
-            $pdo->prepare("UPDATE products SET image_url = ? WHERE id = ? AND image_url = ''")->execute([$mainUrl, $productId]);
+            $pdo->prepare("UPDATE products SET image_url = ?,image_review_required=FALSE WHERE id = ? AND image_url = ''")->execute([$mainUrl, $productId]);
             audit('image.upload', 'image', $imageId, ['product_id' => $productId, 'width' => $width, 'height' => $height]);
             $pdo->commit();
         } catch (Throwable $exception) {
@@ -735,7 +806,7 @@ function mediaImportCatalogImage(int $productId, string $sourcePath, bool $repla
                 $imageId = insertReturning($pdo, 'INSERT INTO images(product_id,url,variants,original_path) VALUES(?,?,?,?)',
                     [$productId, $url, $variantJson, $originalRelative]);
             }
-            $pdo->prepare('UPDATE products SET image_url = ? WHERE id = ?')->execute([$url, $productId]);
+            $pdo->prepare('UPDATE products SET image_url = ?,image_review_required=FALSE WHERE id = ?')->execute([$url, $productId]);
             audit($existingId !== false ? 'image.catalog_refreshed' : 'image.catalog_import', 'image', $imageId, [
                 'product_id' => $productId, 'width' => $width, 'height' => $height,
             ]);

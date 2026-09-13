@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS parts_store.products (
   pricing_version integer NOT NULL DEFAULT 0,
   minimum_quantity integer NOT NULL DEFAULT 1,
   image_url varchar(500) NOT NULL DEFAULT '',
+  image_review_required boolean NOT NULL DEFAULT false,
   featured boolean NOT NULL DEFAULT false,
   publication_status text NOT NULL DEFAULT 'draft',
   active boolean NOT NULL DEFAULT true,

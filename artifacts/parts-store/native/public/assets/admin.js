@@ -180,13 +180,14 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
     const stock = searchParams.get('stock') || '';
     const sort = searchParams.get('sort') || '';
     const status = searchParams.get('status') || 'all';
+    const imageReview = searchParams.get('image_review') || '';
     const page = searchParams.get('page') || '1';
     const limit = searchParams.get('limit') || '50';
     const esc = window.Core.escapeHtml;
 
     const [catalogData, data, pricingMeta] = await Promise.all([
         window.Core.fetch('/catalog'),
-        window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`),
+        window.Core.fetch(`/admin/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}&brand=${encodeURIComponent(brand)}&quality=${encodeURIComponent(quality)}&stock=${encodeURIComponent(stock)}&sort=${encodeURIComponent(sort)}&status=${encodeURIComponent(status)}&image_review=${encodeURIComponent(imageReview)}&page=${page}&limit=${limit}`),
         window.Core.fetch('/admin/prices?page=1&limit=1')
     ]);
     const stockThreshold = Number(data.stock_threshold ?? 5);
@@ -211,7 +212,7 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
     const rows = data.products.map(p => `
         <tr class="${!p.active ? 'archived-row' : ''}">
             <td><span style="font-size:0.75rem; color:var(--wb-text-muted)">${esc(p.sku)}</span></td>
-            <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong>${p.featured ? ' <span class="wb-badge wb-badge-warning" style="font-size:0.65rem">Featured</span>' : ''}</td>
+            <td><strong><a href="${window.APP_BASE}admin/products/${p.id}">${esc(p.name)}</a></strong>${p.featured ? ' <span class="wb-badge wb-badge-warning" style="font-size:0.65rem">Featured</span>' : ''}${p.image_review_required ? ' <span class="wb-badge wb-badge-warning" style="font-size:0.65rem">Photo review</span>' : ''}</td>
             <td><span class="wb-badge ${p.stock <= stockThreshold ? 'wb-badge-warning' : 'wb-badge-neutral'}" style="font-weight:700">${p.stock} units${p.stock === 0 ? ' · Out of stock' : (p.stock <= stockThreshold ? ' · Low stock' : '')}</span></td>
             <td>${window.Workbench.badge(!p.active ? 'archived' : (p.publication_status || 'draft'))}</td>
             <td>
@@ -259,6 +260,12 @@ window.Router.add(/^admin\/products$/, async (match, root, qs) => {
                     <option value="visible" ${status === 'visible' ? 'selected' : ''}>Visible</option>
                     <option value="draft" ${status === 'draft' ? 'selected' : ''}>Draft</option>
                     <option value="archived" ${status === 'archived' ? 'selected' : ''}>Archived Only</option>
+                </select>
+                </div>
+                <div class="form-group">
+                <select name="image_review" class="form-control">
+                    <option value="">All photo states</option>
+                    <option value="required" ${imageReview === 'required' ? 'selected' : ''}>Photo review required</option>
                 </select>
                 </div>
                 <div class="form-group"><select name="sort" class="form-control"><option value="">Relevance</option><option value="price_asc" ${sort === 'price_asc' ? 'selected' : ''}>Price ascending</option><option value="price_desc" ${sort === 'price_desc' ? 'selected' : ''}>Price descending</option></select></div>

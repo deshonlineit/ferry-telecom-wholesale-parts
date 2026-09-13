@@ -70,11 +70,11 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         return `
             <div class="image-gallery">
                 ${displayImages.map(img => `
-                    <div class="image-item">
+                    <div class="image-item" style="padding-bottom:2.25rem;">
                         <img src="${esc(img.url)}" alt="">
-                        ${img.legacy
-                            ? '<div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:0.65rem; text-align:center; padding:0.125rem;">Legacy cover</div>'
+                        ${img.legacy ? '<div style="position:absolute; top:0; left:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:0.65rem; text-align:center; padding:0.125rem;">Legacy cover</div>'
                             : `<button type="button" class="image-item-del action-del-img" data-id="${img.id}" data-url="${esc(img.url)}" aria-label="Remove image">&times;</button>`}
+                        <button type="button" class="btn btn-sm btn-outline action-hide-incorrect-img" data-id="${img.id ?? ''}" data-url="${esc(img.url)}" style="position:absolute;left:0;right:0;bottom:0;width:100%;border-radius:0;">Foto klopt niet</button>
                     </div>
                 `).join('')}
             </div>
@@ -302,6 +302,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         if (!container) return;
         container.innerHTML = renderImages(images);
         bindImageDeleteHandlers();
+        bindIncorrectImageHandlers();
     };
 
     const bindImageDeleteHandlers = () => {
@@ -316,6 +317,31 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                 updateImageGallery(response.images || []);
                 window.Workbench.toast('Image removed', 'success');
             } catch (error) {
+                window.Workbench.toast(error.message, 'error');
+            }
+        }));
+    };
+
+    const bindIncorrectImageHandlers = () => {
+        root.querySelectorAll('.action-hide-incorrect-img').forEach(button => button.addEventListener('click', async event => {
+            const target = event.currentTarget;
+            const reason = prompt('Waarom klopt deze foto niet?');
+            if (reason === null) return;
+            if (!reason.trim()) {
+                window.Workbench.toast('Vul een reden in.', 'error');
+                return;
+            }
+            target.disabled = true;
+            try {
+                const response = await window.Core.fetch(`/admin/products/${id}/images/hide`, {
+                    method: 'POST',
+                    body: { image_id: target.dataset.id ? parseInt(target.dataset.id, 10) : null, url: target.dataset.url, reason: reason.trim() }
+                });
+                if (target.dataset.url === coverUrl) coverUrl = '';
+                updateImageGallery(response.images || []);
+                window.Workbench.toast('Foto verborgen; product staat klaar voor fotocontrole.', 'success');
+            } catch (error) {
+                target.disabled = false;
                 window.Workbench.toast(error.message, 'error');
             }
         }));
@@ -370,6 +396,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             }
         } catch(err) { window.Workbench.toast(err.message, 'error'); btn.disabled = false; btn.textContent = isNew ? 'Create Product' : 'Save Changes'; }
     };
+    bindIncorrectImageHandlers();
 
     if (!isNew) {
         const delBtn = root.querySelector('.action-del-product');
