@@ -6,6 +6,11 @@ const CURRENCY_RATE_MAX_AGE_DAYS = 7;
 
 function currencyExchangeRate(): ?array
 {
+    static $resolved = false;
+    static $cached = null;
+    if ($resolved) {
+        return $cached;
+    }
     $statement = db()->prepare(
         "SELECT rate_ppm,rate_date,fetched_at,source_url
          FROM exchange_rates WHERE base_currency='EUR' AND quote_currency='CHF'"
@@ -13,6 +18,7 @@ function currencyExchangeRate(): ?array
     $statement->execute();
     $row = $statement->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
+        $resolved = true;
         return null;
     }
     $ppm = (int) $row['rate_ppm'];
@@ -20,7 +26,7 @@ function currencyExchangeRate(): ?array
     $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
     $fresh = $ppm > 0 && $date instanceof DateTimeImmutable
         && $date <= $today && $date >= $today->sub(new DateInterval('P' . CURRENCY_RATE_MAX_AGE_DAYS . 'D'));
-    return [
+    $cached = [
         'source' => 'ECB',
         'base_currency' => CURRENCY_BASE,
         'quote_currency' => 'CHF',
@@ -31,6 +37,8 @@ function currencyExchangeRate(): ?array
         'source_url' => (string) $row['source_url'],
         'status' => $fresh ? 'fresh' : 'stale',
     ];
+    $resolved = true;
+    return $cached;
 }
 
 function currencyCountry(string $country): string
