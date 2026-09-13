@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
@@ -35,4 +36,12 @@ test('incorrect-photo handling unlinks without deleting stored media', () => {
     assert.match(handler, /shared_references/);
     assert.doesNotMatch(handler, /unlink\s*\(/);
     assert.doesNotMatch(handler, /mediaOwnedImagePaths/);
+});
+
+test('product detail returns only the newest incorrect-photo report', () => {
+    const output = execFileSync('php', [
+        path.join(__dirname, 'incorrect-product-photo-integration.php'),
+    ], { encoding: 'utf8' });
+
+    assert.match(output, /incorrect product photo integration test passed/);
 });

@@ -70,6 +70,32 @@ function opProduct(array $row): array
     return $row;
 }
 
+function opLatestImageReport(int $productId): ?array
+{
+    $report = opRow(
+        "SELECT ae.id,ae.user_id,ae.details,ae.created_at,u.name staff_name
+         FROM audit_events ae
+         LEFT JOIN users u ON u.id=ae.user_id
+         WHERE ae.action='image.incorrect_unlinked' AND ae.entity='product' AND ae.entity_id=?
+         ORDER BY ae.id DESC
+         LIMIT 1",
+        [$productId]
+    );
+    if ($report === null) {
+        return null;
+    }
+    $details = opJson($report['details']);
+    return [
+        'id' => (int)$report['id'],
+        'reason' => is_array($details) ? (string)($details['reason'] ?? '') : '',
+        'staff' => [
+            'id' => $report['user_id'] === null ? null : (int)$report['user_id'],
+            'name' => (string)($report['staff_name'] ?? ''),
+        ],
+        'created_at' => (string)$report['created_at'],
+    ];
+}
+
 function opSetting(string $name, int $default): int
 {
     $row = opRow('SELECT value FROM settings WHERE name = ?', [$name]);
@@ -422,27 +448,7 @@ function opAdminProducts(string $method, string $path): bool
                 $image['variants'] = opJson($image['variants']);
             }
             unset($image);
-            $latestImageReport = opRow(
-                "SELECT ae.id,ae.user_id,ae.details,ae.created_at,u.name staff_name
-                 FROM audit_events ae
-                 LEFT JOIN users u ON u.id=ae.user_id
-                 WHERE ae.action='image.incorrect_unlinked' AND ae.entity='product' AND ae.entity_id=?
-                 ORDER BY ae.id DESC
-                 LIMIT 1",
-                [$id]
-            );
-            if ($latestImageReport !== null) {
-                $reportDetails = opJson($latestImageReport['details']);
-                $latestImageReport = [
-                    'id' => (int)$latestImageReport['id'],
-                    'reason' => is_array($reportDetails) ? (string)($reportDetails['reason'] ?? '') : '',
-                    'staff' => [
-                        'id' => $latestImageReport['user_id'] === null ? null : (int)$latestImageReport['user_id'],
-                        'name' => (string)($latestImageReport['staff_name'] ?? ''),
-                    ],
-                    'created_at' => (string)$latestImageReport['created_at'],
-                ];
-            }
+            $latestImageReport = opLatestImageReport($id);
             respond(['product' => opProduct($existing), 'group_prices' => $prices, 'images' => $images,
                 'model_ids' => array_map(static fn(array $r): int => (int)$r['model_id'], $models),
                 'latest_image_report' => $latestImageReport]);
