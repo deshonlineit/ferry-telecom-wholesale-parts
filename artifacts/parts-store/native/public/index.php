@@ -2,6 +2,11 @@
 declare(strict_types=1);
 
 $brandLogo = dirname(__DIR__, 2) . '/src/assets/ferry-logo.png';
+$catalogStylesheets = [
+    'styles.css', 'workspace.css', 'workbench.css', 'storefront-redesign.css',
+    'category-models.css', 'buyer-currency.css', 'b2b-catalog.css',
+    'b2b-navigation.css', 'category-rail.css', 'commerce-redesign.css',
+];
 if (($_GET['asset'] ?? '') === 'brand-logo') {
     if (!is_file($brandLogo)) {
         http_response_code(404);
@@ -11,6 +16,18 @@ if (($_GET['asset'] ?? '') === 'brand-logo') {
     header('Content-Length: ' . (string) filesize($brandLogo));
     header('Cache-Control: public, max-age=31536000, immutable');
     readfile($brandLogo);
+    exit;
+}
+if (($_GET['asset'] ?? '') === 'catalog-css') {
+    header('Content-Type: text/css; charset=utf-8');
+    header('Cache-Control: public, max-age=31536000, immutable');
+    header('X-Content-Type-Options: nosniff');
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
+        foreach ($catalogStylesheets as $stylesheet) {
+            readfile(__DIR__ . '/assets/' . $stylesheet);
+            echo "\n";
+        }
+    }
     exit;
 }
 
@@ -47,6 +64,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
 }
     $entryRoute = trim($relPath, '/');
     $isHomeRoute = $entryRoute === '';
+    $isCatalogRoute = $entryRoute === 'catalog';
     $isAdminRoute = $entryRoute === 'admin' || str_starts_with($entryRoute, 'admin/');
     $isAccountRoute = $entryRoute === 'account' || str_starts_with($entryRoute, 'account/') || $entryRoute === 'quick-order';
     $isProductRoute = str_starts_with($entryRoute, 'products/');
@@ -77,11 +95,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <link rel="icon" type="image/svg+xml" href="/test-shop/assets/mark.svg?v=<?= $v_mark ?>">
     <link rel="apple-touch-icon" sizes="180x180" href="/test-shop/assets/apple-touch-icon.png?v=<?= $v_icon ?>">
     <?php
-        $stylesheets = [
-            'styles.css', 'workspace.css', 'workbench.css', 'storefront-redesign.css',
-            'category-models.css', 'buyer-currency.css', 'b2b-catalog.css',
-            'b2b-navigation.css', 'category-rail.css', 'commerce-redesign.css',
-        ];
+        $stylesheets = $catalogStylesheets;
         if ($isHomeRoute) $stylesheets[] = 'home-landing.css';
         if ($isAccountRoute || $isProductRoute) {
             $stylesheets[] = 'b2b-account.css';
@@ -92,14 +106,22 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
             $stylesheets[] = 'admin-prices.css';
             $stylesheets[] = 'b2b-workspace.css';
         }
-        foreach (array_unique($stylesheets) as $stylesheet):
-            $version = @filemtime(__DIR__ . '/assets/' . $stylesheet) ?: 1;
+        $stylesheets = array_unique($stylesheets);
+        if ($isCatalogRoute):
+            $catalogStyleVersion = max(array_map(
+                static fn(string $stylesheet): int => (int) (@filemtime(__DIR__ . '/assets/' . $stylesheet) ?: 1),
+                $catalogStylesheets
+            ));
+    ?>
+    <link rel="stylesheet" href="/test-shop/?asset=catalog-css&amp;v=<?= $catalogStyleVersion ?>">
+    <?php else: foreach ($stylesheets as $stylesheet):
+        $version = @filemtime(__DIR__ . '/assets/' . $stylesheet) ?: 1;
     ?>
     <link rel="stylesheet" href="/test-shop/assets/<?= htmlspecialchars($stylesheet, ENT_QUOTES) ?>?v=<?= $version ?>">
-    <?php endforeach; ?>
+    <?php endforeach; endif; ?>
     <script>window.APP_BASE = '/test-shop/'; window.LOGO_V = '<?= $v_logo ?>';</script>
 </head>
-<body>
+<body data-entry-route="<?= htmlspecialchars($entryRoute === '' ? 'home' : $entryRoute, ENT_QUOTES) ?>">
     <div id="test-banner" class="test-banner">
         <span data-i18n="testBanner">TEST ENVIRONMENT &mdash; NO REAL ORDERS, STOCK OR PAYMENTS</span>
         <div class="language-control">
@@ -120,7 +142,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <header class="app-header">
         <div class="container header-inner">
             <a href="/test-shop/" class="logo" aria-label="Home" data-i18n-aria-label="home">
-                <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom">
+                <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom" width="1736" height="475">
             </a>
 
             <button type="button" class="page-search-jump" aria-label="Open Smart Search" data-i18n-aria-label="openSmartSearch" onclick="const panel=document.querySelector('[data-catalog-smart-search]'); if(panel){panel.hidden=false;} const input=document.querySelector('#home-search, #catalog-smart-search'); if(input){input.focus({preventScroll:true}); input.scrollIntoView({behavior:'smooth',block:'center'});}">
@@ -162,7 +184,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
-                    <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo">
+                    <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo" width="1736" height="475" loading="lazy" decoding="async">
                     <p data-i18n="footerText">The standard for professional repairers. Precision, reliability and stock ready to ship.</p>
                 </div>
                 <div class="footer-links" id="footer-account-links">

@@ -111,7 +111,9 @@ button, input, select, textarea { font: inherit; color: inherit; margin: 0; }
 .d-flex { display: flex; } .d-block { display: block; } .flex-1 { flex: 1; }
 .justify-between { justify-content: space-between; } .align-center { align-items: center; }
 
-.page-loader { display: flex; justify-content: center; align-items: center; min-height: 40vh; }
+.main-content { min-height: calc(100svh - 10rem); }
+#store-menu { min-height: 48px; }
+.page-loader { display: flex; justify-content: center; align-items: center; min-height: calc(100svh - 14rem); }
 .spinner { width: 2rem; height: 2rem; border: 3px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
