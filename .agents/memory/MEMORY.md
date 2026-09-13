@@ -26,6 +26,7 @@
 - [Authentication test rate limits](auth-test-rate-limits.md) — reuse short-lived tokens in API suites so shared provider limits do not block assertions or fixture cleanup.
 - [Catalog photo lifecycle](catalog-photo-lifecycle.md) — public photos need exact-match provenance; removal, reuse, and permanent erasure must respect references.
 - [Catalogue thumbnail performance](catalogue-thumbnail-performance.md) — list views use eager 320px thumbnails and immutable hashed-media caching; lazy rows visibly lag while scrolling.
+- [PHP catalogue concurrency](php-catalog-concurrency.md) — retain multiple PHP workers and defer menu metadata; serialized catalogue requests created a seven-second critical path.
 - [Identity test rate limits](identity-test-rate-limits.md) — concurrent task checks share one development tenant; reuse session tokens and retry throttled cleanup.
 - [Device scope navigation](device-scope-navigation.md) — brand/family/model are one scope axis: a narrower pick must clear the wider one, and escape-hatch facets must exclude the whole axis.
 - [Device model menu grouping](device-model-menu-grouping.md) — large Samsung and iPhone menus are scanned by product line/generation, never shown as one mixed chronological grid.

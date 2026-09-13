@@ -12,7 +12,9 @@ network contention in a measured mobile Lighthouse run; loading the first four
 eagerly preserves above-fold photos without starting the whole page at once.
 
 **How to apply:** convert hashed 1280px media URLs to their 320px sibling in the
-shared thumbnail helper; reserve large variants for detail/gallery views. Cache
-content-hashed product media as immutable for one year. Keep a clear missing
+shared thumbnail helper; reserve large variants for detail/gallery views. Use
+controlled IntersectionObserver loading after the first four rows, because native
+browser lazy-loading may still prefetch many rows within its broad mobile margin.
+Cache content-hashed product media as immutable for one year. Keep a clear missing
 photo state for products that genuinely have no source image. Preserve intrinsic
 dimensions and asynchronous decoding so deferred thumbnails do not shift rows.

@@ -38,6 +38,27 @@
         return `<svg data-fallback-kind="${kind}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`;
     }
 
+    window.App.observeCatalogImages = function(root = document) {
+        const images = [...root.querySelectorAll('img[data-catalog-src]')];
+        if (!images.length) return;
+        const load = image => {
+            image.src = image.dataset.catalogSrc;
+            image.removeAttribute('data-catalog-src');
+        };
+        if (!('IntersectionObserver' in window)) {
+            images.forEach(load);
+            return;
+        }
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                observer.unobserve(entry.target);
+                load(entry.target);
+            });
+        }, {rootMargin: '240px 0px'});
+        images.forEach(image => observer.observe(image));
+    };
+
     window.App.renderProductTable = function(products, options = {}) {
         if (!products || !products.length) {
             return `<div class="b2b-empty">${t('noResults')}</div>`;
@@ -62,12 +83,16 @@
             let modelsStr = (p.models || []).map(m => m.name).join(', ');
             let fullModelsStr = modelsStr;
             if (modelsStr.length > 55) modelsStr = modelsStr.substring(0, 52) + '...';
+            const immediateImage = index < 4;
+            const imageSource = immediateImage
+                ? `src="${esc(thumb)}"`
+                : `src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-catalog-src="${esc(thumb)}"`;
 
             return `
                 <tr class="b2b-row" data-product-row data-product-id="${p.id}">
                     <td class="col-img">
                         ${p.image_url ? 
-                            `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap"><img src="${esc(thumb)}" alt="${esc(p.name)}" loading="${index < 4 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 2 ? 'high' : 'low'}" width="64" height="64"></a>` :
+                            `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap"><img ${imageSource} alt="${esc(p.name)}" loading="${immediateImage ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 2 ? 'high' : 'low'}" width="64" height="64"></a>` :
                             `<a href="${window.APP_BASE}products/${p.id}" class="b2b-img-wrap no-img" aria-label="${esc(t('noImage'))}" title="${esc(t('noImage'))}">${fallbackThumbnail(p)}</a>`
                         }
                     </td>

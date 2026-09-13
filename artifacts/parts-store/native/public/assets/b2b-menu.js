@@ -155,7 +155,26 @@
             nav.replaceChildren(container);
             Menu.bindGlobalListeners();
             Menu.renderImmediate();
-            Menu.load();
+            if (location.pathname.replace(/\/+$/, '').endsWith('/catalog')) {
+                Menu.loadWhenUsed();
+            } else {
+                Menu.load();
+            }
+        },
+
+        loadWhenUsed() {
+            let started = false;
+            const start = () => {
+                if (started) return;
+                started = true;
+                Menu._nav?.removeEventListener('pointerenter', start);
+                Menu._nav?.removeEventListener('focusin', start);
+                Menu._nav?.removeEventListener('click', start);
+                Menu.load();
+            };
+            Menu._nav?.addEventListener('pointerenter', start, {once: true});
+            Menu._nav?.addEventListener('focusin', start, {once: true});
+            Menu._nav?.addEventListener('click', start, {once: true});
         },
 
         renderImmediate() {

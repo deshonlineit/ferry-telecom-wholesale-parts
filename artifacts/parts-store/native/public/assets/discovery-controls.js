@@ -447,6 +447,7 @@
                 </div>
                 <dialog id="catalog-filter-dialog" class="filter-dialog"><div class="filter-dialog-heading"><h2>${t('refineSelection')}</h2><button type="button" class="btn-close" aria-label="${t('closeFilters')}">×</button></div>${filterForm('mobile', true)}</dialog>
                 <dialog id="device-finder-dialog" class="finder-dialog" aria-label="Choose another model"><button type="button" class="btn-close" data-close-finder aria-label="Close model selection">×</button><div data-finder-body></div></dialog></div>`;
+            window.App.observeCatalogImages(root);
             const apply = form => {
                 const changes = Object.fromEntries(new FormData(form));
                 if (!changes.stock) changes.stock = '';

@@ -93,6 +93,9 @@ router.get(
 
       res.status(response.status);
       response.headers.forEach((value, key) => res.setHeader(key, value));
+      if (/\/[a-f0-9]{16,}-(?:320w|640w|1280w)\.(?:webp|avif)$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
 
       if (response.body) {
         const nodeStream = Readable.fromWeb(
