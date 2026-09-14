@@ -33,14 +33,15 @@
         const family = String(entry?.family?.label || '').toLowerCase();
         const name = String(model?.name || '').toLowerCase();
         if (family.includes('samsung') || family === 'galaxy') {
-            if (/\bgalaxy\s+s\d/i.test(name)) return {key: 'galaxy-s', label: 'Galaxy S', order: 1};
-            if (/\bgalaxy\s+a\d/i.test(name)) return {key: 'galaxy-a', label: 'Galaxy A', order: 2};
-            if (/\bgalaxy\s+(?:z\s+)?(?:fold|flip)\b/i.test(name)) return {key: 'galaxy-z', label: 'Galaxy Z · Fold & Flip', order: 3};
-            if (/\bgalaxy\s+note\b/i.test(name)) return {key: 'galaxy-note', label: 'Galaxy Note', order: 4};
-            if (/\bgalaxy\s+m\d/i.test(name)) return {key: 'galaxy-m', label: 'Galaxy M', order: 5};
-            if (/\bgalaxy\s+j\d/i.test(name)) return {key: 'galaxy-j', label: 'Galaxy J', order: 6};
-            if (/\bgalaxy\s+xcover\b/i.test(name)) return {key: 'galaxy-xcover', label: 'Galaxy XCover', order: 7};
-            if (/\bgalaxy\s+tab\b/i.test(name)) return {key: 'galaxy-tab', label: 'Galaxy Tab', order: 8};
+            const seriesName = name.replace(/^(?:samsung\s+)?(?:galaxy\s+)?/i, '');
+            if (/^s\s*\d/i.test(seriesName)) return {key: 'galaxy-s', label: 'Galaxy S', order: 1};
+            if (/^a\s*\d/i.test(seriesName)) return {key: 'galaxy-a', label: 'Galaxy A', order: 2};
+            if (/^(?:z\s+)?(?:fold|flip)\b/i.test(seriesName)) return {key: 'galaxy-z', label: 'Galaxy Z · Fold & Flip', order: 3};
+            if (/^note(?:\s|\d)/i.test(seriesName)) return {key: 'galaxy-note', label: 'Galaxy Note', order: 4};
+            if (/^m\s*\d/i.test(seriesName)) return {key: 'galaxy-m', label: 'Galaxy M', order: 5};
+            if (/^j\s*\d/i.test(seriesName)) return {key: 'galaxy-j', label: 'Galaxy J', order: 6};
+            if (/^xcover\b/i.test(seriesName)) return {key: 'galaxy-xcover', label: 'Galaxy XCover', order: 7};
+            if (/^tab\b/i.test(seriesName)) return {key: 'galaxy-tab', label: 'Galaxy Tab', order: 8};
             return {key: 'galaxy-other', label: 'Andere Galaxy-modellen', order: 20};
         }
         if (family.includes('iphone')) {

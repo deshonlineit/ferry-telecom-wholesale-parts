@@ -356,9 +356,9 @@ textarea.b2b-input {
 }
 .b2b-order-card {
     display: grid;
-    grid-template-columns: minmax(220px, 1.25fr) minmax(340px, 2fr) auto auto auto;
+    grid-template-columns: minmax(170px, 1.1fr) minmax(280px, 1.8fr) auto auto auto;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     padding: 13px 14px 13px 16px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -449,6 +449,28 @@ textarea.b2b-input {
     color: #1768c5;
     text-decoration: none;
 }
+.b2b-order-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.b2b-order-address {
+    color: #334155;
+    font-style: normal;
+    line-height: 1.65;
+}
+.b2b-order-item-sku {
+    display: block;
+    margin-top: 3px;
+    color: #64748b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: .75rem;
+}
+.b2b-order-note,
+.b2b-order-history-card {
+    margin-top: 16px;
+}
 
 @media (max-width: 1050px) {
     .b2b-order-card {
@@ -493,6 +515,9 @@ textarea.b2b-input {
         grid-column: 2;
         grid-row: 3;
         justify-self: end;
+    }
+    .b2b-order-detail-grid {
+        grid-template-columns: 1fr;
     }
 }
 

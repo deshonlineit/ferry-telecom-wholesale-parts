@@ -367,14 +367,97 @@ window.Router.add(/^account\/orders$/, async (match, root) => {
     root.innerHTML = accountLayout(content, 'orders');
 });
 
+window.Router.add(/^account\/orders\/(\d+)$/, async (match, root) => {
+    if (!window.Core.user) return window.Router.navigate(window.APP_BASE + 'login');
+    const esc = window.Core.escapeHtml;
+    const data = await window.Core.fetch(`/orders/${match[1]}`);
+    const order = data.order;
+    const currency = order.currency || 'CHF';
+    const address = data.address || {};
+    const addressLines = [
+        address.name,
+        address.company,
+        address.line1,
+        address.line2,
+        [address.postal_code, address.city].filter(Boolean).join(' '),
+        address.country,
+    ].filter(Boolean);
+    const items = data.items.map(item => `
+        <tr class="b2b-table-row">
+            <td class="b2b-table-cell">
+                <strong>${esc(item.name)}</strong>
+                <small class="b2b-order-item-sku">${esc(item.sku)}</small>
+            </td>
+            <td class="b2b-table-cell b2b-text-center">${window.I18n.number(item.quantity)}</td>
+            <td class="b2b-table-cell b2b-text-right">${accountMoney(item.price_cents, currency)}</td>
+            <td class="b2b-table-cell b2b-text-right b2b-font-medium">${accountMoney(item.total_cents, currency)}</td>
+        </tr>`).join('');
+    const events = (data.events || []).map(event => `
+        <li class="b2b-timeline-item">
+            <div class="b2b-timeline-point"></div>
+            <div class="b2b-timeline-content">
+                <time>${accountDateTime(event.created_at)}</time>
+                <div class="b2b-timeline-desc">${accountT('status')}: <strong>${accountStatus(event.status)}</strong></div>
+                ${event.note ? `<div class="b2b-timeline-note">${esc(event.note)}</div>` : ''}
+            </div>
+        </li>`).join('');
+    const content = `
+        <div class="b2b-account-breadcrumb">
+            <a href="${window.APP_BASE}account/orders" class="b2b-back-link">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                ${accountT('backToOrders')}
+            </a>
+        </div>
+        <header class="b2b-account-header">
+            <div class="b2b-account-header-text">
+                <h1>${esc(order.number)}</h1>
+                <p>${accountDate(order.created_at)}</p>
+            </div>
+            <button type="button" class="b2b-btn b2b-btn-outline" onclick="window.OrderWorkspace.reorder(${order.id}, this)">
+                ${accountT('reorder')}
+            </button>
+        </header>
+        <div class="b2b-order-detail-grid">
+            <div class="b2b-card">
+                <div class="b2b-card-header"><h2 class="b2b-card-title">${accountT('orderInformation')}</h2></div>
+                <dl class="b2b-card-body b2b-dl-grid">
+                    <dt>${accountT('fulfillment')}</dt><dd>${accountFulfillmentState(order)}</dd>
+                    <dt>${accountT('payment')}</dt><dd>${accountPaymentState(order.payment_state)}</dd>
+                    <dt>${accountT('paymentMethod')}</dt><dd>${esc(accountPaymentMethod(order.payment_method))}</dd>
+                </dl>
+            </div>
+            <div class="b2b-card">
+                <div class="b2b-card-header"><h2 class="b2b-card-title">${accountT('deliveryAddress')}</h2></div>
+                <div class="b2b-card-body"><address class="b2b-order-address">${addressLines.map(esc).join('<br>')}</address></div>
+            </div>
+        </div>
+        <div class="b2b-card b2b-table-card">
+            <div class="b2b-table-responsive">
+                <table class="b2b-table">
+                    <thead><tr><th>${accountT('product')}</th><th class="b2b-text-center">${accountT('quantity')}</th><th class="b2b-text-right">${accountT('price')}</th><th class="b2b-text-right">${accountT('total')}</th></tr></thead>
+                    <tbody>${items}</tbody>
+                </table>
+            </div>
+            <div class="b2b-order-totals">
+                <div class="b2b-order-total-row"><span>${accountT('subtotal')}</span><span>${accountMoney(order.subtotal_cents, currency)}</span></div>
+                <div class="b2b-order-total-row"><span>${accountT('shipping')}</span><span>${accountMoney(order.shipping_cents, currency)}</span></div>
+                <div class="b2b-order-total-row"><span>${accountT('tax')}</span><span>${accountMoney(order.tax_cents, currency)}</span></div>
+                <div class="b2b-order-total-row b2b-total-grand"><span>${accountT('total')}</span><span>${accountMoney(order.total_cents, currency)}</span></div>
+            </div>
+        </div>
+        ${order.notes ? `<div class="b2b-card b2b-order-note"><div class="b2b-card-header"><h2 class="b2b-card-title">${accountT('notes')}</h2></div><div class="b2b-card-body">${esc(order.notes)}</div></div>` : ''}
+        ${events ? `<div class="b2b-card b2b-order-history-card"><div class="b2b-card-header"><h2 class="b2b-card-title">${accountT('orderHistory')}</h2></div><div class="b2b-card-body"><ul class="b2b-timeline">${events}</ul></div></div>` : ''}`;
+    root.innerHTML = accountLayout(content, 'orders');
+});
+
 window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
     if (!window.Core.user) return window.Router.navigate(window.APP_BASE + 'login');
     const id = match[1];
     const esc = window.Core.escapeHtml;
     try {
         const data = await window.Core.fetch(`/returns/${id}`);
-        const o = data.order;
-        const orderCurrency = o.currency || 'CHF';
+        const r = data.return;
+        const returnCurrency = r.currency || r.order_currency || data.order?.currency || 'CHF';
         
         const itemsHtml = data.items.map(i => `
             <tr class="b2b-table-row">
@@ -383,8 +466,6 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
                 <td class="b2b-table-cell b2b-text-center">${i.quantity}</td>
             </tr>
         `).join('');
-
-        const addr = o.address_json ? JSON.parse(o.address_json) : {};
 
         const content = `
             <div class="b2b-account-breadcrumb">
@@ -540,7 +621,7 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
 });
 window.Router.add(/^account\/returns$/, async (match, root) => {
     if (!window.Core.user) return window.Router.navigate(window.APP_BASE + 'login');
-        const data = await window.Core.fetch(`/returns/${id}`);
+    const data = await window.Core.fetch('/returns');
     const esc = window.Core.escapeHtml;
     
     const rows = data.returns.map(r => `
@@ -556,8 +637,34 @@ window.Router.add(/^account\/returns$/, async (match, root) => {
             <td class="b2b-table-cell b2b-text-right"><a href="${window.APP_BASE}account/returns/${r.id}" class="b2b-btn b2b-btn-sm b2b-btn-outline">${accountT('details')}</a></td>
         </tr>
     `).join('');
+    const content = `
+        <header class="b2b-account-header">
+            <div class="b2b-account-header-text">
+                <h1>${accountT('returns')}</h1>
+                <p>${accountT('returnInstructions')}</p>
+            </div>
+        </header>
+        <div class="b2b-card b2b-table-card">
+            <div class="b2b-table-responsive">
+                <table class="b2b-table">
+                    <thead>
+                        <tr>
+                            <th>${accountT('applicationNumber')}</th>
+                            <th>${accountT('applicationDate')}</th>
+                            <th>${accountT('orderNumber')}</th>
+                            <th>${accountT('status')}</th>
+                            <th class="b2b-text-right">${accountT('estimatedValue')}</th>
+                            <th class="b2b-text-right">${accountT('action')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows || `<tr><td colspan="6" class="b2b-table-cell">${accountT('noReturns')}</td></tr>`}</tbody>
+                </table>
+            </div>
+        </div>`;
+    root.innerHTML = accountLayout(content, 'returns');
+    return;
 
-        const content = `
+        const obsoleteContent = `
             <div class="b2b-account-breadcrumb">
                 <a href="${window.APP_BASE}account/returns" class="b2b-back-link" aria-label="${accountT('backToOverview')}">
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>

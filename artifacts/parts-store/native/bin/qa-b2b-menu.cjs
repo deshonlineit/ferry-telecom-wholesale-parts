@@ -62,6 +62,7 @@ app.window.addEventListener = (key, fn) => { windowHandlers[key] = fn; };
 app.window.innerWidth = 1200;
 app.window.APP_BASE = '/test-shop/';
 app.window.location = {href: 'https://shop.example.test/test-shop/catalog', search: '?category=screens&part=oled&brand=99&q=iphone&page=4&quality=OEM&featured=1&limit=48&sort=name'};
+app.location = {pathname: '/test-shop/'};
 
 const catalog = {
     categories: [],
@@ -244,6 +245,9 @@ app.window.Core.fetch = async url => {
         family: {id: 'samsung', label: 'Samsung Galaxy', count: 1561},
         models: app.window.StoreMenu.orderedModels([
             {id: 41, name: 'Samsung Galaxy S25 Ultra', family: 'samsung', sort_order: 2025, order_known: true},
+            {id: 45, name: 'Samsung S21 Ultra', family: 'samsung', sort_order: 2021, order_known: true},
+            {id: 46, name: 'Samsung S21 Plus', family: 'samsung', sort_order: 2021, order_known: true},
+            {id: 47, name: 'Samsung S21', family: 'samsung', sort_order: 2021, order_known: true},
             {id: 42, name: 'Samsung Galaxy A56 5G', family: 'samsung', sort_order: 2025, order_known: true},
             {id: 43, name: 'Samsung Galaxy Z Fold 7 5G', family: 'samsung', sort_order: 2025, order_known: true},
             {id: 44, name: 'Samsung Galaxy Note 20 Ultra', family: 'samsung', sort_order: 2020, order_known: true}
@@ -254,6 +258,13 @@ app.window.Core.fetch = async url => {
     assert(groupedSamsung.indexOf('>Galaxy S<') < groupedSamsung.indexOf('>Galaxy A<'));
     assert(groupedSamsung.indexOf('>Galaxy A<') < groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip<'));
     assert(groupedSamsung.indexOf('>Galaxy Z · Fold &amp; Flip<') < groupedSamsung.indexOf('>Galaxy Note<'));
+    const galaxyS = groupedSamsung.slice(groupedSamsung.indexOf('>Galaxy S<'), groupedSamsung.indexOf('>Galaxy A<'));
+    assert.match(galaxyS, />Samsung S21 Ultra</);
+    assert.match(galaxyS, />Samsung S21 Plus</);
+    assert.match(galaxyS, />Samsung S21</);
+    const otherGalaxy = groupedSamsung.slice(groupedSamsung.indexOf('>Andere Galaxy-modellen<'));
+    assert.doesNotMatch(otherGalaxy, />Samsung S21(?: Ultra| Plus)?</,
+        'Samsung model names without the Galaxy prefix must stay in the Galaxy S group');
     const iphoneEntry = {
         family: {id: 'iphone', label: 'iPhone', count: 1736},
         models: app.window.StoreMenu.orderedModels([

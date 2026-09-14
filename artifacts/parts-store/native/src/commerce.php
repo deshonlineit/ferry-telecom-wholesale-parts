@@ -488,11 +488,12 @@ function commerceQuickAddCart(): never
             throw new HttpError(403, 'An active customer account is required.');
         }
 
+        $productLock = dbDriver() === 'pgsql' ? ' FOR UPDATE OF p' : ' FOR UPDATE';
         $statement = $pdo->prepare(
             "SELECT p.stock,p.minimum_quantity,COALESCE(gp.price_eur_cents,p.list_price_eur_cents) AS price_eur_cents
              FROM products p
              LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=?
-             WHERE p.id=? AND p.active=TRUE AND p.publication_status='visible' FOR UPDATE"
+             WHERE p.id=? AND p.active=TRUE AND p.publication_status='visible'" . $productLock
         );
         $statement->execute([(int) $user['group_id'], $productId]);
         $product = $statement->fetch(PDO::FETCH_ASSOC);

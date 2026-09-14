@@ -1012,13 +1012,16 @@ function workspaceDocumentTotals(array $documents): array
 
 function workspaceDocumentYears(int $userId): array
 {
+    $year = static fn(string $expression): string => dbDriver() === 'pgsql'
+        ? 'EXTRACT(YEAR FROM ' . $expression . ')::int'
+        : 'YEAR(' . $expression . ')';
     $statement = db()->prepare(
         // A provider refund issues no credit note and is dated by its
         // settlement, so a year in which nothing else happened would drop out
         // of the selector while its document is still downloadable.
-        'SELECT DISTINCT YEAR(created_at) AS y FROM orders WHERE user_id=?
-         UNION SELECT DISTINCT YEAR(created_at) FROM customer_credit_notes WHERE user_id=?
-         UNION SELECT DISTINCT YEAR(COALESCE(rs.settled_at,rs.created_at))
+        'SELECT DISTINCT ' . $year('created_at') . ' AS y FROM orders WHERE user_id=?
+         UNION SELECT DISTINCT ' . $year('created_at') . ' FROM customer_credit_notes WHERE user_id=?
+         UNION SELECT DISTINCT ' . $year('COALESCE(rs.settled_at,rs.created_at)') . '
            FROM return_settlements rs
            JOIN returns r ON r.id = rs.return_id
            LEFT JOIN customer_credit_notes cn ON cn.settlement_id = rs.id
