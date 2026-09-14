@@ -796,12 +796,15 @@ function commerceCheckout(): never
 
         // Lock one product at a time in sorted primary-key order. This makes
         // lock acquisition deterministic across simultaneous checkouts.
+        // PostgreSQL must lock only the product row. Applying FOR UPDATE to the
+        // nullable group-price side of this LEFT JOIN is rejected before checkout.
+        $productLock = dbDriver() === 'pgsql' ? ' FOR UPDATE OF p' : ' FOR UPDATE';
         $productStatement = $pdo->prepare(
             'SELECT p.id, p.sku, p.name, p.stock, p.minimum_quantity, p.active,
                     COALESCE(gp.price_eur_cents,p.list_price_eur_cents) AS price_eur_cents
              FROM products p
              LEFT JOIN group_prices gp ON gp.product_id = p.id AND gp.group_id = ?
-             WHERE p.id = ? AND p.publication_status = \'visible\' FOR UPDATE'
+             WHERE p.id = ? AND p.publication_status = \'visible\'' . $productLock
         );
         $items = [];
         $subtotal = 0;

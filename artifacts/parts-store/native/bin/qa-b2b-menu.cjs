@@ -139,10 +139,10 @@ app.window.Core.fetch = async url => {
     documentHandlers.click({target: {}});
     assert.equal(overlay.hidden, true, 'Outside click closes the open dropdown');
     const item = trigger.parentElement;
-    fire(item, 'mouseenter');
-    assert.equal(overlay.hidden, false, 'Pointer entry previews the menu');
+    assert.equal(item.events.mouseenter, undefined, 'Pointer movement never opens the menu');
+    assert.equal(item.events.mouseleave, undefined, 'Pointer movement never closes the menu');
     fire(trigger, 'click');
-    assert.equal(overlay.hidden, false, 'A real pointer-entry then click must not immediately reclose the menu');
+    assert.equal(overlay.hidden, false, 'A deliberate click opens the menu');
     fire(trigger, 'click');
     assert.equal(overlay.hidden, true, 'Second deliberate click closes the pinned menu');
     fire(mobile, 'click');

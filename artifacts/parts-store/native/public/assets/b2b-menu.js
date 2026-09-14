@@ -286,19 +286,17 @@
 
         closeItem(item) {
             if (!item) return;
-            item._openedByHover = false;
             item.classList.remove('is-open');
             item._b2bTrigger?.setAttribute('aria-expanded', 'false');
             setHidden(item._b2bOverlay, true);
             if (Menu._openItem === item) Menu._openItem = null;
         },
 
-        openItem(item, fromHover = false) {
+        openItem(item) {
             if (!item?._b2bOverlay) return;
             if (Menu._openItem && Menu._openItem !== item) Menu.closeItem(Menu._openItem);
             Menu.refreshDestination(item._b2bLink);
             Menu.refreshLinks(item._b2bOverlay);
-            item._openedByHover = fromHover;
             item.classList.add('is-open');
             item._b2bTrigger.setAttribute('aria-expanded', 'true');
             setHidden(item._b2bOverlay, false);
@@ -334,7 +332,7 @@
         },
 
         toggleItem(item) {
-            if (Menu._openItem === item && !item._openedByHover) Menu.closeItem(item);
+            if (Menu._openItem === item) Menu.closeItem(item);
             else Menu.openItem(item);
         },
 
@@ -379,12 +377,6 @@
             trigger.addEventListener('click', event => {
                 event.stopPropagation();
                 Menu.toggleItem(item);
-            });
-            item.addEventListener('mouseenter', () => {
-                if (window.innerWidth > MOBILE_WIDTH && Menu._openItem !== item) Menu.openItem(item, true);
-            });
-            item.addEventListener('mouseleave', () => {
-                if (window.innerWidth > MOBILE_WIDTH && !item.contains(document.activeElement)) Menu.closeItem(item);
             });
             item.appendChild(trigger);
             item.appendChild(overlay);

@@ -27,6 +27,7 @@
 - [Catalog photo lifecycle](catalog-photo-lifecycle.md) — public photos need exact-match provenance; removal, reuse, and permanent erasure must respect references.
 - [Catalogue thumbnail performance](catalogue-thumbnail-performance.md) — list views use eager 320px thumbnails and immutable hashed-media caching; lazy rows visibly lag while scrolling.
 - [PHP catalogue concurrency](php-catalog-concurrency.md) — retain multiple PHP workers and defer menu metadata; serialized catalogue requests created a seven-second critical path.
+- [PostgreSQL outer-join locks](postgres-outer-join-locks.md) — any SELECT with an optional pricing join must use `FOR UPDATE OF p`; unqualified locks are rejected before cart or checkout work.
 - [Identity test rate limits](identity-test-rate-limits.md) — concurrent task checks share one development tenant; reuse session tokens and retry throttled cleanup.
 - [Device scope navigation](device-scope-navigation.md) — brand/family/model are one scope axis: a narrower pick must clear the wider one, and escape-hatch facets must exclude the whole axis.
 - [Device model menu grouping](device-model-menu-grouping.md) — large Samsung and iPhone menus are scanned by product line/generation, never shown as one mixed chronological grid.
@@ -48,6 +49,7 @@
 - [WooCommerce review imports](woocommerce-review-imports.md) — reconcile published products by exact SKU; refresh media from URL-keyed cache instead of trusting old product files.
 - [Catalogue filter hierarchy](catalogue-filter-hierarchy.md) — primary flow is model → part → subtype; brand, quality, and stock stay under optional filters.
 - [Immediate catalogue navigation](immediate-catalogue-navigation.md) — never block the top menu on cold catalogue metadata; render links or cached dropdowns first.
+- [Click-only top navigation](click-only-top-navigation.md) — desktop dropdowns open only after a deliberate click; pointer movement must never open or close them.
 - [Compact model filter](compact-model-filter.md) — model pickers open with 8 recent choices; search is primary and the full grouped list requires an explicit action.
 - [Quick-add animation timing](quick-add-animation-timing.md) — measure cart motion from server success, not click time; the cart pulse should visibly outlast the flyer.
 - [Bundled Stripe sync setup](bundled-stripe-sync-setup.md) — connector uses settings.secret; copy package migrations beside bundled server output so runMigrations finds them.
