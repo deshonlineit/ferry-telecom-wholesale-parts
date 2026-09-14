@@ -62,7 +62,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Use English for all agent replies, questions, task titles, plans, progress updates, summaries, and new project documentation. Preserve customer-facing localisation and source data in their intended languages unless the owner explicitly asks to change them.
 
 ## Gotchas
 

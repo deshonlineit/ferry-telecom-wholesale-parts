@@ -67,12 +67,20 @@
         try { return normalize(localStorage.getItem(storageKey)) || normalize(cookie()); } catch (_) { return normalize(cookie()); }
     };
     const requested = () => normalize(new URLSearchParams(window.location?.search || '').get('lang'));
+    const browser = () => {
+        const browserNavigator = window.navigator || {};
+        const preferences = Array.isArray(browserNavigator.languages) && browserNavigator.languages.length
+            ? browserNavigator.languages
+            : [browserNavigator.language];
+        return preferences.map(normalize).find(Boolean);
+    };
     const requestedLocale = requested();
     const persistedLocale = persisted();
+    const browserLocale = browser();
     const interpolate = (text, values) => String(text).replace(/\{(\w+)\}/g, (_, key) => values && values[key] !== undefined ? String(values[key]) : `{${key}}`);
     const I18n = window.I18n = {
         supported, dictionaries: source,
-        locale: requestedLocale || persistedLocale || 'en',
+        locale: requestedLocale || persistedLocale || browserLocale || 'en',
         explicit: Boolean(requestedLocale || persistedLocale),
         normalize,
         t(key, values) { return interpolate((source[this.locale] && source[this.locale][key]) || source.en[key] || key, values); },
