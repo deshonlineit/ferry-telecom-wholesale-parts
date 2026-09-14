@@ -70,7 +70,6 @@ const adminPaymentMethodLabel = method => ({
     test_card: 'Legacy test card'
 }[method] || method);
 const adminPaymentMethodDefinitions = [
-    {code: 'stripe', label: 'Card payment', help: 'Secure online card checkout. The invoice becomes available after payment is confirmed.'},
     {code: 'pay_later', label: 'Pay later', help: 'Switzerland uses the Swiss QR code on the invoice. Other European countries receive a normal invoice without Swiss QR.'}
 ];
 const adminPaymentStateLabel = state => ({

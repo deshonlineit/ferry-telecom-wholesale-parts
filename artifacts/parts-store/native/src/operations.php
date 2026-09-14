@@ -1431,7 +1431,7 @@ function opAdminGeneral(string $method, string $path): bool
         if (array_key_exists('payment_entitlements', $input)) {
             if (!is_array($input['payment_entitlements'])) throw new HttpError(422, 'Payment entitlements must be an object.');
             foreach ($input['payment_entitlements'] as $method => $enabled) {
-                if (!is_string($method) || !in_array($method, ['stripe', 'twint', 'pay_later', 'swiss_qr_invoice'], true)
+                if (!is_string($method) || !in_array($method, ['twint', 'pay_later', 'swiss_qr_invoice'], true)
                     || !is_bool($enabled)) throw new HttpError(422, 'Invalid payment entitlement.');
                 $entitlementSql = dbDriver() === 'pgsql'
                     ? 'INSERT INTO customer_payment_entitlements(user_id,payment_method,enabled,granted_by,granted_at,revoked_by,revoked_at)

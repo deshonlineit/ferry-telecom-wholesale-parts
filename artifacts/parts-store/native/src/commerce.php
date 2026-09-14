@@ -118,81 +118,6 @@ function commercePaymentTerms(PDO $pdo, string $method, string $currency): ?arra
     return ['kind' => 'pay_later', 'due_days' => $days, 'due_date' => gmdate('Y-m-d', strtotime('+' . $days . ' days'))];
 }
 
-function commerceStripeBridge(int $orderId, bool $allowPayLaterInvoice = false): array
-{
-    if (shopPreviewMode()) {
-        throw new HttpError(403, 'Live payment integrations are disabled in preview mode.');
-    }
-    $pdo = db();
-    $statement = $pdo->prepare(
-        'SELECT id,number,currency,subtotal_cents,shipping_cents,tax_cents,total_cents,payment_method
-         FROM orders WHERE id=?'
-    );
-    $statement->execute([$orderId]);
-    $order = $statement->fetch(PDO::FETCH_ASSOC);
-    if (!$order || ($order['payment_method'] !== 'stripe'
-        && !($allowPayLaterInvoice && $order['payment_method'] === 'pay_later'))) {
-        throw new HttpError(409, 'This order is not eligible for Stripe payment.');
-    }
-    $attemptStatement = $pdo->prepare(
-        "SELECT id FROM payment_attempts
-         WHERE order_id=? AND payment_method='stripe' AND state='pending'
-         ORDER BY id DESC LIMIT 1"
-    );
-    $attemptStatement->execute([$orderId]);
-    $attemptId = $attemptStatement->fetchColumn();
-    if ($attemptId === false) throw new HttpError(409, 'No active Stripe payment attempt exists.');
-    $statement = $pdo->prepare('SELECT name,sku,quantity,price_cents FROM order_items WHERE order_id=? ORDER BY id');
-    $statement->execute([$orderId]);
-    $lines = array_map(static fn(array $line): array => [
-        'name' => (string) $line['name'],
-        'sku' => (string) $line['sku'],
-        'quantity' => (int) $line['quantity'],
-        'unitAmountCents' => (int) $line['price_cents'],
-    ], $statement->fetchAll(PDO::FETCH_ASSOC));
-    if ((int) $order['shipping_cents'] > 0) {
-        $lines[] = ['name' => 'Shipping', 'sku' => 'SHIPPING', 'quantity' => 1, 'unitAmountCents' => (int) $order['shipping_cents']];
-    }
-    if ((int) $order['tax_cents'] > 0) {
-        $lines[] = ['name' => 'VAT', 'sku' => 'VAT', 'quantity' => 1, 'unitAmountCents' => (int) $order['tax_cents']];
-    }
-    $secret = getenv('NATIVE_S2S_SECRET');
-    if (!is_string($secret) || $secret === '') throw new HttpError(503, 'Stripe bridge authentication is unavailable.');
-    $payload = json_encode([
-        'orderId' => (string) $order['id'],
-        'attemptId' => (string) $attemptId,
-        'orderNumber' => (string) $order['number'],
-        'currency' => strtolower((string) $order['currency']),
-        'totalCents' => (int) $order['total_cents'],
-        'lines' => $lines,
-    ], JSON_THROW_ON_ERROR);
-    $curl = curl_init(internalApiBase() . '/api/stripe/native/checkout-session');
-    if ($curl === false) throw new HttpError(503, 'Stripe bridge is unavailable.');
-    curl_setopt_array($curl, [
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'X-Native-Stripe-Bridge-Secret: ' . $secret],
-        CURLOPT_POSTFIELDS => $payload,
-    ]);
-    $raw = curl_exec($curl);
-    $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-    $error = curl_error($curl);
-    curl_close($curl);
-    if (!is_string($raw) || $status < 200 || $status >= 300) {
-        error_log('Stripe bridge request failed: HTTP ' . $status . ($error !== '' ? ' transport error' : ''));
-        throw new HttpError(502, 'The secure payment page is temporarily unavailable. Retry this order without creating a duplicate.');
-    }
-    $response = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
-    if (!is_array($response) || !isset($response['id'], $response['url'])) throw new HttpError(502, 'Stripe returned an invalid payment response.');
-    $pdo->prepare(
-        "UPDATE payment_attempts SET provider_id=?,updated_at=CURRENT_TIMESTAMP
-         WHERE id=? AND provider_event_id IS NULL"
-    )->execute([(string) $response['id'], (int) $attemptId]);
-    return ['stripe_checkout_id' => (string) $response['id'], 'stripe_checkout_url' => (string) $response['url']];
-}
-
 function commerceWalleeBridge(int $orderId): array
 {
     if (shopPreviewMode()) {
@@ -645,7 +570,7 @@ function commerceCheckoutQuote(): never
         throw new HttpError(422, 'Your cart is empty.');
     }
     $methods = [];
-    foreach (['stripe', 'twint', 'pay_later'] as $method) {
+    foreach (['twint', 'pay_later'] as $method) {
         if (commercePaymentEligible(db(), (int) $user['id'], $method)) {
             try {
                 if (!commercePaymentAvailableForCountry($method, (string) $address['country'])) continue;
@@ -690,7 +615,7 @@ function commerceCheckout(): never
     $quoteToken = text($input['quote_token'] ?? '', 128);
     $paymentMethod = text($input['payment_method'] ?? '', 30);
     $shippingMethodCode = text($input['shipping_method'] ?? '', 40);
-    if (!in_array($paymentMethod, ['stripe', 'twint', 'pay_later'], true)) {
+    if (!in_array($paymentMethod, ['twint', 'pay_later'], true)) {
         throw new HttpError(422, 'Choose a supported payment method.');
     }
     $notes = text($input['notes'] ?? '', 4000);
@@ -725,7 +650,6 @@ function commerceCheckout(): never
         $method = db()->prepare('SELECT payment_method FROM orders WHERE id=?');
         $method->execute([(int) $existingReplay['id']]);
         $methodName = $method->fetchColumn();
-        if ($methodName === 'stripe') $response += commerceStripeBridge((int) $existingReplay['id']);
         if ($methodName === 'twint') $response += commerceWalleeBridge((int) $existingReplay['id']);
         respond($response);
     }
@@ -767,7 +691,6 @@ function commerceCheckout(): never
             $method = $pdo->prepare('SELECT payment_method FROM orders WHERE id=?');
             $method->execute([(int) $existing['id']]);
             $methodName = $method->fetchColumn();
-            if ($methodName === 'stripe') $response += commerceStripeBridge((int) $existing['id']);
             if ($methodName === 'twint') $response += commerceWalleeBridge((int) $existing['id']);
             respond($response);
         }
@@ -948,9 +871,8 @@ function commerceCheckout(): never
             'status' => $initialStatus,
             'currency' => $context['currency'],
         ];
-        if (in_array($paymentMethod, ['stripe', 'twint'], true)) $responseOrder['customer_status_label'] = 'Order Received';
+        if ($paymentMethod === 'twint') $responseOrder['customer_status_label'] = 'Order Received';
         $response = ['order' => $responseOrder];
-        if ($paymentMethod === 'stripe') $response += commerceStripeBridge($orderId);
         if ($paymentMethod === 'twint') $response += commerceWalleeBridge($orderId);
         respond($response);
     } catch (Throwable $error) {
@@ -1002,10 +924,7 @@ function commerceOrderDetail(int $orderId): never
     $order['payment_state'] = $row['payment_state'];
     $order['payment_terms'] = $row['payment_terms_json'] === null ? null
         : json_decode((string) $row['payment_terms_json'], true, 32, JSON_THROW_ON_ERROR);
-    $order['pay_invoice_eligible'] = $row['payment_method'] === 'pay_later'
-        && $row['status'] === 'completed'
-        && in_array($row['payment_state'], ['open', 'failed', 'expired'], true)
-        && commercePaymentEligible($pdo, (int) $user['id'], 'stripe');
+    $order['pay_invoice_eligible'] = false;
 
     $statement = $pdo->prepare(
         'SELECT id, product_id, name, sku, quantity, price_cents, total_cents
@@ -1029,33 +948,6 @@ function commerceOrderDetail(int $orderId): never
         'address' => json_decode((string) $row['address_json'], true, 16, JSON_THROW_ON_ERROR),
         'events' => $statement->fetchAll(PDO::FETCH_ASSOC),
     ]);
-}
-
-function commercePayInvoice(int $orderId): never
-{
-    $user = commerceActiveCustomer();
-    $statement = db()->prepare(
-        "SELECT id FROM orders
-         WHERE id=? AND user_id=? AND payment_method='pay_later' AND status='completed'
-           AND payment_state IN ('open','failed','expired')"
-    );
-    $statement->execute([$orderId, (int) $user['id']]);
-    if (!$statement->fetchColumn()) throw new HttpError(409, 'This invoice is not eligible for online payment.');
-    if (!commercePaymentEligible(db(), (int) $user['id'], 'stripe')) {
-        throw new HttpError(403, 'Stripe payment is not enabled for your account.');
-    }
-    $pending = db()->prepare(
-        "SELECT id FROM payment_attempts WHERE order_id=? AND payment_method='stripe' AND state='pending'
-         ORDER BY id DESC LIMIT 1"
-    );
-    $pending->execute([$orderId]);
-    if ($pending->fetchColumn() === false) {
-        db()->prepare(
-            "INSERT INTO payment_attempts(order_id,payment_method,state,payload)
-             VALUES(?,'stripe','pending',?)"
-        )->execute([$orderId, json_encode(['created_by' => 'pay_invoice'], JSON_THROW_ON_ERROR)]);
-    }
-    respond(commerceStripeBridge($orderId, true));
 }
 
 function commerceGetProfile(): never
@@ -1523,9 +1415,6 @@ function handleCommerce(string $method, string $path): bool
     }
     if ($method === 'GET' && preg_match('#^/orders/([1-9][0-9]*)$#', $path, $matches)) {
         commerceOrderDetail((int) $matches[1]);
-    }
-    if ($method === 'POST' && preg_match('#^/orders/([1-9][0-9]*)/pay-invoice$#', $path, $matches)) {
-        commercePayInvoice((int) $matches[1]);
     }
     if ($method === 'GET' && $path === '/profile') {
         commerceGetProfile();

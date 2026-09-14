@@ -550,22 +550,6 @@ window.Router.add(/^account\/returns\/(\d+)$/, async (match, root) => {
         `;
         root.innerHTML = accountLayout(content, 'orders');
 
-        root.querySelector('[data-pay-invoice]')?.addEventListener('click', async event => {
-            const button = event.currentTarget;
-            button.disabled = true;
-            try {
-                const result = await window.Core.fetch(`/orders/${button.dataset.payInvoice}/pay-invoice`, {method: 'POST', body: {}});
-                const target = new URL(result.stripe_checkout_url, window.location.origin);
-                if (!(target.protocol === 'https:' && target.hostname === 'checkout.stripe.com')) {
-                    throw new Error(accountT('unsafePaymentRedirect'));
-                }
-                window.location.assign(target.href);
-            } catch (error) {
-                window.Workbench?.toast(error.message, 'error');
-                button.disabled = false;
-            }
-        });
-        
         const startReturn = (orderId, itemId, maxQty, itemName) => {
             const html = `
                 <form id="return-form" class="b2b-form">

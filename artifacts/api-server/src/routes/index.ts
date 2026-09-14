@@ -8,7 +8,6 @@ import ordersRouter from "./orders";
 import smartSearchRouter from "./smart-search";
 import storageRouter from "./storage";
 import adminRouter from "./admin";
-import stripeRouter from "./stripe";
 import picqerRouter from "./picqer";
 import walleeRouter from "./wallee";
 
@@ -23,7 +22,6 @@ router.use(ordersRouter);
 router.use(smartSearchRouter);
 router.use(storageRouter);
 router.use(adminRouter);
-router.use(stripeRouter);
 router.use(picqerRouter);
 router.use(walleeRouter);
 
