@@ -389,23 +389,23 @@ function catalogFrameIntent(string $search): ?string
 function catalogApplyFrameIntent(array &$where, string $search): void
 {
     $intent = catalogFrameIntent($search);
+    if ($intent === null) return;
     $name = 'LOWER(p.name)';
-    if ($intent === 'without') {
-        $where[] = "($name LIKE '%no frame%'
-            OR $name LIKE '%without frame%'
-            OR $name LIKE '%zonder frame%'
-            OR $name LIKE '%ohne rahmen%'
-            OR $name LIKE '%sans cadre%'
-            OR $name LIKE '%senza cornice%')";
-        return;
-    }
-    if ($intent !== 'with') return;
-    $where[] = "$name NOT LIKE '%no frame%'
-        AND $name NOT LIKE '%without frame%'
-        AND $name NOT LIKE '%zonder frame%'
-        AND $name NOT LIKE '%ohne rahmen%'
-        AND $name NOT LIKE '%sans cadre%'
-        AND $name NOT LIKE '%senza cornice%'";
+    $negativeConnector = "($name LIKE '%zonder %'
+        OR $name LIKE '%no %'
+        OR $name LIKE '%without %'
+        OR $name LIKE '%ohne %'
+        OR $name LIKE '%sans %'
+        OR $name LIKE '%senza %')";
+    $frameWord = "($name LIKE '%frame%'
+        OR $name LIKE '%kader%'
+        OR $name LIKE '%bezel%'
+        OR $name LIKE '%chassis%'
+        OR $name LIKE '%rahmen%'
+        OR $name LIKE '%cadre%'
+        OR $name LIKE '%cornice%')";
+    $frameless = "($negativeConnector AND $frameWord)";
+    $where[] = $intent === 'without' ? $frameless : "NOT $frameless";
 }
 
 function catalogIsFrameQualifier(string $term, string $search): bool

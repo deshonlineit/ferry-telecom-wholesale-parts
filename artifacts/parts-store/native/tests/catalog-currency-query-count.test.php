@@ -40,9 +40,14 @@ try {
     }
 
     $exchangeRateQueries = 0;
+    $productMetadataQueries = 0;
     $GLOBALS['currency_exchange_rate_query_observer'] =
         static function () use (&$exchangeRateQueries): void {
             ++$exchangeRateQueries;
+        };
+    $GLOBALS['catalog_product_metadata_query_observer'] =
+        static function () use (&$productMetadataQueries): void {
+            ++$productMetadataQueries;
         };
 
     $result = catalogProductList([
@@ -59,10 +64,28 @@ try {
         $exchangeRateQueries === 1,
         "A multi-product catalogue request queried the exchange rate $exchangeRateQueries times instead of once."
     );
+    catalogCurrencyQueryAssert(
+        $productMetadataQueries === 0,
+        "Product enrichment repeated the brand/category query $productMetadataQueries times."
+    );
+    catalogCurrencyQueryAssert(
+        array_reduce(
+            $result['products'],
+            static fn(bool $valid, array $product): bool =>
+                $valid
+                && ($product['category_name'] ?? null) === 'QA currency query count'
+                && array_key_exists('brand_name', $product)
+                && !array_key_exists('_brand_name', $product)
+                && !array_key_exists('_category_name', $product),
+            true
+        ),
+        'Main-query product metadata was not preserved cleanly during enrichment.'
+    );
 
-    echo "catalogue currency query count test passed\n";
+    echo "catalogue query count test passed\n";
 } finally {
     unset($GLOBALS['currency_exchange_rate_query_observer']);
+    unset($GLOBALS['catalog_product_metadata_query_observer']);
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }

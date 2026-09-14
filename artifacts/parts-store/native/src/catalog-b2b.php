@@ -32,6 +32,10 @@ function catalogEnrichProducts(array $products, ?array $user): array
             ];
         }
     } else {
+        $observer = $GLOBALS['catalog_product_metadata_query_observer'] ?? null;
+        if (is_callable($observer)) {
+            $observer();
+        }
         $statement = db()->prepare(
             "SELECT p.id,b.name AS brand_name,c.name AS category_name
              FROM products p
@@ -65,6 +69,7 @@ function catalogEnrichProducts(array $products, ?array $user): array
     }
 
     return array_map(static function (array $product) use ($metadata, $user): array {
+        unset($product['_brand_name'], $product['_category_name']);
         $public = catalogProductWithPartType($product, $user);
         $extra = $metadata[(int) $product['id']] ?? [
             'brand_name' => null, 'category_name' => null, 'models' => [],

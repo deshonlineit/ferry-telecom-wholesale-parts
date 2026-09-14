@@ -45,7 +45,6 @@
 - [Smart-search privacy boundary](smart-search-privacy.md) — learn from intent and outcomes, never send customers’ raw search text to analytics.
 - [Smart-search model numbers](smart-search-model-numbers.md) — standalone numbers are device intent, not digit fragments inside SKUs or supplier codes.
 - [Smart-search typo tolerance](smart-search-typo-tolerance.md) — correct clear word misspellings centrally, but never alter model numbers, SKU-like codes, or ambiguous words.
-- [Smart-search qualifiers](smart-search-qualifiers.md) — semantic qualifiers such as with/without frame must preserve polarity across supplier languages, not become loose substring synonyms.
 - [WooCommerce review imports](woocommerce-review-imports.md) — reconcile published products by exact SKU; refresh media from URL-keyed cache instead of trusting old product files.
 - [Catalogue filter hierarchy](catalogue-filter-hierarchy.md) — primary flow is model → part → subtype; brand, quality, and stock stay under optional filters.
 - [Immediate catalogue navigation](immediate-catalogue-navigation.md) — never block the top menu on cold catalogue metadata; render links or cached dropdowns first.
