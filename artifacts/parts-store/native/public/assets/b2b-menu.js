@@ -246,7 +246,7 @@
 
         load() {
             const request = ++Menu._request;
-            return window.Core.fetch('/catalog').then(catalog => {
+            return window.Core.fetch('/catalog?menu=1').then(catalog => {
                 if (request === Menu._request) {
                     try { localStorage.setItem(MENU_CACHE_KEY, JSON.stringify({at: Date.now(), catalog})); } catch (_) {}
                     Menu.renderMegaMenu(Menu._container, catalog);

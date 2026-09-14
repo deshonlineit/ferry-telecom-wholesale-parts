@@ -9,7 +9,7 @@ function handleCatalog(string $method, string $path): bool
         return false;
     }
     if ($path === '/catalog') {
-        respond(catalogFacets($_GET));
+        respond(isset($_GET['menu']) ? catalogMenuFacets() : catalogFacets($_GET));
     }
     if ($path === '/products') {
         respond(catalogProductList($_GET, currentUser()));

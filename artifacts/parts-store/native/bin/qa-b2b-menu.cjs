@@ -88,7 +88,7 @@ const catalog = {
 let requests = 0;
 let rejectFirst = true;
 app.window.Core.fetch = async url => {
-    assert.equal(url, '/catalog');
+    assert.equal(url, '/catalog?menu=1');
     requests++;
     if (rejectFirst) {
         rejectFirst = false;

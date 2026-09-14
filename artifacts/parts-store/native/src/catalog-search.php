@@ -62,6 +62,50 @@ function catalogUnfilteredFacets(): array
 }
 
 /**
+ * The top navigation needs the catalogue taxonomy, not seven additional
+ * contextual product-count queries. Derive family ordering from the already
+ * loaded model rows so a cold menu click stays fast.
+ */
+function catalogMenuFacets(): array
+{
+    $cachePath = sys_get_temp_dir() . '/ferry-catalog-menu-v2.json';
+    $cached = @file_get_contents($cachePath);
+    if ($cached !== false) {
+        $payload = json_decode($cached, true);
+        if (is_array($payload)
+            && (int) ($payload['cached_at'] ?? 0) >= time() - 300
+            && is_array($payload['facets'] ?? null)
+        ) {
+            return $payload['facets'];
+        }
+    }
+
+    $base = catalogUnfilteredFacets();
+    $familyCounts = [];
+    foreach ($base['models'] as $model) {
+        $family = (string) ($model['family'] ?? '');
+        if ($family !== '') {
+            $familyCounts[$family] = ($familyCounts[$family] ?? 0) + (int) ($model['count'] ?? 0);
+        }
+    }
+    $base['device_families'] = array_map(static fn (array $family): array => [
+        'id' => $family['id'],
+        'label' => $family['label'],
+        'count' => $familyCounts[$family['id']] ?? 0,
+        'groups' => $family['groups'],
+    ], deviceFamilyDefinitions());
+    unset($base['qualities'], $base['total']);
+    $temporaryPath = $cachePath . '.' . getmypid() . '.tmp';
+    $encoded = json_encode(['cached_at' => time(), 'facets' => $base], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($encoded !== false && @file_put_contents($temporaryPath, $encoded, LOCK_EX) !== false) {
+        @rename($temporaryPath, $cachePath);
+    } else {
+        @unlink($temporaryPath);
+    }
+    return $base;
+}
+
+/**
  * Build the one product predicate used by listings and contextual facet counts.
  * Exclusions implement "selfless" facets without changing search interpretation.
  *
