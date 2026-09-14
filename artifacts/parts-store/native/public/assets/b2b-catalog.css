@@ -599,7 +599,7 @@ body:not(:has(.admin-shell)) .b2b-prod-title a:focus-visible {
     background-size: 200% 100%;
     animation: catalog-veil 1.2s linear infinite;
 }
-.is-catalog-refreshing [data-catalog-results] { position: relative; opacity: .72; }
+.is-catalog-refreshing [data-catalog-results] { position: relative; opacity: 1; }
 .catalog-refresh-error {
     display: flex;
     align-items: center;

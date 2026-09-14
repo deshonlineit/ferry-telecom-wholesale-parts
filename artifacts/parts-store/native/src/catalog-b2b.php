@@ -17,20 +17,36 @@ function catalogEnrichProducts(array $products, ?array $user): array
     $marks = implode(',', array_fill(0, count($ids), '?'));
     $metadata = [];
 
-    $statement = db()->prepare(
-        "SELECT p.id,b.name AS brand_name,c.name AS category_name
-         FROM products p
-         LEFT JOIN brands b ON b.id=p.brand_id
-         LEFT JOIN categories c ON c.id=p.category_id
-         WHERE p.id IN ($marks)"
+    $hasInlineMetadata = array_reduce(
+        $products,
+        static fn(bool $complete, array $product): bool =>
+            $complete && array_key_exists('_brand_name', $product) && array_key_exists('_category_name', $product),
+        true
     );
-    $statement->execute($ids);
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $metadata[(int) $row['id']] = [
-            'brand_name' => $row['brand_name'],
-            'category_name' => $row['category_name'],
-            'models' => [],
-        ];
+    if ($hasInlineMetadata) {
+        foreach ($products as $product) {
+            $metadata[(int)$product['id']] = [
+                'brand_name' => $product['_brand_name'],
+                'category_name' => $product['_category_name'],
+                'models' => [],
+            ];
+        }
+    } else {
+        $statement = db()->prepare(
+            "SELECT p.id,b.name AS brand_name,c.name AS category_name
+             FROM products p
+             LEFT JOIN brands b ON b.id=p.brand_id
+             LEFT JOIN categories c ON c.id=p.category_id
+             WHERE p.id IN ($marks)"
+        );
+        $statement->execute($ids);
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $metadata[(int)$row['id']] = [
+                'brand_name' => $row['brand_name'],
+                'category_name' => $row['category_name'],
+                'models' => [],
+            ];
+        }
     }
 
     $statement = db()->prepare(
@@ -82,6 +98,9 @@ function catalogB2bSearch(array $input, ?array $user): array
     $aliases = catalogCategoryAliases();
     $matchedCategorySlugs = [];
     foreach ($terms as $term) {
+        if (catalogIsFrameQualifier($term, $search)) {
+            continue;
+        }
         if (preg_match('/^\d{1,4}$/', $term)) {
             // A standalone number is normally a device model. Do not let it match
             // digits buried inside a SKU or supplier code such as GH82-28143A.
@@ -132,6 +151,7 @@ function catalogB2bSearch(array $input, ?array $user): array
         }
         $where[] = $termWhere . ')';
     }
+    catalogApplyFrameIntent($where, $search);
     $partStatement = db()->prepare(
         'SELECT c.id,c.name,c.slug,COUNT(*) AS count,
             MAX(NULLIF(p.image_url,\'\')) AS image_url

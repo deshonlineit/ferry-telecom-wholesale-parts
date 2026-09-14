@@ -240,6 +240,7 @@
         }
     };
     D.catalogMetadata = new Map();
+    D.lastCatalogMetadata = null;
     D.catalogCacheKey = params => {
         const key = getParams(params);
         key.delete('page');
@@ -249,21 +250,27 @@
     D.getCatalog = (params, key, signal) => {
         const entry = D.catalogMetadata.get(key);
         const now = Date.now();
-        if (entry && now - entry.at < 60000) return Promise.resolve(entry.data);
+        if (entry && now - entry.at < 60000) {
+            D.lastCatalogMetadata = entry.data;
+            return Promise.resolve(entry.data);
+        }
         // A stale facet snapshot is still structurally valid for this filter
         // context. Use it now, then refresh the next visit without delaying
         // the independently fetched product result.
-        if (entry) {
+        const fallback = entry?.data || D.lastCatalogMetadata;
+        if (fallback) {
             window.Core.fetch('/catalog?' + getParams(params).toString(), {signal}).then(data => {
                 D.catalogMetadata.set(key, {data, at: Date.now()});
+                D.lastCatalogMetadata = data;
             }).catch(error => {
                 if (error?.name !== 'AbortError') console.warn('Catalogue facets refresh failed', error);
             });
-            return Promise.resolve(entry.data);
+            return Promise.resolve(fallback);
         }
         const request = window.Core.fetch('/catalog?' + getParams(params).toString(), {signal});
         return request.then(data => {
             D.catalogMetadata.set(key, {data, at: Date.now()});
+            D.lastCatalogMetadata = data;
             return data;
         });
     };
@@ -312,7 +319,6 @@
         const results = shell.querySelector('[data-catalog-results]');
         if (results) {
             results.setAttribute('aria-busy', String(busy));
-            results.toggleAttribute('inert', busy);
         }
         if (busy) {
             shell.querySelectorAll('.quick-category, .part-type-option').forEach(link => {

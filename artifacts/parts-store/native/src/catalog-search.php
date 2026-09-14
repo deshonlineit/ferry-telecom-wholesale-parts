@@ -96,6 +96,9 @@ function catalogProductCondition(array $input, array $exclude = []): array
             $where[] = '1=0';
         }
         foreach ($tokens as $term) {
+            if (catalogIsFrameQualifier($term, $search)) {
+                continue;
+            }
             if (in_array($term, $ignoredSubtypeTokens, true)) {
                 continue;
             }
@@ -155,6 +158,7 @@ function catalogProductCondition(array $input, array $exclude = []): array
             $where[] = $partPredicate['condition'];
             array_push($parameters, ...$partPredicate['parameters']);
         }
+        catalogApplyFrameIntent($where, $search);
     }
     foreach (['brand' => 'brand_id', 'category' => 'category_id'] as $key => $column) {
         if (!in_array($key, $exclude, true) && isset($input[$key]) && $input[$key] !== '') {
@@ -345,6 +349,8 @@ function catalogCategoryAliases(): array
 function catalogSearchTermVariants(string $term): array
 {
     $groups = [
+        ['zonder', 'no', 'without', 'ohne', 'sans', 'senza'],
+        ['frame', 'kader', 'bezel', 'chassis', 'rahmen', 'cadre', 'cornice'],
         ['black', 'zwart', 'schwarz'],
         ['white', 'wit', 'weiss', 'weiß'],
         ['blue', 'blauw', 'blau'],
@@ -365,6 +371,47 @@ function catalogSearchTermVariants(string $term): array
         }
     }
     return [$term];
+}
+
+function catalogFrameIntent(string $search): ?string
+{
+    $normalized = preg_replace('/\s+/u', ' ', mb_strtolower(trim($search), 'UTF-8'));
+    $frame = '(?:frame|kader|bezel|chassis|rahmen|cadre|cornice)';
+    if (preg_match('/\b(?:zonder|no|without|ohne|sans|senza)\s+' . $frame . '\b/u', $normalized)) {
+        return 'without';
+    }
+    if (preg_match('/\b(?:met|with|mit|avec|con)\s+' . $frame . '\b/u', $normalized)) {
+        return 'with';
+    }
+    return null;
+}
+
+function catalogApplyFrameIntent(array &$where, string $search): void
+{
+    $intent = catalogFrameIntent($search);
+    $name = 'LOWER(p.name)';
+    if ($intent === 'without') {
+        $where[] = "($name LIKE '%no frame%'
+            OR $name LIKE '%without frame%'
+            OR $name LIKE '%zonder frame%'
+            OR $name LIKE '%ohne rahmen%'
+            OR $name LIKE '%sans cadre%'
+            OR $name LIKE '%senza cornice%')";
+        return;
+    }
+    if ($intent !== 'with') return;
+    $where[] = "$name NOT LIKE '%no frame%'
+        AND $name NOT LIKE '%without frame%'
+        AND $name NOT LIKE '%zonder frame%'
+        AND $name NOT LIKE '%ohne rahmen%'
+        AND $name NOT LIKE '%sans cadre%'
+        AND $name NOT LIKE '%senza cornice%'";
+}
+
+function catalogIsFrameQualifier(string $term, string $search): bool
+{
+    return catalogFrameIntent($search) !== null
+        && in_array($term, ['zonder', 'no', 'without', 'ohne', 'sans', 'senza', 'met', 'with', 'mit', 'avec', 'con'], true);
 }
 
 /** @return list<string> */
@@ -410,6 +457,8 @@ function catalogCorrectSearchTokens(array $tokens): array
             'red', 'rood', 'green', 'groen', 'yellow', 'geel', 'grey', 'gray',
             'grijs', 'purple', 'paars', 'pink', 'roze', 'orange', 'oranje',
             'gold', 'goud', 'silver', 'zilver', 'brown', 'bruin',
+            'zonder', 'no', 'without', 'ohne', 'sans', 'senza',
+            'frame', 'kader', 'bezel', 'chassis', 'rahmen', 'cadre', 'cornice',
             'oled', 'lcd', 'original', 'premium', 'pulled', 'servicepack',
         ]);
         $rows = db()->query(
@@ -632,7 +681,13 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
             $order = "$categoryRank ASC,$screenTypeRank ASC,$housingRank ASC,p.stock>0 DESC,p.featured DESC,p.image_url<>'' DESC,p.id DESC";
         }
     }
-    $query = db()->prepare("SELECT p.* FROM products p $categoryJoin $priceJoin WHERE $condition ORDER BY $order LIMIT ? OFFSET ?");
+    $metadataJoin = ' LEFT JOIN brands product_brand ON product_brand.id=p.brand_id
+                      LEFT JOIN categories product_category ON product_category.id=p.category_id ';
+    $query = db()->prepare(
+        "SELECT p.*,product_brand.name AS _brand_name,product_category.name AS _category_name
+         FROM products p $categoryJoin $priceJoin $metadataJoin
+         WHERE $condition ORDER BY $order LIMIT ? OFFSET ?"
+    );
     $query->execute([...$priceParams, ...$parameters, ...$orderParams, $limit, ($page - 1) * $limit]);
     $context = currencyContext();
     return [
