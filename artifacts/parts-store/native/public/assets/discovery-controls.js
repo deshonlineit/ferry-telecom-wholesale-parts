@@ -405,7 +405,7 @@
             pixel: 'Google Pixel'
         };
         const rawDevice = params.get('family') || '';
-            const device = model?.name || family?.label || deviceBrand?.name || '';
+        const device = familyNames[rawDevice] || rawDevice;
         const loadingText = device ? `${t('loadingParts')} ${t('for')} ${device}` : t('loadingParts');
         const rows = [1, 2, 3, 4, 5].map(() => `<div class="catalog-skeleton-row" aria-hidden="true">
             <i class="catalog-skeleton-photo"></i>

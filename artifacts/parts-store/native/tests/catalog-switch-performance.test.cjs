@@ -48,6 +48,11 @@ const context = vm.createContext({
 vm.runInContext(source, context);
 const discovery = context.window.Discovery;
 discovery.catalogRefreshDelay = 0;
+assert.match(
+    source,
+    /const rawDevice = params\.get\('family'\) \|\| '';\s*const device = familyNames\[rawDevice\] \|\| rawDevice;/,
+    'Catalogue skeleton must derive its loading label without unavailable catalogue variables.'
+);
 let completed = false;
 process.on('beforeExit', () => {
     if (!completed) {
