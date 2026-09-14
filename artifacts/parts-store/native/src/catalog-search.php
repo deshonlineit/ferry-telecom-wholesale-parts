@@ -210,7 +210,11 @@ function catalogProductCondition(array $input, array $exclude = []): array
             $parameters[] = integer($input[$key], 1);
         }
     }
-    if (!in_array('family', $exclude, true) && !empty($input['family'])) {
+    if (
+        !in_array('family', $exclude, true)
+        && !empty($input['family'])
+        && (in_array('model', $exclude, true) || empty($input['model']))
+    ) {
         $family = text($input['family'], 30);
         $allowed = array_column(deviceFamilyDefinitions(), 'id');
         if (!in_array($family, $allowed, true)) throw new HttpError(400, 'Unknown device family.');
@@ -642,7 +646,7 @@ function catalogMatchedFacets(array $facets, string $search): array
 function catalogProductList(array $input, ?array $user, ?array $facets = null): array
 {
     $page = integer($input['page'] ?? 1, 1, 100000);
-    $limit = integer($input['limit'] ?? 50, 1, 100);
+    $limit = integer($input['limit'] ?? 12, 1, 100);
     $predicate = catalogProductCondition($input);
     $condition = $predicate['condition'];
     $parameters = $predicate['parameters'];

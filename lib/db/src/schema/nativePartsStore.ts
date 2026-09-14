@@ -92,7 +92,9 @@ export const partsStoreproductsTable = partsStore.table("products", {
 export const partsStoreproductModelsTable = partsStore.table("product_models", {
   productId: integer("product_id").notNull(),
   modelId: integer("model_id").notNull(),
-});
+}, (table) => [
+  index("product_models_model_product_idx").on(table.modelId, table.productId),
+]);
 
 export const partsStoreproductModelSourcesTable = partsStore.table("product_model_sources", {
   productId: integer("product_id").notNull(),

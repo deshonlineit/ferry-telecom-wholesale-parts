@@ -75,8 +75,8 @@
         },
         renderDeviceFields(catalog, params, prefix) {
             params = getParams(params);
-            const brand = params.get('brand') || '';
             const model = catalog.models.find(item => String(item.id) === params.get('model'));
+            const deviceBrand = params.get('device_brand') || model?.brand_id || '';
             const category = params.get('category') || '';
             return `<div class="device-fields">
                 <div class="field filter-step ${model ? 'has-value' : ''}" data-step="1"><label id="${prefix}-model-label">${t('model')}</label>
@@ -89,7 +89,7 @@
                                 <input class="form-control model-search" type="search" placeholder="${t('searchModelExample')}" aria-label="${t('searchModels')}" autocomplete="off">
                             </label>
                             <p class="model-search-help">${t('searchModelHint')}</p>
-                            <div class="model-options">${D.renderModelOptions(catalog, brand, model?.id || '')}</div>
+                            <div class="model-options">${D.renderModelOptions(catalog, deviceBrand, model?.id || '')}</div>
                             <p class="model-empty" hidden>${t('noMatchingModel')}</p>
                         </div>
                     </details>
@@ -139,8 +139,8 @@
             let catalog = initialCatalog;
             let sequence = 0;
             let modelsExpanded = false;
-            const brand = form.elements.namedItem('brand');
             const model = form.elements.namedItem('model');
+            let modelBrand = catalog.models.find(item => String(item.id) === String(model.value))?.brand_id || '';
             const category = form.elements.namedItem('category');
             const part = form.elements.namedItem('part');
             const picker = form.querySelector('.model-picker');
@@ -155,15 +155,15 @@
                 });
             };
             const filterModels = () => {
-                const result = D.modelResults(catalog, brand.value, model.value, search.value, modelsExpanded);
-                options.innerHTML = D.renderModelOptions(catalog, brand.value, model.value, search.value, modelsExpanded);
+                const result = D.modelResults(catalog, modelBrand, model.value, search.value, modelsExpanded);
+                options.innerHTML = D.renderModelOptions(catalog, modelBrand, model.value, search.value, modelsExpanded);
                 form.querySelector('.model-empty').hidden = result.models.length > 0;
             };
             search.addEventListener('input', filterModels);
             search.addEventListener('keydown', event => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    const matches = D.modelResults(catalog, brand.value, model.value, search.value, true).models;
+                    const matches = D.modelResults(catalog, modelBrand, model.value, search.value, true).models;
                     if (matches.length === 1) options.querySelector('[data-model]:not([data-model=""])')?.click();
                     else options.querySelector('[data-model]:not([data-model=""])')?.focus();
                 }
@@ -187,7 +187,7 @@
                 const choice = event.target.closest('[data-model]');
                 if (!choice) return;
                 model.value = choice.dataset.model;
-                if (choice.dataset.brand) brand.value = choice.dataset.brand;
+                modelBrand = choice.dataset.brand || '';
                 caption.textContent = choice.dataset.name;
                 picker.open = false;
                 syncFieldStates();
@@ -196,12 +196,6 @@
             });
             form.addEventListener('change', async event => {
                 if (event.target === category && part) part.value = '';
-                if (event.target === brand) {
-                    model.value = '';
-                    caption.textContent = t('allModels');
-                    modelsExpanded = false;
-                    options.innerHTML = D.renderModelOptions(catalog, brand.value, '');
-                }
                 syncFieldStates();
                 if (onChange && onChange(values()) === false) return;
                 if (!['brand', 'model', 'category', 'part', 'quality', 'stock'].includes(event.target.name)) return;
@@ -217,7 +211,7 @@
                     const next = await window.Core.fetch('/catalog?' + context.toString());
                     if (version !== sequence || !form.isConnected) return;
                     catalog = next;
-                    options.innerHTML = D.renderModelOptions(catalog, brand.value, model.value, search.value, modelsExpanded);
+                    options.innerHTML = D.renderModelOptions(catalog, modelBrand, model.value, search.value, modelsExpanded);
                     filterModels();
                     const selectedCategory = category.value;
                     category.innerHTML = `<option value="">${t('allParts')}</option>` + window.App.sortCategories(next.categories)
@@ -241,11 +235,31 @@
     };
     D.catalogMetadata = new Map();
     D.lastCatalogMetadata = null;
+    D.catalogRefreshTimers = new Map();
+    D.catalogRefreshDelay = 1200;
     D.catalogCacheKey = params => {
         const key = getParams(params);
         key.delete('page');
         key.delete('sort');
         return [...key.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&');
+    };
+    D.queueCatalogRefresh = (params, key, signal) => {
+        if (D.catalogRefreshTimers.has(key)) return;
+        const timer = setTimeout(() => {
+            D.catalogRefreshTimers.delete(key);
+            if (signal?.aborted) return;
+            window.Core.fetch('/catalog?' + getParams(params).toString(), {signal}).then(data => {
+                D.catalogMetadata.set(key, {data, at: Date.now()});
+                D.lastCatalogMetadata = data;
+            }).catch(error => {
+                if (error?.name !== 'AbortError') console.warn('Catalogue facets refresh failed', error);
+            });
+        }, D.catalogRefreshDelay);
+        D.catalogRefreshTimers.set(key, timer);
+        signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            D.catalogRefreshTimers.delete(key);
+        }, {once: true});
     };
     D.getCatalog = (params, key, signal) => {
         const entry = D.catalogMetadata.get(key);
@@ -259,19 +273,23 @@
         // the independently fetched product result.
         const fallback = entry?.data || D.lastCatalogMetadata;
         if (fallback) {
-            window.Core.fetch('/catalog?' + getParams(params).toString(), {signal}).then(data => {
-                D.catalogMetadata.set(key, {data, at: Date.now()});
-                D.lastCatalogMetadata = data;
-            }).catch(error => {
-                if (error?.name !== 'AbortError') console.warn('Catalogue facets refresh failed', error);
-            });
+            D.queueCatalogRefresh(params, key, signal);
             return Promise.resolve(fallback);
         }
-        const request = window.Core.fetch('/catalog?' + getParams(params).toString(), {signal});
+        // A direct catalogue visit must not wait for the expensive contextual
+        // count query. The shared menu snapshot has all structural taxonomy
+        // needed to render; exact counts can arrive after products are visible.
+        const request = window.Core.fetch('/catalog?menu=1', {signal});
         return request.then(data => {
-            D.catalogMetadata.set(key, {data, at: Date.now()});
-            D.lastCatalogMetadata = data;
-            return data;
+            const snapshot = {
+                ...data,
+                qualities: data.qualities || [],
+                total: data.total || 0
+            };
+            D.catalogMetadata.set(key, {data: snapshot, at: 0});
+            D.lastCatalogMetadata = snapshot;
+            D.queueCatalogRefresh(params, key, signal);
+            return snapshot;
         });
     };
     D.catalogSkeleton = input => {

@@ -18,4 +18,6 @@ menu-specific response, cache only public catalogue-menu data, refresh in the
 background, and version the server cache filename when its response shape
 changes. On a cold catalogue route, start session, products, and facets
 together; cart refresh must never gate results. Test navigation separately
-from legitimate content loading states.
+from legitimate content loading states. Contextual facet counts may refresh
+after rendering; never let their expensive query block already-available
+product rows.

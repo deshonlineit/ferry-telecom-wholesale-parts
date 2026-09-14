@@ -11,8 +11,12 @@ const css = fs.readFileSync(
     path.join(__dirname, '../public/assets/b2b-catalog.css'),
     'utf8'
 );
+const quickFinderSource = fs.readFileSync(
+    path.join(__dirname, '../public/assets/quick-finder.js'),
+    'utf8'
+);
 
-let fetchCalls = 0;
+const fetchCalls = [];
 let resolveRefresh;
 const refreshRequest = new Promise(resolve => {
     resolveRefresh = resolve;
@@ -22,9 +26,9 @@ const context = vm.createContext({
         APP_BASE: '/test-shop/',
         Core: {
             escapeHtml: String,
-            fetch() {
-                fetchCalls += 1;
-                if (fetchCalls === 1) {
+            fetch(url) {
+                fetchCalls.push(url);
+                if (fetchCalls.length === 1) {
                     return Promise.resolve({categories: [{id: 1, name: 'Screens'}]});
                 }
                 return refreshRequest;
@@ -37,10 +41,13 @@ const context = vm.createContext({
     document: {addEventListener() {}},
     URLSearchParams,
     URL,
+    setTimeout,
+    clearTimeout,
     console,
 });
 vm.runInContext(source, context);
 const discovery = context.window.Discovery;
+discovery.catalogRefreshDelay = 0;
 let completed = false;
 process.on('beforeExit', () => {
     if (!completed) {
@@ -52,6 +59,8 @@ process.on('beforeExit', () => {
 (async () => {
     const firstKey = discovery.catalogCacheKey('category=1');
     const first = await discovery.getCatalog('category=1', firstKey);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(fetchCalls[0], '/catalog?menu=1', 'A cold catalogue must use the lightweight shared snapshot.');
 
     const switchedKey = discovery.catalogCacheKey('category=2');
     let timeout;
@@ -65,7 +74,8 @@ process.on('beforeExit', () => {
         }),
     ]).finally(() => clearTimeout(timeout));
     assert.equal(switched, first, 'A new catalogue context must immediately reuse loaded metadata.');
-    assert.equal(fetchCalls, 2, 'The reused snapshot must still start one background metadata refresh.');
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(fetchCalls.length, 3, 'Cold load and context switch must each queue one exact background refresh.');
 
     let inertChanges = 0;
     const resultAttributes = {};
@@ -97,6 +107,16 @@ process.on('beforeExit', () => {
         source,
         /results\.toggleAttribute\(\s*['"]inert['"]/,
         'The refresh path must keep existing product controls interactive.'
+    );
+    assert.doesNotMatch(
+        source,
+        /choice\.dataset\.brand\)\s*brand\.value\s*=/,
+        'Choosing a compatible device model must never set the product manufacturer filter.'
+    );
+    assert.doesNotMatch(
+        quickFinderSource,
+        /\{\s*brand:\s*model\.brand_id/,
+        'Quick model navigation must keep device compatibility separate from product manufacturer.'
     );
     assert.match(
         css,

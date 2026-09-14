@@ -52,7 +52,7 @@
             // The finder reaches models outside the current family, so a family that the
             // chosen model does not belong to must go: keeping both intersects into nothing.
             const family = currentFamily && model.family && currentFamily !== model.family ? '' : currentFamily;
-            return window.Discovery.buildUrl(params, {brand: model.brand_id, model: model.id, device_brand: '', family, q: ''});
+            return window.Discovery.buildUrl(params, {model: model.id, device_brand: '', family, q: ''});
         },
         // A keyboard choice navigates itself. Dispatching a synthetic click instead makes the
         // jump depend on the document router seeing that event, which is one bubble too many.

@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS products (
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS product_models (
  product_id INT UNSIGNED NOT NULL, model_id INT UNSIGNED NOT NULL, PRIMARY KEY(product_id,model_id),
+ INDEX(model_id,product_id),
  FOREIGN KEY(product_id) REFERENCES products(id), FOREIGN KEY(model_id) REFERENCES device_models(id)
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS product_model_sources (
