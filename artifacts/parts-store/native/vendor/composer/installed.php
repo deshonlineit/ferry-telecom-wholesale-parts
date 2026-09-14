@@ -3,7 +3,7 @@
         'name' => 'ferry-telecom/native-store',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '199c152dc5f5e071f40c3293a84777c90650ee31',
+        'reference' => '87f810f9d0c368c5d7f07b1dd40b1254c4bee81b',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -67,7 +67,7 @@
         'ferry-telecom/native-store' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '199c152dc5f5e071f40c3293a84777c90650ee31',
+            'reference' => '87f810f9d0c368c5d7f07b1dd40b1254c4bee81b',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
