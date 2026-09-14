@@ -5,6 +5,27 @@
     const allowed = ['q', 'department', 'category', 'part', 'brand', 'device_brand', 'family', 'model', 'quality', 'stock', 'featured', 'sort', 'page', 'limit'];
     const getParams = value => new URLSearchParams(value instanceof URLSearchParams ? value.toString() : value || '');
     const D = window.Discovery = {
+        trackHousingGuide(name, data) {
+            try {
+                window.umami?.track(name, data);
+            } catch (_) {
+                // Catalogue navigation must never depend on analytics.
+            }
+        },
+        bindHousingGuideAnalytics(root, modelFamily = '') {
+            root.dataset.housingModelFamily = String(modelFamily || '');
+            if (root.dataset.housingAnalyticsBound === 'true') return;
+            root.dataset.housingAnalyticsBound = 'true';
+            root.addEventListener('click', event => {
+                const link = event.target.closest('[data-housing-part]');
+                const family = root.dataset.housingModelFamily;
+                if (!link || !family) return;
+                D.trackHousingGuide('housing_guide_part_selected', {
+                    model_family: family,
+                    part_type: String(link.dataset.housingPart)
+                });
+            });
+        },
         buildUrl(params, changes = {}) {
             const next = getParams(params);
             for (const key of [...next.keys()]) if (!allowed.includes(key)) next.delete(key);
@@ -113,7 +134,7 @@
             const partTypes = (catalog.part_types || [])
                 .filter(type => String(type.category_id) === String(category.id) && (Number(type.count) > 0 || type.id === selectedPart?.id));
             const partChoices = selectedModel ? `<nav class="housing-part-options" aria-label="${escape(t('chooseHousingPart'))}">
-                ${partTypes.map(type => `<a class="housing-part-choice ${type.id === selectedPart?.id ? 'active' : ''}" href="${D.buildUrl(params, {category: category.id, part: type.id})}" ${type.id === selectedPart?.id ? 'aria-current="page"' : ''}>
+                ${partTypes.map(type => `<a class="housing-part-choice ${type.id === selectedPart?.id ? 'active' : ''}" href="${D.buildUrl(params, {category: category.id, part: type.id})}" data-housing-part="${escape(type.id)}" ${type.id === selectedPart?.id ? 'aria-current="page"' : ''}>
                     <span><strong>${escape(type.name)}</strong><small>${escape(type.description || t('housingPartFallback'))}</small></span>
                     <b>${window.I18n.number(Number(type.count))}</b>
                 </a>`).join('')}
@@ -384,7 +405,7 @@
             pixel: 'Google Pixel'
         };
         const rawDevice = params.get('family') || '';
-        const device = familyNames[rawDevice] || rawDevice.replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+            const device = model?.name || family?.label || deviceBrand?.name || '';
         const loadingText = device ? `${t('loadingParts')} ${t('for')} ${device}` : t('loadingParts');
         const rows = [1, 2, 3, 4, 5].map(() => `<div class="catalog-skeleton-row" aria-hidden="true">
             <i class="catalog-skeleton-photo"></i>
@@ -566,6 +587,13 @@
                 <dialog id="catalog-filter-dialog" class="filter-dialog"><div class="filter-dialog-heading"><h2>${t('refineSelection')}</h2><button type="button" class="btn-close" aria-label="${t('closeFilters')}">×</button></div>${filterForm('mobile', true)}</dialog>
                 <dialog id="device-finder-dialog" class="finder-dialog" aria-label="Choose another model"><button type="button" class="btn-close" data-close-finder aria-label="Close model selection">×</button><div data-finder-body></div></dialog></div>`;
             window.App.observeCatalogImages(root);
+            D.bindHousingGuideAnalytics(root, cat?.slug === 'housing' ? model?.family : '');
+            if (cat?.slug === 'housing' && model?.family && part?.id) {
+                D.trackHousingGuide('housing_guide_results_viewed', {
+                    model_family: String(model.family),
+                    part_type: String(part.id)
+                });
+            }
             const apply = form => {
                 const changes = Object.fromEntries(new FormData(form));
                 if (!changes.stock) changes.stock = '';

@@ -245,6 +245,11 @@
                 if (!link) return;
                 const model = catalog.models.find(item => String(item.id) === link.dataset.categoryModel);
                 if (model) window.FastFinder.remember(model);
+                if (model?.family && root.closest('.housing-guide')) {
+                    window.Discovery.trackHousingGuide('housing_guide_model_selected', {
+                        model_family: String(model.family)
+                    });
+                }
                 window.Discovery.focusResultsAfterModel = true;
             });
         }
