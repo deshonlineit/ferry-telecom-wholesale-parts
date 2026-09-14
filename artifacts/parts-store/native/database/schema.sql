@@ -3,11 +3,15 @@ CREATE TABLE IF NOT EXISTS customer_groups (
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS users (
  id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT, name VARCHAR(140) NOT NULL,
+ first_name VARCHAR(70) NOT NULL DEFAULT '', last_name VARCHAR(70) NOT NULL DEFAULT '',
+ username VARCHAR(80) NULL UNIQUE,
  email VARCHAR(190) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL,
  company VARCHAR(190) NOT NULL DEFAULT '', role ENUM('customer','staff') NOT NULL DEFAULT 'customer',
  group_id INT UNSIGNED NOT NULL DEFAULT 1, status ENUM('active','pending','blocked') NOT NULL DEFAULT 'pending',
  phone VARCHAR(40) NOT NULL DEFAULT '', website VARCHAR(255) NOT NULL DEFAULT '',
  business_activity VARCHAR(80) NOT NULL DEFAULT '',
+ business_type VARCHAR(80) NOT NULL DEFAULT '', eori_number VARCHAR(40) NOT NULL DEFAULT '',
+ billing_state VARCHAR(100) NOT NULL DEFAULT '',
  tax_registration_type VARCHAR(40) NOT NULL DEFAULT '',
  tax_registration_number VARCHAR(80) NOT NULL DEFAULT '',
  newsletter_opt_in TINYINT NOT NULL DEFAULT 0, terms_accepted_at DATETIME NULL,

@@ -176,13 +176,15 @@ window.Core = {
 
         const accountLinks = this.user
             ? `<a href="${window.APP_BASE}account">${window.I18n.t('account')}</a>
+               <a href="${window.APP_BASE}account/orders">${window.I18n.t('footerOrderHistory')}</a>
+               <a href="${window.APP_BASE}account/returns">${window.I18n.t('footerReturns')}</a>
+               <a href="${window.APP_BASE}cart">${window.I18n.t('cart')}</a>
                <a href="${window.APP_BASE}" onclick="window.App.logout(); return false;">${window.I18n.t('signOut')}</a>`
             : `<a href="${window.APP_BASE}login">${window.I18n.t('signIn')}</a>
-               <a href="${window.APP_BASE}register">${window.I18n.t('requestAccount')}</a>`;
+               <a href="${window.APP_BASE}register">${window.I18n.t('requestAccount')}</a>
+               <a href="${window.APP_BASE}cart">${window.I18n.t('cart')}</a>`;
 
-        footerLinks.innerHTML = `<h4 data-i18n="navigation">${window.I18n.t('navigation')}</h4>
-            <a href="${window.APP_BASE}catalog">${window.I18n.t('catalogue')}</a>
-            ${accountLinks}`;
+        footerLinks.innerHTML = `<h4 data-i18n="footerAccount">${window.I18n.t('footerAccount')}</h4>${accountLinks}`;
     },
 
     escapeHtml(unsafe) {

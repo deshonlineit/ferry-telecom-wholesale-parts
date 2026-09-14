@@ -17,6 +17,17 @@ the supplied master before changing brand artwork. Tests should reject
 replacement geometry, not require it. The separate browser/home-screen icon may
 still use its own masked mark; it is not the horizontal lockup.
 
+**Third-party brand navigation stays neutral.** Do not use the Apple logo in
+the shop header. Apple and other device brands may be named in text, but pair
+them with generic line icons such as a phone rather than third-party logo marks.
+
+**Why:** the owner explicitly asked to preserve the Ferry Telecom logo and
+rejected an Apple logo in the primary navigation.
+
+**How to apply:** when restyling the header or adding brand shortcuts, leave the
+existing Ferry Telecom lockup untouched and use one consistent neutral icon
+language for device brands, parts, supplies, and other categories.
+
 **Home-screen icons need an opaque bitmap.** An SVG `apple-touch-icon` is not
 reliably supported, and a transparent PNG renders on a black plate. Render the
 square mark onto an opaque canvas instead. There is no `rsvg-convert` or Inkscape

@@ -874,8 +874,10 @@ window.Router.add(/^admin\/customers$/, async (match, root) => {
                             <section class="customer-workspace-section">
                                 <h4>Business verification</h4>
                                 <dl class="customer-workspace-facts">
-                                    <div><dt>Company</dt><dd>${value(customer.company)}</dd></div><div><dt>Main activity</dt><dd>${value(activityLabels[customer.business_activity] || customer.business_activity)}</dd></div>
-                                    <div><dt>${customer.tax_registration_type === 'ch_uid' ? 'Swiss UID' : 'VAT / registration number'}</dt><dd>${value(customer.tax_registration_number)}</dd></div><div><dt>Terms accepted</dt><dd>${value(customer.terms_accepted_at)}</dd></div>
+                                    <div><dt>Company</dt><dd>${value(customer.company)}</dd></div><div><dt>Business type</dt><dd>${value((customer.business_type || '').replaceAll('_', ' '))}</dd></div>
+                                    <div><dt>Main activity</dt><dd>${value(activityLabels[customer.business_activity] || customer.business_activity)}</dd></div><div><dt>Username</dt><dd>${value(customer.username)}</dd></div>
+                                    <div><dt>${customer.tax_registration_type === 'ch_uid' ? 'Swiss UID' : 'VAT / registration number'}</dt><dd>${value(customer.tax_registration_number)}</dd></div><div><dt>EORI number</dt><dd>${value(customer.eori_number)}</dd></div>
+                                    <div><dt>State / province</dt><dd>${value(customer.billing_state)}</dd></div><div><dt>Terms accepted</dt><dd>${value(customer.terms_accepted_at)}</dd></div>
                                 </dl>
                             </section>
                             <section class="customer-workspace-section">

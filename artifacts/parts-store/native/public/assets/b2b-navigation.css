@@ -511,7 +511,7 @@ body:not(:has(.admin-shell)) .b2b-top-nav {
     margin: 0;
     padding: 0;
     flex-wrap: wrap;
-    gap: 0 4px;
+    gap: 0 6px;
 }
 
 body:not(:has(.admin-shell)) .b2b-top-nav-immediate {
@@ -530,11 +530,24 @@ body:not(:has(.admin-shell)) .b2b-nav-link {
     color: #28384d;
     background: transparent;
     border: 0;
-    border-radius: 0;
+    border-radius: 10px;
     white-space: nowrap;
     cursor: pointer;
-    border-bottom: 3px solid transparent;
+    border-bottom: 0;
     text-decoration: none;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-icon {
+    flex: 0 0 auto;
+    color: #31516f;
+}
+
+body:not(:has(.admin-shell)) .b2b-nav-all {
+    margin: 5px 4px 5px 0;
+    min-height: 34px;
+    padding-block: 0;
+    color: #1670d5;
+    background: #edf6ff;
 }
 
 /* A brand is both a destination and a panel: the label navigates, the caret opens the models. */
@@ -559,7 +572,7 @@ body:not(:has(.admin-shell)) .b2b-nav-caret {
     color: #5f7188;
     background: transparent;
     border: 0;
-    border-bottom: 3px solid transparent;
+    border-bottom: 0;
     cursor: pointer;
 }
 
@@ -569,8 +582,7 @@ body:not(:has(.admin-shell)) .b2b-nav-item.has-dropdown:hover > .b2b-nav-link,
 body:not(:has(.admin-shell)) .b2b-nav-item.has-dropdown:hover > .b2b-nav-caret,
 body:not(:has(.admin-shell)) .b2b-nav-link:hover {
     color: var(--primary);
-    border-bottom-color: var(--primary);
-    background: #ffffff;
+    background: #eef6ff;
     text-decoration: none;
 }
 
@@ -593,7 +605,8 @@ body:not(:has(.admin-shell)) .b2b-dropdown-overlay {
     box-shadow: 0 18px 44px rgba(16, 55, 96, 0.2);
     border-bottom: 1px solid var(--border-light);
     z-index: 1000;
-    height: min(470px, calc(100dvh - 170px));
+    height: auto;
+    min-height: 0;
     border: 2px solid #2b7dcc;
     border-top-width: 3px;
     border-radius: 0 0 8px 8px;
@@ -610,7 +623,7 @@ body:not(:has(.admin-shell)) .b2b-mega-layout {
     width: 100%;
     min-width: 0;
     margin: 0 auto;
-    height: 100%;
+    height: auto;
 }
 
 body:not(:has(.admin-shell)) .b2b-mega-families {
@@ -683,10 +696,10 @@ body:not(:has(.admin-shell)) .b2b-family-link:hover {
 }
 
 body:not(:has(.admin-shell)) .b2b-mega-models {
-    flex: 1;
+    flex: 0 0 auto;
     min-width: 0;
     padding: 18px 24px 20px;
-    overflow-y: auto;
+    overflow: visible;
     background: #fff;
 }
 
@@ -1033,10 +1046,10 @@ body:not(:has(.admin-shell)) .mobile-chevron {
         flex-direction: column;
         flex-wrap: nowrap;
         width: 100%;
-        max-height: min(72dvh, calc(100dvh - 260px));
+        max-height: none;
         max-width: 100%;
         overflow-x: hidden;
-        overflow-y: auto;
+        overflow-y: visible;
         background: #fff;
         box-shadow: 0 12px 24px #14233b26;
         border-top: 1px solid var(--border-light);

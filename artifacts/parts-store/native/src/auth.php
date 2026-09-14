@@ -97,27 +97,38 @@ function handleAuth(string $method, string $path): bool
         respond(['user' => publicUser($user), 'csrf' => csrf()]);
     }
     if ($path === '/auth/register') {
-        $name = text($data['name'] ?? '', 140);
+        $firstName = text($data['first_name'] ?? '', 70);
+        $lastName = text($data['last_name'] ?? '', 70);
+        $name = trim($firstName . ' ' . $lastName);
+        $username = mb_strtolower(text($data['username'] ?? '', 80));
         $company = text($data['company'] ?? '', 190);
         $email = mb_strtolower(text($data['email'] ?? '', 190));
         $password = text($data['password'] ?? '', 1024);
         $phone = text($data['phone'] ?? '', 40);
         $website = text($data['website'] ?? '', 255);
         $activity = text($data['business_activity'] ?? '', 80);
+        $businessType = text($data['business_type'] ?? '', 80);
         $country = currencyDeliveryCountry(text($data['country'] ?? '', 2));
         $street = text($data['street'] ?? '', 150);
         $houseNumber = text($data['house_number'] ?? '', 30);
         $addressAddition = text($data['address_addition'] ?? '', 80);
         $postalCode = text($data['postal_code'] ?? '', 30);
         $city = text($data['city'] ?? '', 100);
+        $billingState = text($data['billing_state'] ?? '', 100);
         $taxNumber = strtoupper(text($data['tax_registration_number'] ?? '', 80));
+        $eoriNumber = strtoupper(text($data['eori_number'] ?? '', 40));
         $newsletter = filter_var($data['newsletter_opt_in'] ?? false, FILTER_VALIDATE_BOOL);
         $termsAccepted = filter_var($data['terms_accepted'] ?? false, FILTER_VALIDATE_BOOL);
         $activities = ['repair_shop', 'reseller', 'refurbisher', 'wholesaler', 'education', 'other'];
-        if (!$name || !$company || !$phone || !$street || !$houseNumber || !$postalCode || !$city
+        $businessTypes = ['large_repair_shop', 'small_repair_shop', 'wholesale_store', 'online_retailer', 'refurbisher', 'education', 'other'];
+        if (!$firstName || !$lastName || !$username || !$company || !$phone || !$street || !$houseNumber || !$postalCode || !$city || !$billingState
             || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12
-            || !in_array($activity, $activities, true) || !$termsAccepted) {
+            || !preg_match('/^[a-z0-9][a-z0-9._-]{2,39}$/i', $username)
+            || !in_array($activity, $activities, true) || !in_array($businessType, $businessTypes, true) || !$termsAccepted) {
             throw new HttpError(422, 'Complete all required contact, company and billing details and accept the business terms.');
+        }
+        if ($eoriNumber !== '' && !preg_match('/^[A-Z]{2}[A-Z0-9]{2,30}$/', preg_replace('/[ .-]/', '', $eoriNumber))) {
+            throw new HttpError(422, 'Enter a valid EORI number or leave the field empty.');
         }
         if ($website !== '' && !filter_var($website, FILTER_VALIDATE_URL)) {
             throw new HttpError(422, 'Enter a complete website address, including https://.');
@@ -133,20 +144,20 @@ function handleAuth(string $method, string $path): bool
                 throw new HttpError(422, 'Enter a valid VAT or company registration number.');
             }
         }
-        $query = db()->prepare('SELECT id FROM users WHERE email=?');
-        $query->execute([$email]);
+        $query = db()->prepare('SELECT id FROM users WHERE email=? OR username=?');
+        $query->execute([$email, $username]);
         if (!$query->fetch()) {
             $pdo = db();
             $pdo->beginTransaction();
             try {
                 $userId = insertReturning($pdo, dbDriver() === 'pgsql'
-                    ? "INSERT INTO users(name,email,password_hash,company,phone,website,business_activity,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'customer',1,'pending')"
-                    : "INSERT INTO users(name,email,password_hash,company,phone,website,business_activity,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),'customer',1,'pending')",
-                    [$name, $email, password_hash($password, PASSWORD_DEFAULT), $company, $phone, $website, $activity, $taxType, $taxNumber, $newsletter ? true : false]);
+                    ? "INSERT INTO users(name,first_name,last_name,username,email,password_hash,company,phone,website,business_activity,business_type,eori_number,billing_state,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'customer',1,'pending')"
+                    : "INSERT INTO users(name,first_name,last_name,username,email,password_hash,company,phone,website,business_activity,business_type,eori_number,billing_state,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,role,group_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),'customer',1,'pending')",
+                    [$name, $firstName, $lastName, $username, $email, password_hash($password, PASSWORD_DEFAULT), $company, $phone, $website, $activity, $businessType, $eoriNumber, $billingState, $taxType, $taxNumber, $newsletter ? true : false]);
                 $pdo->prepare('INSERT INTO addresses(user_id,label,name,company,line1,line2,postal_code,city,country,is_default) VALUES(?,?,?,?,?,?,?,?,?,1)')
-                    ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), $addressAddition, $postalCode, $city, $country]);
+                    ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), trim(implode(', ', array_filter([$addressAddition, $billingState]))), $postalCode, $city, $country]);
                 $pdo->prepare('INSERT INTO billing_addresses(user_id,label,name,company,line1,line2,postal_code,city,country) VALUES(?,?,?,?,?,?,?,?,?)')
-                    ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), $addressAddition, $postalCode, $city, $country]);
+                    ->execute([$userId, 'Billing address', $name, $company, trim($street . ' ' . $houseNumber), trim(implode(', ', array_filter([$addressAddition, $billingState]))), $postalCode, $city, $country]);
                 $pdo->commit();
                 enqueue('registration_review', ['user_id' => $userId]);
             } catch (Throwable $error) {

@@ -1228,8 +1228,8 @@ function opAdminGeneral(string $method, string $path): bool
         requireStaff();
         $customerId = opId($match[1]);
         $customer = opRow(
-            "SELECT id,name,email,company,role,group_id,status,phone,website,business_activity,
-             tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,created_at
+            "SELECT id,name,first_name,last_name,username,email,company,role,group_id,status,phone,website,business_activity,
+             business_type,eori_number,billing_state,tax_registration_type,tax_registration_number,newsletter_opt_in,terms_accepted_at,created_at
              FROM users WHERE id=? AND role='customer'",
             [$customerId]
         );

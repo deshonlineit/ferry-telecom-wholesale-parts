@@ -7,11 +7,11 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "test:native-header": "node native/tests/header-account-actions.test.cjs && node native/tests/mobile-account-actions.test.cjs && pnpm run test:catalog-switch-performance",
+    "test:native-header": "node native/tests/header-account-actions.test.cjs && node native/tests/mobile-account-actions.test.cjs && node native/tests/menu-page-scroll.test.cjs && pnpm run test:catalog-switch-performance",
     "test:account-routes": "node native/tests/account-route-rendering.test.cjs",
     "test:incorrect-product-photo": "node native/tests/incorrect-product-photo.test.cjs && php native/tests/incorrect-product-photo-integration.test.php",
     "test:catalog-currency-query-count": "php native/tests/catalog-currency-query-count.test.php",
-    "test:catalog-switch-performance": "node native/tests/catalog-switch-performance.test.cjs && pnpm run test:catalog-currency-query-count && php native/bin/qa-smart-search-language.php",
+    "test:catalog-switch-performance": "node native/tests/catalog-switch-performance.test.cjs && pnpm run test:catalog-currency-query-count && php native/bin/qa-smart-search-language.php && php native/bin/qa-woocommerce-category-classifier.php",
     "test:native-header-zoom": "node native/tests/header-browser-zoom.test.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

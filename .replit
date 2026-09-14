@@ -199,3 +199,6 @@ packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf
 WALLEE_ENVIRONMENT = "PREVIEW"
 WALLEE_SPACE_ID = "24285"
 WALLEE_TWINT_PAYMENT_METHOD_CONFIGURATION_ID = "82134"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-8d9a9945-faa2-42b6-93e0-e8713495f436"

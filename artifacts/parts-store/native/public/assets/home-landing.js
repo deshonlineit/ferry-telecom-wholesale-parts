@@ -19,6 +19,14 @@
         other: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M7.5 12h9"/>'
     };
     const familyOrder = ['iphone', 'samsung', 'ipad', 'watch', 'pixel', 'macbook'];
+    const productSections = [
+        {id: 'popular', mode: 'slider', kicker: 'popularKicker', title: 'popularProducts', query: 'featured=1&limit=8', filters: {featured: '1'}},
+        {id: 'recent', mode: 'grid', kicker: 'recentKicker', title: 'recentProducts', query: 'sort=newest&limit=8', filters: {sort: 'newest'}},
+        {id: 'iphone', mode: 'slider', kicker: 'iphoneKicker', title: 'bestSellingIphoneParts', query: 'family=iphone&sort=best_selling&limit=8', filters: {family: 'iphone'}},
+        {id: 'samsung', mode: 'grid', kicker: 'samsungKicker', title: 'topSellingSamsungParts', query: 'family=samsung&sort=best_selling&limit=8', filters: {family: 'samsung'}},
+        {id: 'screens', mode: 'slider', kicker: 'screensKicker', title: 'screenParts', query: 'category=1&sort=stock&limit=8', filters: {category: '1', sort: 'stock'}},
+        {id: 'supplies', mode: 'grid', kicker: 'suppliesKicker', title: 'repairSupplies', query: 'department=supplies&sort=stock&limit=8', filters: {department: 'supplies', sort: 'stock'}}
+    ];
 
     const L = window.HomeLanding = {
         icon(slug) {
@@ -32,6 +40,26 @@
         },
         skeleton(items, className) {
             return Array.from({length: items}, () => `<div class="lp-skeleton ${className}" aria-hidden="true"></div>`).join('');
+        },
+        productSectionsShell() {
+            return productSections.map(section => `<section class="lp-section lp-product-section" data-lp-product-section="${section.id}" aria-labelledby="lp-${section.id}-title">
+                <header class="lp-section-head">
+                    <div>
+                        <p class="lp-kicker">${t(section.kicker)}</p>
+                        <h2 id="lp-${section.id}-title">${t(section.title)}</h2>
+                    </div>
+                    <div class="lp-product-section-actions">
+                        ${section.mode === 'slider' ? `<div class="lp-slider-controls" aria-label="${t('sliderControls')}">
+                            <button type="button" data-lp-slider="-1" aria-label="${t('previousProducts')}">‹</button>
+                            <button type="button" data-lp-slider="1" aria-label="${t('nextProducts')}">›</button>
+                        </div>` : ''}
+                        <a class="lp-section-link" href="${L.catalogUrl(section.filters)}">${t('viewAllProducts')} ${L.arrow()}</a>
+                    </div>
+                </header>
+                <div class="${section.mode === 'slider' ? 'lp-product-slider' : 'lp-product-grid'}" data-lp-product-list>
+                    ${L.skeleton(8, 'lp-skeleton-product')}
+                </div>
+            </section>`).join('');
         },
         shell() {
             return `<div class="lp">
@@ -57,6 +85,8 @@
                 </section>
 
                 <div class="lp-alert alert error" data-lp-error hidden role="alert"></div>
+
+                <div class="lp-product-sections" data-lp-product-sections>${L.productSectionsShell()}</div>
 
                 <section class="lp-section" aria-labelledby="lp-categories-title">
                     <header class="lp-section-head">
@@ -85,17 +115,6 @@
                             <a class="lp-models-all" href="${window.APP_BASE}catalog" data-lp-models-all>${t('viewAllModels', {count: ''})} ${L.arrow()}</a>
                         </aside>
                     </div>
-                </section>
-
-                <section class="lp-section" aria-labelledby="lp-featured-title">
-                    <header class="lp-section-head">
-                        <div>
-                            <p class="lp-kicker">${t('featuredRange')}</p>
-                            <h2 id="lp-featured-title">${t('featuredParts')}</h2>
-                        </div>
-                        <a class="lp-section-link" href="${L.catalogUrl({featured: '1'})}" data-lp-featured-all>${t('viewFeatured')} ${L.arrow()}</a>
-                    </header>
-                    <div class="lp-grid lp-featured" data-lp-featured>${L.skeleton(4, 'lp-skeleton-product')}</div>
                 </section>
 
                 <section class="lp-method" aria-labelledby="lp-method-title">
@@ -169,9 +188,9 @@
             if (!models.length) return `<p class="lp-empty">${t('noModelsYet')}</p>`;
             return models.map(item => `<a class="lp-model-chip" href="${L.catalogUrl({model: item.id})}">${esc(item.name)}<small>${count(item.count)}</small></a>`).join('');
         },
-        renderFeatured(result) {
+        renderProducts(result) {
             const products = (result && result.products) || [];
-            if (!products.length) return `<p class="lp-empty">${t('noFeatured')}</p>`;
+            if (!products.length) return `<p class="lp-empty">${t('noProductsAvailable')}</p>`;
             return products.map(product => {
                 const url = `${window.APP_BASE}products/${product.id}`;
                 const stockClass = product.stock > 0 ? 'is-ok' : 'is-out';
@@ -265,7 +284,7 @@
                 else img.addEventListener('load', normalize, {once: true});
             });
         },
-        paint(root, catalog, featured) {
+        paint(root, catalog) {
             const set = (selector, html) => {
                 const node = root.querySelector(selector);
                 if (node) node.innerHTML = html;
@@ -277,8 +296,6 @@
             set('[data-lp-categories]', L.renderCategories(catalog));
             set('[data-lp-families]', L.renderFamilies(catalog));
             set('[data-lp-models]', L.renderModels(catalog));
-            set('[data-lp-featured]', L.renderFeatured(featured));
-            L.bindProductImages(root);
             const lead = root.querySelector('[data-lp-lead]');
             if (lead) lead.textContent = `${t('heroLead')} ${total} ${t('parts')} ${t('modelsOfTotal', {shown: count(models), total: count(models)})}.`;
             const modelsAll = root.querySelector('[data-lp-models-all]');
@@ -293,7 +310,7 @@
             if (!notice) return;
             notice.hidden = false;
             notice.innerHTML = `<p>${t('catalogueCouldNotLoad', {message: error.message || ''})}</p><button type="button" class="lp-btn lp-btn-ghost" data-lp-retry>${t('retry')}</button>`;
-            root.querySelectorAll('[data-lp-categories], [data-lp-families], [data-lp-models], [data-lp-featured]').forEach(node => { node.innerHTML = ''; });
+            root.querySelectorAll('[data-lp-categories], [data-lp-families], [data-lp-models]').forEach(node => { node.innerHTML = ''; });
         },
         bind(root) {
             const input = root.querySelector('#home-search');
@@ -313,6 +330,11 @@
                     return;
                 }
                 if (event.target.closest('[data-lp-retry]')) L.load(root);
+                const slider = event.target.closest('[data-lp-slider]');
+                if (slider) {
+                    const track = slider.closest('[data-lp-product-section]')?.querySelector('[data-lp-product-list]');
+                    if (track) track.scrollBy({left: Number(slider.dataset.lpSlider) * track.clientWidth * 0.82, behavior: 'smooth'});
+                }
             });
         },
         loadSequence: 0,
@@ -323,17 +345,27 @@
             const stale = () => !root.isConnected || version !== window.Router.renderVersion || sequence !== L.loadSequence;
             const notice = root.querySelector('[data-lp-error]');
             if (notice) notice.hidden = true;
+            const feedRequests = productSections.map(async section => {
+                const container = root.querySelector(`[data-lp-product-section="${section.id}"] [data-lp-product-list]`);
+                if (!container) return;
+                try {
+                    const result = await window.Core.fetch(`/products?${section.query}`);
+                    if (stale()) return;
+                    container.innerHTML = L.renderProducts(result);
+                    L.bindProductImages(container);
+                } catch (_) {
+                    if (!stale()) container.innerHTML = `<p class="lp-empty">${t('productsCouldNotLoad')}</p>`;
+                }
+            });
             try {
-                const [catalog, featured] = await Promise.all([
-                    window.Core.fetch('/catalog'),
-                    window.Core.fetch('/products?featured=1&limit=4')
-                ]);
+                const catalog = await window.Core.fetch('/catalog');
                 if (stale()) return;
-                L.paint(root, catalog, featured);
+                L.paint(root, catalog);
             } catch (error) {
                 if (stale()) return;
                 L.failed(root, error);
             }
+            await Promise.allSettled(feedRequests);
         },
         mount(root) {
             root.innerHTML = L.shell();

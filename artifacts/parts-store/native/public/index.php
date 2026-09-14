@@ -180,32 +180,56 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         </div>
     </main>
 
-    <footer class="app-footer">
+    <footer class="app-footer" id="site-footer">
+        <div class="footer-service-strip">
+            <div class="container footer-service-grid">
+                <div class="footer-service-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.4 7.7 7.6 4.2 7.6-4.2M12 12v9"/></svg>
+                    <span><strong data-i18n="footerLiveStock">Current stock</strong><small data-i18n="footerLiveStockText">See availability before ordering</small></span>
+                </div>
+                <div class="footer-service-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13 13 20l-9-9V4h7l9 9Z"/><circle cx="8.5" cy="8.5" r="1"/></svg>
+                    <span><strong data-i18n="footerBusinessPricing">Business pricing</strong><small data-i18n="footerBusinessPricingText">Pricing for approved customers</small></span>
+                </div>
+                <div class="footer-service-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                    <span><strong data-i18n="footerSecureAccount">Secure account</strong><small data-i18n="footerSecureAccountText">Orders and addresses in one place</small></span>
+                </div>
+            </div>
+        </div>
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
                     <img src="/test-shop/?asset=brand-logo&amp;v=<?= $v_logo ?>" alt="Ferry Telecom" class="footer-logo" width="1736" height="475" loading="lazy" decoding="async">
                     <p data-i18n="footerText">The standard for professional repairers. Precision, reliability and stock ready to ship.</p>
-                </div>
-                <div class="footer-links" id="footer-account-links">
-                    <h4 data-i18n="navigation">Navigation</h4>
-                    <a href="/test-shop/catalog" data-i18n="catalogue">Catalogue</a>
-                    <a href="/test-shop/login" data-i18n="signIn">Sign in</a>
-                    <a href="/test-shop/register" data-i18n="requestAccount">Request an account</a>
+                    <p class="footer-business-note" data-i18n="footerBusinessOnly">Wholesale parts for professional repair and resale businesses.</p>
                 </div>
                 <div class="footer-links">
-                    <h4 data-i18n="testEnvironment">Test environment</h4>
-                    <p class="text-muted small" data-i18n="demoNotice">This application is for demonstration purposes only. No real e-mails are sent and no payments are processed.</p>
-                    <div class="demo-actions mt-2">
-                        <button onclick="window.App.demoLogin('customer')" class="btn btn-outline btn-sm" data-i18n="demoCustomer">Demo customer login</button>
-                        <button onclick="window.App.demoLogin('partner')" class="btn btn-outline btn-sm" data-i18n="demoPartner">Demo Partner</button>
-                    </div>
+                    <h4 data-i18n="footerShop">Shop</h4>
+                    <a href="/test-shop/catalog" data-i18n="catalogue">Catalogue</a>
+                    <a href="/test-shop/catalog?department=parts" data-i18n="partsMenu">Parts</a>
+                    <a href="/test-shop/catalog?department=supplies" data-i18n="supplies">Supplies</a>
+                    <a href="/test-shop/catalog?featured=1" data-i18n="footerFeatured">Featured products</a>
+                </div>
+                <div class="footer-links" id="footer-account-links">
+                    <h4 data-i18n="footerAccount">Account</h4>
+                    <a href="/test-shop/login" data-i18n="signIn">Sign in</a>
+                    <a href="/test-shop/register" data-i18n="requestAccount">Request an account</a>
+                    <a href="/test-shop/cart" data-i18n="cart">Cart</a>
+                </div>
+                <div class="footer-links">
+                    <h4 data-i18n="footerOrdersService">Orders & service</h4>
+                    <a href="/test-shop/account/orders" data-i18n="footerOrderHistory">Order history</a>
+                    <a href="/test-shop/account/returns" data-i18n="footerReturns">Returns</a>
+                    <a href="/test-shop/account/addresses" data-i18n="footerAddresses">Delivery addresses</a>
+                    <a href="/test-shop/register" data-i18n="becomeCustomer">Become a customer</a>
                 </div>
             </div>
         </div>
         <div class="footer-bottom">
-            <div class="container">
-                &copy; <?= date('Y') ?> Ferry Telecom <span data-i18n="testEnvironment">test environment</span>. <span data-i18n="rightsReserved">All rights reserved.</span>
+            <div class="container footer-bottom-inner">
+                <span>&copy; <?= date('Y') ?> Ferry Telecom. <span data-i18n="rightsReserved">All rights reserved.</span></span>
+                <span data-i18n="footerB2b">B2B wholesale for professional repairers</span>
             </div>
         </div>
     </footer>

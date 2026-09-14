@@ -634,11 +634,12 @@ body:not(:has(.admin-shell)) .product-info {
     padding-top: 1rem;
 }
 body:not(:has(.admin-shell)) .product-title-lg {
-    font-size: 3rem;
-    line-height: 1.1;
+    font-family: inherit;
+    font-size: clamp(1.75rem, 2.4vw, 2.25rem);
+    line-height: 1.18;
     font-weight: 600;
-    letter-spacing: -0.03em;
-    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.875rem;
     overflow-wrap: anywhere;
 }
 body:not(:has(.admin-shell)) .product-price-lg {
@@ -911,8 +912,8 @@ body:not(:has(.admin-shell)) .registration-wrapper {
     padding-bottom: 64px;
 }
 body:not(:has(.admin-shell)) .registration-card {
-    max-width: 780px;
-    padding: 38px 42px 34px;
+    max-width: 920px;
+    padding: 40px 48px 38px;
     border: 1px solid #e1e7ef;
     border-radius: 22px;
     box-shadow: 0 18px 48px rgba(24, 39, 60, .08);
@@ -975,9 +976,6 @@ body:not(:has(.admin-shell)) .registration-header small {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px 18px;
 }
-.registration-address-grid {
-    grid-template-columns: minmax(0, 2fr) minmax(100px, .65fr) minmax(130px, 1fr);
-}
 .registration-field {
     display: flex;
     flex-direction: column;
@@ -992,11 +990,20 @@ body:not(:has(.admin-shell)) .registration-header small {
     text-transform: uppercase;
 }
 .registration-field .form-control {
-    min-height: 44px;
+    width: 100%;
+    height: 46px;
+    min-height: 46px;
     margin: 0;
     border-color: #d5dde7;
-    border-radius: 9px;
+    border-radius: 11px;
     font-size: .875rem;
+    background: #fbfcfe;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.registration-field .form-control:focus {
+    border-color: #2180de;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(33, 128, 222, .11);
 }
 .registration-field small {
     color: #77869a;
@@ -1046,10 +1053,23 @@ body:not(:has(.admin-shell)) .registration-header small {
     accent-color: #0878e5;
 }
 body:not(:has(.admin-shell)) .registration-submit {
-    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 52px;
     margin-top: 24px;
-    border-radius: 10px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #0878e5 0%, #1263c8 100%);
     font-size: .9375rem;
+    font-weight: 750;
+    box-shadow: 0 10px 24px rgba(18, 99, 200, .24);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+body:not(:has(.admin-shell)) .registration-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(18, 99, 200, .3);
 }
 body:not(:has(.admin-shell)) .registration-footer {
     margin-top: 24px;
@@ -1246,10 +1266,45 @@ body:not(:has(.admin-shell)):has(.lp) .app-footer {
 
 body:not(:has(.admin-shell)) .footer-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
-    gap: 4rem;
+    grid-template-columns: minmax(240px, 1.55fr) repeat(3, minmax(150px, 1fr));
+    gap: clamp(2rem, 4vw, 4rem);
     padding: 3rem 0;
 }
+
+body:not(:has(.admin-shell)) .footer-service-strip {
+    border-bottom: 1px solid var(--border-light);
+    background: #f7faff;
+}
+
+body:not(:has(.admin-shell)) .footer-service-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body:not(:has(.admin-shell)) .footer-service-item {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    min-height: 92px;
+    padding: 1.25rem clamp(1rem, 2.5vw, 2rem);
+    border-right: 1px solid var(--border-light);
+}
+
+body:not(:has(.admin-shell)) .footer-service-item:first-child { padding-left: 0; }
+body:not(:has(.admin-shell)) .footer-service-item:last-child { border-right: 0; }
+body:not(:has(.admin-shell)) .footer-service-item svg {
+    flex: 0 0 auto;
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: #1768d4;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+body:not(:has(.admin-shell)) .footer-service-item span { display: grid; gap: 0.2rem; }
+body:not(:has(.admin-shell)) .footer-service-item strong { color: #17283d; font-size: 0.9rem; font-weight: 650; }
+body:not(:has(.admin-shell)) .footer-service-item small { color: #68778b; font-size: 0.8rem; line-height: 1.35; }
 
 body:not(:has(.admin-shell)) .footer-logo {
     display: block;
@@ -1266,6 +1321,14 @@ body:not(:has(.admin-shell)) .footer-brand p {
     font-size: 0.9375rem;
     line-height: 1.6;
     max-width: 340px;
+}
+
+body:not(:has(.admin-shell)) .footer-brand .footer-business-note {
+    margin-top: 1rem;
+    padding-left: 0.85rem;
+    border-left: 2px solid #b9d8fb;
+    color: #68778b;
+    font-size: 0.8125rem;
 }
 
 body:not(:has(.admin-shell)) .footer-links h4 {
@@ -1297,32 +1360,6 @@ body:not(:has(.admin-shell)) .footer-links p.text-muted.small {
     margin-bottom: 1rem;
 }
 
-body:not(:has(.admin-shell)) .demo-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-body:not(:has(.admin-shell)) .demo-actions .btn {
-    padding: 0.4rem 0.875rem;
-    font-size: 0.8125rem;
-    border-radius: 8px;
-    border: 1px solid var(--border-light);
-    color: var(--apple-text);
-    background: #f5f5f7;
-    font-weight: 500;
-    box-shadow: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-body:not(:has(.admin-shell)) .demo-actions .btn:hover {
-    background: #e8e8ed;
-    color: var(--apple-text);
-    border-color: #d2d2d7;
-}
-
 body:not(:has(.admin-shell)) .footer-bottom {
     background: transparent;
     border-top: 1px solid var(--border-light);
@@ -1335,14 +1372,38 @@ body:not(:has(.admin-shell)) .footer-bottom {
     letter-spacing: normal;
 }
 
+body:not(:has(.admin-shell)) .footer-bottom-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
 @media (max-width: 900px) {
     body:not(:has(.admin-shell)) .footer-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 2.5rem;
         padding: 2.5rem 0;
     }
 
+    body:not(:has(.admin-shell)) .footer-brand { grid-column: 1 / -1; }
+    body:not(:has(.admin-shell)) .footer-service-grid { grid-template-columns: 1fr; }
+    body:not(:has(.admin-shell)) .footer-service-item,
+    body:not(:has(.admin-shell)) .footer-service-item:first-child {
+        min-height: 0;
+        padding: 1rem 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--border-light);
+    }
+    body:not(:has(.admin-shell)) .footer-service-item:last-child { border-bottom: 0; }
+    body:not(:has(.admin-shell)) .footer-bottom-inner { align-items: flex-start; flex-direction: column; }
+
     body:not(:has(.admin-shell)) .footer-logo {
         width: min(220px, 100%);
     }
+}
+
+@media (max-width: 560px) {
+    body:not(:has(.admin-shell)) .footer-grid { grid-template-columns: 1fr; }
+    body:not(:has(.admin-shell)) .footer-brand { grid-column: auto; }
 }

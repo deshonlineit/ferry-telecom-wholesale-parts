@@ -188,12 +188,12 @@
                 }
             } catch (_) {}
             const destinations = [
-                [t('all'), 'catalog', false],
-                ['Apple', 'catalog', true],
-                ['Samsung', 'catalog', true],
-                [t('partsMenu'), 'catalog?department=parts', true],
-                [t('supplies'), 'catalog?department=supplies', true],
-                [t('otherBrands'), 'catalog', true]
+                [t('all'), 'catalog', false, 'all'],
+                ['Apple', 'catalog', true, 'device'],
+                ['Samsung', 'catalog', true, 'device'],
+                [t('partsMenu'), 'catalog?department=parts', true, 'parts'],
+                [t('supplies'), 'catalog?department=supplies', true, 'supplies'],
+                [t('otherBrands'), 'catalog', true, 'other']
             ];
             const mobile = document.createElement('button');
             mobile.type = 'button';
@@ -204,18 +204,18 @@
             const list = document.createElement('ul');
             list.id = 'b2b-top-navigation';
             list.className = 'b2b-top-nav b2b-top-nav-immediate';
-            destinations.forEach(([label, path, opensMenu]) => {
+            destinations.forEach(([label, path, opensMenu, icon]) => {
                 const item = document.createElement('li');
                 item.className = 'b2b-nav-item';
                 if (!opensMenu) {
-                    item.innerHTML = `<a class="b2b-nav-link" href="${esc(window.APP_BASE + path)}">${esc(label)}</a>`;
+                    item.innerHTML = `<a class="b2b-nav-link b2b-nav-all" href="${esc(window.APP_BASE + path)}">${Menu.navIcon(icon)}<span>${esc(label)}</span></a>`;
                 } else {
                     const trigger = document.createElement('button');
                     trigger.type = 'button';
                     trigger.className = 'b2b-nav-link';
                     trigger.dataset.menuLabel = String(label).toLowerCase();
                     trigger.setAttribute('aria-expanded', 'false');
-                    trigger.innerHTML = `<span>${esc(label)}</span><svg class="mobile-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                    trigger.innerHTML = `${Menu.navIcon(icon)}<span>${esc(label)}</span><svg class="mobile-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
                     trigger.addEventListener('click', async event => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -361,6 +361,16 @@
             Menu._list?.classList.remove('mobile-open');
         },
 
+        navIcon(kind = '') {
+            const key = String(kind).toLowerCase();
+            const common = 'class="b2b-nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+            if (key.includes('all')) return `<svg ${common}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`;
+            if (key.includes('parts')) return `<svg ${common}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>`;
+            if (key.includes('suppl')) return `<svg ${common}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.4 7.7 7.6 4.2 7.6-4.2M12 12v9"/></svg>`;
+            if (key.includes('other')) return `<svg ${common}><path d="M20 13 13 20l-9-9V4h7l9 9Z"/><circle cx="8.5" cy="8.5" r="1"/></svg>`;
+            return `<svg ${common}><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M10.5 18.5h3"/></svg>`;
+        },
+
         createDropdownItem(label, id, content, destination = null) {
             const item = document.createElement('li');
             item.className = 'b2b-nav-item has-dropdown';
@@ -372,7 +382,7 @@
             trigger.className = 'b2b-nav-link';
             trigger.dataset.menuLabel = String(label).toLowerCase();
             trigger.setAttribute('aria-label', t('showModels', {label}));
-            trigger.innerHTML = `<span>${esc(label)}</span>${chevron}`;
+            trigger.innerHTML = `${Menu.navIcon(id)}<span>${esc(label)}</span>${chevron}`;
             const overlay = document.createElement('div');
             overlay.id = id;
             overlay.className = 'b2b-dropdown-overlay';
@@ -551,24 +561,16 @@
                 }
                 if (event.target.closest?.('a')) Menu.closeAll();
             });
-            // Scrolling is an implicit request to browse further. Reveal the
-            // complete family immediately instead of making the visitor stop
-            // and press the "show all models" control first.
-            overlay.addEventListener('scroll', event => {
-                const scroller = event.target;
-                if (!scroller?.classList?.contains('b2b-mega-models') || scroller.scrollTop <= 2) return;
-                expandActiveModels(false);
-            }, true);
-            const revealOnMobileBrowse = event => {
-                if (window.innerWidth > MOBILE_WIDTH || Menu._openItem !== item) return;
+            // The dropdown grows with its content and never owns vertical
+            // scrolling. A downward browse gesture reveals every model while
+            // remaining passive so the same gesture scrolls the page.
+            const revealOnBrowse = event => {
+                if (Menu._openItem !== item) return;
                 if (event.type === 'wheel' && Number(event.deltaY || 0) <= 0) return;
                 expandActiveModels(false);
             };
-            // On mobile the outer catalogue list is the actual scroll owner.
-            // Listen for the browse gesture itself as it may already be at its
-            // scroll limit, in which case no native `scroll` event is emitted.
-            Menu._list?.addEventListener('wheel', revealOnMobileBrowse, {passive: true});
-            Menu._list?.addEventListener('touchmove', revealOnMobileBrowse, {passive: true});
+            overlay.addEventListener('wheel', revealOnBrowse, {passive: true});
+            overlay.addEventListener('touchmove', revealOnBrowse, {passive: true});
             overlay.addEventListener('keydown', event => {
                 const current = event.target.closest?.('.b2b-family-btn');
                 if (!current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -644,7 +646,7 @@
 
             const allItem = document.createElement('li');
             allItem.className = 'b2b-nav-item';
-            allItem.innerHTML = `<a class="b2b-nav-link" href="${window.APP_BASE}catalog">${t('all')}</a>`;
+            allItem.innerHTML = `<a class="b2b-nav-link b2b-nav-all" href="${window.APP_BASE}catalog">${Menu.navIcon('all')}<span>${t('all')}</span></a>`;
             list.appendChild(allItem);
             const deviceItem = (label, id, groups, prefix, showBrands, destination) => {
                 const registry = new Map();

@@ -73,3 +73,5 @@
 - [Deployment bundle pruning](deployment-bundle-pruning.md) — test runnable bundles without workspace node_modules; publishing may prune packages that hide local external imports.
 - [Custom-schema production copies](production-custom-schema-copy.md) — verify non-public PostgreSQL schemas in production; a green code publish can leave them absent.
 - [Preview account credentials](preview-account-credentials.md) — exact seeded staff and repairshop logins may recover from secrets only while the shop remains in preview mode.
+- [Registration business types](registration-business-types.md) — self-selected business type is review metadata, never an authorization role; new applicants remain pending customers.
+- [Mega-menu page scrolling](mega-menu-page-scrolling.md) — desktop and mobile catalogue menus grow to content height; vertical browsing belongs to the page, not a nested menu scroller.

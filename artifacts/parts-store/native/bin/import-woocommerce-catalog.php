@@ -7,6 +7,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/woocommerce-catalog-classifier.php';
 
 $csvPath = $argv[1] ?? '';
 $apply = in_array('--apply', $argv, true);
@@ -31,30 +32,6 @@ function wcQuality(string $name): string
         return 'Compatible';
     }
     return 'Standard';
-}
-
-function wcCategorySlug(string $categories, string $name): string
-{
-    $text = mb_strtolower($categories . ' ' . $name, 'UTF-8');
-    $rules = [
-        'screens' => '/\b(oled|lcd|display|touchscreen|screen|digitizer)\b/u',
-        'batteries' => '/\b(battery|batteries|batterij|accu)\b/u',
-        'charging' => '/\b(charging port|charge port|dock connector|laadpoort)\b/u',
-        'cameras' => '/\b(camera|camera lens)\b/u',
-        'housing' => '/\b(housing|back glass|back cover|chassis|middle frame|battery cover)\b/u',
-        'audio' => '/\b(speaker|earpiece|microphone|audio)\b/u',
-        'adhesive' => '/\b(adhesive|sticker|seal|tape|glue)\b/u',
-        'tools' => '/\b(tool|tools|screwdriver|tweezer|pliers|solder)\b/u',
-        'protection' => '/\b(case|cover|protector|tempered glass)\b/u',
-        'flex' => '/\b(flex|button|vibrator|vibration|sim tray|antenna)\b/u',
-        'accessories' => '/\b(cable|adapter|charger|holder|stand|accessor)\b/u',
-    ];
-    foreach ($rules as $slug => $pattern) {
-        if (preg_match($pattern, $text)) {
-            return $slug;
-        }
-    }
-    return 'other';
 }
 
 function wcBrandName(string $source, string $categories, string $name): string

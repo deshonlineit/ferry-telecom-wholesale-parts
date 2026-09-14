@@ -673,6 +673,17 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
     }
     $priceJoin = '';
     $priceParams = [];
+    $salesJoin = '';
+    if ($sort === 'best_selling') {
+        $salesJoin = " LEFT JOIN (
+            SELECT oi.product_id,SUM(oi.quantity) units_sold
+            FROM order_items oi
+            JOIN orders sales_order ON sales_order.id=oi.order_id
+            WHERE sales_order.status<>'cancelled'
+            GROUP BY oi.product_id
+        ) product_sales ON product_sales.product_id=p.id ";
+        $order = 'COALESCE(product_sales.units_sold,0) DESC,p.featured DESC,p.stock DESC,p.id DESC';
+    }
     if (in_array($sort, ['price_asc', 'price_desc'], true) && $user) {
         $priceJoin = ' LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=? ';
         $priceParams[] = $user['group_id'];
@@ -733,7 +744,7 @@ function catalogProductList(array $input, ?array $user, ?array $facets = null): 
                       LEFT JOIN categories product_category ON product_category.id=p.category_id ';
     $query = db()->prepare(
         "SELECT p.*,product_brand.name AS _brand_name,product_category.name AS _category_name
-         FROM products p $categoryJoin $priceJoin $metadataJoin
+         FROM products p $categoryJoin $salesJoin $priceJoin $metadataJoin
          WHERE $condition ORDER BY $order LIMIT ? OFFSET ?"
     );
     $query->execute([...$priceParams, ...$parameters, ...$orderParams, $limit, ($page - 1) * $limit]);
