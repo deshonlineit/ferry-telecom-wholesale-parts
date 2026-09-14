@@ -28,19 +28,25 @@ if ((int) $pdo->query('SELECT COUNT(*) FROM customer_groups')->fetchColumn() ===
         throw $error;
     }
 }
-$staffPassword = getenv('NATIVE_STAFF_PASSWORD');
-if (is_string($staffPassword) && $staffPassword !== '') {
-    if (strlen($staffPassword) < 12) {
-        throw new RuntimeException('The staff password must have at least 12 characters.');
+foreach ([
+    'NATIVE_STAFF_PASSWORD' => 'staff@test.invalid',
+    'NATIVE_CUSTOMER_PASSWORD' => 'customer@test.invalid',
+] as $secretName => $email) {
+    $password = getenv($secretName);
+    if (is_string($password) && $password !== '') {
+        if (strlen($password) < 12) {
+            throw new RuntimeException($secretName . ' must have at least 12 characters.');
+        }
+        $query = $pdo->prepare('SELECT id,password_hash FROM users WHERE email=?');
+        $query->execute([$email]);
+        $account = $query->fetch();
+        if ($account && !password_verify($password, $account['password_hash'])) {
+            $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')
+                ->execute([password_hash($password, PASSWORD_DEFAULT), $account['id']]);
+        }
     }
-    $query = $pdo->query("SELECT id,password_hash FROM users WHERE email='staff@test.invalid'");
-    $staff = $query->fetch();
-    if ($staff && !password_verify($staffPassword, $staff['password_hash'])) {
-        $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')
-            ->execute([password_hash($staffPassword, PASSWORD_DEFAULT), $staff['id']]);
-    }
+    unset($password);
 }
-unset($staffPassword);
 if ((int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn() > 0) {
     echo "Existing isolated catalog retained.\n";
     exit;

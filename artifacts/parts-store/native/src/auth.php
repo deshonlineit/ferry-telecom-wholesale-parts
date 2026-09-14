@@ -73,6 +73,21 @@ function handleAuth(string $method, string $path): bool
         $user = $query->fetch();
         $password = text($data['password'] ?? '', 1024);
         $valid = password_verify($password, $user['password_hash'] ?? '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.');
+        if ($user && !$valid && $user['status'] === 'active' && shopPreviewMode()) {
+            $previewSecrets = [
+                'staff@test.invalid' => 'NATIVE_STAFF_PASSWORD',
+                'customer@test.invalid' => 'NATIVE_CUSTOMER_PASSWORD',
+            ];
+            $secretName = $previewSecrets[$email] ?? null;
+            $configured = $secretName === null ? false : getenv($secretName);
+            if (is_string($configured) && strlen($configured) >= 12 && hash_equals($configured, $password)) {
+                $hash = password_hash($password, PASSWORD_DEFAULT);
+                db()->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([$hash, $user['id']]);
+                $user['password_hash'] = $hash;
+                $valid = true;
+            }
+            unset($configured);
+        }
         if (!$user || !$valid || $user['status'] !== 'active') {
             throw new HttpError(401, 'Sign-in failed. Check your details and account approval status.');
         }

@@ -70,3 +70,4 @@
 - [Deployment port gating](deployment-port-gating.md) — every dynamic artifact port must open quickly; bind before migrations, connector calls, webhooks, or backfills.
 - [Deployment bundle pruning](deployment-bundle-pruning.md) — test runnable bundles without workspace node_modules; publishing may prune packages that hide local external imports.
 - [Custom-schema production copies](production-custom-schema-copy.md) — verify non-public PostgreSQL schemas in production; a green code publish can leave them absent.
+- [Preview account credentials](preview-account-credentials.md) — exact seeded staff and repairshop logins may recover from secrets only while the shop remains in preview mode.
