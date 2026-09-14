@@ -53,7 +53,7 @@ $ssrHtml = '';
 if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     $db = db();
     $id = (int)$matches[1];
-    $stmt = $db->prepare("SELECT name, description FROM products WHERE id = ? AND active=1 AND publication_status='visible'");
+    $stmt = $db->prepare("SELECT name, description FROM products WHERE id = ? AND active=TRUE AND publication_status='visible'");
     $stmt->execute([$id]);
     $prod = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($prod) {
