@@ -15,6 +15,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
     let images = [];
     let modelIds = [];
     let latestImageReport = null;
+    let orphanedMedia = [];
 
     const [catalogData, custData] = await Promise.all([
         window.Core.fetch('/catalog'),
@@ -29,6 +30,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
         images = pData.images || [];
         modelIds = pData.model_ids || [];
         latestImageReport = pData.latest_image_report || null;
+        orphanedMedia = pData.orphaned_media || [];
     }
 
     const esc = window.Core.escapeHtml;
@@ -136,6 +138,18 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                             </div>
                         </div>
                     </div>
+                    ${!isNew && orphanedMedia.length ? `
+                    <div class="editor-card">
+                        <div class="editor-card-header"><h3>Ontkoppelde media opruimen</h3></div>
+                        <div class="editor-card-body">
+                            <p class="editor-help-text">Alleen objecten zonder actuele product- of imageverwijzing staan hier. Vóór verwijdering controleert de server dit opnieuw.</p>
+                            ${orphanedMedia.map(item => `
+                                <div class="orphan-media-row" data-audit-id="${item.audit_id}" style="display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:.75rem 0;border-top:1px solid var(--wb-border);">
+                                    <div><strong>${item.object_count} opgeslagen objecten</strong><br><small>${esc(item.reason || 'Geen reden')}</small></div>
+                                    <button type="button" class="btn btn-danger btn-sm action-delete-orphan" data-audit-id="${item.audit_id}">Permanent opruimen</button>
+                                </div>`).join('')}
+                        </div>
+                    </div>` : ''}
 
                     <div class="editor-card">
                         <div class="editor-card-header">
@@ -357,6 +371,23 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
             }
         }));
     };
+
+    root.querySelectorAll('.action-delete-orphan').forEach(button => button.addEventListener('click', async event => {
+        const confirmation = prompt('Typ DELETE ORPHANED MEDIA om deze aantoonbaar verweesde objecten permanent te verwijderen.');
+        if (confirmation === null) return;
+        const target = event.currentTarget;
+        target.disabled = true;
+        try {
+            await window.Core.fetch(`/admin/media/orphans/${target.dataset.auditId}/delete`, {
+                method: 'POST', body: { confirm: confirmation }
+            });
+            target.closest('.orphan-media-row')?.remove();
+            window.Workbench.toast('Ontkoppelde media permanent verwijderd en vastgelegd.', 'success');
+        } catch (error) {
+            target.disabled = false;
+            window.Workbench.toast(error.message, 'error');
+        }
+    }));
 
     document.getElementById('admin-product-form').onsubmit = async (e) => {
         e.preventDefault();

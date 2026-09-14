@@ -449,9 +449,41 @@ function opAdminProducts(string $method, string $path): bool
             }
             unset($image);
             $latestImageReport = opLatestImageReport($id);
+            $orphanedMedia = [];
+            require_once __DIR__ . '/media.php';
+            $orphanRows = opRows(
+                "SELECT ae.id,ae.details,ae.created_at FROM audit_events ae
+                 WHERE ae.action='image.incorrect_unlinked' AND ae.entity='product' AND ae.entity_id=?
+                 ORDER BY ae.id DESC",
+                [$id]
+            );
+            $deletedRows = opRows(
+                "SELECT details FROM audit_events WHERE action='image.orphan_deleted' AND entity='product' AND entity_id=?",
+                [$id]
+            );
+            $deletedAuditIds = [];
+            foreach ($deletedRows as $deletedRow) {
+                $deletedDetails = opJson($deletedRow['details']);
+                if (is_array($deletedDetails)) $deletedAuditIds[(int)($deletedDetails['source_audit_id'] ?? 0)] = true;
+            }
+            foreach ($orphanRows as $orphanRow) {
+                if (isset($deletedAuditIds[(int)$orphanRow['id']])) continue;
+                $orphanDetails = opJson($orphanRow['details']);
+                $detached = is_array($orphanDetails) ? ($orphanDetails['detached_media'] ?? null) : null;
+                if (!is_array($detached)) continue;
+                $references = mediaDetachedReferences(db(), $detached);
+                if ($references['images'] !== 0 || $references['products'] !== 0) continue;
+                $orphanedMedia[] = [
+                    'audit_id' => (int)$orphanRow['id'],
+                    'old_url' => (string)($orphanDetails['old_url'] ?? ''),
+                    'reason' => (string)($orphanDetails['reason'] ?? ''),
+                    'object_count' => 1 + count((array)($detached['variants'] ?? [])),
+                    'created_at' => (string)$orphanRow['created_at'],
+                ];
+            }
             respond(['product' => opProduct($existing), 'group_prices' => $prices, 'images' => $images,
                 'model_ids' => array_map(static fn(array $r): int => (int)$r['model_id'], $models),
-                'latest_image_report' => $latestImageReport]);
+                'latest_image_report' => $latestImageReport, 'orphaned_media' => $orphanedMedia]);
         }
         if ($method === 'PATCH') {
             $input = body();

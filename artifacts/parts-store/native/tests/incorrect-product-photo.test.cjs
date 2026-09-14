@@ -27,7 +27,7 @@ test('product management exposes the incorrect-photo action and review filter', 
 test('incorrect-photo handling unlinks without deleting stored media', () => {
     const media = read('src/media.php');
     const start = media.indexOf('function mediaHideIncorrect');
-    const end = media.indexOf('function mediaDeleteProduction', start);
+    const end = media.indexOf('function mediaDeleteOrphan', start);
     const handler = media.slice(start, end);
 
     assert.match(handler, /DELETE FROM images/);

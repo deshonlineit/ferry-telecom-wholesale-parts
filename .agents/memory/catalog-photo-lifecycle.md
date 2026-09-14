@@ -9,6 +9,12 @@ In the React/API prototype, removing a public product photo from a gallery unlin
 
 **How to apply:** Keep staff wording explicit about gallery removal. If permanent erasure is requested, handle reference checks, authorization, storage cleanup failures, and cache behavior as a separate media-lifecycle change. Preserve the native PHP service's existing explicit deletion behavior rather than silently imposing prototype semantics on it.
 
+Permanent cleanup of detached managed media must start from an immutable object snapshot written at unlink time, require explicit staff confirmation, and recheck all current image and product references immediately before deleting bytes.
+
+**Why:** Once the image row is removed, its original and responsive object identities cannot be reconstructed safely from the product alone. A later shared or restored reference must always override an earlier orphan assessment.
+
+**How to apply:** List only snapshots with zero current references, treat the list as advisory, repeat the reference check in the destructive request under database locks, and audit the source unlink event plus acting staff member.
+
 Canonicalize and deduplicate object aliases before publication side effects, not merely in the saved gallery.
 
 **Why:** A raw object path and its serving URL can name the same file. Parallel publication of both aliases can trigger a storage metadata conflict even when both writes set the same visibility.

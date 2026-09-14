@@ -25,6 +25,9 @@ function handleMedia(string $method, string $path): bool
     if ($method === 'POST' && preg_match('#^/admin/products/(\d+)/images/hide/?$#', $path, $match)) {
         mediaHideIncorrect((int) $match[1]);
     }
+    if ($method === 'POST' && preg_match('#^/admin/media/orphans/(\d+)/delete/?$#', $path, $match)) {
+        mediaDeleteOrphan((int) $match[1]);
+    }
     if ($method === 'GET' && preg_match('#^/documents/(\d+)/(invoice|packing-slip)\.pdf$#', $path, $match)) {
         mediaOrderDocument((int) $match[1], $match[2]);
     }
@@ -123,7 +126,7 @@ function mediaHideIncorrect(int $productId): never
         $product = $productStatement->fetch(PDO::FETCH_ASSOC);
         if (!$product) throw new HttpError(404, 'Product not found.');
         if ($imageId !== null) {
-            $imageStatement = $pdo->prepare('SELECT id,url FROM images WHERE id=? AND product_id=? FOR UPDATE');
+            $imageStatement = $pdo->prepare('SELECT id,product_id,url,variants,original_path FROM images WHERE id=? AND product_id=? FOR UPDATE');
             $imageStatement->execute([$imageId, $productId]);
             $image = $imageStatement->fetch(PDO::FETCH_ASSOC);
             if (!$image || (string)$image['url'] !== $oldUrl) {
@@ -151,6 +154,10 @@ function mediaHideIncorrect(int $productId): never
                 'images' => (int)$imageReferences->fetchColumn(),
                 'products' => (int)$productReferences->fetchColumn(),
             ],
+            'detached_media' => $imageId === null ? null : [
+                'original' => (string)$image['original_path'],
+                'variants' => json_decode((string)$image['variants'], true, 512, JSON_THROW_ON_ERROR),
+            ],
         ]);
         $pdo->commit();
     } catch (Throwable $exception) {
@@ -158,6 +165,92 @@ function mediaHideIncorrect(int $productId): never
         throw $exception;
     }
     mediaRespondImages($productId);
+}
+
+function mediaDeleteOrphan(int $auditId): never
+{
+    $staff = requireStaff();
+    $input = body();
+    if (($input['confirm'] ?? null) !== 'DELETE ORPHANED MEDIA') {
+        throw new HttpError(422, 'Type DELETE ORPHANED MEDIA to confirm permanent deletion.');
+    }
+    if (appProduction()) {
+        $payload = json_encode(['confirm' => 'DELETE ORPHANED MEDIA', 'staff_id' => (int)$staff['id']],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        respond(mediaBridge('POST', '/api/native/media/orphans/' . $auditId . '/delete', $payload));
+    }
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    $quarantined = [];
+    try {
+        $auditStatement = $pdo->prepare(
+            "SELECT id,entity_id,details FROM audit_events
+             WHERE id=? AND action='image.incorrect_unlinked' AND entity='product' FOR UPDATE"
+        );
+        $auditStatement->execute([$auditId]);
+        $event = $auditStatement->fetch(PDO::FETCH_ASSOC);
+        if (!$event) throw new HttpError(404, 'Detached media record not found.');
+        $details = json_decode((string)$event['details'], true, 512, JSON_THROW_ON_ERROR);
+        $media = is_array($details) ? ($details['detached_media'] ?? null) : null;
+        if (!is_array($media)) throw new HttpError(409, 'This record has no managed media snapshot.');
+        $deletedEvents = $pdo->query(
+            "SELECT details FROM audit_events WHERE action='image.orphan_deleted'"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($deletedEvents as $deletedEvent) {
+            $deletedDetails = json_decode((string)$deletedEvent['details'], true);
+            if (is_array($deletedDetails) && (int)($deletedDetails['source_audit_id'] ?? 0) === $auditId) {
+                throw new HttpError(409, 'These orphaned media bytes were already deleted.');
+            }
+        }
+
+        $references = mediaDetachedReferences($pdo, $media, true);
+        if ($references['images'] > 0 || $references['products'] > 0) {
+            throw new HttpError(409, 'The media is linked again or shared and cannot be deleted.');
+        }
+        $snapshot = ['product_id' => (int)$event['entity_id'], 'original_path' => (string)($media['original'] ?? ''),
+            'variants' => json_encode($media['variants'] ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)];
+        foreach (mediaOwnedImagePaths($snapshot) as $path) {
+            if (!is_file($path)) continue;
+            $quarantine = $path . '.deleting-' . bin2hex(random_bytes(6));
+            if (!@rename($path, $quarantine)) throw new HttpError(500, 'The orphaned media could not be secured for deletion.');
+            $quarantined[$path] = $quarantine;
+        }
+        audit('image.orphan_deleted', 'product', (int)$event['entity_id'], [
+            'source_audit_id' => $auditId,
+            'by' => (int)$staff['id'],
+            'deleted_objects' => array_values(array_merge([(string)($media['original'] ?? '')], array_values((array)($media['variants'] ?? [])))),
+        ]);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        foreach ($quarantined as $original => $quarantine) @rename($quarantine, $original);
+        throw $exception;
+    }
+    foreach ($quarantined as $quarantine) @unlink($quarantine);
+    respond(['deleted' => true, 'source_audit_id' => $auditId]);
+}
+
+/** @param array<string,mixed> $media @return array{images:int,products:int} */
+function mediaDetachedReferences(PDO $pdo, array $media, bool $lock = false): array
+{
+    $urls = array_values(array_filter(array_map('strval', (array)($media['variants'] ?? []))));
+    $original = (string)($media['original'] ?? '');
+    $suffix = $lock ? ' FOR UPDATE' : '';
+    $imageRows = $pdo->query('SELECT original_path,variants,url FROM images' . $suffix)->fetchAll(PDO::FETCH_ASSOC);
+    $imageReferences = 0;
+    foreach ($imageRows as $row) {
+        $rowVariants = json_decode((string)$row['variants'], true);
+        $rowUrls = is_array($rowVariants) ? array_map('strval', array_values($rowVariants)) : [];
+        if (($original !== '' && (string)$row['original_path'] === $original)
+            || array_intersect($urls, array_merge([(string)$row['url']], $rowUrls))) $imageReferences++;
+    }
+    $productStatement = $pdo->query('SELECT image_url FROM products' . $suffix);
+    $productReferences = 0;
+    foreach ($productStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if (in_array((string)$row['image_url'], $urls, true)) $productReferences++;
+    }
+    return ['images' => $imageReferences, 'products' => $productReferences];
 }
 
 function mediaDeleteProduction(int $imageId): never

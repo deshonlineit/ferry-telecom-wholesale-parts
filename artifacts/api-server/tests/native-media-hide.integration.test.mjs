@@ -142,6 +142,17 @@ async function nativeRequest(method, path, body, contentType, requestedEventId) 
   return json;
 }
 
+async function nativeRequestResponse(method, path, body, contentType) {
+  const eventId = `photo-cleanup-${crypto.randomUUID()}`;
+  eventIds.push(eventId);
+  const response = await fetch(`${API}${path}`, {
+    method,
+    headers: signedHeaders(body, eventId, contentType, path),
+    body,
+  });
+  return { response, json: await response.json() };
+}
+
 async function objectRequest(root, relativePath, method = "GET", body) {
   const fullPath = `${root.replace(/\/$/, "")}/native-media/${relativePath}`;
   const [, bucketName, ...objectName] = fullPath.split("/");
@@ -351,8 +362,55 @@ try {
     reason,
     by: staffId,
     shared_references: { images: 0, products: 1 },
+    detached_media: { original: originalObject, variants },
   });
-  console.log("PASS production bridge hide keeps original and variant object bytes");
+
+  const { rows: [sharedProduct] } = await pool.query(
+    `INSERT INTO parts_store.products(sku,name,description,quality,stock,list_price_cents,image_url,featured,active)
+     VALUES($1,'Shared media fixture','Integration fixture','test',1,1,$2,false,true) RETURNING id`,
+    [`SHARED-${suffix}`, oldUrl],
+  );
+  productIds.push(sharedProduct.id);
+  const { rows: [sharedImage] } = await pool.query(
+    `INSERT INTO parts_store.images(product_id,url,variants,original_path,original_object,media_storage,mime_type,byte_size)
+     VALUES($1,$2,$3::jsonb,$4::varchar,$4::text,'object_storage','image/png',$5) RETURNING id`,
+    [sharedProduct.id, oldUrl, JSON.stringify(variants), originalObject, bytes.length],
+  );
+  const confirmation = Buffer.from(JSON.stringify({ confirm: "DELETE ORPHANED MEDIA", staff_id: staffId }));
+  const { rows: [unlinkAudit] } = await pool.query(
+    `SELECT id FROM parts_store.audit_events WHERE action='image.incorrect_unlinked' AND entity_id=$1 ORDER BY id DESC LIMIT 1`,
+    [product.id],
+  );
+  const protectedAttempt = await nativeRequestResponse(
+    "POST", `/native/media/orphans/${unlinkAudit.id}/delete`, confirmation, "application/json",
+  );
+  assert.equal(protectedAttempt.response.status, 409);
+  assert.match(protectedAttempt.json.error, /linked again or shared/i);
+  assert.ok((await objectRequest(privateRoot, originalObject)).ok, "shared original was deleted");
+  for (const objectPath of publicObjects) {
+    assert.ok((await objectRequest(publicRoot, objectPath)).ok, `shared variant ${objectPath} was deleted`);
+  }
+
+  await pool.query("DELETE FROM parts_store.images WHERE id=$1", [sharedImage.id]);
+  await pool.query("UPDATE parts_store.products SET image_url='' WHERE id=$1", [sharedProduct.id]);
+  await pool.query("UPDATE parts_store.products SET image_url='' WHERE id=$1", [sharedCoverProduct.id]);
+  const deleted = await nativeRequest(
+    "POST", `/native/media/orphans/${unlinkAudit.id}/delete`, confirmation, "application/json",
+  );
+  assert.equal(deleted.deleted, true);
+  assert.equal(Number(deleted.source_audit_id), Number(unlinkAudit.id));
+  assert.equal((await objectRequest(privateRoot, originalObject)).status, 404);
+  for (const objectPath of publicObjects) {
+    assert.equal((await objectRequest(publicRoot, objectPath)).status, 404);
+  }
+  const { rows: [cleanupAudit] } = await pool.query(
+    `SELECT user_id,details FROM parts_store.audit_events
+     WHERE action='image.orphan_deleted' AND entity_id=$1 ORDER BY id DESC LIMIT 1`,
+    [product.id],
+  );
+  assert.equal(Number(cleanupAudit.user_id), staffId);
+  assert.equal(Number(cleanupAudit.details.source_audit_id), Number(unlinkAudit.id));
+  console.log("PASS orphan cleanup deletes unreferenced bytes and protects shared bytes");
 } finally {
   if (productIds.length) {
     await pool.query("DELETE FROM parts_store.audit_events WHERE entity='product' AND entity_id=ANY($1::int[])", [productIds]);

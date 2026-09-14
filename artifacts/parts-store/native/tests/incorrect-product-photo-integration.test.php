@@ -127,8 +127,28 @@ try {
     photoTestAssert((int)($details['shared_references']['images'] ?? -1) === 0
         && (int)($details['shared_references']['products'] ?? -1) === 0,
         'The shared reference counts were not audited.');
+    photoTestAssert(($details['detached_media']['original'] ?? null) === $relativeOriginal,
+        'The detached original was not captured for controlled cleanup.');
+    photoTestAssert(($details['detached_media']['variants'] ?? null) === $variants,
+        'The detached variants were not captured for controlled cleanup.');
 
-    echo "PASS local admin hide keeps original product-photo bytes\n";
+    [$productStatus, $productDetail] = photoTestRequest('GET', $base . '/admin/products/' . $productId, [], $cookieFile);
+    photoTestAssert($productStatus === 200
+        && count($productDetail['orphaned_media'] ?? []) === 1
+        && (int)$productDetail['orphaned_media'][0]['audit_id'] > 0,
+        'Staff cannot see the unreferenced detached media candidate: status=' . $productStatus
+            . ' response=' . json_encode($productDetail, JSON_UNESCAPED_SLASHES));
+    $auditId = (int)$productDetail['orphaned_media'][0]['audit_id'];
+    [$refusedStatus] = photoTestRequest('POST', $base . '/admin/media/orphans/' . $auditId . '/delete', [
+        'confirm' => 'delete',
+    ], $cookieFile, (string)$login['csrf']);
+    photoTestAssert($refusedStatus === 422, 'Cleanup did not require the exact explicit confirmation.');
+    foreach ($ownedPaths as $path => $expectedBytes) {
+        photoTestAssert(is_file($path) && file_get_contents($path) === $expectedBytes,
+            'A refused cleanup changed stored bytes: ' . basename($path));
+    }
+
+    echo "PASS local admin exposes orphaned media and requires explicit cleanup confirmation\n";
 } finally {
     if ($productIds) {
         $marks = implode(',', array_fill(0, count($productIds), '?'));
