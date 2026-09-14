@@ -13,7 +13,6 @@
                 if (value === '' || value === null || value === undefined || value === false) next.delete(key);
                 else next.set(key, String(value));
             }
-            if ('brand' in changes && String(changes.brand || '') !== String(getParams(params).get('brand') || '') && !('model' in changes)) next.delete('model');
             if ('family' in changes && String(changes.family || '') !== String(getParams(params).get('family') || '') && !('model' in changes)) next.delete('model');
             // A different device brand invalidates a family or model from the previous brand.
             if ('device_brand' in changes && String(changes.device_brand || '') !== String(getParams(params).get('device_brand') || '')) {
@@ -106,6 +105,88 @@
             return `<div class="field secondary-filter ${brand ? 'has-value' : ''}"><label for="${prefix}-brand">${t('brand')}</label>
                 <select id="${prefix}-brand" name="brand" class="form-control"><option value="">${t('allBrands')}</option>
                 ${catalog.brands.filter(b => b.count > 0 || String(b.id) === brand).map(b => `<option value="${b.id}" ${String(b.id) === brand ? 'selected' : ''}>${escape(b.name)} (${b.count})</option>`).join('')}</select></div>`;
+        },
+        renderHousingBrowse(catalog, params, category) {
+            params = getParams(params);
+            const selectedModel = (catalog.models || []).find(model => String(model.id) === params.get('model'));
+            const selectedPart = (catalog.part_types || []).find(type => type.id === params.get('part'));
+            const partTypes = (catalog.part_types || [])
+                .filter(type => String(type.category_id) === String(category.id) && (Number(type.count) > 0 || type.id === selectedPart?.id));
+            const partChoices = selectedModel ? `<nav class="housing-part-options" aria-label="${escape(t('chooseHousingPart'))}">
+                ${partTypes.map(type => `<a class="housing-part-choice ${type.id === selectedPart?.id ? 'active' : ''}" href="${D.buildUrl(params, {category: category.id, part: type.id})}" ${type.id === selectedPart?.id ? 'aria-current="page"' : ''}>
+                    <span><strong>${escape(type.name)}</strong><small>${escape(type.description || t('housingPartFallback'))}</small></span>
+                    <b>${window.I18n.number(Number(type.count))}</b>
+                </a>`).join('')}
+            </nav>` : `<div class="housing-step-locked">
+                <span aria-hidden="true">1</span>
+                <div><strong>${escape(t('chooseModelFirst'))}</strong><p>${escape(t('chooseModelFirstHint'))}</p></div>
+            </div>`;
+            return `<section class="category-browse housing-guide" aria-labelledby="category-browse-heading">
+                <header class="category-browse-heading housing-guide-heading">
+                    <div><span>${escape(t('housingGuideEyebrow'))}</span><h2 id="category-browse-heading">${escape(t('housingGuideTitle'))}</h2></div>
+                    <p>${escape(t('housingGuideHint'))}</p>
+                </header>
+                <div class="housing-guide-steps">
+                    <section class="housing-guide-step ${selectedModel ? 'is-complete' : 'is-current'}">
+                        <header class="housing-step-heading"><b>1</b><span><strong>${escape(t('chooseDeviceModel'))}</strong><small>${escape(selectedModel ? selectedModel.name : t('chooseDeviceModelHint'))}</small></span></header>
+                        ${window.CategoryModels.render(catalog, params, t('chooseDeviceModel'), {prominent: true, open: !selectedModel, openFirst: !selectedModel})}
+                    </section>
+                    <section class="housing-guide-step ${selectedModel ? (selectedPart ? 'is-complete' : 'is-current') : 'is-locked'}" data-housing-part-step tabindex="-1">
+                        <header class="housing-step-heading"><b>2</b><span><strong>${escape(t('chooseHousingPart'))}</strong><small>${escape(selectedPart ? selectedPart.name : t('chooseHousingPartHint'))}</small></span></header>
+                        ${partChoices}
+                    </section>
+                    <section class="housing-guide-step housing-result-step ${selectedPart ? 'is-complete' : 'is-locked'}">
+                        <header class="housing-step-heading"><b>3</b><span><strong>${escape(t('matchingProducts'))}</strong><small>${escape(selectedPart ? t('matchingProductsReady') : t('matchingProductsHint'))}</small></span></header>
+                    </section>
+                </div>
+            </section>`;
+        },
+        renderCategoryBrowse(catalog, params, subject, category) {
+            return category?.slug === 'housing' ? D.renderHousingBrowse(catalog, params, category) : '';
+        },
+        renderCategoryBrowseLoading(subject, category) {
+            return `<section class="category-browse category-browse--loading" data-category-browse aria-busy="true">
+                <header class="category-browse-heading">
+                    <div><span>${escape(t('housingGuideEyebrow'))}</span><h2>${escape(t('housingGuideTitle'))}</h2></div>
+                    <p>${escape(t('loadingBrandsModels'))}</p>
+                </header>
+                <div class="category-browse-loading" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </section>`;
+        },
+        async refreshCategoryBrowse(root, params, subject, category, key, signal) {
+            const queued = D.catalogRefreshTimers.get(key);
+            if (queued) clearTimeout(queued);
+            D.catalogRefreshTimers.delete(key);
+            try {
+                const exact = await window.Core.fetch('/catalog?' + getParams(params).toString(), {signal});
+                if (signal?.aborted || !root.isConnected) return;
+                D.catalogMetadata.set(key, {data: exact, at: Date.now()});
+                D.lastCatalogMetadata = exact;
+                const current = root.querySelector('[data-category-browse]');
+                if (!current) return;
+                const holder = document.createElement('div');
+                holder.innerHTML = D.renderCategoryBrowse(exact, params, subject, category);
+                const browse = holder.firstElementChild;
+                browse.dataset.categoryBrowse = '';
+                current.replaceWith(browse);
+                window.CategoryModels.bind(browse.querySelector('[data-category-models]'), exact, params);
+                window.I18n?.localize(browse);
+                if (D.focusResultsAfterModel && category?.slug === 'housing' && params.get('model')) {
+                    D.focusResultsAfterModel = false;
+                    const destination = browse.querySelector('[data-housing-part-step]');
+                    destination?.focus({preventScroll: true});
+                    destination?.scrollIntoView({block: 'start'});
+                }
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
+                const loading = root.querySelector('[data-category-browse]');
+                if (loading) {
+                    loading.setAttribute('aria-busy', 'false');
+                    loading.querySelector('.category-browse-loading')?.remove();
+                    const message = loading.querySelector('.category-browse-heading p');
+                    if (message) message.textContent = t('optionsRefreshFailed');
+                }
+            }
         },
         // The rail shows the real part photo the category already carries; the 320w variant keeps it light.
         railGlyph() {
@@ -372,6 +453,7 @@
     window.Router.add(/^catalog$/, async (match, root, input) => {
         const renderVersion = window.Router.renderVersion;
         const params = getParams(input);
+        const catalogKey = D.catalogCacheKey(params);
         const headerSearch = document.getElementById('search-input');
         if (headerSearch) headerSearch.value = params.get('q') || '';
         const previousShell = root.querySelector('[data-catalog-shell]');
@@ -384,7 +466,7 @@
         else root.innerHTML = D.catalogSkeleton(params);
         try {
             const [catalog, result] = await Promise.all([
-                D.getCatalog(params, D.catalogCacheKey(params), controller.signal),
+                D.getCatalog(params, catalogKey, controller.signal),
                 window.Core.fetch('/products?' + params.toString(), {signal: controller.signal}),
                 window.Core.ready
             ]);
@@ -402,6 +484,9 @@
             const subject = part?.name || categoryName || (department === 'supplies' ? t('supplies') : t('partsMenu'));
             const device = model?.name || family?.label || deviceBrand?.name || '';
             const showCategoryModels = true;
+            const housingReady = cat?.slug !== 'housing' || Boolean(params.get('model') && params.get('part'));
+            const exactCatalogEntry = D.catalogMetadata.get(catalogKey);
+            const hasExactCatalog = Boolean(exactCatalogEntry?.at && Date.now() - exactCatalogEntry.at < 60000);
             const chips = [
                 query && ['q', `“${query}”`], cat && ['category', categoryName], part && ['part', part.name],
                 deviceBrand && ['device_brand', deviceBrand.name], family && ['family', family.label], brand && ['brand', brand.name],
@@ -434,8 +519,6 @@
             const groupedCategories = window.App.groupCategories(catalog.categories);
             const departmentCategories = department ? groupedCategories[department] : catalog.categories;
             const quickCategories = window.App.sortCategories(departmentCategories).filter(c => c.count > 0 || String(c.id) === params.get('category'));
-            const partTypes = cat?.slug === 'housing' ? (catalog.part_types || []).filter(type => String(type.category_id) === String(cat.id)) : [];
-            const typePicker = partTypes.length ? `<section class="part-type-picker" aria-label="Which part do you need?"><div class="part-type-intro"><span>Which part?</span><small>Not every item is a complete housing.</small></div><nav class="part-type-options" aria-label="Housing part type"><a class="part-type-option ${!part ? 'active' : ''}" ${!part ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {part: ''})}"><strong>All</strong><small>All variants</small></a>${partTypes.map(type => `<a class="part-type-option ${type.id === part?.id ? 'active' : ''} ${type.count === 0 ? 'is-empty' : ''}" ${type.id === part?.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: cat.id, part: type.id})}" title="${escape(type.description)}"><span><strong>${escape(type.name)}</strong><b>${type.count}</b></span><small>${escape(type.description)}</small></a>`).join('')}</nav></section>` : '';
             root.innerHTML = `<div data-catalog-shell><div class="catalog-breadcrumb"><a href="${window.APP_BASE}">${t('home')}</a><span>/</span><a href="${D.buildUrl('')}">${t('catalogue')}</a>${cat ? `<span>/</span><span>${escape(cat.name)}</span>` : ''}</div>
                 <section class="catalog-smart-search" data-catalog-smart-search aria-label="${t('smartSearch')}" hidden>
                     <div class="catalog-smart-intro"><strong>${t('smartSearch')}</strong><span>${t('smartSearchPrompt')}</span></div>
@@ -453,21 +536,31 @@
                     <aside class="catalog-sidebar" aria-label="${t('browseFilterCatalogue')}">
                         <div class="catalog-sidebar-heading"><span>${t('catalogue')}</span><h2>${t('findRightPart')}</h2></div>
                         <nav class="quick-categories" aria-label="${t('choosePartCategory')}"><a class="quick-category ${!cat ? 'active' : ''}" ${!cat ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: ''})}">${D.railGlyph()}<span>${department === 'supplies' ? t('supplies') : t('allParts')}</span></a>${quickCategories.map(c => `<a class="quick-category ${c.id === cat?.id ? 'active' : ''}" ${cat?.id === c.id ? 'aria-current="page"' : ''} href="${D.buildUrl(params, {category: c.id, part: ''})}">${D.categoryThumb(c)}<span>${escape(window.I18n.dictionaries.en[c.slug] ? t(c.slug) : quickNames[c.slug] || c.name)}</span></a>`).join('')}</nav>
-                        ${typePicker}
-                        ${showCategoryModels ? window.CategoryModels.render(catalog, params, part?.name || categoryName || 'Your search') : ''}
-                        <div class="catalog-desktop-filters">
+                        ${housingReady ? `<div class="catalog-desktop-filters">
                             <h3>${t('filterProducts')}</h3>
                             ${filterForm('desktop')}
-                        </div>
+                        </div>` : ''}
                         ${chips.length ? `<div class="catalog-sidebar-active"><span>${t('activeFilters')}</span><div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">${t('clearAll')}</a></div></div>` : ''}
                     </aside>
                     <section class="catalog-main" data-catalog-results tabindex="-1" aria-label="Product results" aria-busy="false"><p class="catalog-result-status sr-only" aria-live="polite">${window.I18n.number(result.total)} ${t(result.total === 1 ? 'part' : 'parts')}</p>
-                        <div class="catalog-refine-row">${showCategoryModels ? '' : `<label class="catalog-tool-field">Brand<select id="catalog-brand" class="form-control"><option value="">All brands</option>${catalog.brands.filter(b => b.count > 0 || String(b.id) === params.get('brand')).map(b => `<option value="${b.id}" ${String(b.id) === params.get('brand') ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label>`}
+                        ${cat?.slug === 'housing' ? (hasExactCatalog ? D.renderCategoryBrowse(catalog, params, subject, cat) : D.renderCategoryBrowseLoading(subject, cat)) : ''}
+                        ${model && housingReady ? `<section class="model-part-search" aria-labelledby="model-part-search-title">
+                            <div class="model-part-search-copy">
+                                <span class="model-part-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+                                <div><h2 id="model-part-search-title">${escape(t('searchWithinModel', {model: device}))}</h2><p>${escape(t('modelSearchHint', {model: device}))}</p></div>
+                            </div>
+                            <form class="model-part-search-form" role="search" aria-label="${escape(t('searchWithinModel', {model: device}))}" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(window.location.search), {q: this.q.value.trim(), page: ''}));">
+                                <label class="sr-only" for="model-part-query">${escape(t('searchWithinModel', {model: device}))}</label>
+                                <div class="model-part-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="model-part-query" name="q" type="search" value="${escape(query)}" placeholder="${escape(t('modelSearchPlaceholder'))}" autocomplete="off"><button type="submit">${escape(t('searchThisModel'))}</button></div>
+                                ${query ? `<a class="model-part-search-clear" href="${D.buildUrl(params, {q: '', page: ''})}">${escape(t('clearModelSearch'))}</a>` : ''}
+                            </form>
+                        </section>` : ''}
+                        ${housingReady ? `<div class="catalog-refine-row">${showCategoryModels ? '' : `<label class="catalog-tool-field">Brand<select id="catalog-brand" class="form-control"><option value="">All brands</option>${catalog.brands.filter(b => b.count > 0 || String(b.id) === params.get('brand')).map(b => `<option value="${b.id}" ${String(b.id) === params.get('brand') ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label>`}
                         <label class="catalog-tool-field">${t('quality')}<select id="quick-quality" class="form-control"><option value="">${t('allQualities')}</option>${[...new Set([...catalog.qualities, params.get('quality')].filter(Boolean))].map(q => `<option value="${escape(q)}" ${q === params.get('quality') ? 'selected' : ''}>${escape(q)}</option>`).join('')}</select></label>
                         <button type="button" class="stock-shortcut ${params.get('stock') === 'in_stock' ? 'active' : ''}" data-stock-toggle aria-pressed="${params.get('stock') === 'in_stock'}">${t('inStock')}</button>
-                        <button type="button" class="btn btn-outline" id="open-catalog-filters">${t('allFilters')}${chips.length ? ` (${window.I18n.number(chips.length)})` : ''}</button></div>
+                        <button type="button" class="btn btn-outline" id="open-catalog-filters">${t('allFilters')}${chips.length ? ` (${window.I18n.number(chips.length)})` : ''}</button></div>` : ''}
                         ${chips.length ? `<div class="active-filters">${chips.map(removeLink).join('')}<a class="clear-filters" href="${D.buildUrl('')}">${t('clear')}</a></div>` : ''}
-                        ${result.products.length ? window.App.renderProductTable(result.products, {productHeaderHtml: productHeader}) : `<div class="catalog-empty-surface"><div class="empty-state"><h2>${part ? t('noPartSelection', {part: part.name}) : t('noPartsCombination')}</h2><p>${part ? `${escape(part.description)} ${t('changeModelHint')}` : t('removeFilterHint')}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${t(part ? 'viewOtherVariants' : 'viewAllParts')}</a></div></div>`}${pagination}
+                        ${housingReady ? (result.products.length ? window.App.renderProductTable(result.products, {productHeaderHtml: productHeader}) : `<div class="catalog-empty-surface"><div class="empty-state"><h2>${part ? t('noPartSelection', {part: part.name}) : t('noPartsCombination')}</h2><p>${part ? `${escape(part.description)} ${t('changeModelHint')}` : t('removeFilterHint')}</p><a class="btn btn-outline" href="${part ? D.buildUrl(params, {part: ''}) : D.buildUrl('')}">${t(part ? 'viewOtherVariants' : 'viewAllParts')}</a></div></div>` ) : `<div class="housing-products-locked"><strong>${escape(model ? t('nowChoosePart') : t('chooseModelFirst'))}</strong><p>${escape(model ? t('nowChoosePartHint') : t('chooseModelFirstHint'))}</p></div>`}${housingReady ? pagination : ''}
                     </section>
                 </div>
                 <dialog id="catalog-filter-dialog" class="filter-dialog"><div class="filter-dialog-heading"><h2>${t('refineSelection')}</h2><button type="button" class="btn-close" aria-label="${t('closeFilters')}">×</button></div>${filterForm('mobile', true)}</dialog>
@@ -480,6 +573,7 @@
             };
             for (const prefix of ['desktop', 'mobile']) {
                 const form = document.getElementById(prefix + '-filters');
+                if (!form) continue;
                 D.bindDeviceFields(form, catalog, prefix === 'desktop' ? {onChange() { apply(form); return false; }} : {refreshFacets: false});
                 if (prefix === 'desktop') {
                     form.querySelector('.advanced-filters')?.addEventListener('change', () => apply(form));
@@ -492,25 +586,32 @@
                 });
             }
             document.getElementById('catalog-brand')?.addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {brand: event.target.value})));
-            window.CategoryModels.bind(root.querySelector('[data-category-models]'), catalog, params);
+            root.querySelectorAll('[data-category-models]').forEach(element => window.CategoryModels.bind(element, catalog, params));
+            if (cat?.slug === 'housing' && !hasExactCatalog) D.refreshCategoryBrowse(root, params, subject, cat, catalogKey, controller.signal);
             if (D.focusResultsAfterModel) {
-                D.focusResultsAfterModel = false;
-                const results = root.querySelector('[data-catalog-results]');
-                results.focus({preventScroll: true});
-                results.scrollIntoView({block: 'start'});
+                const destination = cat?.slug === 'housing' && model
+                    ? root.querySelector('[data-housing-part-step]')
+                    : root.querySelector('[data-catalog-results]');
+                if (destination) {
+                    D.focusResultsAfterModel = false;
+                    destination.focus({preventScroll: true});
+                    destination.scrollIntoView({block: 'start'});
+                }
             }
-            document.getElementById('quick-quality').addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {quality: event.target.value})));
-            root.querySelector('[data-stock-toggle]').addEventListener('click', () => window.Router.navigate(D.buildUrl(params, {stock: params.get('stock') === 'in_stock' ? '' : 'in_stock'})));
+            document.getElementById('quick-quality')?.addEventListener('change', event => window.Router.navigate(D.buildUrl(params, {quality: event.target.value})));
+            root.querySelector('[data-stock-toggle]')?.addEventListener('click', () => window.Router.navigate(D.buildUrl(params, {stock: params.get('stock') === 'in_stock' ? '' : 'in_stock'})));
             const dialog = document.getElementById('catalog-filter-dialog');
             const opener = document.getElementById('open-catalog-filters');
-            opener.addEventListener('click', () => dialog.showModal());
-            dialog.querySelector('.btn-close').addEventListener('click', () => dialog.close());
-            dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
-            dialog.addEventListener('close', () => opener.focus());
-            dialog.querySelector('[data-reset-filters]').addEventListener('click', () => {
-                dialog.close();
-                window.Router.navigate(D.buildUrl(''));
-            });
+            if (opener) {
+                opener.addEventListener('click', () => dialog.showModal());
+                dialog.querySelector('.btn-close').addEventListener('click', () => dialog.close());
+                dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+                dialog.addEventListener('close', () => opener.focus());
+                dialog.querySelector('[data-reset-filters]').addEventListener('click', () => {
+                    dialog.close();
+                    window.Router.navigate(D.buildUrl(''));
+                });
+            }
             const finderDialog = root.querySelector('#device-finder-dialog');
             const finderOpener = root.querySelector('[data-change-device]');
             if (finderOpener) {

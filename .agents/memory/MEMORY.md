@@ -45,6 +45,7 @@
 - [Smart-search privacy boundary](smart-search-privacy.md) — learn from intent and outcomes, never send customers’ raw search text to analytics.
 - [Smart-search model numbers](smart-search-model-numbers.md) — standalone numbers are device intent, not digit fragments inside SKUs or supplier codes.
 - [Smart-search typo tolerance](smart-search-typo-tolerance.md) — correct clear word misspellings centrally, but never alter model numbers, SKU-like codes, or ambiguous words.
+- [Smart-search pop-out feedback](smart-search-popout-feedback.md) — results must read as a separate, visibly scrollable workspace with persistent location and exit cues.
 - [WooCommerce review imports](woocommerce-review-imports.md) — reconcile published products by exact SKU; refresh media from URL-keyed cache instead of trusting old product files.
 - [Catalogue filter hierarchy](catalogue-filter-hierarchy.md) — primary flow is model → part → subtype; brand, quality, and stock stay under optional filters.
 - [Immediate catalogue navigation](immediate-catalogue-navigation.md) — never block the top menu on cold catalogue metadata; render links or cached dropdowns first.
@@ -75,3 +76,4 @@
 - [Preview account credentials](preview-account-credentials.md) — exact seeded staff and repairshop logins may recover from secrets only while the shop remains in preview mode.
 - [Registration business types](registration-business-types.md) — self-selected business type is review metadata, never an authorization role; new applicants remain pending customers.
 - [Mega-menu page scrolling](mega-menu-page-scrolling.md) — desktop and mobile catalogue menus grow to content height; vertical browsing belongs to the page, not a nested menu scroller.
+- [B2B legal policy](b2b-legal-policy.md) — public terms stay Swiss-law-minimal: no voluntary cooling-off right or broad satisfaction promise, and no implied lifetime warranty.

@@ -261,22 +261,6 @@ function opAssertProductPublishable(int $productId): void
         || $candidate['category_id'] === null || $candidate['brand_id'] === null) {
         throw new HttpError(422, 'Complete SKU, name, category and brand before publishing.');
     }
-    $missing = opRows(
-        'SELECT cg.name
-         FROM customer_groups cg
-         LEFT JOIN group_prices gp ON gp.group_id=cg.id
-           AND gp.product_id=? AND gp.price_eur_cents IS NOT NULL
-         WHERE gp.product_id IS NULL
-         ORDER BY cg.id',
-        [$productId]
-    );
-    if ($missing !== []) {
-        throw new HttpError(
-            422,
-            'Add a price for every customer group before publishing: '
-            . implode(', ', array_column($missing, 'name'))
-        );
-    }
 }
 
 function opAdminProducts(string $method, string $path): bool

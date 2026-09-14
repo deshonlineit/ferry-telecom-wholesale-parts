@@ -88,7 +88,7 @@ function pricingWooPlan(array $rows): array
     return [
         'published_source_skus' => count($rows),
         'complete_price_sets' => $complete,
-        'incomplete_price_sets_to_draft' => $incomplete,
+        'visible_without_complete_price_set' => $incomplete,
         'source_skus_missing_from_catalog' => count($missing),
         'missing_examples' => array_slice($missing, 0, 20),
         'mapping' => pricingWooColumns(),
@@ -149,7 +149,7 @@ function pricingWooApply(array $input, array $staff): never
     $products = [];
     foreach ($pdo->query('SELECT id,sku FROM products') as $product) $products[(string)$product['sku']] = (int)$product['id'];
     $complete = $pdo->prepare("UPDATE products SET purchase_price_eur_cents=?,publication_status='visible',pricing_version=pricing_version+1 WHERE id=?");
-    $incomplete = $pdo->prepare("UPDATE products SET purchase_price_eur_cents=?,publication_status='draft',pricing_version=pricing_version+1 WHERE id=?");
+    $incomplete = $pdo->prepare("UPDATE products SET purchase_price_eur_cents=?,publication_status='visible',pricing_version=pricing_version+1 WHERE id=?");
     $clear = $pdo->prepare('UPDATE group_prices SET price_eur_cents=NULL WHERE product_id=?');
     $upsert = $pdo->prepare(dbDriver() === 'pgsql'
         ? 'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,0,?)

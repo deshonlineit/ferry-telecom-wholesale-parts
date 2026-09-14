@@ -49,6 +49,16 @@ if ($relPath === '') $relPath = '/';
 $title = "Ferry Telecom | Wholesale Repair Parts";
 $description = "Precision and reliability for professional repairers. Order your parts straight from stock.";
 $ssrHtml = '';
+$legalPages = [
+    'returns-service' => ['Return & Service Policy', 'B2B returns, delivery issues and approved RMA service from Ferry Telecom AG.'],
+    'return-service-policy' => ['Return & Service Policy', 'B2B returns, delivery issues and approved RMA service from Ferry Telecom AG.'],
+    'terms-conditions' => ['Terms & Conditions', 'Business terms for purchasing repair parts and supplies from Ferry Telecom AG.'],
+    'privacy-policy' => ['Privacy Policy', 'How Ferry Telecom AG handles personal data under Swiss data protection law.'],
+    'quality-warranty' => ['Quality and warranty', 'Quality, testing and warranty conditions for professional repair parts.'],
+    'quality-and-warranty-of-parts-for-iphone-ipad' => ['Quality and warranty', 'Quality, testing and warranty conditions for professional repair parts.'],
+    'quality-options' => ['Quality options', 'A practical guide to original, refurbished, OLED, Incell and compatible part qualities.'],
+    'quality-options-for-parts' => ['Quality options', 'A practical guide to original, refurbished, OLED, Incell and compatible part qualities.'],
+];
 
 if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     $db = db();
@@ -62,12 +72,19 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         $ssrHtml = "<h1>" . htmlspecialchars((string)$prod['name'], ENT_QUOTES) . "</h1><p>" . nl2br(htmlspecialchars((string)$prod['description'], ENT_QUOTES)) . "</p>";
     }
 }
+if (isset($legalPages[trim($relPath, '/')])) {
+    [$legalTitle, $legalDescription] = $legalPages[trim($relPath, '/')];
+    $title = $legalTitle . ' | Ferry Telecom';
+    $description = $legalDescription;
+    $ssrHtml = '<h1>' . htmlspecialchars($legalTitle, ENT_QUOTES) . '</h1><p>' . htmlspecialchars($legalDescription, ENT_QUOTES) . '</p>';
+}
     $entryRoute = trim($relPath, '/');
     $isHomeRoute = $entryRoute === '';
     $isCatalogRoute = $entryRoute === 'catalog';
     $isAdminRoute = $entryRoute === 'admin' || str_starts_with($entryRoute, 'admin/');
     $isAccountRoute = $entryRoute === 'account' || str_starts_with($entryRoute, 'account/') || $entryRoute === 'quick-order';
     $isProductRoute = str_starts_with($entryRoute, 'products/');
+    $isLegalRoute = isset($legalPages[$entryRoute]);
     $v_css = @filemtime(__DIR__ . '/assets/styles.css') ?: 1;
     $v_ws = @filemtime(__DIR__ . '/assets/workspace.css') ?: 1;
     $v_wb = @filemtime(__DIR__ . '/assets/workbench.css') ?: 1;
@@ -97,6 +114,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
     <?php
         $stylesheets = $catalogStylesheets;
         if ($isHomeRoute) $stylesheets[] = 'home-landing.css';
+        if ($isLegalRoute) $stylesheets[] = 'legal-pages.css';
         if ($isAccountRoute || $isProductRoute) {
             $stylesheets[] = 'b2b-account.css';
             $stylesheets[] = 'b2b-workspace.css';
@@ -147,15 +165,15 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
 
             <button type="button" class="page-search-jump" aria-label="Open Smart Search" data-i18n-aria-label="openSmartSearch" onclick="const panel=document.querySelector('[data-catalog-smart-search]'); if(panel){panel.hidden=false;} const input=document.querySelector('#home-search, #catalog-smart-search'); if(input){input.focus({preventScroll:true}); input.scrollIntoView({behavior:'smooth',block:'center'});}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line></svg>
-                <span data-i18n="search">Search</span>
+                <span data-i18n="searchAllProducts">Search all products</span>
             </button>
             
             <div class="search-bar">
                 <form id="global-search" onsubmit="event.preventDefault(); window.Router.navigate(window.Discovery.buildUrl(new URLSearchParams(), {q: this.q.value})); window.UI.closeSuggestions();" data-search-root>
                     <div class="search-input-wrapper">
                         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line></svg>
-                        <input type="search" name="q" id="search-input" placeholder="Describe what you need…" data-i18n-placeholder="smartSearchPrompt" aria-label="Smart Search: describe the part you need" data-i18n-aria-label="smartSearchPrompt" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
-                        <button type="submit" class="search-submit" data-i18n="smartSearch">Smart search</button>
+                        <input type="search" name="q" id="search-input" placeholder="Search the entire catalogue…" data-i18n-placeholder="wholeCatalogueSearchPlaceholder" aria-label="Search all products in the catalogue" data-i18n-aria-label="searchAllProducts" role="combobox" aria-autocomplete="list" aria-haspopup="dialog" aria-controls="search-suggestions" aria-expanded="false" autocomplete="off" oninput="window.App.handleSearchInput(this.value, 'search-input')" onfocus="window.App.handleSearchFocus('search-input')" onkeydown="window.App.handleSearchKeydown(event)">
+                        <button type="submit" class="search-submit" data-i18n="searchAll">Search all</button>
                     </div>
                     <div id="search-suggestions" class="search-suggestions b2b-search-results" role="dialog" aria-label="Order products directly" data-i18n-aria-label="orderDirectly" style="display:none;"></div>
                 </form>
@@ -224,6 +242,14 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
                     <a href="/test-shop/account/addresses" data-i18n="footerAddresses">Delivery addresses</a>
                     <a href="/test-shop/register" data-i18n="becomeCustomer">Become a customer</a>
                 </div>
+                <div class="footer-links">
+                    <h4>Customer service</h4>
+                    <a href="/test-shop/returns-service">Return &amp; Service Policy</a>
+                    <a href="/test-shop/terms-conditions">Terms &amp; Conditions</a>
+                    <a href="/test-shop/privacy-policy">Privacy Policy</a>
+                    <a href="/test-shop/quality-warranty">Quality and warranty</a>
+                    <a href="/test-shop/quality-options">Quality options</a>
+                </div>
             </div>
         </div>
         <div class="footer-bottom">
@@ -243,6 +269,7 @@ if (preg_match('#^products/(\d+)$#', $relPath, $matches)) {
         if ($isHomeRoute) array_push($scripts, 'home-landing.js', 'home.js');
         if ($isAccountRoute) array_push($scripts, 'account.js', 'quick-order.js', 'account-workspace.js');
         if ($isProductRoute) $scripts[] = 'account-workspace.js';
+        if ($isLegalRoute) $scripts[] = 'legal-pages.js';
         if ($isAdminRoute) {
             array_push(
                 $scripts, 'admin-shell.js', 'admin.js', 'admin-products.js',

@@ -556,7 +556,18 @@ window.UI = {
         window.App.searchSequence = (window.App.searchSequence || 0) + 1;
         window.App.searchIndex = -1;
         const {container: el, input} = window.App.searchElements();
-        if (el) el.style.display = 'none';
+        if (el) {
+            el.style.display = 'none';
+            el.classList.remove('search-popout-enter', 'has-more-below');
+            el.parentElement?.classList.remove('search-popout-active');
+            if (el._searchOrigin) {
+                const {parent, next} = el._searchOrigin;
+                if (parent?.isConnected) parent.insertBefore(el, next?.parentNode === parent ? next : null);
+                delete el._searchOrigin;
+            }
+        }
+        document.body.classList.remove('search-popout-mobile-open');
+        input?.closest('[data-search-root]')?.classList.remove('search-popout-active');
         input?.setAttribute('aria-expanded', 'false');
         input?.removeAttribute('aria-activedescendant');
     },

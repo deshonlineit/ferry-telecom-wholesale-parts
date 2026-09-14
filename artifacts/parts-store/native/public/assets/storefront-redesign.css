@@ -1266,8 +1266,8 @@ body:not(:has(.admin-shell)):has(.lp) .app-footer {
 
 body:not(:has(.admin-shell)) .footer-grid {
     display: grid;
-    grid-template-columns: minmax(240px, 1.55fr) repeat(3, minmax(150px, 1fr));
-    gap: clamp(2rem, 4vw, 4rem);
+    grid-template-columns: minmax(220px, 1.45fr) repeat(4, minmax(130px, 1fr));
+    gap: clamp(1.5rem, 3vw, 3rem);
     padding: 3rem 0;
 }
 

@@ -595,6 +595,12 @@ body:not(:has(.admin-shell)) .b2b-nav-item.is-open > .b2b-nav-caret {
 }
 
 /* Mega Dropdown */
+@media (min-width: 769px) {
+    body:not(:has(.admin-shell)):has(.b2b-nav-item.is-open) .app-header {
+        position: relative;
+    }
+}
+
 body:not(:has(.admin-shell)) .b2b-dropdown-overlay {
     display: none;
     position: absolute;
@@ -714,6 +720,10 @@ body:not(:has(.admin-shell)) .b2b-mega-heading {
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: #fff;
 }
 body:not(:has(.admin-shell)) .b2b-mega-heading small {
     margin-left: 8px;
@@ -742,6 +752,16 @@ body:not(:has(.admin-shell)) .b2b-model-search-wrap {
     position: relative;
     max-width: 360px;
 }
+body:not(:has(.admin-shell)) .b2b-model-search-panel {
+    max-width: 520px;
+    margin: 0 0 14px;
+    padding: 12px;
+    border: 1px solid #bad5f2;
+    border-radius: 10px;
+    background: #eaf4ff;
+}
+body:not(:has(.admin-shell)) .b2b-model-search-panel > strong { display: block; color: #123b69; font-size: 14px; }
+body:not(:has(.admin-shell)) .b2b-model-search-panel > small { display: block; margin: 2px 0 8px; color: #506c8d; font-size: 11px; }
 body:not(:has(.admin-shell)) .b2b-model-search-wrap > span {
     position: absolute;
     width: 1px;
@@ -809,14 +829,15 @@ body:not(:has(.admin-shell)) .b2b-brand-btn.active {
 body:not(:has(.admin-shell)) .b2b-model-search {
     width: 100%;
     max-width: 360px;
-    height: 36px;
+    height: 44px;
     padding: 8px 11px;
-    margin: 0 0 14px;
+    margin: 0;
     font: inherit;
     font-size: 13px;
-    background: #f7f9fc;
-    border: 1px solid #dfe4eb;
-    border-radius: 5px;
+    background: #fff;
+    border: 2px solid #70a8e4;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(26, 91, 163, .08);
 }
 
 body:not(:has(.admin-shell)) .b2b-mega-view-all {
@@ -848,18 +869,26 @@ body:not(:has(.admin-shell)) .b2b-model-links {
 
 body:not(:has(.admin-shell)) .b2b-model-series {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
     align-items: start;
     gap: 14px;
 }
 
 body:not(:has(.admin-shell)) .b2b-model-series-group {
     min-width: 0;
-    padding: 10px;
+    padding: 0;
     border: 1px solid #e4e9f0;
     border-radius: 8px;
     background: #fbfcfe;
 }
+body:not(:has(.admin-shell)) .b2b-model-series-group[open] { grid-column: span 1; border-color: #a9c9eb; box-shadow: 0 4px 12px rgba(24, 89, 168, .07); }
+body:not(:has(.admin-shell)) .b2b-model-series-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; padding: 9px 11px; list-style: none; cursor: pointer; color: #26384d; font-size: 13px; font-weight: 700; }
+body:not(:has(.admin-shell)) .b2b-model-series-group > summary::-webkit-details-marker { display: none; }
+body:not(:has(.admin-shell)) .b2b-model-series-group:not([open]) > .b2b-series-body { display: none; }
+body:not(:has(.admin-shell)) .b2b-model-series-group > summary small { padding: 2px 6px; border-radius: 999px; background: #e9f2fc; color: #557698; font-size: 10px; }
+body:not(:has(.admin-shell)) .b2b-model-series-group[open] > summary { border-bottom: 1px solid #e1e8f0; background: #eff6ff; color: #155fae; }
+body:not(:has(.admin-shell)) .b2b-series-body { padding: 7px; }
+body:not(:has(.admin-shell)) .b2b-series-expand { width: 100%; min-height: 34px; margin-top: 5px; border: 1px solid #c9def4; border-radius: 6px; background: #eff6ff; color: #1764b5; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 
 body:not(:has(.admin-shell)) .b2b-model-series-group h4 {
     display: flex;
@@ -877,10 +906,9 @@ body:not(:has(.admin-shell)) .b2b-model-series-group .b2b-model-links {
     display: flex;
     flex-direction: column;
     gap: 1px;
-    max-height: 340px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
+    max-height: none;
+    overflow-y: visible;
+    overscroll-behavior: auto;
 }
 
 body:not(:has(.admin-shell)) .b2b-model-series-group .b2b-model-link {
@@ -1154,6 +1182,9 @@ body:not(:has(.admin-shell)) .mobile-chevron {
         max-width: 100%;
         overflow-x: hidden;
         box-sizing: border-box;
+    }
+    body:not(:has(.admin-shell)) .b2b-mega-heading {
+        position: static;
     }
     body:not(:has(.admin-shell)) .b2b-models-grid,
     body:not(:has(.admin-shell)) .b2b-model-series,

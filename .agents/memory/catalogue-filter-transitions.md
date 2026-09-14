@@ -19,3 +19,9 @@ first load should use a layout-shaped skeleton. That skeleton must name the
 destination being loaded and resemble the real sidebar, toolbar, thumbnails,
 product text, stock, price, and order controls; broad anonymous grey blocks
 look like a broken page even when the request is healthy.
+
+Visible brand or model availability counts must come from the exact active
+catalogue context. A shared menu snapshot may render taxonomy or preserve a fast
+transition, but it must not present global counts as category-specific counts.
+Show a local loading state for contextual browse data while product rows remain
+available.

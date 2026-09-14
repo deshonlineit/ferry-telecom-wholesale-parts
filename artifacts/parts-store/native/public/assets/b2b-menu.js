@@ -414,24 +414,34 @@
             if (groups.size < 2 || [...groups.values()].reduce((count, group) => count + group.models.length, 0) !== models.length) {
                 return `<div class="b2b-model-links">${models.map(Menu.modelLink).join('')}</div>`;
             }
-            return `<div class="b2b-model-series">${[...groups.values()]
-                .sort((a, b) => a.order - b.order)
-                .map(group => `<section class="b2b-model-series-group" aria-labelledby="series-${esc(entry.family.id)}-${esc(group.key)}">
-                    <h4 id="series-${esc(entry.family.id)}-${esc(group.key)}">${esc(group.label)}</h4>
-                    <div class="b2b-model-links">${group.models.map(Menu.modelLink).join('')}</div>
-                </section>`).join('')}</div>`;
+            const orderedGroups = [...groups.values()].sort((a, b) => a.order - b.order);
+            if (orderedGroups.length > 9) return '';
+            return `<div class="b2b-model-series">${orderedGroups
+                .map((group, index) => {
+                    const shown = group.models.slice(0, 4);
+                    const more = group.models.length > shown.length
+                        ? `<button type="button" class="b2b-series-expand" data-model-series-expand="${esc(group.key)}">${esc(t('showAllInSeries', {count: window.I18n.number(group.models.length), series: group.label}))}</button>`
+                        : '';
+                    return `<details class="b2b-model-series-group" data-menu-model-series="${esc(group.key)}" ${index === 0 ? 'open' : ''}>
+                        <summary id="series-${esc(entry.family.id)}-${esc(group.key)}"><span>${esc(group.label)}</span><small>${window.I18n.number(group.models.length)}</small></summary>
+                        <div class="b2b-series-body"><div class="b2b-model-links">${shown.map(Menu.modelLink).join('')}</div>${more}</div>
+                    </details>`;
+                }).join('')}</div>`;
         },
 
         /** Start concise, but let the visitor expand the complete newest-to-oldest overview in place. */
         modelsMarkup(entry, query = '', expanded = false) {
             const term = String(query || '').trim();
             const ranked = window.ModelSearch.rank(entry.models, term);
+            const grouped = !term ? Menu.groupedModelLinks(entry, ranked) : '';
             const shown = term || expanded ? ranked : ranked.slice(0, MODEL_LIMIT);
             const total = entry.models.length;
             const label = entry.family.label;
             const parts = Number(entry.family.count || 0);
             let status;
-            if (term) {
+            if (grouped) {
+                status = t('chooseSeriesOrSearch', {count: window.I18n.number(total)});
+            } else if (term) {
                 status = ranked.length
                     ? t('modelsOfTotal', {shown: ranked.length, total})
                     : t('noModelInFamily', {label});
@@ -442,11 +452,11 @@
                     ? t('newestOfModels', {shown: shown.length, total})
                     : `${window.I18n.number(total)} ${t(total === 1 ? 'model' : 'models')}`;
             }
-            const toggle = !term && total > MODEL_LIMIT
+            const toggle = !grouped && !term && total > MODEL_LIMIT
                 ? `<button type="button" class="b2b-model-expand" data-model-expand aria-expanded="${expanded}">${expanded ? t('showNewest', {count: MODEL_LIMIT}) : t('showAllModels', {count: total})}<span aria-hidden="true">${expanded ? '↑' : '↓'}</span></button>`
                 : '';
             const modelLinks = !term
-                ? Menu.groupedModelLinks(entry, shown)
+                ? (grouped || `<div class="b2b-model-links">${shown.map(Menu.modelLink).join('')}</div>`)
                 : `<div class="b2b-model-links">${shown.map(Menu.modelLink).join('')}</div>`;
             return `<p class="b2b-model-status" role="status" aria-live="polite">${esc(status)}</p>
                 ${modelLinks}
@@ -483,7 +493,7 @@
             const brands = showBrands ? `<div class="b2b-mega-brands">${groups.map((group, index) =>
                 `<button type="button" class="b2b-brand-btn${index === 0 ? ' active' : ''}" data-brand-index="${index}" aria-expanded="${index === 0}" aria-controls="${prefix}-brand-families-${index}">${esc(group.brand.name)}</button>`
             ).join('')}</div>` : '';
-            return `<div class="b2b-mega-layout"><div class="b2b-mega-families">${brands}${familySections.join('')}</div><div class="b2b-mega-models"><div class="b2b-mega-heading"><span>${t('chooseModel')} <small>${t('newestToOldest')}</small></span><button type="button" class="b2b-menu-close">${t('close')}</button></div><label class="b2b-model-search-wrap"><span>${t('searchModels')}</span><input type="search" class="b2b-model-search" placeholder="${esc(t('enterModelName'))}" autocomplete="off"></label>${grids.join('')}<button type="button" class="b2b-menu-back">${t('backToCatalogue')}</button></div></div>`;
+            return `<div class="b2b-mega-layout"><div class="b2b-mega-families">${brands}${familySections.join('')}</div><div class="b2b-mega-models"><div class="b2b-mega-heading"><span>${t('chooseModel')} <small>${t('newestToOldest')}</small></span><button type="button" class="b2b-menu-close">${t('close')}</button></div><div class="b2b-model-search-panel"><strong>${esc(t('searchYourModel'))}</strong><small>${esc(t('searchModelFirstHint'))}</small><label class="b2b-model-search-wrap"><span>${t('searchModels')}</span><input type="search" class="b2b-model-search" placeholder="${esc(t('enterModelName'))}" autocomplete="off"></label></div>${grids.join('')}<button type="button" class="b2b-menu-back">${t('backToCatalogue')}</button></div></div>`;
         },
 
         bindDropdown(item) {
@@ -540,6 +550,22 @@
                 }
                 const familyButton = event.target.closest?.('.b2b-family-btn');
                 if (familyButton) activateFamily(familyButton);
+                const seriesButton = event.target.closest?.('[data-model-series-expand]');
+                if (seriesButton) {
+                    event.stopPropagation?.();
+                    const active = overlay.querySelector('.b2b-models-grid.active');
+                    const entry = active && overlay._b2bFamilies?.get(String(active.dataset.familyGrid));
+                    const groupKey = seriesButton.dataset.modelSeriesExpand;
+                    const card = seriesButton.closest('[data-menu-model-series]');
+                    if (entry && card) {
+                        const groupModels = entry.models.filter(model => modelSeries(entry, model)?.key === groupKey);
+                        card.open = true;
+                        card.querySelector('.b2b-model-links').innerHTML = groupModels.map(Menu.modelLink).join('');
+                        seriesButton.remove();
+                        card.querySelector('a')?.focus({preventScroll: true});
+                    }
+                    return;
+                }
                 const expandButton = event.target.closest?.('[data-model-expand]');
                 if (expandButton) {
                     // The clicked button is replaced below. Stop this event before its
@@ -561,16 +587,6 @@
                 }
                 if (event.target.closest?.('a')) Menu.closeAll();
             });
-            // The dropdown grows with its content and never owns vertical
-            // scrolling. A downward browse gesture reveals every model while
-            // remaining passive so the same gesture scrolls the page.
-            const revealOnBrowse = event => {
-                if (Menu._openItem !== item) return;
-                if (event.type === 'wheel' && Number(event.deltaY || 0) <= 0) return;
-                expandActiveModels(false);
-            };
-            overlay.addEventListener('wheel', revealOnBrowse, {passive: true});
-            overlay.addEventListener('touchmove', revealOnBrowse, {passive: true});
             overlay.addEventListener('keydown', event => {
                 const current = event.target.closest?.('.b2b-family-btn');
                 if (!current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;

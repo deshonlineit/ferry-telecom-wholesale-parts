@@ -239,7 +239,7 @@ window.Router.add(/^admin\/products\/(new|\d+)$/, async (match, root) => {
                                     <option value="draft" ${p.publication_status !== 'visible' ? 'selected' : ''}>Draft</option>
                                     <option value="visible" ${p.publication_status === 'visible' ? 'selected' : ''}>Visible (Published)</option>
                                 </select>
-                                <div class="editor-help-text">Publishing requires SKU, name, category, brand, and a price for every customer group.</div>
+                                <div class="editor-help-text">Publishing requires SKU, name, category, and brand. A product without a customer price stays visible but cannot be ordered.</div>
                             </div>
                             <hr style="border:0; border-top:1px solid var(--wb-border); margin:1rem 0;">
                             <label class="checkbox-card">

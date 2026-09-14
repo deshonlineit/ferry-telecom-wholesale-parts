@@ -21,9 +21,21 @@ const models = rule('body:not(:has(.admin-shell)) .b2b-mega-models');
 assert(/\boverflow:\s*visible\b/.test(models), 'Model section must use page scrolling');
 assert(!/\boverflow-y:\s*auto\b/.test(models), 'Model section must not own a vertical scrollbar');
 
-assert(/overlay\.addEventListener\('wheel',\s*revealOnBrowse,\s*\{passive:\s*true\}\)/.test(menu),
-    'A wheel gesture must reveal all models without cancelling page scroll');
-assert(/overlay\.addEventListener\('touchmove',\s*revealOnBrowse,\s*\{passive:\s*true\}\)/.test(menu),
-    'A touch gesture must reveal all models without cancelling page scroll');
+const seriesLinks = rule('body:not(:has(.admin-shell)) .b2b-model-series-group .b2b-model-links');
+assert(/\bmax-height:\s*none\b/.test(seriesLinks), 'Model groups must grow to their full content height');
+assert(/\boverflow-y:\s*visible\b/.test(seriesLinks), 'Model groups must not own a vertical scrollbar');
+
+const heading = rule('body:not(:has(.admin-shell)) .b2b-mega-heading');
+assert(/\bposition:\s*sticky\b/.test(heading), 'Desktop close controls must stay reachable while the page scrolls');
+
+const openHeader = rule('body:not(:has(.admin-shell)):has(.b2b-nav-item.is-open) .app-header');
+assert(/\bposition:\s*relative\b/.test(openHeader), 'An open desktop menu must move with the document instead of remaining pinned');
+
+assert(!/revealOnBrowse/.test(menu),
+    'Scrolling or swiping must never expand the complete model catalogue.');
+assert(/data-model-series-expand/.test(menu),
+    'Customers need an explicit per-series action to reveal older models.');
+assert(/status = t\('chooseSeriesOrSearch'/.test(menu),
+    'Grouped model menus must explain that customers can search or open one series.');
 
 console.log('menu page-scroll regression passed');

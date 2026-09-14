@@ -312,6 +312,50 @@
             notice.innerHTML = `<p>${t('catalogueCouldNotLoad', {message: error.message || ''})}</p><button type="button" class="lp-btn lp-btn-ghost" data-lp-retry>${t('retry')}</button>`;
             root.querySelectorAll('[data-lp-categories], [data-lp-families], [data-lp-models]').forEach(node => { node.innerHTML = ''; });
         },
+        slideProducts(track, direction) {
+            if (track.dataset.sliding === 'true' || track.children.length < 2) return;
+            const first = track.firstElementChild;
+            const last = track.lastElementChild;
+            const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 0;
+            const step = first.getBoundingClientRect().width + gap;
+            const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            track.dataset.sliding = 'true';
+
+            const finish = () => {
+                track.style.transition = 'none';
+                track.style.transform = '';
+                track.dataset.sliding = 'false';
+            };
+
+            if (direction > 0) {
+                if (reducedMotion) {
+                    track.append(first);
+                    finish();
+                    return;
+                }
+                track.style.transition = 'transform 320ms cubic-bezier(.22,.61,.36,1)';
+                track.style.transform = `translate3d(${-step}px,0,0)`;
+                track.addEventListener('transitionend', () => {
+                    track.append(first);
+                    finish();
+                }, {once: true});
+                return;
+            }
+
+            track.prepend(last);
+            track.style.transition = 'none';
+            track.style.transform = `translate3d(${-step}px,0,0)`;
+            track.getBoundingClientRect();
+            if (reducedMotion) {
+                finish();
+                return;
+            }
+            requestAnimationFrame(() => {
+                track.style.transition = 'transform 320ms cubic-bezier(.22,.61,.36,1)';
+                track.style.transform = 'translate3d(0,0,0)';
+                track.addEventListener('transitionend', finish, {once: true});
+            });
+        },
         bind(root) {
             const input = root.querySelector('#home-search');
             const form = root.querySelector('.lp-search');
@@ -333,7 +377,7 @@
                 const slider = event.target.closest('[data-lp-slider]');
                 if (slider) {
                     const track = slider.closest('[data-lp-product-section]')?.querySelector('[data-lp-product-list]');
-                    if (track) track.scrollBy({left: Number(slider.dataset.lpSlider) * track.clientWidth * 0.82, behavior: 'smooth'});
+                    if (track) L.slideProducts(track, Number(slider.dataset.lpSlider));
                 }
             });
         },

@@ -2,6 +2,7 @@
     const esc = window.Core.escapeHtml;
     const t = (key, values) => window.I18n.t(key, values);
     const BROWSE_LIMIT = 8;
+    const SERIES_LIMIT = 5;
     const C = window.CategoryModels = {
         modelUrl(params, model) {
             const currentFamily = params.get('family') || '';
@@ -110,18 +111,20 @@
             }
             return {models, total: all.length};
         },
-        familyLinks(catalog, params) {
+        familyLinks(catalog, params, openFirst = false) {
             const selected = params.get('family') || '';
             return (catalog.device_families || []).filter(family => Number(family.count) > 0 || family.id === selected)
-                .map(family => {
+                .map((family, index) => {
                     const isSelected = family.id === selected || C.activeFamily(catalog, params) === family.id;
-                    return `<details class="device-family-group" name="device-family-accordion">
+                    return `<details class="device-family-group" name="device-family-accordion" ${isSelected || (openFirst && index === 0) ? 'open' : ''}>
                         <summary class="device-family-choice ${isSelected ? 'active' : ''}">
                             <strong>${esc(family.label)}</strong>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </summary>
                         <div class="device-family-dropdown">
                             <div class="category-model-tools">
+                                <strong class="category-model-search-title">${esc(t('searchYourModel'))}</strong>
+                                <span class="category-model-search-copy">${esc(t('searchModelFirstHint'))}</span>
                                 <label class="category-model-search">
                                     <span class="category-model-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span>
                                     <input type="search" class="form-control" data-category-model-search="${esc(family.id)}" placeholder="${esc(t('searchModelExample'))}" aria-label="${esc(t('searchModels'))}" autocomplete="off">
@@ -139,32 +142,37 @@
                 }).join('');
         },
         orderedModels(catalog, params, family, query = '', expanded = false) {
-            const result = C.visibleModels(catalog, params, family, query, expanded);
-            if (!result.models.length) return `<p class="category-model-empty">${esc(t('noResults'))}</p>`;
-            const groups = C.groupedModels(catalog, family, result.models);
-            const grouped = groups.map(group => `<section class="category-model-series" data-device-model-group="${esc(group.id)}">
-                ${groups.length > 1 ? `<h4>${esc(group.label)}</h4>` : ''}
-                <nav class="category-model-options" aria-label="${esc(group.label)}">${C.links(group.models, params)}</nav>
-            </section>`).join('');
-            const more = !query.trim() && result.total > result.models.length
-                ? `<button type="button" class="category-model-show-all" data-category-model-show-all="${esc(family)}">${esc(t('showAllModels', {count: window.I18n.number(result.total)}))}</button>`
-                : '';
-            return `<div class="category-model-results-meta">${esc(C.caption(result.models.length, result.total, query))}</div>
-                <div class="category-model-scroll">${grouped}</div>${more}`;
+            const models = C.familyOptions(catalog, params, family, query);
+            if (!models.length) return `<p class="category-model-empty">${esc(t('noResults'))}</p>`;
+            const groups = C.groupedModels(catalog, family, models);
+            const selectedId = params.get('model');
+            const selectedGroup = groups.find(group => group.models.some(model => String(model.id) === selectedId))?.id;
+            const grouped = groups.map((group, index) => {
+                const shown = query.trim() || expanded ? group.models : group.models.slice(0, SERIES_LIMIT);
+                const more = !query.trim() && group.models.length > shown.length
+                    ? `<button type="button" class="category-model-series-more" data-category-series-all="${esc(family)}" data-category-series="${esc(group.id)}">${esc(t('showAllInSeries', {count: window.I18n.number(group.models.length), series: group.label}))}</button>`
+                    : '';
+                return `<details class="category-model-series" data-device-model-group="${esc(group.id)}" ${query.trim() || group.id === selectedGroup || (!selectedGroup && index === 0) ? 'open' : ''}>
+                    <summary><span>${esc(group.label)}</span><small>${window.I18n.number(group.models.length)}</small></summary>
+                    <div class="category-model-series-body"><nav class="category-model-options" aria-label="${esc(group.label)}">${C.links(shown, params)}</nav>${more}</div>
+                </details>`;
+            }).join('');
+            return `<div class="category-model-results-meta">${esc(query.trim() ? C.caption(models.length, models.length, query) : t('chooseSeriesOrSearch', {count: window.I18n.number(models.length)}))}</div>
+                <div class="category-model-scroll category-model-series-grid">${grouped}</div>`;
         },
-        render(catalog, params, subject) {
+        render(catalog, params, subject, options = {}) {
             const selected = catalog.models.find(model => String(model.id) === params.get('model'));
             const heading = selected
                 ? `<strong>${esc(selected.name)}</strong><small>${t('device')} · ${t('changeDevice', {name: ''}).replace('…', '')}</small>`
-                : `<strong>${t('chooseModel')}</strong><small>${t('optional')}</small>`;
-            return `<details class="category-models" data-category-models>
+                : `<strong>${options.prominent ? t('compatibleModels') : t('chooseModel')}</strong><small>${options.prominent ? esc(subject) : t('optional')}</small>`;
+            return `<details class="category-models ${options.prominent ? 'category-models--prominent' : ''}" data-category-models ${options.open ? 'open' : ''}>
                 <summary class="category-model-trigger">
                     <span class="category-model-trigger-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 5h4M11 18.5h2"/></svg></span>
                     <span class="category-model-heading">${heading}</span>
                     <svg class="category-model-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </summary>
                 <div class="category-model-body">
-                    <nav class="device-family-options" data-device-family-options aria-label="${t('chooseModel')}">${C.familyLinks(catalog, params)}</nav>
+                    <nav class="device-family-options" data-device-family-options aria-label="${t('chooseModel')}">${C.familyLinks(catalog, params, Boolean(options.openFirst))}</nav>
                 </div>
             </details>`;
         },
@@ -207,6 +215,21 @@
             });
 
             root.addEventListener('click', event => {
+                const seriesAll = event.target.closest('[data-category-series-all]');
+                if (seriesAll) {
+                    const family = seriesAll.dataset.categorySeriesAll;
+                    const groupId = seriesAll.dataset.categorySeries;
+                    const group = C.groupedModels(catalog, family, C.familyOptions(catalog, params, family))
+                        .find(candidate => candidate.id === groupId);
+                    const card = seriesAll.closest('[data-device-model-group]');
+                    if (group && card) {
+                        card.open = true;
+                        card.querySelector('.category-model-options').innerHTML = C.links(group.models, params);
+                        seriesAll.remove();
+                        card.querySelector('a')?.focus({preventScroll: true});
+                    }
+                    return;
+                }
                 const showAll = event.target.closest('[data-category-model-show-all]');
                 if (showAll) {
                     const family = showAll.dataset.categoryModelShowAll;

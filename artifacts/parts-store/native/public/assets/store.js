@@ -938,6 +938,11 @@ window.Router.add(/^register$/, async (match, root) => {
                     <div class="registration-consents">
                         <label><input type="checkbox" name="newsletter_opt_in"> <span>${r.newsletter}</span></label>
                         <label><input type="checkbox" name="terms_accepted" required> <span>${r.terms} *</span></label>
+                        <div class="registration-legal-links">
+                            <a href="${window.APP_BASE}terms-conditions" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+                            <span aria-hidden="true">·</span>
+                            <a href="${window.APP_BASE}privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block btn-lg registration-submit"><span>${t('applyAccount')}</span><span aria-hidden="true">→</span></button>
                 </form>

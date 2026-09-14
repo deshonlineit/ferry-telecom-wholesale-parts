@@ -437,12 +437,20 @@ function commerceSetCart(): never
             $statement->execute([(int) $lockedUser['id'], $productId]);
         } else {
             $statement = $pdo->prepare(
-                "SELECT stock,minimum_quantity FROM products WHERE id=? AND active=TRUE AND publication_status='visible' FOR UPDATE"
+                "SELECT p.stock,p.minimum_quantity,
+                        COALESCE(gp.price_eur_cents,p.list_price_eur_cents) AS price_eur_cents
+                 FROM products p
+                 LEFT JOIN group_prices gp ON gp.product_id=p.id AND gp.group_id=?
+                 WHERE p.id=? AND p.active=TRUE AND p.publication_status='visible'
+                 FOR UPDATE"
             );
-            $statement->execute([$productId]);
+            $statement->execute([(int) $lockedUser['group_id'], $productId]);
             $product = $statement->fetch(PDO::FETCH_ASSOC);
             if (!$product) {
                 throw new HttpError(404, 'Product not found.');
+            }
+            if ($product['price_eur_cents'] === null) {
+                throw new HttpError(409, 'This product is visible for reference but cannot be ordered until its price is available.');
             }
             if ($quantity < (int) $product['minimum_quantity']) {
                 throw new HttpError(422, 'Quantity is below the minimum for this product.');

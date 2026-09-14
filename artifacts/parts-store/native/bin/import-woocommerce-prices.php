@@ -94,7 +94,7 @@ $plan = [
     'source_sha256' => hash_file('sha256', $csvPath),
     'published_source_skus' => count($source),
     'complete_price_sets' => $complete,
-    'incomplete_price_sets_to_draft' => $incomplete,
+    'visible_without_complete_price_set' => $incomplete,
     'source_skus_missing_from_catalog' => count($missingProducts),
     'missing_examples' => array_slice($missingProducts, 0, 20),
     'mapping' => $priceColumns,
@@ -130,7 +130,7 @@ $updateComplete = $pdo->prepare(
      pricing_version=pricing_version+1 WHERE id=?"
 );
 $updateIncomplete = $pdo->prepare(
-    "UPDATE products SET purchase_price_eur_cents=?,publication_status='draft',
+    "UPDATE products SET purchase_price_eur_cents=?,publication_status='visible',
      pricing_version=pricing_version+1 WHERE id=?"
 );
 $clearPrices = $pdo->prepare('UPDATE group_prices SET price_eur_cents=NULL WHERE product_id=?');
@@ -166,7 +166,8 @@ $plan['visible_with_three_prices'] = (int) $pdo->query(
     "SELECT COUNT(*) FROM products p WHERE p.active=TRUE AND p.publication_status='visible'
      AND (SELECT COUNT(*) FROM group_prices gp WHERE gp.product_id=p.id AND gp.price_eur_cents IS NOT NULL)=3"
 )->fetchColumn();
-$plan['draft_after'] = (int) $pdo->query(
-    "SELECT COUNT(*) FROM products WHERE active=TRUE AND publication_status='draft'"
+$plan['visible_without_three_prices'] = (int) $pdo->query(
+    "SELECT COUNT(*) FROM products p WHERE p.active=TRUE AND p.publication_status='visible'
+     AND (SELECT COUNT(*) FROM group_prices gp WHERE gp.product_id=p.id AND gp.price_eur_cents IS NOT NULL)<3"
 )->fetchColumn();
 echo json_encode($plan, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL;

@@ -245,7 +245,7 @@
 
         document.getElementById('btn-import-woocommerce').addEventListener('click', () => {
             const overlay = window.UI.modal('Import WooCommerce prices', `
-                <p>Upload the complete WooCommerce product export. Products with all three required group prices become visible; incomplete price sets become drafts.</p>
+                <p>Upload the complete WooCommerce product export. Published products remain visible when prices are incomplete, but customers cannot order them until their group has a valid price.</p>
                 <form id="woo-price-import-form">
                     <div class="form-group"><input class="form-control" type="file" name="file" accept=".csv,text/csv" required></div>
                     <button type="submit" class="btn" id="woo-price-preview">Check export</button>
@@ -268,7 +268,7 @@
                     overlay.querySelector('#woo-price-summary').textContent =
                         `${result.published_source_skus} published SKUs\n` +
                         `${result.complete_price_sets} complete price sets\n` +
-                        `${result.incomplete_price_sets_to_draft} incomplete sets will become drafts\n` +
+                        `${result.visible_without_complete_price_set} incomplete sets remain visible but not orderable\n` +
                         `${result.source_skus_missing_from_catalog} SKUs missing from this catalogue`;
                     overlay.querySelector('#woo-price-result').style.display = 'block';
                 } catch (error) {

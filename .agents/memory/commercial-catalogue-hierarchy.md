@@ -20,3 +20,12 @@ customer-specific prices must remain trustworthy.
 visible category order, with subtype ordering only inside a category. Preserve
 exact-SKU/search relevance and every explicit user-selected sort as higher
 authority than the default browse order.
+
+Housing is an exception to immediate category-wide results: require an exact
+device model first, then an exact housing subtype, and only then reveal matching
+products. Keep those steps in the main content and move focus to subtype choices
+after model selection.
+
+**Why:** a mixed housing list combines frames, rear glass, covers, and complete
+assemblies across devices; customers cannot reliably infer the required order
+from ordinary filters.

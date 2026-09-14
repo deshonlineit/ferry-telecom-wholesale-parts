@@ -6,6 +6,7 @@ import os
 import pathlib
 import secrets
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 
@@ -68,6 +69,8 @@ fixtures = [
 ]
 fixtures[1]["payment_entitlements"] = ["swiss_qr_invoice"]
 staff_email, staff_password = fixtures[0]["email"], fixtures[0]["password"]
+unique = secrets.token_hex(5)
+staff = None
 
 
 def fixture(action="create"):
@@ -108,7 +111,6 @@ try:
     check(True, "invoice control is staff-only")
     catalog = customer.call("GET", "/catalog")
     check(catalog["total"] >= 7851 and len(catalog["categories"]) >= 12, "offline catalog imported")
-    unique = secrets.token_hex(5)
     payload = {
         "sku": "QA-" + unique, "name": "QA isolated stock fixture " + unique,
         "description": "Synthetic QA record", "category_id": catalog["categories"][0]["id"],
@@ -288,7 +290,15 @@ try:
     committed = staff.upload("/admin/import", "file", "fixture.csv", csv, "text/csv", {
         "preview": "0", "pricing_versions": json.dumps(preview["pricing_versions"]),
     })
-    check(committed["created"] == 1 and len(customer.call("GET", f"/products?q=CSV-{unique}")["products"]) == 1, "CSV commit persists validated rows")
+    visible_csv = customer.call("GET", f"/products?q=CSV-{unique}")["products"]
+    check(committed["created"] == 1 and len(visible_csv) == 1, "CSV commit persists validated rows")
+    staff.call("DELETE", f"/admin/products/{visible_csv[0]['id']}")
+    staff.call("DELETE", f"/admin/products/{pid}")
+    check(
+        not customer.call("GET", f"/products?q=CSV-{unique}")["products"]
+        and not customer.call("GET", f"/products?q=QA-{unique}")["products"],
+        "QA catalogue products are archived immediately after their assertions",
+    )
     for path in ["/admin/dashboard", "/admin/customers", "/admin/settings", "/admin/diagnostics", "/admin/audit", "/admin/returns", "/admin/integrations"]:
         check(bool(staff.call("GET", path)), path + " responds for staff")
     customer.call("GET", "/admin/diagnostics", expected=(403,))
@@ -297,4 +307,14 @@ try:
     check(simulation["event"]["local_only"] is True, "simulation status is returned directly without a mailbox")
     print(json.dumps({"passed": len(checks), "checks": checks}, indent=2))
 finally:
+    if staff is not None:
+        for sku in ("QA-" + unique, "CSV-" + unique):
+            for status in ("visible", "draft"):
+                try:
+                    result = staff.call("GET", f"/admin/products?status={status}&q={sku}&limit=20")
+                    for product in result.get("products", []):
+                        if product.get("sku") == sku and product.get("quality") == "Test":
+                            staff.call("DELETE", f"/admin/products/{product['id']}")
+                except Exception as cleanup_error:
+                    print(f"QA product cleanup failed for {sku}: {cleanup_error}", file=sys.stderr)
     fixture("block")

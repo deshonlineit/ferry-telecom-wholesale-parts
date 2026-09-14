@@ -43,6 +43,7 @@
             if (!container || !input?.isConnected) return;
             container.innerHTML = `<div class="suggestion-empty${error ? ' text-danger' : ''}" role="status">${window.Core.escapeHtml(message)}</div>`;
             container.style.display = 'block';
+            O.activateSearchPopout(container, input);
             input.setAttribute('aria-expanded', 'true');
             input.removeAttribute('aria-activedescendant');
             window.App.searchIndex = -1;
@@ -91,7 +92,7 @@
             input.setAttribute('aria-haspopup', 'dialog');
             input.removeAttribute('aria-activedescendant');
             window.App.searchIndex = -1;
-            container.innerHTML = `<div class="suggestion-group-title">${window.I18n.t('smartMatches')} <span>${window.I18n.number(data.products.length)} ${window.I18n.t('products')}</span></div>
+            container.innerHTML = `<div class="suggestion-group-title"><span><strong>${window.I18n.t('smartMatches')}</strong><small>${window.I18n.number(data.products.length)} ${window.I18n.t('products')}</small></span><button type="button" class="search-popout-close" aria-label="${window.I18n.t('close')}">×</button></div>
                 ${smartSurface ? `<div class="smart-search-context"><span class="smart-search-understood">${window.I18n.t('understoodAs')} <strong>${esc(intent.label || window.I18n.t('productMatch'))}</strong></span><span>${window.I18n.t('chooseQuantity')}</span><span>${window.I18n.t('addCart')}</span></div>${partOptions}` : ''}` +
                 data.products.map((product, index) => {
                     const minimum = Math.max(1, Number(product.minimum_quantity) || 1);
@@ -118,7 +119,17 @@
                         <span class="b2b-row-feedback" role="status" aria-live="polite"></span>
                     </div>`;
                 }).join('') +
+                `<div class="search-scroll-cue" data-search-scroll-cue><span>${window.I18n.t('scrollMoreResults')}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></div>` +
                 `<a href="${window.APP_BASE}catalog?q=${encodeURIComponent(query)}" class="suggestion-footer" data-search-option>${window.I18n.t(data.has_more ? 'viewAllResults' : 'viewProductsTable')} &rarr;</a>`;
+            container.querySelector('.search-popout-close')?.addEventListener('click', () => {
+                window.UI.closeSuggestions();
+                O.focusSearchInput(input);
+            });
+            container.onclick = event => {
+                if (event.target.closest('a[data-search-option]')) {
+                    setTimeout(() => window.UI.closeSuggestions(), 0);
+                }
+            };
             container.querySelectorAll('[data-quick-add]').forEach(button => {
                 button.addEventListener('click', event => {
                     event.preventDefault();
@@ -165,7 +176,31 @@
                 }
             };
             container.style.display = 'block';
+            O.activateSearchPopout(container, input);
+            const updateScrollCue = () => {
+                const cue = container.querySelector('[data-search-scroll-cue]');
+                if (!cue) return;
+                const scrollable = container.scrollHeight > container.clientHeight + 8;
+                const atEnd = container.scrollTop + container.clientHeight >= container.scrollHeight - 12;
+                cue.hidden = !scrollable || atEnd;
+                container.classList.toggle('has-more-below', scrollable && !atEnd);
+            };
+            container.onscroll = updateScrollCue;
+            requestAnimationFrame(updateScrollCue);
             input.setAttribute('aria-expanded', 'true');
+        },
+        activateSearchPopout(container, input) {
+            document.querySelectorAll('.search-popout-active').forEach(element => element.classList.remove('search-popout-active'));
+            input.closest('[data-search-root]')?.classList.add('search-popout-active');
+            container.parentElement?.classList.add('search-popout-active');
+            if (window.matchMedia?.('(max-width: 760px)').matches && !container._searchOrigin) {
+                container._searchOrigin = {parent: container.parentNode, next: container.nextSibling};
+                document.body.appendChild(container);
+                document.body.classList.add('search-popout-mobile-open');
+            }
+            container.classList.remove('search-popout-enter');
+            void container.offsetWidth;
+            container.classList.add('search-popout-enter');
         },
         focusSearchInput(input) {
             window.App.restoringSearchFocus = true;
