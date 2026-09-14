@@ -11,6 +11,10 @@ function currencyExchangeRate(): ?array
     if ($resolved) {
         return $cached;
     }
+    $observer = $GLOBALS['currency_exchange_rate_query_observer'] ?? null;
+    if (is_callable($observer)) {
+        $observer();
+    }
     $statement = db()->prepare(
         "SELECT rate_ppm,rate_date,fetched_at,source_url
          FROM exchange_rates WHERE base_currency='EUR' AND quote_currency='CHF'"
