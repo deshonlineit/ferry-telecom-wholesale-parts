@@ -188,12 +188,12 @@
                 }
             } catch (_) {}
             const destinations = [
-                [t('all'), 'catalog'],
-                ['Apple', 'catalog'],
-                ['Samsung', 'catalog'],
-                [t('partsMenu'), 'catalog?department=parts'],
-                [t('supplies'), 'catalog?department=supplies'],
-                [t('otherBrands'), 'catalog']
+                [t('all'), 'catalog', false],
+                ['Apple', 'catalog', true],
+                ['Samsung', 'catalog', true],
+                [t('partsMenu'), 'catalog?department=parts', true],
+                [t('supplies'), 'catalog?department=supplies', true],
+                [t('otherBrands'), 'catalog', true]
             ];
             const mobile = document.createElement('button');
             mobile.type = 'button';
@@ -204,10 +204,28 @@
             const list = document.createElement('ul');
             list.id = 'b2b-top-navigation';
             list.className = 'b2b-top-nav b2b-top-nav-immediate';
-            destinations.forEach(([label, path]) => {
+            destinations.forEach(([label, path, opensMenu]) => {
                 const item = document.createElement('li');
                 item.className = 'b2b-nav-item';
-                item.innerHTML = `<a class="b2b-nav-link" href="${esc(window.APP_BASE + path)}">${esc(label)}</a>`;
+                if (!opensMenu) {
+                    item.innerHTML = `<a class="b2b-nav-link" href="${esc(window.APP_BASE + path)}">${esc(label)}</a>`;
+                } else {
+                    const trigger = document.createElement('button');
+                    trigger.type = 'button';
+                    trigger.className = 'b2b-nav-link';
+                    trigger.dataset.menuLabel = String(label).toLowerCase();
+                    trigger.setAttribute('aria-expanded', 'false');
+                    trigger.innerHTML = `<span>${esc(label)}</span><svg class="mobile-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                    trigger.addEventListener('click', async event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        await Menu.load();
+                        const loadedTrigger = [...Menu._container.querySelectorAll('.b2b-nav-item.has-dropdown > .b2b-nav-link')]
+                            .find(candidate => candidate.dataset.menuLabel === trigger.dataset.menuLabel);
+                        loadedTrigger?.click();
+                    });
+                    item.appendChild(trigger);
+                }
                 list.appendChild(item);
             });
             mobile.addEventListener('click', event => {
@@ -351,22 +369,10 @@
             trigger.type = 'button';
             trigger.setAttribute('aria-expanded', 'false');
             trigger.setAttribute('aria-controls', id);
-            if (destination) {
-                const anchor = document.createElement('a');
-                anchor.className = 'b2b-nav-link is-linked';
-                anchor.href = destination.href;
-                if (destination.brandId) anchor.dataset.deviceBrand = String(destination.brandId);
-                if (destination.department) anchor.dataset.department = destination.department;
-                anchor.textContent = label;
-                item._b2bLink = anchor;
-                item.appendChild(anchor);
-                trigger.className = 'b2b-nav-caret';
-                trigger.setAttribute('aria-label', t('showModels', {label}));
-                trigger.innerHTML = chevron;
-            } else {
-                trigger.className = 'b2b-nav-link';
-                trigger.innerHTML = `<span>${esc(label)}</span>${chevron}`;
-            }
+            trigger.className = 'b2b-nav-link';
+            trigger.dataset.menuLabel = String(label).toLowerCase();
+            trigger.setAttribute('aria-label', t('showModels', {label}));
+            trigger.innerHTML = `<span>${esc(label)}</span>${chevron}`;
             const overlay = document.createElement('div');
             overlay.id = id;
             overlay.className = 'b2b-dropdown-overlay';

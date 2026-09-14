@@ -102,6 +102,8 @@ app.window.Core.fetch = async url => {
     const immediateList = created.find(node => node.className.includes('b2b-top-nav-immediate'));
     assert.ok(immediateList, 'A usable navigation is rendered before the catalogue request settles');
     assert.equal(immediateList.children.length, 6, 'The immediate navigation exposes all primary destinations without skeleton placeholders');
+    assert.equal(immediateList.children[1].children[0].tag, 'button', 'Cold-start Apple is a menu button, never a navigation-only link');
+    assert.match(immediateList.children[1].children[0].innerHTML, /Apple/, 'The cold-start Apple button uses the full visible label as its click target');
     await new Promise(resolve => setImmediate(resolve));
     const error = created.find(node => node.className.includes('b2b-menu-error'));
     const retry = created.find(node => node.className === 'b2b-menu-retry');
@@ -113,17 +115,13 @@ app.window.Core.fetch = async url => {
     const mobile = created.filter(node => node.className === 'b2b-mobile-toggle').at(-1);
     const list = created.find(node => node.className === 'b2b-top-nav');
     const deviceItem = created.find(node => node.className.includes('has-dropdown'));
-    const brandLink = deviceItem.children[0];
-    const trigger = deviceItem.children[1];
-    const overlay = deviceItem.children[2];
-    assert.equal(brandLink.tag, 'a', 'The brand label is a destination, not only a panel toggle');
-    assert.match(brandLink.href, /device_brand=1/, 'Apple opens every part that fits an Apple device');
-    assert.doesNotMatch(brandLink.href, /[?&]brand=/, 'Device browsing never applies a product manufacturer filter');
-    assert.doesNotMatch(brandLink.href, /family=|model=/, 'A brand releases a narrower device scope');
+    const trigger = deviceItem.children[0];
+    const overlay = deviceItem.children[1];
     assert.equal(overlay.hidden, true);
     assert.equal(overlay.attributes.inert, '');
     assert.equal(trigger.tag, 'button');
-    assert.equal(trigger.className, 'b2b-nav-caret');
+    assert.equal(trigger.className, 'b2b-nav-link');
+    assert.match(trigger.innerHTML, /Apple/, 'The full Apple label is part of the menu button');
     assert.ok(trigger.attributes['aria-label'], 'The panel control is labelled for screen readers');
     assert.ok(trigger.attributes['aria-controls']);
 
@@ -178,11 +176,6 @@ app.window.Core.fetch = async url => {
     assert.match(familyLink.href, /family=iphone/);
     assert.doesNotMatch(familyLink.href, /category=/, 'A family row opens the whole family, not the part filter of the previous page');
     assert.doesNotMatch(familyLink.href, /model=11/, 'Choosing a family releases the previously chosen model');
-    app.window.StoreMenu.refreshDestination(brandLink);
-    assert.match(brandLink.href, /device_brand=1/);
-    assert.doesNotMatch(brandLink.href, /category=/, 'A brand opens every part for that brand after client-side navigation');
-    assert.doesNotMatch(brandLink.href, /model=11|[?&]brand=99/);
-
     app.window.innerWidth = 320;
     fire(mobile, 'click');
     fire(trigger, 'click');
