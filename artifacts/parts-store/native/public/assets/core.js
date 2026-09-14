@@ -81,9 +81,8 @@ window.Core = {
             this.user = data.user;
             this.capabilities = data.capabilities;
             this.updateCurrencyContext(data);
-            
-            await this.refreshCart();
             this.renderNav();
+            this.refreshCart();
         } catch(e) {
             document.body.innerHTML = `<div class="container mt-4"><div class="alert error">The application failed to load: ${this.escapeHtml(e.message)}</div></div>`;
         }
@@ -407,9 +406,18 @@ window.App = {
 
     async init() {
         window.I18n?.init();
-        await window.Core.init();
+        const sessionReady = window.Core.init();
+        window.Core.ready = sessionReady;
         window.StoreMenu.init();
-        window.Router.route();
+        const path = location.pathname.startsWith(window.APP_BASE)
+            ? location.pathname.substring(window.APP_BASE.length)
+            : location.pathname.replace(/^\/+/, '');
+        if (path === 'catalog') {
+            await window.Router.route();
+            return;
+        }
+        await sessionReady;
+        await window.Router.route();
     },
     
     async logout() {

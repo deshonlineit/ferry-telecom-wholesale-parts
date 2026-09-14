@@ -367,7 +367,8 @@
         try {
             const [catalog, result] = await Promise.all([
                 D.getCatalog(params, D.catalogCacheKey(params), controller.signal),
-                window.Core.fetch('/products?' + params.toString(), {signal: controller.signal})
+                window.Core.fetch('/products?' + params.toString(), {signal: controller.signal}),
+                window.Core.ready
             ]);
             if (renderVersion !== window.Router.renderVersion || token !== D.catalogToken || controller.signal.aborted) return;
             const part = (catalog.part_types || []).find(type => type.id === params.get('part'));

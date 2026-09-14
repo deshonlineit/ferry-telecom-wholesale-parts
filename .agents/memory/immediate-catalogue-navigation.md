@@ -16,4 +16,6 @@ otherwise-rendered page feel broken.
 **How to apply:** keep fallback controls useful without metadata, use a
 menu-specific response, cache only public catalogue-menu data, refresh in the
 background, and version the server cache filename when its response shape
-changes. Test navigation separately from legitimate content loading states.
+changes. On a cold catalogue route, start session, products, and facets
+together; cart refresh must never gate results. Test navigation separately
+from legitimate content loading states.
