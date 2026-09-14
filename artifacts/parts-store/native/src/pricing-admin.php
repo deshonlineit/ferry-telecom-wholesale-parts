@@ -27,6 +27,161 @@ function pricingGroups(): array
     return $rows;
 }
 
+function pricingWooColumns(): array
+{
+    return [
+        'Repairshop — test' => 'Meta: BigRepairShopCustomerAccount_wholesale_price',
+        'Wholesale — test' => 'Meta: wholesale_customer_wholesale_price',
+        'Partner — test' => 'Meta: partner_customerpp_wholesale_price',
+    ];
+}
+
+function pricingWooMoney(string $value): ?int
+{
+    $value = trim(str_replace(',', '.', $value));
+    if ($value === '' || !is_numeric($value)) return null;
+    $cents = (int)round((float)$value * 100);
+    return $cents > 0 ? $cents : null;
+}
+
+function pricingWooRows(string $path): array
+{
+    $handle = fopen($path, 'rb');
+    $headers = $handle ? fgetcsv($handle, 0, ',', '"', '') : false;
+    if (!is_array($headers)) throw new HttpError(422, 'The WooCommerce export cannot be read.');
+    $headers[0] = ltrim((string)$headers[0], "\xEF\xBB\xBF");
+    foreach (array_merge(['Published', 'SKU'], array_values(pricingWooColumns())) as $required) {
+        if (!in_array($required, $headers, true)) throw new HttpError(422, "Required column is missing: $required");
+    }
+    $rows = [];
+    while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
+        $values = array_slice(array_pad($values, count($headers), ''), 0, count($headers));
+        $row = array_combine($headers, $values);
+        if ($row === false || trim((string)($row['Published'] ?? '')) !== '1') continue;
+        $sku = trim((string)($row['SKU'] ?? ''));
+        if ($sku === '') continue;
+        if (isset($rows[$sku])) throw new HttpError(422, "Published SKU occurs more than once: $sku");
+        $prices = [];
+        foreach (pricingWooColumns() as $group => $column) {
+            $prices[$group] = pricingWooMoney((string)($row[$column] ?? ''));
+        }
+        $rows[$sku] = [
+            'prices' => $prices,
+            'purchase' => pricingWooMoney((string)($row['Meta: Purchase_Price'] ?? '')),
+            'complete' => !in_array(null, $prices, true),
+        ];
+    }
+    fclose($handle);
+    return $rows;
+}
+
+function pricingWooPlan(array $rows): array
+{
+    $existing = array_fill_keys(array_map('strval', db()->query('SELECT sku FROM products')->fetchAll(PDO::FETCH_COLUMN)), true);
+    $complete = $incomplete = 0;
+    $missing = [];
+    foreach ($rows as $sku => $row) {
+        if (!isset($existing[$sku])) $missing[] = $sku;
+        elseif ($row['complete']) $complete++;
+        else $incomplete++;
+    }
+    return [
+        'published_source_skus' => count($rows),
+        'complete_price_sets' => $complete,
+        'incomplete_price_sets_to_draft' => $incomplete,
+        'source_skus_missing_from_catalog' => count($missing),
+        'missing_examples' => array_slice($missing, 0, 20),
+        'mapping' => pricingWooColumns(),
+    ];
+}
+
+function pricingWooPreview(): never
+{
+    requireStaff();
+    $file = $_FILES['file'] ?? null;
+    if (!is_array($file) || (int)($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        throw new HttpError(422, 'A WooCommerce CSV export is required.');
+    }
+    $size = (int)($file['size'] ?? 0);
+    $temporary = (string)($file['tmp_name'] ?? '');
+    if ($size < 1 || $size > 8 * 1024 * 1024 || !is_uploaded_file($temporary)) {
+        throw new HttpError($size > 8 * 1024 * 1024 ? 413 : 422, 'The WooCommerce CSV upload is invalid.');
+    }
+    $directory = dirname(__DIR__) . '/storage/price-imports';
+    if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+        throw new HttpError(500, 'Protected import storage is unavailable.');
+    }
+    $token = bin2hex(random_bytes(24));
+    $path = $directory . '/' . $token . '.csv';
+    if (!move_uploaded_file($temporary, $path)) throw new HttpError(500, 'The uploaded export could not be retained.');
+    chmod($path, 0600);
+    try {
+        $rows = pricingWooRows($path);
+        $plan = pricingWooPlan($rows);
+    } catch (Throwable $error) {
+        @unlink($path);
+        throw $error;
+    }
+    $_SESSION['pricing_woo_imports'][$token] = [
+        'path' => $path, 'sha256' => hash_file('sha256', $path), 'expires' => time() + 1800,
+    ];
+    respond($plan + ['token' => $token, 'expires_in_seconds' => 1800]);
+}
+
+function pricingWooApply(array $input, array $staff): never
+{
+    $token = text($input['token'] ?? '', 100);
+    $preview = $_SESSION['pricing_woo_imports'][$token] ?? null;
+    unset($_SESSION['pricing_woo_imports'][$token]);
+    if (!is_array($preview) || (int)$preview['expires'] < time() || !is_file((string)$preview['path'])
+        || !hash_equals((string)$preview['sha256'], (string)hash_file('sha256', (string)$preview['path']))) {
+        throw new HttpError(409, 'The price import preview expired. Upload the export again.');
+    }
+    $path = (string)$preview['path'];
+    $rows = pricingWooRows($path);
+    $plan = pricingWooPlan($rows);
+    $pdo = db();
+    $groups = [];
+    foreach (pricingGroups() as $group) $groups[$group['name']] = (int)$group['id'];
+    foreach (array_keys(pricingWooColumns()) as $name) {
+        if (!isset($groups[$name])) throw new HttpError(409, "Required customer group is missing: $name");
+    }
+    $products = [];
+    foreach ($pdo->query('SELECT id,sku FROM products') as $product) $products[(string)$product['sku']] = (int)$product['id'];
+    $complete = $pdo->prepare("UPDATE products SET purchase_price_eur_cents=?,publication_status='visible',pricing_version=pricing_version+1 WHERE id=?");
+    $incomplete = $pdo->prepare("UPDATE products SET purchase_price_eur_cents=?,publication_status='draft',pricing_version=pricing_version+1 WHERE id=?");
+    $clear = $pdo->prepare('UPDATE group_prices SET price_eur_cents=NULL WHERE product_id=?');
+    $upsert = $pdo->prepare(dbDriver() === 'pgsql'
+        ? 'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,0,?)
+           ON CONFLICT (product_id,group_id) DO UPDATE SET price_eur_cents=EXCLUDED.price_eur_cents'
+        : 'INSERT INTO group_prices(product_id,group_id,price_cents,price_eur_cents) VALUES(?,?,0,?)
+           ON DUPLICATE KEY UPDATE price_eur_cents=VALUES(price_eur_cents)');
+    try {
+        $pdo->beginTransaction();
+        foreach ($rows as $sku => $row) {
+            if (!isset($products[$sku])) continue;
+            $productId = $products[$sku];
+            if (!$row['complete']) {
+                $clear->execute([$productId]);
+                $incomplete->execute([$row['purchase'], $productId]);
+                continue;
+            }
+            foreach ($row['prices'] as $group => $price) $upsert->execute([$productId, $groups[$group], $price]);
+            $complete->execute([$row['purchase'], $productId]);
+        }
+        audit('prices.woocommerce_imported', 'catalog', 0, $plan + [
+            'source_sha256' => $preview['sha256'], 'by' => (int)$staff['id'],
+        ]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
+    } finally {
+        @unlink($path);
+    }
+    respond($plan + ['applied' => true]);
+}
+
 function pricingProductsByIds(array $ids): array
 {
     if ($ids === []) return [];
@@ -367,6 +522,8 @@ function pricingApplyPreview(array $input, array $staff): never
 
 function handlePricingAdmin(string $method, string $path): bool
 {
+    if ($path === '/admin/prices/import/preview' && $method === 'POST') pricingWooPreview();
+    if ($path === '/admin/prices/import/apply' && $method === 'POST') pricingWooApply(body(), requireStaff());
     if ($path === '/admin/prices' && $method === 'GET') {
         requireStaff();
         $filter = pricingFilter($_GET);

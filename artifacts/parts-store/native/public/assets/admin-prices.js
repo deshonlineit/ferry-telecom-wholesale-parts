@@ -194,6 +194,7 @@
             <div class="page-header">
                 <h1>B2B Prices (EUR)</h1>
                 <div class="prices-header-actions">
+                    <button type="button" class="btn btn-outline" id="btn-import-woocommerce">Import WooCommerce prices</button>
                     <button type="button" class="btn btn-outline" id="btn-import-excel">Paste from Excel</button>
                     <button type="button" class="btn btn-outline" id="btn-adjust-selected">Adjust Selected</button>
                     <button type="button" class="btn btn-outline" id="btn-bulk-adjust">Bulk Adjust Filtered</button>
@@ -241,6 +242,58 @@
 
         // Events
         root.querySelector('#prices-table').addEventListener('input', handleInput);
+
+        document.getElementById('btn-import-woocommerce').addEventListener('click', () => {
+            const overlay = window.UI.modal('Import WooCommerce prices', `
+                <p>Upload the complete WooCommerce product export. Products with all three required group prices become visible; incomplete price sets become drafts.</p>
+                <form id="woo-price-import-form">
+                    <div class="form-group"><input class="form-control" type="file" name="file" accept=".csv,text/csv" required></div>
+                    <button type="submit" class="btn" id="woo-price-preview">Check export</button>
+                </form>
+                <div id="woo-price-result" style="display:none;margin-top:1rem">
+                    <pre id="woo-price-summary" style="white-space:pre-wrap"></pre>
+                    <button type="button" class="btn" id="woo-price-apply">Apply checked prices</button>
+                </div>
+            `);
+            let token = null;
+            overlay.querySelector('#woo-price-import-form').onsubmit = async event => {
+                event.preventDefault();
+                const button = overlay.querySelector('#woo-price-preview');
+                button.disabled = true;
+                try {
+                    const result = await window.Core.fetch('/admin/prices/import/preview', {
+                        method: 'POST', body: new FormData(event.target)
+                    });
+                    token = result.token;
+                    overlay.querySelector('#woo-price-summary').textContent =
+                        `${result.published_source_skus} published SKUs\n` +
+                        `${result.complete_price_sets} complete price sets\n` +
+                        `${result.incomplete_price_sets_to_draft} incomplete sets will become drafts\n` +
+                        `${result.source_skus_missing_from_catalog} SKUs missing from this catalogue`;
+                    overlay.querySelector('#woo-price-result').style.display = 'block';
+                } catch (error) {
+                    window.Workbench.toast(error.message, 'error');
+                } finally {
+                    button.disabled = false;
+                }
+            };
+            overlay.querySelector('#woo-price-apply').onclick = async event => {
+                if (!token) return;
+                event.target.disabled = true;
+                try {
+                    const result = await window.Core.fetch('/admin/prices/import/apply', {
+                        method: 'POST', body: {token}
+                    });
+                    window.UI.closeModal(overlay);
+                    window.Workbench.toast(`${result.complete_price_sets} complete price sets imported`, 'success');
+                    priceDrafts.clear();
+                    window.Router.route();
+                } catch (error) {
+                    window.Workbench.toast(error.message, 'error');
+                    event.target.disabled = false;
+                }
+            };
+        });
         
         document.getElementById('prices-filter-form').onsubmit = (e) => {
             e.preventDefault();
